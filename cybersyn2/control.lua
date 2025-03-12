@@ -1,0 +1,5 @@
+require("scripts.types")
+require("scripts.events")
+require("scripts.global")
+require("scripts.settings")
+require("scripts.main")
