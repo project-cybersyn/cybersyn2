@@ -1,0 +1,5 @@
+.vscode/launch.json
+.vscode/settings.json
+
+# Krita autosave files
+*-autosave.kra
