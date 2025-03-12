@@ -4,6 +4,6 @@
   "title": "Project Cybersyn 2",
   "author": "The Project Cybersyn Contributors",
   "factorio_version": "2.0",
-  "dependencies": ["base >= 2.0", "flib >= 0.16.0"],
-  "description": "Creates a feature-rich train logistics network through cybernetic combinators. Modernized version of Project Cybersyn redesigned from the ground up for Factorio 2.0."
+  "dependencies": ["base >= 2.0.39", "flib >= 0.16.0"],
+  "description": "Creates a feature-rich train logistics system controlled by cybernetic combinators and the circuit network. A successor to Project Cybersyn, redesigned for Factorio 2.0."
 }
