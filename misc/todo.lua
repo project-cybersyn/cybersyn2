@@ -1,0 +1,1 @@
+-- TODO: Starvation proof logistics algorithm. Concept: instead of a single tick dispatch phase, dispatch unlimited trains over several ticks, except only one train per item_network_name and only one train per inventory/provider.

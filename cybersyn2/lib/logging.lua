@@ -1,3 +1,7 @@
+if ... ~= "__cybersyn2__.lib.logging" then
+	return require("__cybersyn2__.lib.logging")
+end
+
 local tconcat = table.concat
 
 local lib = {}
@@ -10,7 +14,7 @@ local log_level = {
 	["warn"] = 4,
 	["error"] = 5,
 }
-lib.log_level = log_level
+lib.level = log_level
 
 ---@param level Log.Level
 ---@param category string?
@@ -55,6 +59,20 @@ end
 
 function lib.error(msg, ...)
 	return log(log_level.error, nil, nil, msg, ...)
+end
+
+local once_keys = {}
+
+---Log something exactly once per Lua session based on key.
+---@param level Log.Level
+---@param once_key string
+---@param category string?
+---@param filter any
+---@param msg string
+function lib.once(level, once_key, category, filter, msg, ...)
+	if once_keys[once_key or ""] then return end
+	once_keys[once_key or ""] = true
+	return log(level, category, filter, msg, ...)
 end
 
 return lib

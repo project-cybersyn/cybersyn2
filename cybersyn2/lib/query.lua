@@ -1,13 +1,15 @@
--- Types and reusable code relating to Cybersyn queries
+-- Types and reusable code for the public Cybersyn query interface.
 
-if ... ~= "__cybersyn__.lib.query" then
-	return require("__cybersyn__.lib.query")
+if ... ~= "__cybersyn2__.lib.query" then
+	return require("__cybersyn2__.lib.query")
 end
+
+require("__cybersyn2__.lib.types")
 
 ---@enum Cybersyn.Query.QueryType
 local query_type = {
 	-- Query that lists all available queries.
-	["query_type"] = "query_type",
+	["queries"] = "queries",
 }
 
 ---@enum Cybersyn.Query.ContainerType
@@ -20,7 +22,6 @@ local container_type = {
 
 ---@class Cybersyn.Query.Result
 ---@field query_type Cybersyn.Query.QueryType
----@field container_type Cybersyn.Query.ContainerType
 
 local lib = {}
 
