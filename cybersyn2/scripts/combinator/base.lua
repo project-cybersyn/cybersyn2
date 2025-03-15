@@ -15,26 +15,7 @@ if not combinator_api then combinator_api = {} end
 
 ---Full internal game state of a combinator.
 ---@class Cybersyn.Combinator.Internal: Cybersyn.Combinator
-
--- Set of entity names that should be considered combinators.
----@type {[string]: true?}
-local combinator_names_set = {
-	["cybersyn2-combinator"] = true,
-}
-
--- List of entity names that should be considered combinators.
-local combinator_names = tlib.t_map_a(combinator_names_set, function(v, k) return k end)
-
----Get a list of all entity names corresponding to combinators.
-function combinator_api.get_combinator_names()
-	return combinator_names
-end
-
----Check if a string is the name of a combinator entity.
----@param name string?
-function combinator_api.is_combinator_name(name)
-	return combinator_names_set[name or ""] or false
-end
+---@field public settings_entity LuaEntity? The hidden settings entity for this combinator, if any.
 
 ---@param combinator Cybersyn.Combinator.Ephemeral?
 ---@return boolean?
@@ -55,10 +36,10 @@ end
 ---Determine if an entity is a valid combinator or ghost combinator.
 ---@param entity LuaEntity
 ---@return boolean #`true` if entity is a combinator or ghost
-function combinator_api.is_combinator_entity(entity)
+function combinator_api.is_combinator_or_ghost_entity(entity)
 	if not entity or not entity.valid then return false end
 	local true_name = entity.name == "entity-ghost" and entity.ghost_name or entity.name
-	return combinator_api.is_combinator_name(true_name)
+	return true_name == "cybersyn2-combinator"
 end
 
 ---Retrieve a real combinator from storage by its `unit_number`.
@@ -100,21 +81,10 @@ end
 ---@param entity LuaEntity
 ---@return Cybersyn.Combinator.Ephemeral?
 function combinator_api.entity_to_ephemeral(entity)
-	if combinator_api.is_combinator_entity(entity) then
+	if combinator_api.is_combinator_or_ghost_entity(entity) then
 		return { entity = entity }
 	end
 	return nil
-end
-
----Reference that can be used to manipulate the settings of a combinator.
----@class (exact) Cybersyn.Combinator.Settings: Cybersyn.Combinator.Ephemeral
-
----@param combinator Cybersyn.Combinator.Ephemeral
----@return Cybersyn.Combinator.Settings
-function combinator_api.get_combinator_settings(combinator)
-	return {
-		entity = combinator.entity,
-	}
 end
 
 ---Locate all `LuaEntity`s corresponding to combinators within the given area.
@@ -128,7 +98,7 @@ function combinator_api.find_combinator_entities(surface, area, position, radius
 		area = area,
 		position = position,
 		radius = radius,
-		name = combinator_api.get_combinator_names(),
+		name = "cybersyn2-combinator",
 	})
 end
 
@@ -143,7 +113,7 @@ function combinator_api.find_combinator_entity_ghosts(surface, area, position, r
 		area = area,
 		position = position,
 		radius = radius,
-		ghost_name = combinator_api.get_combinator_names(),
+		ghost_name = "cybersyn2-combinator",
 	})
 end
 

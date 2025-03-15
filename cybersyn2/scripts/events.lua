@@ -50,6 +50,9 @@ on_broken_combinator, raise_broken_combinator = event("broken_combinator", "LuaE
 on_built_combinator_ghost, raise_built_combinator_ghost = event("built_combinator_ghost", "LuaEntity",
 	"nil", "nil", "nil", "nil")
 
+on_built_combinator_settings_ghost, raise_built_combinator_settings_ghost = event("built_combinator_settings_ghost",
+	"LuaEntity", "nil", "nil", "nil", "nil")
+
 on_broken_combinator_ghost, raise_broken_combinator_ghost = event("broken_combinator_ghost", "LuaEntity",
 	"nil", "nil", "nil", "nil")
 
@@ -77,8 +80,8 @@ on_broken_equipment, raise_broken_equipment = event("broken_equipment", "LuaEnti
 
 -- Event raised when an ephemeral combinator has its settings changed,
 -- possibly en masse, by a factorio copy and paste or blueprint op.
-on_combinator_settings_pasted, raise_combinator_settings_pasted = event("combinator_settings_pasted",
-	"Cybersyn.Combinator.Ephemeral", "nil", "nil", "nil", "nil")
+on_entity_settings_pasted, raise_entity_settings_pasted = event("entity_settings_pasted",
+	"EventData.on_entity_settings_pasted", "nil", "nil", "nil", "nil")
 
 on_luatrain_created, raise_luatrain_created = event("luatrain_created", "EventData.on_train_created", "nil", "nil",
 	"nil", "nil")
@@ -134,6 +137,15 @@ on_combinator_destroyed, raise_combinator_destroyed = event("combinator_destroye
 --- * Arg 3 - `Cybersyn.Node|nil` - The node, if any, that the combinator was previously associated with.
 on_combinator_node_associated, raise_combinator_node_associated = event("combinator_node_associated",
 	"Cybersyn.Combinator.Internal", "CybersynNodeOrNil", "CybersynNodeOrNil", "nil", "nil")
+
+---Event raised when a setting changes on a combinator OR a ghost.
+--- * Arg 1 - `Cybersyn.Combinator.Ephemeral` - The combinator or ghost.
+--- * Arg 2 - `string|nil` - The name of the setting that changed. If `nil`, you must assume that any or all of the settings have changed.
+--- * Arg 3 - `any` - The new value of the setting, if known.
+--- * Arg 4 - `any` - The old value of the setting, if known.
+on_combinator_or_ghost_setting_changed, raise_combinator_or_ghost_setting_changed = event(
+	"combinator_or_ghost_setting_changed",
+	"Cybersyn.Combinator.Ephemeral", "StringOrNil", "any", "any", "nil")
 
 --------------------------------------------------------------------------------
 -- Cybersyn node object events

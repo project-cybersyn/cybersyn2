@@ -6,6 +6,33 @@ end
 
 local lib = {}
 
+---Recursively copy the contents of a table into a new table.
+---@generic T
+---@param tbl T The table to make a copy of.
+---@param ignore_metatables boolean? If true, ignores metatables while copying.
+---@return T
+function lib.deep_copy(tbl, ignore_metatables)
+	local lookup_table = {}
+	local function _copy(tbl)
+		if type(tbl) ~= "table" then
+			return tbl
+		elseif lookup_table[tbl] then
+			return lookup_table[tbl]
+		end
+		local new_table = {}
+		lookup_table[tbl] = new_table
+		for index, value in pairs(tbl) do
+			new_table[_copy(index)] = _copy(value)
+		end
+		if ignore_metatables then
+			return new_table
+		else
+			return setmetatable(new_table, getmetatable(tbl))
+		end
+	end
+	return _copy(tbl)
+end
+
 ---Shallowly copies `src` into `dest`, returning `dest`.
 ---@generic K, V
 ---@param dest table<K, V>
@@ -48,6 +75,20 @@ function lib.map(A, f)
 		end
 	end
 	return B
+end
+
+---Find the first entry in a table matching the given predicate.
+---@generic K, V
+---@param T table<K, V>
+---@param f fun(value: V, key: K): boolean
+---@return V? value The value of the first matching entry, or `nil` if none was found
+---@return K? key The key of the first matching entry, or `nil` if none was found
+function lib.find(T, f)
+	for k, v in pairs(T) do
+		if f(v, k) then
+			return v, k
+		end
+	end
 end
 
 ---Map a table into an array. Non-nil results of the mapping function

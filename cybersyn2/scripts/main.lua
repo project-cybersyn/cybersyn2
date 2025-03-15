@@ -8,6 +8,7 @@
 local counters = require("__cybersyn2__.lib.counters")
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local tlib = require("__cybersyn2__.lib.table")
+local flib_gui = require("__flib__.gui")
 
 --------------------------------------------------------------------------------
 -- Library init
@@ -42,9 +43,13 @@ local function on_built(event)
 		raise_built_train_stop(entity)
 	elseif entity.type == "straight-rail" or entity.type == "curved-rail-a" or entity.type == "curved-rail-b" then
 		raise_built_rail(entity)
-	elseif entity.name == "entity-ghost" and combinator_api.is_combinator_name(entity.ghost_name) then
-		raise_built_combinator_ghost(entity)
-	elseif combinator_api.is_combinator_name(entity.name) then
+	elseif entity.name == "entity-ghost" then
+		if entity.ghost_name == "cybersyn2-combinator" then
+			raise_built_combinator_ghost(entity)
+		elseif entity.ghost_name == "cybersyn2-combinator-settings" then
+			raise_built_combinator_settings_ghost(entity)
+		end
+	elseif entity.name == "cybersyn2-combinator" then
 		raise_built_combinator(entity, event.tags)
 	elseif stop_api.is_equipment_type(entity.type) or stop_api.is_equipment_name(entity.name) then
 		raise_built_equipment(entity)
@@ -56,11 +61,10 @@ local filter_built = {
 	{ filter = "type", type = "straight-rail" },
 	{ filter = "type", type = "curved-rail-a" },
 	{ filter = "type", type = "curved-rail-b" },
+	{ filter = "name", name = "cybersyn2-combinator" },
+	{ filter = "ghost_name", name = "cybersyn2-combinator" },
+	{ filter = "ghost_name", name = "cybersyn2-combinator-settings" },
 }
-for _, name in ipairs(combinator_api.get_combinator_names()) do
-	table.insert(filter_built, { filter = "name", name = name })
-	table.insert(filter_built, { filter = "ghost_name", name = name })
-end
 for _, type in ipairs(stop_api.get_equipment_types()) do
 	table.insert(filter_built, { filter = "type", type = type })
 end
@@ -97,14 +101,6 @@ local function on_renamed(event)
 	end
 end
 
----@param event EventData.on_entity_settings_pasted
-local function on_settings_pasted(event)
-	local ref = combinator_api.entity_to_ephemeral(event.destination)
-	if ref then
-		raise_combinator_settings_pasted(ref)
-	end
-end
-
 ---@param event EventData.on_pre_build
 local function on_maybe_blueprint_pasted(event)
 	local player = game.players[event.player_index]
@@ -114,8 +110,8 @@ end
 
 script.on_event(defines.events.on_player_rotated_entity, on_repositioned)
 script.on_event(defines.events.on_entity_renamed, on_renamed)
-script.on_event(defines.events.on_entity_settings_pasted, on_settings_pasted)
 script.on_event(defines.events.on_pre_build, on_maybe_blueprint_pasted)
+script.on_event(defines.events.on_entity_settings_pasted, raise_entity_settings_pasted)
 
 --------------------------------------------------------------------------------
 -- Entity destruction
@@ -129,9 +125,9 @@ local function on_destroyed(event)
 		raise_broken_train_stop(entity)
 	elseif entity.type == "straight-rail" or entity.type == "curved-rail-a" or entity.type == "curved-rail-b" then
 		raise_broken_rail(entity)
-	elseif entity.name == "entity-ghost" and combinator_api.is_combinator_name(entity.ghost_name) then
+	elseif entity.name == "entity-ghost" and entity.ghost_name == "cybersyn2-combinator" then
 		raise_broken_combinator_ghost(entity)
-	elseif combinator_api.is_combinator_name(entity.name) then
+	elseif entity.name == "cybersyn2-combinator" then
 		raise_broken_combinator(entity)
 	elseif stop_api.is_equipment_type(entity.type) or stop_api.is_equipment_name(entity.name) then
 		raise_broken_equipment(entity)
@@ -160,3 +156,19 @@ end
 
 script.on_event(defines.events.on_pre_surface_cleared, on_surface_removed)
 script.on_event(defines.events.on_pre_surface_deleted, on_surface_removed)
+
+--------------------------------------------------------------------------------
+-- Combinator GUI
+--------------------------------------------------------------------------------
+flib_gui.handle_events()
+
+script.on_event(defines.events.on_gui_opened, function(event)
+	local comb = combinator_api.entity_to_ephemeral(event.entity)
+	if not comb then return end
+	combinator_api.open_gui(event.player_index, comb)
+end)
+script.on_event(defines.events.on_gui_closed, function(event)
+	local element = event.element
+	if not element or element.name ~= WINDOW_NAME then return end
+	combinator_api.close_gui(event.player_index)
+end)
