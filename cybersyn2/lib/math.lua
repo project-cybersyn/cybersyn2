@@ -278,4 +278,20 @@ local function bbox_rotate_90(bbox, origin, clockwise)
 end
 lib.bbox_rotate_90 = bbox_rotate_90
 
+---Translate a bbox by the given vector. Mutates the given bbox.
+---@param bbox BoundingBox
+---@param pos_or_dx MapPosition|number
+---@param dy? number
+local function bbox_translate(bbox, pos_or_dx, dy)
+	local dx = 0
+	if type(pos_or_dx) == "table" then
+		dx, dy = pos_get(pos_or_dx)
+	else
+		dx = pos_or_dx --[[@as number]]
+	end
+	local l, t, r, b = bbox_get(bbox)
+	return bbox_set(bbox, l + dx, t + dy, r + dx, b + dy)
+end
+lib.bbox_translate = bbox_translate
+
 return lib

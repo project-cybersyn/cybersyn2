@@ -7,7 +7,7 @@
 
 local log = require("__cybersyn2__.lib.logging")
 local tlib = require("__cybersyn2__.lib.table")
-local flib_table = require("__flib__.table")
+local mlib = require("__cybersyn2__.lib.math")
 
 ---@param combinator_entity LuaEntity A *valid* reference to a non-ghost combinator.
 ---@return Cybersyn.Combinator.Internal
@@ -39,28 +39,9 @@ local function destroy_combinator_state(combinator_id)
 	return false
 end
 
----@param combinator_entity LuaEntity
----@return LuaEntity?
-local function find_settings_entity(combinator_entity)
-	local ents = combinator_entity.surface.find_entities_filtered({
-		name = "cybersyn2-combinator-settings",
-		position = combinator_entity.position,
-		radius = 0.3,
-	})
-	return ents[1]
-end
-
----@param combinator_entity LuaEntity
----@return LuaEntity?
-local function find_settings_ghost(combinator_entity)
-	local ents = combinator_entity.surface.find_entities_filtered({
-		ghost_name = "cybersyn2-combinator-settings",
-		position = combinator_entity.position,
-		radius = 0.3,
-	})
-	return ents[1]
-end
-
+--------------------------------------------------------------------------------
+-- Settings storage.
+--------------------------------------------------------------------------------
 -- Sttings storage notes:
 -- - When storage_ghost is placed, check for combi_ghost and move
 -- settings to tags of combi_ghost
@@ -82,6 +63,28 @@ end
 -- TODO: build from BP in library
 -- TODO: build from book in library
 -- TODO: build by pipette from ghost
+
+---@param combinator_entity LuaEntity
+---@return LuaEntity?
+local function find_settings_entity(combinator_entity)
+	local ents = combinator_entity.surface.find_entities_filtered({
+		name = "cybersyn2-combinator-settings",
+		position = combinator_entity.position,
+		radius = 0.3,
+	})
+	return ents[1]
+end
+
+---@param combinator_entity LuaEntity
+---@return LuaEntity?
+local function find_settings_ghost(combinator_entity)
+	local ents = combinator_entity.surface.find_entities_filtered({
+		ghost_name = "cybersyn2-combinator-settings",
+		position = combinator_entity.position,
+		radius = 0.3,
+	})
+	return ents[1]
+end
 
 ---@param display_panel LuaEntity A *valid* reference to a display panel.
 ---@return Tags? #The decoded tags
@@ -188,6 +191,31 @@ local function set_raw_values(combinator_entity, values)
 	return true
 end
 
+---@param combinator_entity LuaEntity
+local function force_refresh_cache(combinator_entity)
+	if not combinator_entity or not combinator_entity.valid then return end
+	-- Entity must correspond to a real combinator
+	local combinator = combinator_api.get_combinator(combinator_entity.unit_number, true)
+	if not combinator then return end
+	-- Re-read hidden entity values into cache
+	local settings_entity = combinator.settings_entity
+	if not settings_entity or not settings_entity.valid then
+		log.warn("Real combinator has no settings entity", combinator_entity)
+		return
+	end
+	local new_tags = decode_tags_from_display_panel(settings_entity) or {}
+	-- Store settings in cache
+	---@type Cybersyn.Storage
+	local data = storage
+	data.combinator_settings_cache[combinator.id] = new_tags
+	-- Raise event assuming any/all settings were updated as a result
+	raise_combinator_or_ghost_setting_changed(combinator, nil, nil, nil)
+end
+
+--------------------------------------------------------------------------------
+-- Raw storage API. This should only be used by the higher level combinator
+-- settings API.
+--------------------------------------------------------------------------------
 ---Obtain the raw value of a storage key in physical combinator settings
 ---storage.
 ---@param combinator_entity LuaEntity A *valid* combinator or ghost entity
@@ -236,6 +264,9 @@ function combinator_api.set_raw_value(combinator_entity, key, value)
 	return true
 end
 
+--------------------------------------------------------------------------------
+-- Combinator lifecycle events.
+--------------------------------------------------------------------------------
 on_built_combinator(function(combinator_entity, tags)
 	local comb_id = combinator_entity.unit_number --[[@as UnitNumber]]
 	local comb = combinator_api.get_combinator(comb_id, true)
@@ -273,6 +304,7 @@ on_built_combinator(function(combinator_entity, tags)
 		end
 	end
 	if not settings_entity then
+		-- TODO: something better than crashing? maybe nuke combinator?
 		error("Failed to create or find hidden settings entity")
 	end
 	comb.settings_entity = settings_entity
@@ -353,5 +385,98 @@ on_entity_settings_pasted(function(event)
 		local vals = get_raw_values(source.entity)
 		set_raw_values(dest.entity, vals)
 		raise_combinator_or_ghost_setting_changed(dest, nil, nil, nil)
+	end
+end)
+
+--------------------------------------------------------------------------------
+-- Handle when user pastes a blueprint, which may disrupt the settings
+-- of multiple combinators. Do this by invalidating all combinators
+-- in the bbox affected by the blueprint
+--------------------------------------------------------------------------------
+---@param player LuaPlayer
+---@param event EventData.on_pre_build
+---@param entities BlueprintEntity[]?
+local function built_blueprint_entities(player, event, entities)
+	if not entities then return end
+	log.trace("built_blueprint_entities", player, event, entities)
+
+	-- Compute blueprint bbox
+	local e1x, e1y = mlib.pos_get(entities[1].position)
+	local bbox = { { e1x, e1y }, { e1x, e1y } }
+	local zero_point = { 0, 0 }
+	for _, entry in pairs(entities) do
+		local entity_bbox = mlib.bbox_new(prototypes.entity[entry.name].selection_box)
+		local dir = entry.direction
+		if dir and dir % 4 == 0 then
+			while dir >= 4 do
+				mlib.bbox_rotate_90(entity_bbox, zero_point)
+				dir = dir - 4
+			end
+		end
+		mlib.bbox_translate(entity_bbox, entry.position)
+		mlib.bbox_union(bbox, entity_bbox)
+	end
+
+	-- Rotate bbox about center depending on bluprint rotation
+	local l, t, r, b = mlib.bbox_get(bbox)
+	local center = { (l + r) / 2, (t + b) / 2 }
+	local dir = event.direction
+	if dir and dir % 4 == 0 then
+		while dir >= 4 do
+			mlib.bbox_rotate_90(bbox, center)
+			dir = dir - 4
+		end
+	end
+
+	-- Translate the bbox so its center is at the placement world coords
+	local x, y = mlib.pos_get(event.position)
+	l, t, r, b = mlib.bbox_get(bbox)
+	local cx, cy = (l + r) / 2, (t + b) / 2
+	mlib.bbox_set(bbox, l + x - cx, t + y - cy, r + x - cx, b + y - cy)
+
+	-- Round bbox coords outwards to nearest tile
+	l, t, r, b = mlib.bbox_get(bbox)
+	l, t = math.floor(l), math.floor(t)
+	r, b = math.ceil(r), math.ceil(b)
+	mlib.bbox_set(bbox, l, t, r, b)
+
+	-- This should be the world region affected by the blueprint. Draw a
+	-- debug rendering box around it.
+	l, t, r, b = mlib.bbox_get(bbox)
+	log.trace("blueprint bbox", l, t, r, b)
+	if mod_settings.debug then
+		rendering.draw_rectangle({
+			color = { r = 1, g = 0, b = 0, a = 0.5 },
+			width = 2,
+			left_top = { l, t },
+			right_bottom = { r, b },
+			surface = player.surface,
+			time_to_live = 300,
+		})
+	end
+
+	-- TODO: find all combinators in region and force them to reload their settings from the hidden entity
+end
+
+on_built_blueprint(function(player, event)
+	-- Determine the actual blueprint being held is ridiculously difficult to do.
+	-- h/t Xorimuth on factorio discord for this.
+	if player.cursor_record then
+		local record = player.cursor_record --[[@as LuaRecord]]
+		while record and record.type == "blueprint-book" do
+			record = record.contents[record.get_active_index(player)]
+		end
+		if record and record.type == "blueprint" then
+			built_blueprint_entities(player, event, record.get_blueprint_entities())
+		end
+	elseif player.cursor_stack then
+		local stack = player.cursor_stack --[[@as LuaItemStack]]
+		if not stack.valid_for_read then return end
+		while stack and stack.is_blueprint_book do
+			stack = stack.get_inventory(defines.inventory.item_main)[stack.active_index]
+		end
+		if stack and stack.is_blueprint then
+			built_blueprint_entities(player, event, stack.get_blueprint_entities())
+		end
 	end
 end)

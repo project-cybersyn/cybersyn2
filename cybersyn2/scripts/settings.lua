@@ -1,5 +1,6 @@
 ---@class (exact) Cybersyn.ModSettings
 ---@field public enable_logistics boolean Enable or disable scheduling globally.
+---@field public debug boolean Enable debug mode.
 ---@field public work_period uint Number of ticks between work cycles.
 ---@field public work_factor number Multiplier applied to work done per cycle.
 
@@ -9,6 +10,7 @@ mod_settings = {}
 
 local function update_mod_settings()
 	mod_settings.enable_logistics = settings.global["cybersyn2-setting-enable-logistics"].value --[[@as boolean]]
+	mod_settings.debug = settings.global["cybersyn2-setting-debug"].value --[[@as boolean]]
 	mod_settings.work_period = settings.global["cybersyn2-setting-work-period"].value --[[@as uint]]
 	mod_settings.work_factor = settings.global["cybersyn2-setting-work-factor"].value --[[@as number]]
 end

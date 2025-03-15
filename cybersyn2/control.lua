@@ -8,7 +8,6 @@ require("scripts.combinator.base")
 require("scripts.combinator.mode")
 require("scripts.combinator.setting")
 require("scripts.combinator.lifecycle")
-require("scripts.combinator.paste-blueprint")
 require("scripts.combinator.gui.base")
 
 require("scripts.combinator.modes.station")
