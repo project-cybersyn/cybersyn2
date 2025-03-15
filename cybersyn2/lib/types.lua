@@ -41,6 +41,7 @@
 ---@class Cybersyn.Node
 ---@field public id uint Unique id of the node.
 ---@field public type string The type of the node.
+---@field public combinator_set UnitNumberSet Set of combinators associated to this node, by unit number.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node

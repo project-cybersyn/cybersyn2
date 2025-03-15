@@ -1,10 +1,13 @@
 -- Types and reusable code for the public Cybersyn query interface.
+-- TODO: this whole file is a WIP.
 
 if ... ~= "__cybersyn2__.lib.query" then
 	return require("__cybersyn2__.lib.query")
 end
 
 require("__cybersyn2__.lib.types")
+
+local lib = {}
 
 ---@enum Cybersyn.Query.QueryType
 local query_type = {
@@ -22,7 +25,5 @@ local container_type = {
 
 ---@class Cybersyn.Query.Result
 ---@field query_type Cybersyn.Query.QueryType
-
-local lib = {}
 
 return lib

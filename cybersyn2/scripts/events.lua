@@ -1,4 +1,6 @@
--- Internal event backplane for Cybersyn.
+--------------------------------------------------------------------------------
+-- Internal event backplane.
+--------------------------------------------------------------------------------
 
 local event = require("__cybersyn2__.lib.events").create_event
 
@@ -6,6 +8,10 @@ local event = require("__cybersyn2__.lib.events").create_event
 -- system.
 
 ---@alias StringOrNil string|nil
+
+--------------------------------------------------------------------------------
+-- Factorio core control phase events
+--------------------------------------------------------------------------------
 
 ---Event corresponding to Factorio's `on_init`.
 on_init, raise_init = event("init", "nil", "nil", "nil", "nil", "nil")
@@ -20,32 +26,9 @@ on_configuration_changed, raise_configuration_changed = event("configuration_cha
 on_mod_settings_changed, raise_mod_settings_changed = event("mod_settings_changed", "StringOrNil", "nil",
 	"nil", "nil", "nil")
 
-on_luatrain_created, raise_luatrain_created = event("luatrain_created", "EventData.on_train_created", "nil", "nil",
-	"nil", "nil")
-
-on_luatrain_changed_state, raise_luatrain_changed_state = event("luatrain_changed_state",
-	"EventData.on_train_changed_state", "nil", "nil", "nil", "nil")
-
-on_vehicle_created, raise_vehicle_created = event("vehicle_created", "Cybersyn.Vehicle", "nil", "nil", "nil", "nil")
-
-on_vehicle_destroyed, raise_vehicle_destroyed = event("vehicle_destroyed", "Cybersyn.Vehicle", "nil", "nil", "nil",
-	"nil")
-
----Event raised when a new Cybersyn train group is created.
-on_train_group_created, raise_train_group_created = event("train_group_created", "string",
-	"nil", "nil", "nil", "nil")
-
----Event raised when a train is added to a Cybersyn group.
-on_train_group_train_added, raise_train_group_train_added = event("train_group_train_added", "Cybersyn.Train",
-	"nil", "nil", "nil", "nil")
-
----Event raised when a train is removed from a Cybersyn group.
-on_train_group_train_removed, raise_train_group_train_removed = event("train_group_train_removed", "Cybersyn.Train",
-	"string", "nil", "nil", "nil")
-
----Event raised when a train group is destroyed.
-on_train_group_destroyed, raise_train_group_destroyed = event("train_group_destroyed", "string",
-	"nil", "nil", "nil", "nil")
+--------------------------------------------------------------------------------
+-- Factorio world events
+--------------------------------------------------------------------------------
 
 on_built_train_stop, raise_built_train_stop = event("built_train_stop", "LuaEntity", "nil", "nil", "nil", "nil")
 
@@ -56,8 +39,10 @@ on_built_rail, raise_built_rail = event("built_rail", "LuaEntity", "nil", "nil",
 
 on_broken_rail, raise_broken_rail = event("broken_rail", "LuaEntity", "nil", "nil", "nil", "nil")
 
+---@alias TagsOrNil Tags|nil
+
 on_built_combinator, raise_built_combinator = event("built_combinator", "LuaEntity",
-	"nil", "nil", "nil", "nil")
+	"TagsOrNil", "nil", "nil", "nil")
 
 on_broken_combinator, raise_broken_combinator = event("broken_combinator", "LuaEntity",
 	"nil", "nil", "nil", "nil")
@@ -95,8 +80,65 @@ on_broken_equipment, raise_broken_equipment = event("broken_equipment", "LuaEnti
 on_combinator_settings_pasted, raise_combinator_settings_pasted = event("combinator_settings_pasted",
 	"Cybersyn.Combinator.Ephemeral", "nil", "nil", "nil", "nil")
 
+on_luatrain_created, raise_luatrain_created = event("luatrain_created", "EventData.on_train_created", "nil", "nil",
+	"nil", "nil")
+
+on_luatrain_changed_state, raise_luatrain_changed_state = event("luatrain_changed_state",
+	"EventData.on_train_changed_state", "nil", "nil", "nil", "nil")
+
 ---@alias BlueprintEntityArray BlueprintEntity[]
 
 ---Event raised when a blueprint is pasted into the world.
 on_built_blueprint, raise_built_blueprint = event("built_blueprint",
 	"LuaPlayer", "EventData.on_pre_build", "nil", "nil", "nil")
+
+--------------------------------------------------------------------------------
+-- Cybersyn vehicle object events
+--------------------------------------------------------------------------------
+
+on_vehicle_created, raise_vehicle_created = event("vehicle_created", "Cybersyn.Vehicle", "nil", "nil", "nil", "nil")
+
+on_vehicle_destroyed, raise_vehicle_destroyed = event("vehicle_destroyed", "Cybersyn.Vehicle", "nil", "nil", "nil",
+	"nil")
+
+---Event raised when a new Cybersyn train group is created.
+on_train_group_created, raise_train_group_created = event("train_group_created", "string",
+	"nil", "nil", "nil", "nil")
+
+---Event raised when a train is added to a Cybersyn group.
+on_train_group_train_added, raise_train_group_train_added = event("train_group_train_added", "Cybersyn.Train",
+	"nil", "nil", "nil", "nil")
+
+---Event raised when a train is removed from a Cybersyn group.
+on_train_group_train_removed, raise_train_group_train_removed = event("train_group_train_removed", "Cybersyn.Train",
+	"string", "nil", "nil", "nil")
+
+---Event raised when a train group is destroyed.
+on_train_group_destroyed, raise_train_group_destroyed = event("train_group_destroyed", "string",
+	"nil", "nil", "nil", "nil")
+
+--------------------------------------------------------------------------------
+-- Cybersyn combinator object events
+--------------------------------------------------------------------------------
+
+on_combinator_created, raise_combinator_created = event("combinator_created", "Cybersyn.Combinator.Internal",
+	"nil", "nil", "nil", "nil")
+
+on_combinator_destroyed, raise_combinator_destroyed = event("combinator_destroyed", "Cybersyn.Combinator.Internal",
+	"nil", "nil", "nil", "nil")
+
+---@alias CybersynNodeOrNil Cybersyn.Node|nil
+---Event raised when a combinator is associated or disassociated with a node.
+--- * Arg 1 - `Cybersyn.Combinator.Internal` - The combinator.
+--- * Arg 2 - `Cybersyn.Node|nil` - The node, if any, that the combinator is now associated with.
+--- * Arg 3 - `Cybersyn.Node|nil` - The node, if any, that the combinator was previously associated with.
+on_combinator_node_associated, raise_combinator_node_associated = event("combinator_node_associated",
+	"Cybersyn.Combinator.Internal", "CybersynNodeOrNil", "CybersynNodeOrNil", "nil", "nil")
+
+--------------------------------------------------------------------------------
+-- Cybersyn node object events
+--------------------------------------------------------------------------------
+
+---Event raised when the set of combinators associated with a node changes.
+on_node_combinator_set_changed, raise_node_combinator_set_changed = event("node_combinator_set_changed",
+	"Cybersyn.Node", "nil", "nil", "nil", "nil")

@@ -1,8 +1,12 @@
+--------------------------------------------------------------------------------
+-- Type definition and implementation of Cybersyn's game state storage.
+--------------------------------------------------------------------------------
+
 ---The entire synchronized game state for Cybersyn.
 ---@class (exact) Cybersyn.Storage
 ---@field public players table<PlayerIndex, Cybersyn.PlayerState> Per-player state.
 ---@field public vehicles table<Id, Cybersyn.Vehicle> All Cybersyn vehicles, indexed by id.
----@field public combinators table<UnitNumber, Cybersyn.Combinator> All Cybersyn combinators, indexed by unit number.
+---@field public combinators table<UnitNumber, Cybersyn.Combinator.Internal> All Cybersyn combinators, indexed by unit number.
 ---@field public nodes table<Id, Cybersyn.Node> All Cybersyn nodes, indexed by id.
 ---@field public task_ids table<string, Scheduler.TaskId> Ids of core tasks.
 ---@field public train_groups table<string, Cybersyn.TrainGroup> All Cybersyn-controlled train groups, indexed by Factorio group name.
@@ -26,4 +30,5 @@ on_init(function()
 	storage.train_groups = {}
 	storage.luatrain_id_to_vehicle_id = {}
 	storage.rail_id_to_node_id = {}
+	storage.combinator_settings_cache = {}
 end, true)

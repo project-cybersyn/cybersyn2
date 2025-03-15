@@ -13,7 +13,9 @@ local SOUTH = defines.direction.south
 
 if not combinator_api then combinator_api = {} end
 
--- TODO: make this customizable. (how?)
+---Full internal game state of a combinator.
+---@class Cybersyn.Combinator.Internal: Cybersyn.Combinator
+
 -- Set of entity names that should be considered combinators.
 ---@type {[string]: true?}
 local combinator_names_set = {
@@ -62,8 +64,8 @@ end
 ---Retrieve a real combinator from storage by its `unit_number`.
 ---@param combinator_id UnitNumber?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
----@return Cybersyn.Combinator?
-function combinator_api.get_combinator_state(combinator_id, skip_validation)
+---@return Cybersyn.Combinator.Internal?
+function combinator_api.get_combinator(combinator_id, skip_validation)
 	if not combinator_id then return nil end
 	---@type Cybersyn.Storage
 	local data = storage

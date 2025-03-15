@@ -1,15 +1,17 @@
 require("scripts.types")
 require("scripts.constants")
 require("scripts.events")
-require("scripts.global")
+require("scripts.storage")
 require("scripts.settings")
 
 require("scripts.combinator.base")
+require("scripts.combinator.lifecycle")
 require("scripts.combinator.paste-blueprint")
 
 require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")
 
+require("scripts.node.base")
 require("scripts.node.stop.base")
 require("scripts.node.stop.layout.equipment")
 
