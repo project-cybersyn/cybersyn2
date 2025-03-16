@@ -154,3 +154,7 @@ on_combinator_or_ghost_setting_changed, raise_combinator_or_ghost_setting_change
 ---Event raised when the set of combinators associated with a node changes.
 on_node_combinator_set_changed, raise_node_combinator_set_changed = event("node_combinator_set_changed",
 	"Cybersyn.Node", "nil", "nil", "nil", "nil")
+
+on_node_created, raise_node_created = event("node_created", "Cybersyn.Node", "nil", "nil", "nil", "nil")
+
+on_node_destroyed, raise_node_destroyed = event("node_destroyed", "Cybersyn.Node", "nil", "nil", "nil", "nil")

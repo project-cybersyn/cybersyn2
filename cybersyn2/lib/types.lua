@@ -1,6 +1,8 @@
+--------------------------------------------------------------------------------
 -- Public Cybersyn types and enums. These types may be exposed to other mods
 -- via remote interface/queries, and authors can get the definitions for
 -- these types by requiring or linking this file to their IDE.
+--------------------------------------------------------------------------------
 
 ---@alias UnitNumber uint A Factorio `unit_number` associated uniquely with a particular `LuaEntity`.
 
@@ -18,10 +20,9 @@
 
 ---An opaque reference to a fully realized and built combinator that has been indexed by Cybersyn and tracked in game state.
 ---@class Cybersyn.Combinator: Cybersyn.Combinator.Ephemeral
----@field public id UnitNumber The immutable unit number of the combinator entity.
+---@field public id UnitNumber The unique unit number of the combinator entity.
 ---@field public node_id? uint The id of the node this combinator is associated with, if any.
 ---@field public is_being_destroyed true? `true` if the combinator is being removed from state at this time.
----@field public is_proximate true? `true` if the combinator is within the proximity of a train stop.
 
 ---A vehicle managed by Cybersyn.
 ---@class Cybersyn.Vehicle
@@ -42,10 +43,14 @@
 ---@field public id uint Unique id of the node.
 ---@field public type string The type of the node.
 ---@field public combinator_set UnitNumberSet Set of combinators associated to this node, by unit number.
+---@field public is_being_destroyed true? `true` if the node is in the process of being removed from game state.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
----@field public type "train_stop"
+---@field public type "stop"
+---@field public entity LuaEntity? The `train-stop` entity for this stop, if it exists.
+---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
+---@field public accepted_train_layouts IdSet Set of accepted train layout IDs.
 
 ---A Cybersyn train group.
 ---@class Cybersyn.TrainGroup

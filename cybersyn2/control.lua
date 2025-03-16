@@ -16,7 +16,10 @@ require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")
 
 require("scripts.node.base")
+require("scripts.node.lifecycle")
 require("scripts.node.stop.base")
+require("scripts.node.stop.lifecycle")
+require("scripts.node.stop.layout.base")
 require("scripts.node.stop.layout.equipment")
 
 -- Main should run last.

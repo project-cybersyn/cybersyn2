@@ -322,11 +322,6 @@ on_broken_combinator(function(combinator_entity)
 	if not comb then return end
 	comb.is_being_destroyed = true
 
-	-- Disassociate this combinator from any node it may be connected to
-	local node = node_api.get_node(comb.node_id, true)
-	if node then node_api.disassociate_combinator(node, comb.id) end
-	comb.node_id = nil
-
 	raise_combinator_destroyed(comb)
 
 	-- Destroy any possible companion entities.

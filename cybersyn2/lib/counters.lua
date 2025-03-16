@@ -29,4 +29,17 @@ function lib.next(key)
 	return n
 end
 
+---Examine the value of the given counter without modifying it.
+---@param key string The key of the counter to examine.
+---@return integer? #The current value of the counter or `nil` if it has not been set.
+function lib.peek(key)
+	local counters = storage._counters --[[@as {[string]: integer}]]
+	if not counters then
+		-- We have to crash here for reasons of determinism.
+		error(
+			"Attempt to examine a counter before storage was initialized. Make sure you are calling counters.init() in your on_init handler and that you aren't utilizing counters in a phase where storage is inaccessible.")
+	end
+	return counters[key]
+end
+
 return lib

@@ -1,0 +1,14 @@
+--------------------------------------------------------------------------------
+-- Train stop layouts.
+--------------------------------------------------------------------------------
+
+---Information about the physical shape of a train stop and its associated
+---rails and equipment.
+---@class (exact) Cybersyn.TrainStopLayout
+---@field public cargo_loader_map {[UnitNumber]: uint} Map of equipment that can load cargo to tile indices relative to the train stop.
+---@field public fluid_loader_map {[UnitNumber]: uint} Map of equipment that can load fluid to tile indices relative to the train stop.
+---@field public loading_equipment_pattern (0|1|2|3)[] Auto-allowlist car pattern, inferred from equipment. 0 = no equipment, 1 = cargo, 2 = fluid, 3 = both.
+---@field public bbox BoundingBox? The bounding box used when scanning for equipment.
+---@field public rail_bbox BoundingBox? The bounding box for only the rails.
+---@field public rail_set UnitNumberSet The set of rails associated to this stop.
+---@field public direction defines.direction? Direction of the vector pointing from the stop entity towards the oncoming track, if known.

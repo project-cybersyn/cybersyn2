@@ -1,16 +1,5 @@
 -- Base types and library code for manipulating Cybersyn combinators.
 
-local flib_position = require("__flib__.position")
-local tlib = require("__cybersyn2__.lib.table")
-local mlib = require("__cybersyn2__.lib.math")
-
-local distance_squared = flib_position.distance_squared
-local pos_get = mlib.pos_get
-local pos_move_ortho = mlib.pos_move_ortho
-local INF = math.huge
-local NORTH = defines.direction.north
-local SOUTH = defines.direction.south
-
 if not combinator_api then combinator_api = {} end
 
 ---Full internal game state of a combinator.
@@ -42,15 +31,15 @@ function combinator_api.is_combinator_or_ghost_entity(entity)
 	return true_name == "cybersyn2-combinator"
 end
 
----Retrieve a real combinator from storage by its `unit_number`.
----@param combinator_id UnitNumber?
+---Retrieve a combinator state from storage by its entity's `unit_number`.
+---@param unit_number UnitNumber?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.Combinator.Internal?
-function combinator_api.get_combinator(combinator_id, skip_validation)
-	if not combinator_id then return nil end
+function combinator_api.get_combinator(unit_number, skip_validation)
+	if not unit_number then return nil end
 	---@type Cybersyn.Storage
 	local data = storage
-	local combinator = data.combinators[combinator_id]
+	local combinator = data.combinators[unit_number]
 	if skip_validation then
 		return combinator
 	else
@@ -115,54 +104,4 @@ function combinator_api.find_combinator_entity_ghosts(surface, area, position, r
 		radius = radius,
 		ghost_name = "cybersyn2-combinator",
 	})
-end
-
----Given a combinator, find the nearby `LuaEntity` that will determine its
----association.
----@param comb LuaEntity A *valid* combinator entity.
----@return LuaEntity? stop_entity The closest-to-front train stop within the combinator's association zone.
----@return LuaEntity? rail_entity The closest-to-front straight rail with a train stop within the combinator's association zone.
-function combinator_api.find_associable_entity(comb)
-	local pos_x, pos_y = pos_get(comb.position)
-	-- We need to account for the direction the combinator is facing. If
-	-- the combinator would associate ambiguously with multiple stops or rails,
-	-- we prefer the one that is closer to the front of the combinator.
-	local front = pos_move_ortho(comb.position, comb.direction, 1)
-	local search_area
-	if comb.direction == NORTH or comb.direction == SOUTH then
-		search_area = {
-			{ pos_x - 1.5, pos_y - 2 },
-			{ pos_x + 1.5, pos_y + 2 },
-		}
-	else
-		search_area = {
-			{ pos_x - 2, pos_y - 1.5 },
-			{ pos_x + 2, pos_y + 1.5 },
-		}
-	end
-	local stop = nil
-	local rail = nil
-	local stop_dist = INF
-	local rail_dist = INF
-	local entities = comb.surface.find_entities_filtered({ area = search_area, name = { "train-stop", "straight-rail" } })
-	for _, cur_entity in pairs(entities) do
-		if cur_entity.name == "train-stop" then
-			local dist = distance_squared(front, cur_entity.position)
-			if dist < stop_dist then
-				stop_dist = dist
-				stop = cur_entity
-			end
-		elseif cur_entity.type == "straight-rail" then
-			-- Prefer rails with stops, then prefer rails nearer the
-			-- front of the combinator.
-			if stop_api.find_stop_from_rail(cur_entity) then
-				local dist = distance_squared(front, cur_entity.position)
-				if dist < rail_dist then
-					rail_dist = dist
-					rail = cur_entity
-				end
-			end
-		end
-	end
-	return stop, rail
 end
