@@ -1,0 +1,8 @@
+{
+  "label": "Cookbook",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "Recipes for stations that take full advantage of the power of Cybersyn."
+  }
+}
