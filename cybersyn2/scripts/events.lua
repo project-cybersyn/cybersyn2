@@ -120,6 +120,9 @@ on_train_group_train_removed, raise_train_group_train_removed = event("train_gro
 on_train_group_destroyed, raise_train_group_destroyed = event("train_group_destroyed", "string",
 	"nil", "nil", "nil", "nil")
 
+on_train_layout_created, raise_train_layout_created = event("train_layout_created", "Cybersyn.TrainLayout",
+	"nil", "nil", "nil", "nil")
+
 --------------------------------------------------------------------------------
 -- Cybersyn combinator object events
 --------------------------------------------------------------------------------

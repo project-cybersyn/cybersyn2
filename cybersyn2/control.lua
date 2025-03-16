@@ -14,6 +14,7 @@ require("scripts.combinator.modes.station")
 
 require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")
+require("scripts.vehicle.train.layout")
 
 require("scripts.node.base")
 require("scripts.node.lifecycle")

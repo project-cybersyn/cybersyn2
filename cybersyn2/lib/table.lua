@@ -105,7 +105,7 @@ end
 ---Find the first entry in a table matching the given predicate.
 ---@generic K, V
 ---@param T table<K, V>
----@param f fun(value: V, key: K): boolean
+---@param f fun(value: V, key: K): boolean?
 ---@return V? value The value of the first matching entry, or `nil` if none was found
 ---@return K? key The key of the first matching entry, or `nil` if none was found
 function lib.find(T, f)

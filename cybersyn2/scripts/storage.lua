@@ -12,9 +12,10 @@
 ---@field public train_groups table<string, Cybersyn.TrainGroup> All Cybersyn-controlled train groups, indexed by Factorio group name.
 ---@field public luatrain_id_to_vehicle_id table<Id, Id> Map of LuaTrain ids to Cybersyn vehicle ids.
 ---@field public rail_id_to_node_id table<UnitNumber, Id> Map of rail unit numbers to node ids of the associated train stop. Cached by layout engine calculations.
----@field public combinator_settings_cache table<UnitNumber, Tags> Cache used to store combinator settings so that it is not necessary to read encoded data from the combinator's entity.
+---@field public combinator_settings_cache table<UnitNumber, Tags> Cache used to store combinator settings so that it is not necessary to read encoded data from the combinator's entity. Indexed by combinator unit number.
 ---@field public stop_id_to_node_id table<UnitNumber, Id> Map from UnitNumbers of `train-stop` entities to the corresponding node id.
 ---@field public stop_layouts table<Id, Cybersyn.TrainStopLayout> Layouts of train stops, indexed by node id.
+---@field public train_layouts table<Id, Cybersyn.TrainLayout> Layouts of trains, indexed by layout id.
 
 ---Per-player global state.
 ---@class (exact) Cybersyn.PlayerState
@@ -35,4 +36,5 @@ on_init(function()
 	storage.combinator_settings_cache = {}
 	storage.stop_id_to_node_id = {}
 	storage.stop_layouts = {}
+	storage.train_layouts = {}
 end, true)

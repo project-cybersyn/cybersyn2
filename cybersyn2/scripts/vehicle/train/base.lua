@@ -14,19 +14,37 @@ function train_api.get_train_groups()
 	return data.train_groups
 end
 
+---Determine if a vehicle is a fully valid train, including its associated `LuaTrain`.
 ---@param vehicle Cybersyn.Train?
-local function validate(vehicle)
+local function is_valid(vehicle)
 	if (
-				(not vehicle) or
-				(vehicle.type ~= "train") or
-				(not vehicle.group) or
-				((not vehicle.volatile) and (not vehicle.lua_train or not vehicle.lua_train.valid))
+				vehicle and
+				(vehicle.type == "train") and
+				vehicle.lua_train and
+				vehicle.lua_train.valid
 			) then
-		return false
-	else
 		return true
+	else
+		return false
 	end
 end
+train_api.is_valid = is_valid
+
+---Determine if a train is valid up to the possibility of missing `LuaTrain`
+---due to volatility.
+---@param vehicle Cybersyn.Train?
+local function is_valid_or_volatile(vehicle)
+	if (
+				vehicle and
+				(vehicle.type == "train") and
+				(vehicle.volatile or (vehicle.lua_train and vehicle.lua_train.valid))
+			) then
+		return true
+	else
+		return false
+	end
+end
+train_api.is_valid_or_volatile = is_valid_or_volatile
 
 ---Get a `Cybersyn.Train` by its vehicle id.
 ---@param vehicle_id Id
@@ -35,7 +53,7 @@ end
 function train_api.get_train(vehicle_id, skip_validation)
 	local data = storage --[[@as Cybersyn.Storage]]
 	local vehicle = data.vehicles[vehicle_id]
-	if vehicle and (skip_validation or validate(vehicle)) then
+	if vehicle and (skip_validation or is_valid(vehicle)) then
 		return vehicle --[[@as Cybersyn.Train]]
 	end
 end

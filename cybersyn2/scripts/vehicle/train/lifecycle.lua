@@ -1,19 +1,11 @@
+--------------------------------------------------------------------------------
+-- Train lifecycle.
+--------------------------------------------------------------------------------
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local log = require("__cybersyn2__.lib.logging")
 local counters = require("__cybersyn2__.lib.counters")
 
 local ALL_TRAINS_FILTER = {}
-
----@class (exact) Cybersyn.Internal.TrainMonitorTaskData
----@field state "init"|"enum_luatrains"|"enum_cstrains" State of the task.
----@field stride int The number of trains to process per iteration
----@field index int The current index in the enumeration.
----@field trains LuaTrain[] Extant luatrains at beginning of sweep.
----@field seen_groups table<string, true> Cybersyn groups seen by sweep.
----@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
-
----@class Cybersyn.Internal.TrainMonitorTask: Scheduler.RecurringTask
----@field public data Cybersyn.Internal.TrainMonitorTaskData
 
 ---@param lua_train LuaTrain A *valid* `LuaTrain`.
 ---@return Cybersyn.Train? #The created train object if it was possible to create it.
@@ -38,6 +30,7 @@ local function create_train(lua_train)
 	}
 	data.vehicles[vehicle.id] = vehicle
 	data.luatrain_id_to_vehicle_id[lua_train.id] = vehicle.id
+
 	raise_vehicle_created(vehicle)
 	return vehicle
 end
@@ -120,6 +113,20 @@ local function destroy_train(vehicle_id)
 	raise_vehicle_destroyed(vehicle)
 	data.vehicles[vehicle.id] = nil
 end
+
+--------------------------------------------------------------------------------
+-- Train group monitor background thread
+--------------------------------------------------------------------------------
+---@class (exact) Cybersyn.Internal.TrainMonitorTaskData
+---@field state "init"|"enum_luatrains"|"enum_cstrains" State of the task.
+---@field stride int The number of trains to process per iteration
+---@field index int The current index in the enumeration.
+---@field trains LuaTrain[] Extant luatrains at beginning of sweep.
+---@field seen_groups table<string, true> Cybersyn groups seen by sweep.
+---@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
+
+---@class Cybersyn.Internal.TrainMonitorTask: Scheduler.RecurringTask
+---@field public data Cybersyn.Internal.TrainMonitorTaskData
 
 ---@param data Cybersyn.Internal.TrainMonitorTaskData
 local function monitor_init(data)

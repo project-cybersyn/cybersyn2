@@ -3,6 +3,7 @@
 -- via remote interface/queries, and authors can get the definitions for
 -- these types by requiring or linking this file to their IDE.
 --------------------------------------------------------------------------------
+local lib = {}
 
 ---@alias UnitNumber uint A Factorio `unit_number` associated uniquely with a particular `LuaEntity`.
 
@@ -37,6 +38,27 @@
 ---@field public lua_train_id Id? The id of the last known good LuaTrain object. Note that this is a cached value and persists even if the lua_train is expired/invalid.
 ---@field public group string? Last known group assigned by the train sweep task.
 ---@field public volatile boolean? `true` if the `LuaTrain` associated to this train is unstable and may be invalidated at any time, eg for a train passing through a space elevator.
+---@field public item_slot_capacity uint Number of item slots available across all wagons if known.
+---@field public fluid_capacity uint Total fluid capacity of all wagons if known.
+---@field public layout_id uint The layout ID of the train.
+
+---Numeric encoding of prototype types of carriages
+---@enum Cybersyn.CarriageType
+lib.CarriageType = {
+	Unknown = 0,
+	Locomotive = 1,
+	-- CargoWagon also includes `infinity-cargo-wagon`s
+	CargoWagon = 2,
+	FluidWagon = 3,
+	ArtilleryWagon = 4,
+}
+
+---A Cybersyn train layout.
+---@class Cybersyn.TrainLayout
+---@field public id Id Unique id of the layout.
+---@field public carriage_names string[] The names of the entity prototypes of the train's carriages from front to back.
+---@field public carriage_types Cybersyn.CarriageType[] The types of the entity prototypes of the train's carriages from front to back.
+---@field public bidirectional boolean `true` if the train has locomotives allowing it to move both directions.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
 ---@class Cybersyn.Node
@@ -56,3 +78,5 @@
 ---@class Cybersyn.TrainGroup
 ---@field public name string The factorio train group name.
 ---@field public trains IdSet The set of vehicle ids of trains in the group.
+
+return lib
