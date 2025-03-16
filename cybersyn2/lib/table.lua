@@ -60,6 +60,21 @@ function lib.concat(...)
 	return A
 end
 
+---Filter an array by a predicate function.
+---@generic T
+---@param A T[]
+---@param f fun(value: T, index: integer): boolean
+---@return T[] #A new array containing all elements of `A` for which the predicate returned true.
+function lib.filter(A, f)
+	local B = {}
+	for i = 1, #A do
+		if f(A[i], i) then
+			B[#B + 1] = A[i]
+		end
+	end
+	return B
+end
+
 ---Map an array to an array. Non-nil results of the mapping function
 ---will be collected into a new result array.
 ---@generic I, O
@@ -75,6 +90,16 @@ function lib.map(A, f)
 		end
 	end
 	return B
+end
+
+---Run a function for each element in a table.
+---@generic K, V
+---@param T table<K, V>
+---@param f fun(value: V, key: K)
+function lib.for_each(T, f)
+	for k, v in pairs(T) do
+		f(v, k)
+	end
 end
 
 ---Find the first entry in a table matching the given predicate.

@@ -76,14 +76,13 @@ local function find_settings_entity(combinator_entity)
 end
 
 ---@param combinator_entity LuaEntity
----@return LuaEntity?
-local function find_settings_ghost(combinator_entity)
-	local ents = combinator_entity.surface.find_entities_filtered({
+---@return LuaEntity[]
+local function find_settings_ghosts(combinator_entity)
+	return combinator_entity.surface.find_entities_filtered({
 		ghost_name = "cybersyn2-combinator-settings",
 		position = combinator_entity.position,
 		radius = 0.3,
 	})
-	return ents[1]
 end
 
 ---@param display_panel LuaEntity A *valid* reference to a display panel.
@@ -191,16 +190,13 @@ local function set_raw_values(combinator_entity, values)
 	return true
 end
 
----@param combinator_entity LuaEntity
-local function force_refresh_cache(combinator_entity)
-	if not combinator_entity or not combinator_entity.valid then return end
-	-- Entity must correspond to a real combinator
-	local combinator = combinator_api.get_combinator(combinator_entity.unit_number, true)
+---@param combinator Cybersyn.Combinator.Internal
+local function force_refresh_cache(combinator)
 	if not combinator then return end
 	-- Re-read hidden entity values into cache
 	local settings_entity = combinator.settings_entity
 	if not settings_entity or not settings_entity.valid then
-		log.warn("Real combinator has no settings entity", combinator_entity)
+		log.warn("Combinator lifecycle: real combinator has no settings entity", combinator_entity)
 		return
 	end
 	local new_tags = decode_tags_from_display_panel(settings_entity) or {}
@@ -279,23 +275,23 @@ on_built_combinator(function(combinator_entity, tags)
 
 	-- Revive or create the hidden settings entity.
 	local settings_entity = find_settings_entity(combinator_entity)
-	local settings_ghost = find_settings_ghost(combinator_entity)
+	local settings_ghost = find_settings_ghosts(combinator_entity)[1]
 
 	if settings_entity then
-		log.trace("Settings entity already exists")
+		log.trace("Combinator lifecycle: Settings entity already exists")
 		-- Entity already there, destroy ghost
 		if settings_ghost then settings_ghost.destroy() end
 	else
 		if settings_ghost then
 			-- Ghost already there, revive it
-			log.trace("Reviving settings entity")
+			log.trace("Combinator lifecycle: Reviving settings entity")
 			_, settings_entity = settings_ghost.silent_revive()
 			if not settings_entity then
 				error("Failed to revive hidden settings ghost")
 			end
 		else
 			-- Create new settings entity
-			log.trace("Creating new settings entity")
+			log.trace("Combinator lifecycle: Creating new settings entity")
 			settings_entity = combinator_entity.surface.create_entity({
 				name = "cybersyn2-combinator-settings",
 				position = combinator_entity.position,
@@ -341,7 +337,7 @@ on_broken_combinator(function(combinator_entity)
 	end
 	local e1 = find_settings_entity(combinator_entity)
 	if e1 then e1.destroy() end
-	local e2 = find_settings_ghost(combinator_entity)
+	local e2 = find_settings_ghosts(combinator_entity)[1]
 	if e2 then e2.destroy() end
 
 	-- Clear settings cache
@@ -353,7 +349,16 @@ on_broken_combinator(function(combinator_entity)
 end)
 
 on_built_combinator_settings_ghost(function(settings_ghost)
-	-- Move settings into tags of ghost if needed
+	-- If there is already a combinator settings ghost here, delete it as
+	-- the newer ghost should govern
+	local other_ghosts = tlib.filter(find_settings_ghosts(settings_ghost),
+		function(ghost) return ghost.unit_number ~= settings_ghost.unit_number end)
+	tlib.for_each(other_ghosts, function(ghost)
+		log.trace("Combinator lifecycle: New settings ghost overwriting old one.")
+		ghost.destroy()
+	end)
+
+	-- If there is a combinator ghost, move data into the tags of the ghost.
 	local combinator_ghost = combinator_api.find_combinator_entity_ghosts(settings_ghost.surface, nil,
 		settings_ghost.position, 0.1)[1]
 	if combinator_ghost then
@@ -364,10 +369,48 @@ on_built_combinator_settings_ghost(function(settings_ghost)
 		-- Otherwise, decode and assign.
 		combinator_ghost.tags = decode_tags_from_display_panel(settings_ghost) or {}
 	end
+
+	-- Look for combinator before ghost is destroyed
+	local combinator_entity = combinator_api.find_combinator_entities(settings_ghost.surface, nil,
+		settings_ghost.position, 0.1)[1]
+
+	-- If there is a built settings entity, copy the new behavior into it, then
+	-- delete the ghost.
+	local settings_entity = find_settings_entity(settings_ghost)
+	if settings_entity then
+		local new_beh = settings_ghost.get_control_behavior() --[[@as LuaDisplayPanelControlBehavior]]
+		if new_beh then
+			local beh = settings_entity.get_or_create_control_behavior() --[[@as LuaDisplayPanelControlBehavior]]
+			if beh then
+				beh.messages = new_beh.messages
+			else
+				log.warn("Combinator lifecycle: Failed to get control behavior for built settings entity")
+			end
+		end
+		settings_ghost.destroy()
+	end
+
+	-- If there is a built combinator, it needs to reload its settings from
+	-- the now-updated settings entity.
+	if combinator_entity then
+		local combinator = combinator_api.get_combinator(combinator_entity.unit_number, true)
+		if combinator then
+			-- Sanity check that we found a settings entity and it was the right one
+			if (not settings_entity) or (not combinator.settings_entity) or
+					(combinator.settings_entity.unit_number ~= settings_entity.unit_number) then
+				log.warn("Combinator lifecycle: Built combinator has mismatched settings entity")
+			else
+				-- Force the combinator to reload its settings from the updated settings entity.
+				log.trace("Combinator lifecycle: Force refreshing cache of combinator because of settings paste",
+					combinator_entity)
+				force_refresh_cache(combinator)
+			end
+		end
+	end
 end)
 
 on_built_combinator_ghost(function(combinator_ghost)
-	local settings_ghost = find_settings_ghost(combinator_ghost)
+	local settings_ghost = find_settings_ghosts(combinator_ghost)[1]
 	if settings_ghost then
 		-- If combinator ghost already has settings, those govern.
 		local cg_tags = combinator_ghost.tags
@@ -393,6 +436,8 @@ end)
 -- of multiple combinators. Do this by invalidating all combinators
 -- in the bbox affected by the blueprint
 --------------------------------------------------------------------------------
+-- TODO: this is no longer necessary after the ghost paste changes
+
 ---@param player LuaPlayer
 ---@param event EventData.on_pre_build
 ---@param entities BlueprintEntity[]?
@@ -443,7 +488,7 @@ local function built_blueprint_entities(player, event, entities)
 	-- This should be the world region affected by the blueprint. Draw a
 	-- debug rendering box around it.
 	l, t, r, b = mlib.bbox_get(bbox)
-	log.trace("blueprint bbox", l, t, r, b)
+	log.trace("Invalidating all cybersyn combinators in region", l, t, r, b)
 	if mod_settings.debug then
 		rendering.draw_rectangle({
 			color = { r = 1, g = 0, b = 0, a = 0.5 },
@@ -454,8 +499,6 @@ local function built_blueprint_entities(player, event, entities)
 			time_to_live = 300,
 		})
 	end
-
-	-- TODO: find all combinators in region and force them to reload their settings from the hidden entity
 end
 
 on_built_blueprint(function(player, event)
