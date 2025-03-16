@@ -161,3 +161,6 @@ on_node_combinator_set_changed, raise_node_combinator_set_changed = event("node_
 on_node_created, raise_node_created = event("node_created", "Cybersyn.Node", "nil", "nil", "nil", "nil")
 
 on_node_destroyed, raise_node_destroyed = event("node_destroyed", "Cybersyn.Node", "nil", "nil", "nil", "nil")
+
+on_train_stop_layout_changed, raise_train_stop_layout_changed = event("trainstop_layout_changed",
+	"Cybersyn.TrainStop", "nil", "nil", "nil", "nil")

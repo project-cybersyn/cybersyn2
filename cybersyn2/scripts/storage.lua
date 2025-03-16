@@ -16,6 +16,7 @@
 ---@field public stop_id_to_node_id table<UnitNumber, Id> Map from UnitNumbers of `train-stop` entities to the corresponding node id.
 ---@field public stop_layouts table<Id, Cybersyn.TrainStopLayout> Layouts of train stops, indexed by node id.
 ---@field public train_layouts table<Id, Cybersyn.TrainLayout> Layouts of trains, indexed by layout id.
+storage = {}
 
 ---Per-player global state.
 ---@class (exact) Cybersyn.PlayerState

@@ -1,14 +1,41 @@
 --------------------------------------------------------------------------------
 -- Train stop layouts.
 --------------------------------------------------------------------------------
+local tlib = require("__cybersyn2__.lib.table")
 
----Information about the physical shape of a train stop and its associated
----rails and equipment.
----@class (exact) Cybersyn.TrainStopLayout
----@field public cargo_loader_map {[UnitNumber]: uint} Map of equipment that can load cargo to tile indices relative to the train stop.
----@field public fluid_loader_map {[UnitNumber]: uint} Map of equipment that can load fluid to tile indices relative to the train stop.
----@field public loading_equipment_pattern (0|1|2|3)[] Auto-allowlist car pattern, inferred from equipment. 0 = no equipment, 1 = cargo, 2 = fluid, 3 = both.
----@field public bbox BoundingBox? The bounding box used when scanning for equipment.
----@field public rail_bbox BoundingBox? The bounding box for only the rails.
----@field public rail_set UnitNumberSet The set of rails associated to this stop.
----@field public direction defines.direction? Direction of the vector pointing from the stop entity towards the oncoming track, if known.
+local empty = {}
+
+---@param rail_set UnitNumberSet
+local function clear_rail_set_from_storage(rail_set)
+	local data = (storage --[[@as Cybersyn.Storage]])
+	for rail_id in pairs(rail_set or empty) do
+		data.rail_id_to_node_id[rail_id] = nil
+	end
+end
+
+---@param rail_set UnitNumberSet
+---@param node_id Id
+local function add_rail_set_to_storage(rail_set, node_id)
+	local data = (storage --[[@as Cybersyn.Storage]])
+	for rail_id in pairs(rail_set or empty) do
+		data.rail_id_to_node_id[rail_id] = node_id
+	end
+end
+
+---@param layout Cybersyn.TrainStopLayout
+local function clear_layout(layout)
+	clear_rail_set_from_storage(layout.rail_set)
+	layout.rail_set = {}
+	layout.cargo_loader_map = {}
+	layout.fluid_loader_map = {}
+	layout.loading_equipment_pattern = {}
+
+	local stop = stop_api.get_stop(layout.node_id, true)
+	if stop then
+		raise_train_stop_layout_changed(stop)
+		local combs = tlib.t_map_a(stop.combinator_set, function(_, combinator_id)
+			return combinator_api.get_combinator(combinator_id, true)
+		end)
+		stop_api.reassociate_combinators(combs)
+	end
+end
