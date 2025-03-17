@@ -55,6 +55,6 @@ on_train_stop_equipment_changed(function(stop, layout)
 	if tlib.a_eqeq(layout_pattern, layout.carriage_loading_pattern) then
 		return
 	end
-
+	layout.carriage_loading_pattern = layout_pattern
 	raise_train_stop_pattern_changed(stop, layout)
 end)

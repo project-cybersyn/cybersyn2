@@ -325,6 +325,4 @@ on_node_destroyed(destroy_stop_overlay)
 on_node_created(update_stop_overlay)
 on_node_combinator_set_changed(update_stop_overlay)
 on_train_stop_layout_changed(update_stop_overlay)
-
--- TODO: equipment fix
---on_train_stop_loading_equipment_pattern_changed(update_stop_overlay)
+on_train_stop_pattern_changed(update_stop_overlay)
