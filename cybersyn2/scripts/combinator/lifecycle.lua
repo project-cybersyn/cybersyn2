@@ -12,28 +12,24 @@ local mlib = require("__cybersyn2__.lib.math")
 ---@param combinator_entity LuaEntity A *valid* reference to a non-ghost combinator.
 ---@return Cybersyn.Combinator.Internal
 local function create_combinator_state(combinator_entity)
-	---@type Cybersyn.Storage
-	local data = storage
 	local combinator_id = combinator_entity.unit_number
 	if not combinator_id then
 		-- Should be impossible. Have to crash here as this function cant return nil.
 		error("Combinator entity has no unit number.")
 	end
-	data.combinators[combinator_id] = {
+	storage.combinators[combinator_id] = {
 		id = combinator_id,
 		entity = combinator_entity,
 	} --[[@as Cybersyn.Combinator.Internal]]
 
-	return data.combinators[combinator_id]
+	return storage.combinators[combinator_id]
 end
 
 ---@param combinator_id UnitNumber
 ---@return boolean `true` if the combinator was removed, `false` if it was not found.
 local function destroy_combinator_state(combinator_id)
-	---@type Cybersyn.Storage
-	local data = storage
-	if data.combinators[combinator_id] then
-		data.combinators[combinator_id] = nil
+	if storage.combinators[combinator_id] then
+		storage.combinators[combinator_id] = nil
 		return true
 	end
 	return false
@@ -142,9 +138,7 @@ end
 local function get_raw_values(combinator_entity)
 	-- If real combinator, should be in the cache.
 	local id = combinator_entity.unit_number
-	---@type Cybersyn.Storage
-	local data = storage
-	if data.combinator_settings_cache[id] then return data.combinator_settings_cache[id] end
+	if storage.combinator_settings_cache[id] then return storage.combinator_settings_cache[id] end
 
 	-- Must be a ghost at this point, otherwise there's a problem.
 	if combinator_entity.name ~= "entity-ghost" or combinator_entity.ghost_name ~= "cybersyn2-combinator" then
@@ -177,14 +171,12 @@ local function set_raw_values(combinator_entity, values)
 		log.warn("Real combinator has no settings entity", combinator_entity)
 		return false
 	end
-	---@type Cybersyn.Storage
-	local data = storage
-	if not data.combinator_settings_cache[id] then
+	if not storage.combinator_settings_cache[id] then
 		log.warn("Real combinator has no settings cache", combinator_entity)
 		return false
 	end
-	data.combinator_settings_cache[id] = values
-	if not encode_tags_to_display_panel(data.combinator_settings_cache[id], combinator.settings_entity) then
+	storage.combinator_settings_cache[id] = values
+	if not encode_tags_to_display_panel(storage.combinator_settings_cache[id], combinator.settings_entity) then
 		log.warn("Failed to encode settings to hidden entity", combinator.settings_entity)
 	end
 	return true
@@ -201,9 +193,7 @@ local function force_refresh_cache(combinator)
 	end
 	local new_tags = decode_tags_from_display_panel(settings_entity) or {}
 	-- Store settings in cache
-	---@type Cybersyn.Storage
-	local data = storage
-	data.combinator_settings_cache[combinator.id] = new_tags
+	storage.combinator_settings_cache[combinator.id] = new_tags
 	-- Raise event assuming any/all settings were updated as a result
 	raise_combinator_or_ghost_setting_changed(combinator, nil, nil, nil)
 end
@@ -247,14 +237,12 @@ function combinator_api.set_raw_value(combinator_entity, key, value)
 		log.warn("Real combinator has no settings entity", combinator_entity)
 		return false
 	end
-	---@type Cybersyn.Storage
-	local data = storage
-	if not data.combinator_settings_cache[id] then
+	if not storage.combinator_settings_cache[id] then
 		log.warn("Real combinator has no settings cache", combinator_entity)
 		return false
 	end
-	data.combinator_settings_cache[id][key] = value
-	if not encode_tags_to_display_panel(data.combinator_settings_cache[id], combinator.settings_entity) then
+	storage.combinator_settings_cache[id][key] = value
+	if not encode_tags_to_display_panel(storage.combinator_settings_cache[id], combinator.settings_entity) then
 		log.warn("Failed to encode settings to hidden entity", combinator.settings_entity)
 	end
 	return true
@@ -310,9 +298,7 @@ on_built_combinator(function(combinator_entity, tags)
 	-- Assign tags inherited from combinator ghost
 	tlib.assign(new_tags, tags or {})
 	-- Store settings in cache
-	---@type Cybersyn.Storage
-	local data = storage
-	data.combinator_settings_cache[comb.id] = new_tags
+	storage.combinator_settings_cache[comb.id] = new_tags
 
 	raise_combinator_created(comb)
 end)
@@ -336,9 +322,7 @@ on_broken_combinator(function(combinator_entity)
 	if e2 then e2.destroy() end
 
 	-- Clear settings cache
-	---@type Cybersyn.Storage
-	local data = storage
-	data.combinator_settings_cache[comb.id] = nil
+	storage.combinator_settings_cache[comb.id] = nil
 
 	destroy_combinator_state(comb.id)
 end)

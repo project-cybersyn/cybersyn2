@@ -7,18 +7,16 @@ local empty = {}
 
 ---@param rail_set UnitNumberSet
 local function clear_rail_set_from_storage(rail_set)
-	local data = (storage --[[@as Cybersyn.Storage]])
 	for rail_id in pairs(rail_set or empty) do
-		data.rail_id_to_node_id[rail_id] = nil
+		storage.rail_id_to_node_id[rail_id] = nil
 	end
 end
 
 ---@param rail_set UnitNumberSet
 ---@param node_id Id
 local function add_rail_set_to_storage(rail_set, node_id)
-	local data = (storage --[[@as Cybersyn.Storage]])
 	for rail_id in pairs(rail_set or empty) do
-		data.rail_id_to_node_id[rail_id] = node_id
+		storage.rail_id_to_node_id[rail_id] = node_id
 	end
 end
 

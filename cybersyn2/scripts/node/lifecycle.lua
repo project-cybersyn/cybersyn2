@@ -9,16 +9,15 @@ local tlib = require("__cybersyn2__.lib.table")
 ---@param node_type string
 ---@param initial_data table #Initial state data appropriate to the node type which will be assigned to the new node.
 function node_api.create_node(node_type, initial_data)
-	local data = (storage --[[@as Cybersyn.Storage]])
 	local id = counters.next("node")
 	initial_data.id = id
 	initial_data.type = node_type
 	initial_data.combinator_set = {}
 	initial_data.is_being_destroyed = nil
-	data.nodes[id] = initial_data
+	storage.nodes[id] = initial_data
 
-	raise_node_created(data.nodes[id])
-	return data.nodes[id]
+	raise_node_created(storage.nodes[id])
+	return storage.nodes[id]
 end
 
 ---Destroy the node with the given id.
@@ -41,8 +40,7 @@ function node_api.destroy_node(node_id)
 	end
 
 	-- Destroy state
-	local data = (storage --[[@as Cybersyn.Storage]])
-	data.nodes[node_id] = nil
+	storage.nodes[node_id] = nil
 end
 
 -- When a combinator is destroyed, disassociate it from its node.

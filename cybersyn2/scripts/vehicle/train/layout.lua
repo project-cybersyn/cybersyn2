@@ -38,8 +38,7 @@ local function get_layout_id(train)
 	end
 
 	-- Check if layout exists
-	local data = storage --[[@as Cybersyn.Storage]]
-	local _, layout_id = tlib.find(data.train_layouts, function(layout)
+	local _, layout_id = tlib.find(storage.train_layouts, function(layout)
 		if array_eq(layout.carriage_names, names) then
 			return true
 		end
@@ -52,7 +51,7 @@ local function get_layout_id(train)
 		carriage_types = types,
 		bidirectional = (#(train.lua_train.locomotives["back_movers"] or empty) > 0),
 	}
-	data.train_layouts[layout.id] = layout
+	storage.train_layouts[layout.id] = layout
 	raise_train_layout_created(layout)
 	return layout.id
 end

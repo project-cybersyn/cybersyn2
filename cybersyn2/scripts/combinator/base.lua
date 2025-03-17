@@ -37,9 +37,7 @@ end
 ---@return Cybersyn.Combinator.Internal?
 function combinator_api.get_combinator(unit_number, skip_validation)
 	if not unit_number then return nil end
-	---@type Cybersyn.Storage
-	local data = storage
-	local combinator = data.combinators[unit_number]
+	local combinator = storage.combinators[unit_number]
 	if skip_validation then
 		return combinator
 	else
@@ -59,7 +57,7 @@ end
 ---@return Cybersyn.Combinator?
 function combinator_api.realize(ephemeral)
 	if ephemeral and ephemeral.entity and ephemeral.entity.valid then
-		local combinator = (storage --[[@as Cybersyn.Storage]]).combinators[ephemeral.entity.unit_number]
+		local combinator = storage.combinators[ephemeral.entity.unit_number]
 		if combinator == ephemeral or is_valid(combinator) then return combinator end
 	end
 	return nil

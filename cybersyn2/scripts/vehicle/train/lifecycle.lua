@@ -10,11 +10,9 @@ local ALL_TRAINS_FILTER = {}
 ---@param lua_train LuaTrain A *valid* `LuaTrain`.
 ---@return Cybersyn.Train? #The created train object if it was possible to create it.
 local function create_train(lua_train)
-	---@type Cybersyn.Storage
-	local data = storage
-	local preexisting_id = data.luatrain_id_to_vehicle_id[lua_train.id]
+	local preexisting_id = storage.luatrain_id_to_vehicle_id[lua_train.id]
 	if preexisting_id then
-		local preexisting = data.vehicles[preexisting_id]
+		local preexisting = storage.vehicles[preexisting_id]
 		if preexisting and preexisting.type == "train" then
 			return preexisting --[[@as Cybersyn.Train]]
 		else
@@ -28,8 +26,8 @@ local function create_train(lua_train)
 		lua_train = lua_train,
 		lua_train_id = lua_train.id,
 	}
-	data.vehicles[vehicle.id] = vehicle
-	data.luatrain_id_to_vehicle_id[lua_train.id] = vehicle.id
+	storage.vehicles[vehicle.id] = vehicle
+	storage.luatrain_id_to_vehicle_id[lua_train.id] = vehicle.id
 
 	raise_vehicle_created(vehicle)
 	return vehicle
@@ -37,9 +35,7 @@ end
 
 ---@param name string
 local function create_train_group(name)
-	---@type Cybersyn.Storage
-	local data = storage
-	data.train_groups[name] = {
+	storage.train_groups[name] = {
 		name = name,
 		trains = {},
 	}
@@ -48,19 +44,17 @@ end
 
 ---@param name string
 local function destroy_train_group(name)
-	---@type Cybersyn.Storage
-	local data = storage
-	local group = data.train_groups[name]
+	local group = storage.train_groups[name]
 	if not group then return end
 	for vehicle_id in pairs(group.trains) do
 		group.trains[vehicle_id] = nil
-		local vehicle = data.vehicles[vehicle_id] --[[@as Cybersyn.Train]]
+		local vehicle = storage.vehicles[vehicle_id] --[[@as Cybersyn.Train]]
 		if vehicle and vehicle.group == name then
 			vehicle.group = nil
 			raise_train_group_train_removed(vehicle, name)
 		end
 	end
-	data.train_groups[name] = nil
+	storage.train_groups[name] = nil
 	raise_train_group_destroyed(name)
 end
 
@@ -68,9 +62,7 @@ end
 ---@param group_name string
 local function add_train_to_group(vehicle, group_name)
 	if (not vehicle) or (not group_name) then return end
-	---@type Cybersyn.Storage
-	local data = storage
-	local group = data.train_groups[group_name]
+	local group = storage.train_groups[group_name]
 	vehicle.group = group_name
 	if group and (not group.trains[vehicle.id]) then
 		group.trains[vehicle.id] = true
@@ -80,9 +72,7 @@ end
 
 local function remove_train_from_group(vehicle, group_name)
 	if (not vehicle) or (not group_name) then return end
-	---@type Cybersyn.Storage
-	local data = storage
-	local group = data.train_groups[group_name]
+	local group = storage.train_groups[group_name]
 	vehicle.group = nil
 	if not group then return end
 	if group.trains[vehicle.id] then
@@ -98,20 +88,18 @@ end
 ---@param vehicle_id Id?
 local function destroy_train(vehicle_id)
 	if not vehicle_id then return end
-	---@type Cybersyn.Storage
-	local data = storage
-	vehicle = data.vehicles[vehicle_id] --[[@as Cybersyn.Train]]
+	vehicle = storage.vehicles[vehicle_id] --[[@as Cybersyn.Train]]
 	if not vehicle then return end
 	vehicle.is_being_destroyed = true
 	if vehicle.group then remove_train_from_group(vehicle, vehicle.group) end
 	if vehicle.lua_train_id then
-		data.luatrain_id_to_vehicle_id[vehicle.lua_train_id] = nil
+		storage.luatrain_id_to_vehicle_id[vehicle.lua_train_id] = nil
 	end
 	if vehicle.lua_train and vehicle.lua_train.valid then
-		data.luatrain_id_to_vehicle_id[vehicle.lua_train.id] = nil
+		storage.luatrain_id_to_vehicle_id[vehicle.lua_train.id] = nil
 	end
 	raise_vehicle_destroyed(vehicle)
-	data.vehicles[vehicle.id] = nil
+	storage.vehicles[vehicle.id] = nil
 end
 
 --------------------------------------------------------------------------------
@@ -130,8 +118,6 @@ end
 
 ---@param data Cybersyn.Internal.TrainMonitorTaskData
 local function monitor_init(data)
-	---@type Cybersyn.Storage
-	local mod_data = storage
 	data.stride = math.ceil(PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
 	data.index = 1
 	data.seen_groups = {}
@@ -243,12 +229,10 @@ scheduler.register_handler("train_group_monitor", train_group_monitor)
 
 -- On mod init or setting change, reschedule the train monitor task.
 on_mod_settings_changed(function()
-	---@type Cybersyn.Storage
-	local data = storage
-	if data.task_ids["train_group_monitor"] then
-		scheduler.set_period(data.task_ids["train_group_monitor"], mod_settings.work_period)
+	if storage.task_ids["train_group_monitor"] then
+		scheduler.set_period(storage.task_ids["train_group_monitor"], mod_settings.work_period)
 	else
-		data.task_ids["train_group_monitor"] = scheduler.every(
+		storage.task_ids["train_group_monitor"] = scheduler.every(
 			mod_settings.work_period,
 			"train_group_monitor",
 			{

@@ -15,10 +15,8 @@ stop_api = {}
 ---@param rail_entity LuaEntity A *valid* rail.
 ---@return Cybersyn.TrainStop? #The stop state, if found. For performance reasons, this state is not checked for validity.
 function stop_api.find_stop_from_rail(rail_entity)
-	---@type Cybersyn.Storage
-	local data = storage
-	local stop_id = data.rail_id_to_node_id[rail_entity.unit_number]
-	if stop_id then return data.nodes[stop_id] --[[@as Cybersyn.TrainStop?]] end
+	local stop_id = storage.rail_id_to_node_id[rail_entity.unit_number]
+	if stop_id then return storage.nodes[stop_id] --[[@as Cybersyn.TrainStop?]] end
 end
 
 ---Locate all `LuaEntity`s corresponding to train stops within the given area.
@@ -75,7 +73,7 @@ end
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.TrainStop?
 function stop_api.get_stop_from_unit_number(unit_number, skip_validation)
-	return stop_api.get_stop((storage --[[@as Cybersyn.Storage]]).stop_id_to_node_id[unit_number or ""], skip_validation)
+	return stop_api.get_stop(storage.stop_id_to_node_id[unit_number or ""], skip_validation)
 end
 
 ---Given a combinator, find the nearby rail or stop that may trigger an

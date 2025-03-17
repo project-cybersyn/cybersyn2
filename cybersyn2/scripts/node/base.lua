@@ -11,9 +11,7 @@ node_api = {}
 ---@return Cybersyn.Node?
 function node_api.get_node(node_id, skip_validation)
 	if not node_id then return nil end
-	---@type Cybersyn.Storage
-	local data = storage
-	return data.nodes[node_id]
+	return storage.nodes[node_id]
 end
 
 ---Associate the given combinator with the given node.

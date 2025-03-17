@@ -13,18 +13,14 @@ local log = require("__cybersyn2__.lib.logging")
 ---@param player_index PlayerIndex
 ---@return Cybersyn.PlayerState? #The GUI state for the player, or `nil` if the player's GUI is not open.
 function combinator_api.get_gui_state(player_index)
-	---@type Cybersyn.Storage
-	local data = storage
-	local state = data.players[player_index]
+	local state = storage.players[player_index]
 	if (not state) or (not state.open_combinator) then return nil end
 	return state
 end
 
 ---@param player_index PlayerIndex
 local function destroy_gui_state(player_index)
-	---@type Cybersyn.Storage
-	local data = storage
-	local state = data.players[player_index]
+	local state = storage.players[player_index]
 	if state then
 		state.open_combinator = nil
 		state.open_combinator_unit_number = nil
@@ -34,17 +30,15 @@ end
 ---@param player_index PlayerIndex
 ---@param combinator Cybersyn.Combinator.Ephemeral
 local function create_gui_state(player_index, combinator)
-	---@type Cybersyn.Storage
-	local data = storage
-	if not data.players[player_index] then
-		data.players[player_index] = {
+	if not storage.players[player_index] then
+		storage.players[player_index] = {
 			player_index = player_index,
 			open_combinator = nil,
 			open_combinator_unit_number = nil,
 		}
 	end
-	data.players[player_index].open_combinator = combinator
-	data.players[player_index].open_combinator_unit_number = combinator.entity.unit_number
+	storage.players[player_index].open_combinator = combinator
+	storage.players[player_index].open_combinator_unit_number = combinator.entity.unit_number
 end
 
 ---Determine if a player has the combinator GUI open.
@@ -129,9 +123,7 @@ end
 ---Run a callback on each player who has an open combinator GUI.
 ---@param callback fun(state: Cybersyn.PlayerState, ui_root: LuaGuiElement)
 function combinator_api.for_each_open_combinator_gui(callback)
-	---@class Cybersyn.Storage
-	local data = storage
-	for _, state in pairs(data.players) do
+	for _, state in pairs(storage.players) do
 		local player = game.get_player(state.player_index)
 		if player then
 			local comb_gui = player.gui.screen[WINDOW_NAME]
