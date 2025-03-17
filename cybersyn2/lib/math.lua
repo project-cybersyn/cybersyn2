@@ -49,7 +49,7 @@ lib.pos_set = pos_set
 local function pos_new(pos)
 	if pos then
 		local x, y = pos_get(pos)
-		return pos_set({ 0, 0 }, x, y)
+		return { x, y }
 	else
 		return { 0, 0 }
 	end

@@ -11,6 +11,8 @@ local function create_stop_state(stop_entity)
 	return node_api.create_node("stop", {
 		entity = stop_entity,
 		entity_id = stop_id,
+		allowed_layouts = {},
+		allowed_groups = {},
 	}) --[[@as Cybersyn.TrainStop]]
 end
 
@@ -180,6 +182,16 @@ end)
 -- When a combinator is created, try to associate it to train stops
 on_combinator_created(function(combinator)
 	stop_api.reassociate_combinators({ combinator })
+end)
+
+-- Reassociate a combinator if it's repositioned.
+on_entity_repositioned(function(what, entity)
+	if what == "combinator" then
+		local combinator = combinator_api.get_combinator(entity.unit_number)
+		if combinator then
+			stop_api.reassociate_combinators({ combinator })
+		end
+	end
 end)
 
 -- When a stop loses all its combinators, destroy it

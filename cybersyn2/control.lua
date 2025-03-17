@@ -23,6 +23,9 @@ require("scripts.node.stop.lifecycle")
 require("scripts.node.stop.layout.base")
 require("scripts.node.stop.layout.equipment")
 
+require("scripts.debug.base")
+require("scripts.debug.overlay")
+
 -- Main should run last.
 require("scripts.main")
 

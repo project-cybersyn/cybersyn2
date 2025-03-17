@@ -16,6 +16,7 @@
 ---@field public stop_id_to_node_id table<UnitNumber, Id> Map from UnitNumbers of `train-stop` entities to the corresponding node id
 ---@field public stop_layouts table<Id, Cybersyn.TrainStopLayout> Layouts of train stops, indexed by node id
 ---@field public train_layouts table<Id, Cybersyn.TrainLayout> Layouts of trains, indexed by layout id
+---@field public debug_state Cybersyn.Internal.DebugState Debug state, should remain empty unless debug mode is enabled for the save
 storage = {}
 
 ---Per-player global state.
@@ -38,4 +39,5 @@ on_init(function()
 	storage.stop_id_to_node_id = {}
 	storage.stop_layouts = {}
 	storage.train_layouts = {}
+	storage.debug_state = {}
 end, true)

@@ -1,5 +1,7 @@
 -- Global auto-incrementing counters stored in game state. Useful for generating unique IDs.
 
+---@diagnostic disable: inject-field
+
 if ... ~= "__cybersyn2__.lib.counters" then
 	return require("__cybersyn2__.lib.counters")
 end

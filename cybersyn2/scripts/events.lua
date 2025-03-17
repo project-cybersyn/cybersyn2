@@ -162,5 +162,13 @@ on_node_created, raise_node_created = event("node_created", "Cybersyn.Node", "ni
 
 on_node_destroyed, raise_node_destroyed = event("node_destroyed", "Cybersyn.Node", "nil", "nil", "nil", "nil")
 
-on_train_stop_layout_changed, raise_train_stop_layout_changed = event("trainstop_layout_changed",
-	"Cybersyn.TrainStop", "nil", "nil", "nil", "nil")
+on_train_stop_layout_changed, raise_train_stop_layout_changed = event("train_stop_layout_changed",
+	"Cybersyn.TrainStop", "Cybersyn.TrainStopLayout", "nil", "nil", "nil")
+
+on_train_stop_equipment_changed, raise_train_stop_equipment_changed = event("train_stop_equipment_changed",
+	"Cybersyn.TrainStop", "Cybersyn.TrainStopLayout", "nil", "nil", "nil")
+
+---Event raised when the automatically-inferred pattern of equipment at
+---the given stop changes. More coarse-grained than `train_stop_equipment_changed`.
+on_train_stop_pattern_changed, raise_train_stop_pattern_changed = event("train_stop_pattern_changed",
+	"Cybersyn.TrainStop", "Cybersyn.TrainStopLayout", "nil", "nil", "nil")

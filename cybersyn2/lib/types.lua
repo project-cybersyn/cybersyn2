@@ -3,6 +3,7 @@
 -- via remote interface/queries, and authors can get the definitions for
 -- these types by requiring or linking this file to their IDE.
 --------------------------------------------------------------------------------
+
 local lib = {}
 
 ---@alias UnitNumber uint A Factorio `unit_number` associated uniquely with a particular `LuaEntity`.
@@ -72,7 +73,8 @@ lib.CarriageType = {
 ---@field public type "stop"
 ---@field public entity LuaEntity? The `train-stop` entity for this stop, if it exists.
 ---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
----@field public accepted_train_layouts IdSet Set of accepted train layout IDs.
+---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
+---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
@@ -80,7 +82,7 @@ lib.CarriageType = {
 ---@field public node_id Id The id of the node this layout is for.
 ---@field public cargo_loader_map {[UnitNumber]: uint} Map of equipment that can load cargo to tile indices relative to the train stop.
 ---@field public fluid_loader_map {[UnitNumber]: uint} Map of equipment that can load fluid to tile indices relative to the train stop.
----@field public loading_equipment_pattern (0|1|2|3)[] Auto-allowlist car pattern, inferred from equipment. 0 = no equipment, 1 = cargo, 2 = fluid, 3 = both.
+---@field public carriage_loading_pattern (0|1|2|3)[] Auto-allowlist car pattern, inferred from equipment. 0 = no equipment, 1 = cargo, 2 = fluid, 3 = both. Assumes 6-1 wagons.
 ---@field public bbox BoundingBox? The bounding box used when scanning for equipment.
 ---@field public rail_bbox BoundingBox? The bounding box for only the rails.
 ---@field public rail_set UnitNumberSet The set of rails associated to this stop.
