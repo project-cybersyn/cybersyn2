@@ -202,6 +202,7 @@ end
 -- Raw storage API. This should only be used by the higher level combinator
 -- settings API.
 --------------------------------------------------------------------------------
+
 ---Obtain the raw value of a storage key in physical combinator settings
 ---storage.
 ---@param combinator_entity LuaEntity A *valid* combinator or ghost entity

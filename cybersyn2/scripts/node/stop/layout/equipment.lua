@@ -6,6 +6,8 @@ local tlib = require("__cybersyn2__.lib.table")
 local mlib = require("__cybersyn2__.lib.math")
 local flib_bbox = require("__flib__.bounding-box")
 
+local bbox_contains = mlib.bbox_contains
+
 local rail_types = { "straight-rail", "curved-rail-a", "curved-rail-b" }
 local equipment_types_set = {
 	inserter = true,
@@ -92,14 +94,15 @@ end
 
 local function register_equipment_if_applicable(equipment, stop, is_being_destroyed)
 	local layout = stop_api.get_layout(stop.id)
-	if not layout then return end
+	if (not layout) then return end
 	local rail_bbox = layout.rail_bbox
 	local stop_bbox = layout.bbox
+	if (not rail_bbox) or (not stop_bbox) then return end
 	local register_flag = (not is_being_destroyed)
 	if equipment.type == "inserter" then
-		if flib_bbox.contains_position(rail_bbox, equipment.pickup_position) then
+		if bbox_contains(rail_bbox, equipment.pickup_position) then
 			stop_api.register_loading_equipment(stop.id, equipment, equipment.pickup_position, register_flag, false)
-		elseif flib_bbox.contains_position(rail_bbox, equipment.drop_position) then
+		elseif bbox_contains(rail_bbox, equipment.drop_position) then
 			stop_api.register_loading_equipment(stop.id, equipment, equipment.drop_position, register_flag, false)
 		else
 			stop_api.register_loading_equipment(stop.id, equipment, equipment.position, false, false)
@@ -107,7 +110,7 @@ local function register_equipment_if_applicable(equipment, stop, is_being_destro
 	elseif equipment.type == "pump" then
 		if equipment.pump_rail_target then
 			local rail = equipment.pump_rail_target
-			if rail and flib_bbox.contains_position(rail_bbox, rail.position) then
+			if rail and bbox_contains(rail_bbox, rail.position) then
 				stop_api.register_loading_equipment(stop.id, equipment, equipment.position, false, register_flag)
 				return
 			end
@@ -115,7 +118,7 @@ local function register_equipment_if_applicable(equipment, stop, is_being_destro
 		-- Fallthrough: remove pump from stop equipment manifest
 		stop_api.register_loading_equipment(stop.id, equipment, equipment.position, false, false)
 	elseif equipment.type == "loader-1x1" then
-		if flib_bbox.contains_position(stop_bbox, equipment.position) then
+		if bbox_contains(stop_bbox, equipment.position) then
 			stop_api.register_loading_equipment(stop.id, equipment, equipment.position, register_flag, false)
 		else
 			stop_api.register_loading_equipment(stop.id, equipment, equipment.position, false, false)

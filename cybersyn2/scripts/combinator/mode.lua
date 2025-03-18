@@ -6,7 +6,7 @@
 ---@field name string The name of the mode, which must be unique. Used as the internal storage key for the mode.
 ---@field localized_string string The Factorio localized string for the mode.
 ---@field create_gui fun(parent: LuaGuiElement): nil Create gui elements representing the mode.
----@field update_gui fun(parent: LuaGuiElement, settings: Cybersyn.Combinator.Settings, changed_setting: string?): nil Update the combinator's gui elements. If `changed_setting` is given, can be used as a hint to update only the changed setting. If nil, the whole GUI should be updated.
+---@field update_gui fun(parent: LuaGuiElement, settings: Cybersyn.Combinator.Ephemeral, changed_setting: string?): nil Update the combinator's gui elements. If `changed_setting` is given, can be used as a hint to update only the changed setting. If nil, the whole GUI should be updated.
 
 ---@type {[string]: Cybersyn.Combinator.ModeDefinition}
 local modes = {}

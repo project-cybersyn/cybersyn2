@@ -11,6 +11,8 @@ require("scripts.combinator.lifecycle")
 require("scripts.combinator.gui.base")
 
 require("scripts.combinator.modes.station")
+require("scripts.combinator.modes.allow.base")
+require("scripts.combinator.modes.allow.impl")
 
 require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")

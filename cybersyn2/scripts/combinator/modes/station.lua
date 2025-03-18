@@ -17,25 +17,27 @@ combinator_api.register_setting(combinator_api.make_raw_setting("network_signal"
 combinator_api.register_setting(combinator_api.make_raw_setting("pr", "pr"))
 
 combinator_api.register_setting(combinator_api.make_flag_setting("use_stack_thresholds", "station_flags", 0))
-combinator_api.register_setting(combinator_api.make_flag_setting("allow_all_trains", "station_flags", 1))
 
 --------------------------------------------------------------------------------
 -- Station combinator GUI.
 --------------------------------------------------------------------------------
 
 ---@param event EventData.on_gui_elem_changed
----@param settings Cybersyn.Combinator.Settings
+---@param settings Cybersyn.Combinator.Ephemeral
 local function handle_network(event, settings)
 	local signal = event.element.elem_value
-	if not signal then return end
-	if signal.name == "signal-everything" or signal.name == "signal-anything" or signal.name == "signal-each" then
-		signal.name = "signal-each"
+	local stored = nil
+	if signal and signal.type == "virtual" then
+		stored = signal.name
+		if signal.name == "signal-everything" or signal.name == "signal-anything" or signal.name == "signal-each" then
+			stored = "signal-each"
+		end
 	end
-	combinator_api.write_setting(settings, combinator_settings.network_signal, signal.name)
+	combinator_api.write_setting(settings, combinator_settings.network_signal, stored)
 end
 
 ---@param event EventData.on_gui_switch_state_changed
----@param settings Cybersyn.Combinator.Settings
+---@param settings Cybersyn.Combinator.Ephemeral
 local function handle_pr_switch(event, settings)
 	local element = event.element
 	local is_pr_state = (element.switch_state == "none" and 0) or (element.switch_state == "left" and 1) or 2
@@ -97,15 +99,6 @@ local function create_gui(parent)
 		},
 		{
 			type = "checkbox",
-			name = "allow_all",
-			state = false,
-			handler = combinator_api.generic_checkbox_handler,
-			tags = { setting = "allow_all_trains" },
-			tooltip = { "cybersyn2-gui.allow-all-tooltip" },
-			caption = { "cybersyn2-gui.allow-all-description" },
-		},
-		{
-			type = "checkbox",
 			name = "is_stack",
 			state = false,
 			handler = combinator_api.generic_checkbox_handler,
@@ -141,7 +134,7 @@ local function create_gui(parent)
 end
 
 ---@param parent LuaGuiElement
----@param settings Cybersyn.Combinator.Settings
+---@param settings Cybersyn.Combinator.Ephemeral
 ---@param changed_setting_name string?
 local function update_gui(parent, settings, changed_setting_name)
 	local switch_state = "none"
@@ -162,7 +155,6 @@ local function update_gui(parent, settings, changed_setting_name)
 	end
 	parent["network_flow"]["network_button"].elem_value = network_signal
 
-	parent["allow_all"].state = combinator_api.read_setting(settings, combinator_settings.allow_all_trains)
 	parent["is_stack"].state = combinator_api.read_setting(settings, combinator_settings.use_stack_thresholds)
 end
 

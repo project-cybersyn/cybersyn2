@@ -65,9 +65,11 @@ end
 
 ---Get all combinators associated with this node.
 ---@param node Cybersyn.Node Reference to a *valid* node.
+---@param filter? fun(combinator: Cybersyn.Combinator.Internal): boolean? A filter function that returns `true` to include the combinator in the result.
 ---@return Cybersyn.Combinator.Internal[] #The combinators associated to the node, if any.
-function node_api.get_associated_combinators(node)
+function node_api.get_associated_combinators(node, filter)
 	return tlib.t_map_a(node.combinator_set, function(_, combinator_id)
-		return combinator_api.get_combinator(combinator_id, true)
+		local comb = combinator_api.get_combinator(combinator_id, true)
+		if comb and ((not filter) or filter(comb)) then return comb end
 	end)
 end

@@ -294,4 +294,15 @@ local function bbox_translate(bbox, pos_or_dx, dy)
 end
 lib.bbox_translate = bbox_translate
 
+---Determine if a bbox contains a position.
+---@param bbox BoundingBox
+---@param pos MapPosition
+---@return boolean
+local function bbox_contains(bbox, pos)
+	local l, t, r, b = bbox_get(bbox)
+	local x, y = pos_get(pos)
+	return (x >= l) and (x <= r) and (y >= t) and (y <= b)
+end
+lib.bbox_contains = bbox_contains
+
 return lib

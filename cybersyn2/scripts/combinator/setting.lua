@@ -5,17 +5,8 @@
 local bit_extract = bit32.extract
 local bit_replace = bit32.replace
 
----Reference that can be used to manipulate the settings of a combinator.
----@class (exact) Cybersyn.Combinator.Settings: Cybersyn.Combinator.Ephemeral
-
----@param combinator Cybersyn.Combinator.Ephemeral
----@return Cybersyn.Combinator.Settings
-function combinator_api.get_combinator_settings(combinator)
-	return combinator --[[@as Cybersyn.Combinator.Settings]]
-end
-
----@alias Cybersyn.Combinator.SettingReader fun(definition: Cybersyn.Combinator.SettingDefinition, settings: Cybersyn.Combinator.Settings): any Reads a setting from a combinator. `nil` return value indicates the setting was absent.
----@alias Cybersyn.Combinator.SettingWriter fun(definition: Cybersyn.Combinator.SettingDefinition, settings: Cybersyn.Combinator.Settings, value: any): boolean Writes a setting to a combinator. Returns `true` if the write was successful.
+---@alias Cybersyn.Combinator.SettingReader fun(definition: Cybersyn.Combinator.SettingDefinition, settings: Cybersyn.Combinator.Ephemeral): any Reads a setting from a combinator. `nil` return value indicates the setting was absent.
+---@alias Cybersyn.Combinator.SettingWriter fun(definition: Cybersyn.Combinator.SettingDefinition, settings: Cybersyn.Combinator.Ephemeral, value: any): boolean Writes a setting to a combinator. Returns `true` if the write was successful.
 
 ---@class Cybersyn.Combinator.SettingDefinition Definition of a setting that can be stored on a Cybersyn combinator.
 ---@field public name string The unique name of the setting.
@@ -27,7 +18,7 @@ end
 combinator_settings = {}
 
 ---Read the value of a combinator setting.
----@param combinator Cybersyn.Combinator.Settings
+---@param combinator Cybersyn.Combinator.Ephemeral
 ---@param setting Cybersyn.Combinator.SettingDefinition
 ---@return any value The value of the setting.
 function combinator_api.read_setting(combinator, setting)
@@ -35,7 +26,7 @@ function combinator_api.read_setting(combinator, setting)
 end
 
 ---Change the value of a combinator setting.
----@param combinator Cybersyn.Combinator.Settings
+---@param combinator Cybersyn.Combinator.Ephemeral
 ---@param setting Cybersyn.Combinator.SettingDefinition
 ---@param value any
 ---@param skip_event boolean? If `true`, the setting changed event will not be raised.
@@ -56,7 +47,9 @@ end
 ---@param definition Cybersyn.Combinator.SettingDefinition
 function combinator_api.register_setting(definition)
 	local name = definition.name
-	if combinator_settings[name] then
+	if (not name) or combinator_settings[name] then
+		-- Crash here so dev knows they need to use a unique name.
+		error("Duplicate or missing combinator setting name " .. tostring(name))
 		return false
 	end
 	combinator_settings[name] = definition
@@ -88,12 +81,13 @@ end
 ---Utility function for creating a setting that stores a value directly.
 ---@param setting_name string The name of the setting.
 ---@param key string The key of the value to read from and write to.
+---@param default any? The default value if the setting is `nil` or absent.
 ---@return Cybersyn.Combinator.SettingDefinition
-function combinator_api.make_raw_setting(setting_name, key)
+function combinator_api.make_raw_setting(setting_name, key, default)
 	return {
 		name = setting_name,
 		reader = function(definition, settings)
-			return combinator_api.get_raw_value(settings.entity, key)
+			return combinator_api.get_raw_value(settings.entity, key) or default
 		end,
 		writer = function(definition, settings, new_value)
 			return combinator_api.set_raw_value(settings.entity, key, new_value)
@@ -113,3 +107,32 @@ combinator_api.register_setting({
 		return combinator_api.set_raw_value(settings.entity, "mode", new_mode)
 	end,
 })
+
+---Read the mode of a valid live combinator directly from cache.
+---@param combinator Cybersyn.Combinator A *valid* real combinator.
+---@return string mode The mode of the combinator.
+function combinator_api.read_mode(combinator)
+	local cache = storage.combinator_settings_cache[combinator.id]
+	if cache then
+		return cache.mode --[[@as string]] or "unknown"
+	else
+		return "unknown"
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+-- When a setting is changed, if the combinator in question is real, forward the event.
+on_combinator_or_ghost_setting_changed(function(combinator, setting_name, new_value, old_value)
+	local real = storage.combinators[combinator.entity.unit_number]
+	if real then
+		raise_combinator_setting_changed(real, setting_name, new_value, old_value)
+	end
+end)
+
+-- When a real combinator is built, treat it as though all its settings have changed.
+on_combinator_created(function(combinator)
+	raise_combinator_setting_changed(combinator, nil, nil, nil)
+end)

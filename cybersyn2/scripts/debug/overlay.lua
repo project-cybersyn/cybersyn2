@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local mlib = require("__cybersyn2__.lib.math")
+local tlib = require("__cybersyn2__.lib.table")
 
 ---@class Cybersyn.Internal.DebugOverlayState
 ---@field public comb_overlays {[UnitNumber]: LuaRenderObject}
@@ -204,13 +205,27 @@ local function update_stop_overlay(stop)
 
 	-- Text
 	local lines = { table.concat({ "[item=train-stop]", stop.id }) }
-	for comb_id in pairs(stop.combinator_set) do
-		table.insert(lines, table.concat({ "[item=cybersyn-combinator]", comb_id }))
-	end
 	table.insert(lines, table.concat(layout.carriage_loading_pattern or {}))
+	table.insert(lines, "Allowed Layouts:")
+	if stop.allowed_layouts then
+		for tl_id in pairs(stop.allowed_layouts) do
+			local tlayout = storage.train_layouts[tl_id]
+			-- Make train layout into icons
+			if tlayout then
+				table.insert(lines, table.concat(
+					tlib.map(
+						(tlayout.carriage_names or {}),
+						function(name) return "[item=" .. name .. "]" end
+					)
+				))
+			end
+		end
+	else
+		table.insert(lines, "ALL")
+	end
 	set_text_overlay_text(overlay.text, lines)
 
-	-- Lines indicating associated combinators
+	-- Lines indicating assiated combinators
 	local n_assoc = 0
 	for comb_id in pairs(stop.combinator_set) do
 		local comb = combinator_api.get_combinator(comb_id)
@@ -326,3 +341,8 @@ on_node_created(update_stop_overlay)
 on_node_combinator_set_changed(update_stop_overlay)
 on_train_stop_layout_changed(update_stop_overlay)
 on_train_stop_pattern_changed(update_stop_overlay)
+on_node_data_changed(function(node)
+	if node.type == "stop" then
+		update_stop_overlay(node)
+	end
+end)
