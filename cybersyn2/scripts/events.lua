@@ -186,3 +186,27 @@ on_train_stop_equipment_changed, raise_train_stop_equipment_changed = event("tra
 ---the given stop changes. More coarse-grained than `train_stop_equipment_changed`.
 on_train_stop_pattern_changed, raise_train_stop_pattern_changed = event("train_stop_pattern_changed",
 	"Cybersyn.TrainStop", "Cybersyn.TrainStopLayout", "nil", "nil", "nil")
+
+--------------------------------------------------------------------------------
+-- Inventories and deliveries.
+--------------------------------------------------------------------------------
+
+on_inventory_created, raise_inventory_created = event("inventory_created", "Cybersyn.Inventory", "nil", "nil", "nil",
+	"nil")
+
+on_inventory_destroyed, raise_inventory_destroyed = event("inventory_destroyed", "Cybersyn.Inventory", "nil", "nil",
+	"nil", "nil")
+
+on_delivery_created, raise_delivery_created = event("delivery_created", "Cybersyn.Delivery", "nil", "nil", "nil",
+	"nil")
+
+on_delivery_destroyed, raise_delivery_destroyed = event("delivery_destroyed", "Cybersyn.Delivery", "nil", "nil",
+	"nil", "nil")
+
+---Event raised when a delivery's state changes. Not raised at the initial
+---creation of the delivery.
+--- * Arg 1 - `Cybersyn.Delivery` - The delivery.
+--- * Arg 2 - `Cybersyn.Delivery.State` - The new state of the delivery.
+--- * Arg 3 - `Cybersyn.Delivery.State` - The previous state of the delivery.
+on_delivery_state_changed, raise_delivery_state_changed = event("delivery_state_changed", "Cybersyn.Delivery",
+	"Cybersyn.Delivery.State", "Cybersyn.Delivery.State", "nil", "nil")

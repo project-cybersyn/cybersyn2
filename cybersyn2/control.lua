@@ -26,6 +26,10 @@ require("scripts.node.stop.layout.base")
 require("scripts.node.stop.layout.equipment")
 require("scripts.node.stop.layout.pattern")
 
+require("scripts.logistics.inventory.base")
+
+require("scripts.logistics.delivery.base")
+
 require("scripts.debug.base")
 require("scripts.debug.overlay")
 

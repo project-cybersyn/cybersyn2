@@ -13,6 +13,8 @@ function node_api.create_node(node_type, initial_data)
 	initial_data.id = id
 	initial_data.type = node_type
 	initial_data.combinator_set = {}
+	initial_data.dropoffs = {}
+	initial_data.pickups = {}
 	initial_data.is_being_destroyed = nil
 	storage.nodes[id] = initial_data
 
