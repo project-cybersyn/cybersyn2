@@ -120,6 +120,9 @@ on_train_group_train_removed, raise_train_group_train_removed = event("train_gro
 on_train_group_destroyed, raise_train_group_destroyed = event("train_group_destroyed", "string",
 	"nil", "nil", "nil", "nil")
 
+on_train_layout_created, raise_train_layout_created = event("train_layout_created", "Cybersyn.TrainLayout",
+	"nil", "nil", "nil", "nil")
+
 --------------------------------------------------------------------------------
 -- Cybersyn combinator object events
 --------------------------------------------------------------------------------
@@ -131,6 +134,7 @@ on_combinator_destroyed, raise_combinator_destroyed = event("combinator_destroye
 	"nil", "nil", "nil", "nil")
 
 ---@alias CybersynNodeOrNil Cybersyn.Node|nil
+
 ---Event raised when a combinator is associated or disassociated with a node.
 --- * Arg 1 - `Cybersyn.Combinator.Internal` - The combinator.
 --- * Arg 2 - `Cybersyn.Node|nil` - The node, if any, that the combinator is now associated with.
@@ -147,6 +151,15 @@ on_combinator_or_ghost_setting_changed, raise_combinator_or_ghost_setting_change
 	"combinator_or_ghost_setting_changed",
 	"Cybersyn.Combinator.Ephemeral", "StringOrNil", "any", "any", "nil")
 
+---Event raised when a real combinator's settings change, including when it
+---is first built.
+--- * Arg 1 - `Cybersyn.Combinator.Internal` - The combinator.
+--- * Arg 2 - `string|nil` - The name of the setting that changed. If `nil`, you must assume that any or all of the settings have changed.
+--- * Arg 3 - `any` - The new value of the setting, if known.
+--- * Arg 4 - `any` - The old value of the setting, if known.
+on_combinator_setting_changed, raise_combinator_setting_changed = event("combinator_setting_changed",
+	"Cybersyn.Combinator.Internal", "StringOrNil", "any", "any", "nil")
+
 --------------------------------------------------------------------------------
 -- Cybersyn node object events
 --------------------------------------------------------------------------------
@@ -158,3 +171,42 @@ on_node_combinator_set_changed, raise_node_combinator_set_changed = event("node_
 on_node_created, raise_node_created = event("node_created", "Cybersyn.Node", "nil", "nil", "nil", "nil")
 
 on_node_destroyed, raise_node_destroyed = event("node_destroyed", "Cybersyn.Node", "nil", "nil", "nil", "nil")
+
+---Event raised when internal data of a node (such as a train stop's allow list)
+---changes.
+on_node_data_changed, raise_node_data_changed = event("node_data_changed", "Cybersyn.Node", "nil", "nil", "nil", "nil")
+
+on_train_stop_layout_changed, raise_train_stop_layout_changed = event("train_stop_layout_changed",
+	"Cybersyn.TrainStop", "Cybersyn.TrainStopLayout", "nil", "nil", "nil")
+
+on_train_stop_equipment_changed, raise_train_stop_equipment_changed = event("train_stop_equipment_changed",
+	"Cybersyn.TrainStop", "Cybersyn.TrainStopLayout", "nil", "nil", "nil")
+
+---Event raised when the automatically-inferred pattern of equipment at
+---the given stop changes. More coarse-grained than `train_stop_equipment_changed`.
+on_train_stop_pattern_changed, raise_train_stop_pattern_changed = event("train_stop_pattern_changed",
+	"Cybersyn.TrainStop", "Cybersyn.TrainStopLayout", "nil", "nil", "nil")
+
+--------------------------------------------------------------------------------
+-- Inventories and deliveries.
+--------------------------------------------------------------------------------
+
+on_inventory_created, raise_inventory_created = event("inventory_created", "Cybersyn.Inventory", "nil", "nil", "nil",
+	"nil")
+
+on_inventory_destroyed, raise_inventory_destroyed = event("inventory_destroyed", "Cybersyn.Inventory", "nil", "nil",
+	"nil", "nil")
+
+on_delivery_created, raise_delivery_created = event("delivery_created", "Cybersyn.Delivery", "nil", "nil", "nil",
+	"nil")
+
+on_delivery_destroyed, raise_delivery_destroyed = event("delivery_destroyed", "Cybersyn.Delivery", "nil", "nil",
+	"nil", "nil")
+
+---Event raised when a delivery's state changes. Not raised at the initial
+---creation of the delivery.
+--- * Arg 1 - `Cybersyn.Delivery` - The delivery.
+--- * Arg 2 - `Cybersyn.Delivery.State` - The new state of the delivery.
+--- * Arg 3 - `Cybersyn.Delivery.State` - The previous state of the delivery.
+on_delivery_state_changed, raise_delivery_state_changed = event("delivery_state_changed", "Cybersyn.Delivery",
+	"Cybersyn.Delivery.State", "Cybersyn.Delivery.State", "nil", "nil")

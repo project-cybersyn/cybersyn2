@@ -74,6 +74,10 @@ function lib.get_all_connected_rails(rail_entity)
 			get_connected_rail(connected_rail_br)
 end
 
+--------------------------------------------------------------------------------
+-- Iterative rail search.
+--------------------------------------------------------------------------------
+
 ---Terminal states of an iterative rail search.
 ---@enum IterativeRailSearchDisposition
 lib.search_disposition = {

@@ -11,9 +11,7 @@ node_api = {}
 ---@return Cybersyn.Node?
 function node_api.get_node(node_id, skip_validation)
 	if not node_id then return nil end
-	---@type Cybersyn.Storage
-	local data = storage
-	return data.nodes[node_id]
+	return storage.nodes[node_id]
 end
 
 ---Associate the given combinator with the given node.
@@ -67,9 +65,11 @@ end
 
 ---Get all combinators associated with this node.
 ---@param node Cybersyn.Node Reference to a *valid* node.
+---@param filter? fun(combinator: Cybersyn.Combinator.Internal): boolean? A filter function that returns `true` to include the combinator in the result.
 ---@return Cybersyn.Combinator.Internal[] #The combinators associated to the node, if any.
-function node_api.get_associated_combinators(node)
+function node_api.get_associated_combinators(node, filter)
 	return tlib.t_map_a(node.combinator_set, function(_, combinator_id)
-		return combinator_api.get_combinator(combinator_id, true)
+		local comb = combinator_api.get_combinator(combinator_id, true)
+		if comb and ((not filter) or filter(comb)) then return comb end
 	end)
 end

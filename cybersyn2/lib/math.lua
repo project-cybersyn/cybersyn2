@@ -49,7 +49,7 @@ lib.pos_set = pos_set
 local function pos_new(pos)
 	if pos then
 		local x, y = pos_get(pos)
-		return pos_set({ 0, 0 }, x, y)
+		return { x, y }
 	else
 		return { 0, 0 }
 	end
@@ -293,5 +293,16 @@ local function bbox_translate(bbox, pos_or_dx, dy)
 	return bbox_set(bbox, l + dx, t + dy, r + dx, b + dy)
 end
 lib.bbox_translate = bbox_translate
+
+---Determine if a bbox contains a position.
+---@param bbox BoundingBox
+---@param pos MapPosition
+---@return boolean
+local function bbox_contains(bbox, pos)
+	local l, t, r, b = bbox_get(bbox)
+	local x, y = pos_get(pos)
+	return (x >= l) and (x <= r) and (y >= t) and (y <= b)
+end
+lib.bbox_contains = bbox_contains
 
 return lib

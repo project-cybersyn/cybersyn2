@@ -37,9 +37,7 @@ end
 ---@return Cybersyn.Combinator.Internal?
 function combinator_api.get_combinator(unit_number, skip_validation)
 	if not unit_number then return nil end
-	---@type Cybersyn.Storage
-	local data = storage
-	local combinator = data.combinators[unit_number]
+	local combinator = storage.combinators[unit_number]
 	if skip_validation then
 		return combinator
 	else
@@ -54,12 +52,22 @@ function combinator_api.get_associated_node_id(combinator)
 	return combinator.node_id
 end
 
+---Get the node associated with this combinator if any, optionally filtering
+---by node type.
+---@param combinator Cybersyn.Combinator
+---@param node_type string?
+---@return Cybersyn.Node?
+function combinator_api.get_associated_node(combinator, node_type)
+	local node = storage.nodes[combinator.node_id or ""]
+	if node and (not node_type or node.type == node_type) then return node end
+end
+
 ---Attempt to convert an ephemeral combinator reference to a realized combinator reference.
 ---@param ephemeral Cybersyn.Combinator.Ephemeral
 ---@return Cybersyn.Combinator?
 function combinator_api.realize(ephemeral)
 	if ephemeral and ephemeral.entity and ephemeral.entity.valid then
-		local combinator = (storage --[[@as Cybersyn.Storage]]).combinators[ephemeral.entity.unit_number]
+		local combinator = storage.combinators[ephemeral.entity.unit_number]
 		if combinator == ephemeral or is_valid(combinator) then return combinator end
 	end
 	return nil

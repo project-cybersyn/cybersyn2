@@ -13,18 +13,14 @@ local log = require("__cybersyn2__.lib.logging")
 ---@param player_index PlayerIndex
 ---@return Cybersyn.PlayerState? #The GUI state for the player, or `nil` if the player's GUI is not open.
 function combinator_api.get_gui_state(player_index)
-	---@type Cybersyn.Storage
-	local data = storage
-	local state = data.players[player_index]
+	local state = storage.players[player_index]
 	if (not state) or (not state.open_combinator) then return nil end
 	return state
 end
 
 ---@param player_index PlayerIndex
 local function destroy_gui_state(player_index)
-	---@type Cybersyn.Storage
-	local data = storage
-	local state = data.players[player_index]
+	local state = storage.players[player_index]
 	if state then
 		state.open_combinator = nil
 		state.open_combinator_unit_number = nil
@@ -34,17 +30,15 @@ end
 ---@param player_index PlayerIndex
 ---@param combinator Cybersyn.Combinator.Ephemeral
 local function create_gui_state(player_index, combinator)
-	---@type Cybersyn.Storage
-	local data = storage
-	if not data.players[player_index] then
-		data.players[player_index] = {
+	if not storage.players[player_index] then
+		storage.players[player_index] = {
 			player_index = player_index,
 			open_combinator = nil,
 			open_combinator_unit_number = nil,
 		}
 	end
-	data.players[player_index].open_combinator = combinator
-	data.players[player_index].open_combinator_unit_number = combinator.entity.unit_number
+	storage.players[player_index].open_combinator = combinator
+	storage.players[player_index].open_combinator_unit_number = combinator.entity.unit_number
 end
 
 ---Determine if a player has the combinator GUI open.
@@ -73,7 +67,7 @@ function combinator_api.close_gui(player_index, silent)
 end
 
 ---@param window LuaGuiElement
----@param settings Cybersyn.Combinator.Settings
+---@param settings Cybersyn.Combinator.Ephemeral
 local function rebuild_mode_section(window, settings)
 	if (not window) or (window.name ~= WINDOW_NAME) then return end
 	local mode_section = window["frame"]["vflow"]["mode_settings"]
@@ -113,7 +107,7 @@ local function rebuild_mode_section(window, settings)
 end
 
 ---@param window LuaGuiElement
----@param settings Cybersyn.Combinator.Settings
+---@param settings Cybersyn.Combinator.Ephemeral
 ---@param updated_setting string?
 local function update_mode_section(window, settings, updated_setting)
 	if (not window) or (window.name ~= WINDOW_NAME) then return end
@@ -129,9 +123,7 @@ end
 ---Run a callback on each player who has an open combinator GUI.
 ---@param callback fun(state: Cybersyn.PlayerState, ui_root: LuaGuiElement)
 function combinator_api.for_each_open_combinator_gui(callback)
-	---@class Cybersyn.Storage
-	local data = storage
-	for _, state in pairs(data.players) do
+	for _, state in pairs(storage.players) do
 		local player = game.get_player(state.player_index)
 		if player then
 			local comb_gui = player.gui.screen[WINDOW_NAME]
@@ -149,7 +141,7 @@ local function close_guis_with_invalid_combinators()
 	end)
 end
 
----@param settings Cybersyn.Combinator.Settings
+---@param settings Cybersyn.Combinator.Ephemeral
 local function rebuild_mode_sections(settings)
 	local comb_unit_number = settings.entity.unit_number
 	combinator_api.for_each_open_combinator_gui(
@@ -161,7 +153,7 @@ local function rebuild_mode_sections(settings)
 	)
 end
 
----@param settings Cybersyn.Combinator.Settings
+---@param settings Cybersyn.Combinator.Ephemeral
 local function update_mode_sections(settings, updated_setting)
 	local comb_unit_number = settings.entity.unit_number
 	combinator_api.for_each_open_combinator_gui(
@@ -185,14 +177,13 @@ function combinator_api.flib_settings_handler_wrapper(event, handler)
 	local state = combinator_api.get_gui_state(event.player_index)
 	if state and state.open_combinator and combinator_api.is_valid(state.open_combinator) then
 		local mode_section = gui_root["frame"]["vflow"]["mode_settings"]
-		local settings = combinator_api.get_combinator_settings(state.open_combinator)
-		handler(event, settings, mode_section, player, state, gui_root)
+		handler(event, state.open_combinator, mode_section, player, state, gui_root)
 	end
 end
 
 ---Generic flib handler to handle toggling a flag based setting.
 ---@param event flib.GuiEventData
----@param settings Cybersyn.Combinator.Settings
+---@param settings Cybersyn.Combinator.Ephemeral
 function combinator_api.generic_checkbox_handler(event, settings)
 	local elt = event.element
 	if not elt then return end
@@ -214,8 +205,7 @@ local function handle_mode_dropdown(e)
 	if state and state.open_combinator and combinator_api.is_valid(state.open_combinator) then
 		local new_mode = combinator_api.get_combinator_mode_list()[e.element.selected_index]
 		if not new_mode then return end
-		local settings = combinator_api.get_combinator_settings(state.open_combinator)
-		combinator_api.write_setting(settings, combinator_settings.mode, new_mode)
+		combinator_api.write_setting(state.open_combinator, combinator_settings.mode, new_mode)
 	end
 end
 
@@ -349,7 +339,7 @@ function combinator_api.open_gui(player_index, combinator)
 	main_window.titlebar.drag_target = main_window
 	main_window.force_auto_center()
 
-	rebuild_mode_section(main_window, combinator_api.get_combinator_settings(combinator))
+	rebuild_mode_section(main_window, combinator)
 
 	player.opened = main_window
 end
@@ -373,11 +363,9 @@ on_built_combinator(close_guis_with_invalid_combinators)
 
 -- Repaint GUIs when a combinator's settings change.
 on_combinator_or_ghost_setting_changed(function(combinator, setting_name)
-	local settings = combinator_api.get_combinator_settings(combinator)
-	if not settings then return end
 	if setting_name == nil or setting_name == "mode" then
-		rebuild_mode_sections(settings)
+		rebuild_mode_sections(combinator)
 	else
-		update_mode_sections(settings, setting_name)
+		update_mode_sections(combinator, setting_name)
 	end
 end)

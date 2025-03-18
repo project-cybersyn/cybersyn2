@@ -5,18 +5,20 @@
 local tlib = require("__cybersyn2__.lib.table")
 
 ---@param stop_entity LuaEntity A *valid* train stop entity.
+---@return Cybersyn.TrainStop
 local function create_stop_state(stop_entity)
 	local stop_id = stop_entity.unit_number
 	return node_api.create_node("stop", {
 		entity = stop_entity,
 		entity_id = stop_id,
+		allowed_layouts = {},
+		allowed_groups = {},
 	}) --[[@as Cybersyn.TrainStop]]
 end
 
 on_node_created(function(node)
 	if node.type == "stop" then
-		local data = (storage --[[@as Cybersyn.Storage]])
-		data.stop_id_to_node_id[(node --[[@as Cybersyn.TrainStop]]).entity_id] = node.id
+		storage.stop_id_to_node_id[(node --[[@as Cybersyn.TrainStop]]).entity_id] = node.id
 	end
 end, true)
 
@@ -28,8 +30,7 @@ on_node_destroyed(function(node)
 		end
 
 		-- Remove from entity map
-		local data = (storage --[[@as Cybersyn.Storage]])
-		data.stop_id_to_node_id[(node --[[@as Cybersyn.TrainStop]]).entity_id or ""] = nil
+		storage.stop_id_to_node_id[(node --[[@as Cybersyn.TrainStop]]).entity_id or ""] = nil
 	end
 end, true)
 
@@ -181,6 +182,16 @@ end)
 -- When a combinator is created, try to associate it to train stops
 on_combinator_created(function(combinator)
 	stop_api.reassociate_combinators({ combinator })
+end)
+
+-- Reassociate a combinator if it's repositioned.
+on_entity_repositioned(function(what, entity)
+	if what == "combinator" then
+		local combinator = combinator_api.get_combinator(entity.unit_number)
+		if combinator then
+			stop_api.reassociate_combinators({ combinator })
+		end
+	end
 end)
 
 -- When a stop loses all its combinators, destroy it

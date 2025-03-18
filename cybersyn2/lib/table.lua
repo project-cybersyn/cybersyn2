@@ -6,6 +6,22 @@ end
 
 local lib = {}
 
+---Shallowly compare two arrays using `==`
+---@param A any[]
+---@param B any[]
+---@return boolean
+function lib.a_eqeq(A, B)
+	if #A ~= #B then
+		return false
+	end
+	for i = 1, #A do
+		if A[i] ~= B[i] then
+			return false
+		end
+	end
+	return true
+end
+
 ---Recursively copy the contents of a table into a new table.
 ---@generic T
 ---@param tbl T The table to make a copy of.
@@ -105,7 +121,7 @@ end
 ---Find the first entry in a table matching the given predicate.
 ---@generic K, V
 ---@param T table<K, V>
----@param f fun(value: V, key: K): boolean
+---@param f fun(value: V, key: K): boolean?
 ---@return V? value The value of the first matching entry, or `nil` if none was found
 ---@return K? key The key of the first matching entry, or `nil` if none was found
 function lib.find(T, f)
@@ -120,7 +136,7 @@ end
 ---will be collected into a new result array.
 ---@generic K, V, O
 ---@param T table<K, V>
----@param f fun(value: V, key: K): O
+---@param f fun(value: V, key: K): O?
 ---@return O[]
 function lib.t_map_a(T, f)
 	local A = {}
@@ -138,7 +154,7 @@ end
 ---gathered from the returned pairs.
 ---@generic K, V, L, W
 ---@param T table<K, V>
----@param f fun(key: K, value: V): L, W
+---@param f fun(key: K, value: V): L?, W?
 ---@return table<L, W>
 function lib.t_map_t(T, f)
 	local U = {}

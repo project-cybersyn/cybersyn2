@@ -3,6 +3,7 @@ if ... ~= "__cybersyn2__.lib.logging" then
 end
 
 local tconcat = table.concat
+local SERPENT_LINE_ARGS = { maxlevel = 5, maxnum = 20 }
 
 local lib = {}
 
@@ -29,7 +30,7 @@ local function log(level, category, filter, msg, ...)
 		if val_t == "nil" or val_t == "number" or val_t == "string" or val_t == "boolean" then
 			str[#str + 1] = tostring(val)
 		else
-			str[#str + 1] = serpent.line(val, { maxlevel = 5, maxnum = 20 })
+			str[#str + 1] = serpent.line(val, SERPENT_LINE_ARGS)
 		end
 	end
 	game.print(tconcat(str, " "),
