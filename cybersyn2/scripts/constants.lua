@@ -19,3 +19,18 @@ LONGEST_INSERTER_REACH = 2
 
 -- Base number of trains to examine per iteration of the train group monitor.
 PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 10
+-- Base number of inventories to examine per `poll_inventories` iteration.
+PERF_INVENTORY_POLL_WORKLOAD = 5
+-- Base number of nodes to examine per `poll_nodes` iteration
+PERF_NODE_POLL_WORKLOAD = 5
+
+-- Set of virtual signals considered configuration signals; these can't
+-- be used as network names.
+CONFIGURATION_VIRTUAL_SIGNAL_SET = {
+	["cybersyn2-group"] = true,
+	["cybersyn2-priority"] = true,
+	["cybersyn2-item-threshold"] = true,
+	["cybersyn2-fluid-threshold"] = true,
+	["cybersyn2-item-slots"] = true,
+	["cybersyn2-fluid-capacity"] = true,
+}

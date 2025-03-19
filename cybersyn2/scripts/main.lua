@@ -13,12 +13,14 @@ local flib_gui = require("__flib__.gui")
 --------------------------------------------------------------------------------
 -- Library init
 --------------------------------------------------------------------------------
+
 on_init(counters.init, true)
 on_init(scheduler.init, true)
 
 --------------------------------------------------------------------------------
 -- Core Factorio control phase
 --------------------------------------------------------------------------------
+
 script.on_init(raise_init)
 script.on_configuration_changed(raise_configuration_changed)
 script.on_event(defines.events.on_runtime_mod_setting_changed, handle_runtime_mod_setting_changed)
@@ -28,12 +30,14 @@ script.on_nth_tick(1, scheduler.tick)
 --------------------------------------------------------------------------------
 -- LuaTrains
 --------------------------------------------------------------------------------
+
 script.on_event(defines.events.on_train_created, raise_luatrain_created)
 script.on_event(defines.events.on_train_changed_state, raise_luatrain_changed_state)
 
 --------------------------------------------------------------------------------
 -- Entity construction
 --------------------------------------------------------------------------------
+
 ---@param event EventData.script_raised_built|EventData.script_raised_revive|EventData.on_built_entity|EventData.on_robot_built_entity|EventData.on_entity_cloned|EventData.on_space_platform_built_entity
 local function on_built(event)
 	local entity = event.entity or event.destination
@@ -82,6 +86,7 @@ script.on_event(defines.events.on_entity_cloned, on_built)
 --------------------------------------------------------------------------------
 -- Entity configuration
 --------------------------------------------------------------------------------
+
 ---@param event EventData.on_player_rotated_entity
 local function on_repositioned(event)
 	local entity = event.entity
@@ -116,6 +121,7 @@ script.on_event(defines.events.on_entity_settings_pasted, raise_entity_settings_
 --------------------------------------------------------------------------------
 -- Entity destruction
 --------------------------------------------------------------------------------
+
 ---@param event EventData.on_entity_died|EventData.on_pre_player_mined_item|EventData.on_robot_pre_mined|EventData.on_space_platform_pre_mined|EventData.script_raised_destroy
 local function on_destroyed(event)
 	local entity = event.entity
@@ -149,6 +155,7 @@ script.on_event(defines.events.script_raised_destroy, on_destroyed)
 --------------------------------------------------------------------------------
 -- Surface destruction
 --------------------------------------------------------------------------------
+
 ---@param event EventData.on_pre_surface_cleared|EventData.on_pre_surface_deleted
 local function on_surface_removed(event)
 	raise_surface_removed(event.surface_index)
@@ -160,6 +167,7 @@ script.on_event(defines.events.on_pre_surface_deleted, on_surface_removed)
 --------------------------------------------------------------------------------
 -- Combinator GUI
 --------------------------------------------------------------------------------
+
 flib_gui.handle_events()
 
 script.on_event(defines.events.on_gui_opened, function(event)

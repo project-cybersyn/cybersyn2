@@ -62,6 +62,12 @@ lib.CarriageType = {
 ---@field public carriage_types Cybersyn.CarriageType[] The types of the entity prototypes of the train's carriages from front to back.
 ---@field public bidirectional boolean `true` if the train has locomotives allowing it to move both directions.
 
+---@enum Cybersyn.Node.NetworkOperation
+lib.NodeNetworkOperation = {
+	Any = 1,
+	All = 2,
+}
+
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
 ---@class Cybersyn.Node
 ---@field public id uint Unique id of the node.
@@ -69,8 +75,11 @@ lib.CarriageType = {
 ---@field public combinator_set UnitNumberSet Set of combinators associated to this node, by unit number.
 ---@field public is_being_destroyed true? `true` if the node is in the process of being removed from game state.
 ---@field public dropoffs IdSet Deliveries scheduled to be dropped off at this node.
----@field public pickups IdSet Deliveries scheduled to be picked up from this station.
----@field public inventory_id Id? Inventory associated with this node if any.
+---@field public pickups IdSet Deliveries scheduled to be picked up from this node.
+---@field public networks SignalCounts The network masks of the node. Updated only when the node is polled.
+---@field public network_operation Cybersyn.Node.NetworkOperation How the network masks of the node should be combined.
+---@field public can_provide boolean? `true` if the node can provide items
+---@field public can_request boolean? `true` if the node can request items
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
@@ -79,6 +88,16 @@ lib.CarriageType = {
 ---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
 ---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
+---@field public base_network string? Virtual signal name of the base network set in the station combinator.
+---@field public priority int? Priority of the stop.
+---@field public item_request_threshold uint? Generic item request threshold.
+---@field public fluid_request_threshold uint? Generic fluid request threshold.
+---@field public request_thresholds SignalCounts? Individual per-item request thresholds.
+---@field public reserved_slots uint? Reserved item slots per car when providing.
+---@field public reserved_fluid_capacity uint? Reserved fluid capacity per car when providing.
+---@field public station_combinator_id UnitNumber? Unit number of the station combinator associated with this stop, if any.
+---@field public request_threshold_combinator_id UnitNumber? Unit number of the threshold combinator associated with this stop, if any.
+---@field public pull_inventory_id Id? The id of the inventory this stop uses for pull logistics.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
@@ -99,7 +118,7 @@ lib.CarriageType = {
 ---@class Cybersyn.Inventory
 ---@field public id Id
 ---@field public surface_index Id? The index of the surface this inventory should be associated with if any.
----@field public entity LuaEntity? The entity that owns or is responsible for this inventory.
+---@field public combinator_id UnitNumber? The unit number of the combinator associated with this inventory, if any.
 ---@field public node_ids IdSet? The nodes that reference this inventory, if any
 ---@field public provide SignalCounts Positive contents of inventory at last poll.
 ---@field public request SignalCounts Negative contents of inventory at last poll.

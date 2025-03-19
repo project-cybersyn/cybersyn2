@@ -52,7 +52,7 @@ end
 local function is_valid(stop)
 	---We know after checking type=stop that this is a stop.
 	---@diagnostic disable-next-line: undefined-field
-	return stop and stop.type == "stop" and stop.entity and stop.entity.valid
+	return stop and stop.type == "stop" and (not stop.is_being_destroyed) and stop.entity and stop.entity.valid
 end
 stop_api.is_valid = is_valid
 

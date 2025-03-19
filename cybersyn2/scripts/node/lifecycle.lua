@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 local counters = require("__cybersyn2__.lib.counters")
 local tlib = require("__cybersyn2__.lib.table")
+local NodeNetworkOperation = require("__cybersyn2__.lib.types").NodeNetworkOperation
 
 ---Create a new node. This should be used internally by providers of specific
 ---kinds of node, such as train stops.
@@ -15,6 +16,8 @@ function node_api.create_node(node_type, initial_data)
 	initial_data.combinator_set = {}
 	initial_data.dropoffs = {}
 	initial_data.pickups = {}
+	initial_data.networks = {}
+	initial_data.network_operation = NodeNetworkOperation.Any
 	initial_data.is_being_destroyed = nil
 	storage.nodes[id] = initial_data
 

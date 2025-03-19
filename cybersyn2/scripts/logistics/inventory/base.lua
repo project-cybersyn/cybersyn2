@@ -115,25 +115,32 @@ end
 ---@param signals Signal[]
 ---@param allow_requests boolean Process requests (negative inventory)
 ---@param allow_provides boolean Process provides (positive inventory)
----@param allow_intangibles boolean? If `true`, allow non-item non-fluid signals.
----@return SignalID? intangible_signal_id If `allow_intangibles` is `false` and an intangible signal is found, returns one such signal.
-function inventory_api.set_inventory_from_signals(inventory, signals, allow_requests, allow_provides, allow_intangibles)
+---@param consume_signals boolean If `true`, mutate the signals array consuming the ones that were used.
+function inventory_api.set_inventory_from_signals(inventory, signals, allow_requests, allow_provides, consume_signals)
 	local intangible_signal_id = nil
 	local provide = {}
 	local request = {}
+	local i = 1
 
-	for i = 1, #signals do
+	while signals[i] do
 		local wrapper = signals[i]
 		local signal = wrapper.signal
 		local signal_type = signal.type
 		local count = wrapper.count
 
 		-- Filter intangible signals.
-		if not allow_intangibles then
-			if signal_type ~= "item" and signal_type ~= "fluid" then
-				intangible_signal_id = signal
-				goto continue
-			end
+		if signal_type ~= "item" and signal_type ~= "fluid" then
+			i = i + 1
+			goto continue
+		end
+
+		-- Iterate.
+		if consume_signals then
+			-- Swap last signal into this slot and pop the last.
+			signals[i] = signals[#signals]
+			signals[#signals] = nil
+		else
+			i = i + 1
 		end
 
 		-- Bucket signal into provide or request.

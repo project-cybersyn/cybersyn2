@@ -27,7 +27,7 @@ combinator_api.register_setting(combinator_api.make_flag_setting("use_stack_thre
 local function handle_network(event, settings)
 	local signal = event.element.elem_value
 	local stored = nil
-	if signal and signal.type == "virtual" then
+	if signal and signal.type == "virtual" and (not CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name]) then
 		stored = signal.name
 		if signal.name == "signal-everything" or signal.name == "signal-anything" or signal.name == "signal-each" then
 			stored = "signal-each"

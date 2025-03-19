@@ -1,6 +1,7 @@
 --------------------------------------------------------------------------------
 -- Train lifecycle.
 --------------------------------------------------------------------------------
+
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local log = require("__cybersyn2__.lib.logging")
 local counters = require("__cybersyn2__.lib.counters")
@@ -225,20 +226,4 @@ local function train_group_monitor(task)
 	end
 end
 
-scheduler.register_handler("train_group_monitor", train_group_monitor)
-
--- On mod init or setting change, reschedule the train monitor task.
-on_mod_settings_changed(function()
-	if storage.task_ids["train_group_monitor"] then
-		scheduler.set_period(storage.task_ids["train_group_monitor"], mod_settings.work_period)
-	else
-		storage.task_ids["train_group_monitor"] = scheduler.every(
-			mod_settings.work_period,
-			"train_group_monitor",
-			{
-				state = "init",
-			},
-			1
-		)
-	end
-end)
+threads_api.schedule_thread("train_group_monitor", train_group_monitor, 1)
