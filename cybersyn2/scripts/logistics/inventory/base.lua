@@ -109,7 +109,7 @@ local function recompute_net(inventory)
 	inventory.net_request = net_request
 end
 
----Set the core provide/rquest dataof this inventory from signal values obtained
+---Set the core provide/request data of this inventory from signal values obtained
 ---by polling live Factorio data.
 ---@param inventory Cybersyn.Inventory
 ---@param signals Signal[]
@@ -234,6 +234,14 @@ end
 ---@return SignalCounts
 function inventory_api.get_net_provides(inventory)
 	return inventory.net_provide or inventory.provide
+end
+
+---Get the net requests of this inventory. This is a READ-ONLY cached table
+---that should not be retained beyond the current tick.
+---@param inventory Cybersyn.Inventory
+---@return SignalCounts
+function inventory_api.get_net_requests(inventory)
+	return inventory.net_request or inventory.request
 end
 
 --------------------------------------------------------------------------------

@@ -4,10 +4,8 @@
 local function classify_train_stop_pull_inventory(inventory, stop, combinator, data)
 	if stop.can_provide then
 		local provided = inventory_api.get_net_provides(inventory)
-		if provided then
-			for signal_name, count in pairs(provided) do
-				data.providers[signal_name] = (data.providers[signal_name] or 0) + count
-			end
+		for signal_name, count in pairs(provided) do
+			data.providers[signal_name] = (data.providers[signal_name] or 0) + count
 		end
 	end
 	if stop.can_request then
@@ -33,9 +31,11 @@ local function poll_train_stop_configuration_signal(signal, count, stop, combina
 	if signal.name == "cybersyn2-priority" then
 		stop.priority = count
 	elseif signal.name == "cybersyn2-item-threshold" then
-		stop.item_request_threshold = math.max(0, count)
+		stop.threshold_item_in = math.max(0, count)
+		stop.threshold_item_out = math.max(0, count)
 	elseif signal.name == "cybersyn2-fluid-threshold" then
-		stop.fluid_request_threshold = math.max(0, count)
+		stop.threshold_fluid_in = math.max(0, count)
+		stop.threshold_fluid_out = math.max(0, count)
 	elseif signal.name == "cybersyn2-item-slots" then
 		stop.reserved_slots = math.max(0, count)
 	elseif signal.name == "cybersyn2-fluid-slots" then

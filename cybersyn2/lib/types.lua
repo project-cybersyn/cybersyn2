@@ -80,6 +80,8 @@ lib.NodeNetworkOperation = {
 ---@field public network_operation Cybersyn.Node.NetworkOperation How the network masks of the node should be combined.
 ---@field public can_provide boolean? `true` if the node can provide items
 ---@field public can_request boolean? `true` if the node can request items
+---@field public priority int? Priority of the node.
+---@field public priorities SignalCounts? Per-item priorities.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
@@ -89,10 +91,12 @@ lib.NodeNetworkOperation = {
 ---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
 ---@field public base_network string? Virtual signal name of the base network set in the station combinator.
----@field public priority int? Priority of the stop.
----@field public item_request_threshold uint? Generic item request threshold.
----@field public fluid_request_threshold uint? Generic fluid request threshold.
----@field public request_thresholds SignalCounts? Individual per-item request thresholds.
+---@field public threshold_item_in uint? General inbound item threshold
+---@field public threshold_fluid_in uint? General inbound fluid threshold
+---@field public threshold_item_out uint? General outbound item threshold
+---@field public threshold_fluid_out uint? General outbound fluid threshold
+---@field public thresholds_in SignalCounts? Per-item inbound thresholds
+---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public reserved_slots uint? Reserved item slots per car when providing.
 ---@field public reserved_fluid_capacity uint? Reserved fluid capacity per car when providing.
 ---@field public station_combinator_id UnitNumber? Unit number of the station combinator associated with this stop, if any.
