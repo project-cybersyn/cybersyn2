@@ -26,13 +26,13 @@ Ordinary pull logistics always takes priority over push logistics, irrespective 
 
 :::
 
-## Storage Stations
+## Sink Stations
 
-To designate a station as eligible for storage, place a Cybersyn combinator in `Storage` mode within the station's bounding box.
+To designate a station as an item sink, place a Cybersyn combinator in `Sink` mode within the station's bounding box.
 
 ### Item Storage
 
-By giving the `Storage` combinator an input with a positive `Item Slots` virtual signal, you designate the station as an item storage station. The value of the `Item Slots` signal represents the item slot capacity of the storage, and total deliveries will not exceed the given number of slots.
+By giving the `Sink` combinator an input with a positive `Item Slots` virtual signal, you designate the station as an item sink station. The value of the `Item Slots` signal represents the item slot capacity of the storage, and total deliveries will not exceed the given number of slots.
 
 By default, an item storage station will accept any item in any matching push inventory. To restrict item storage to particular items, send positive signals for the desired items to the input of the `Storage` combinator.
 
