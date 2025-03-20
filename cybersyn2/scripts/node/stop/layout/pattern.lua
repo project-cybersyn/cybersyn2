@@ -18,9 +18,10 @@ on_train_stop_equipment_changed(function(stop, layout)
 	-- TODO: I think this could theoretically be changed to allow for modded
 	-- wagons, provided that those modded wagons had tile-aligned length and
 	-- gap sizes. This would require some way of calculating
-	-- the width in tiles of the wagons and their gaps within the train layout
-	-- detection algorithm, then using that info here to build a per-tile
-	-- rather than per-car pattern.
+	-- the width in tiles of all wagons and their gaps, building a per-tile
+	-- layout pattern here, and then in the train layout matching algorithm,
+	-- iterating per tile rather than per car and comparing against cached
+	-- car shapes for each prototype.
 
 	local max_car = 1
 	local layout_pattern = { 0 }
