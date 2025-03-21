@@ -117,6 +117,7 @@ script.on_event(defines.events.on_player_rotated_entity, on_repositioned)
 script.on_event(defines.events.on_entity_renamed, on_renamed)
 script.on_event(defines.events.on_pre_build, on_maybe_blueprint_pasted)
 script.on_event(defines.events.on_entity_settings_pasted, raise_entity_settings_pasted)
+script.on_event(defines.events.on_player_setup_blueprint, raise_blueprint_setup)
 
 --------------------------------------------------------------------------------
 -- Entity destruction

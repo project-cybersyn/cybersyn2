@@ -131,8 +131,3 @@ on_combinator_or_ghost_setting_changed(function(combinator, setting_name, new_va
 		raise_combinator_setting_changed(real, setting_name, new_value, old_value)
 	end
 end)
-
--- When a real combinator is built, treat it as though all its settings have changed.
-on_combinator_created(function(combinator)
-	raise_combinator_setting_changed(combinator, nil, nil, nil)
-end)

@@ -6,6 +6,11 @@ end
 
 local lib = {}
 
+local empty = setmetatable({}, { __newindex = function() end })
+
+---An empty table enforced via metamethod.
+lib.empty = empty
+
 ---Shallowly compare two arrays using `==`
 ---@param A any[]
 ---@param B any[]

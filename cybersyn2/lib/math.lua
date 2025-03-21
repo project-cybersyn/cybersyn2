@@ -56,6 +56,18 @@ local function pos_new(pos)
 end
 lib.pos_new = pos_new
 
+---Sets `pos1 = pos1 + (factor * pos2)`.
+---@param pos1 MapPosition
+---@param pos2 MapPosition
+---@param factor number
+---@return MapPosition pos1
+local function pos_add(pos1, factor, pos2)
+	local x1, y1 = pos_get(pos1)
+	local x2, y2 = pos_get(pos2)
+	return pos_set(pos1, x1 + x2 * factor, y1 + y2 * factor)
+end
+lib.pos_add = pos_add
+
 ---Move a position by the given amount in the given ortho direction.
 ---@param pos MapPosition
 ---@param dir defines.direction
@@ -93,24 +105,34 @@ local function dir_ortho(pos1, pos2)
 end
 lib.dir_ortho = dir_ortho
 
----Rotate a position 90 degrees around an origin.
----The direction of rotation is clockwise if `clockwise` is true, otherwise
----counterclockwise. Mutates the given position
+---Rotate a position orthogonally (in increments of 90 degrees) counterclockwise
+---around an origin. Mutates the given position.
 ---@param pos MapPosition
 ---@param origin MapPosition
----@param clockwise boolean?
+---@param count int Rotate by `count * 90` degrees counterclockwise. May be negative to rotate clockwise.
 ---@return MapPosition pos The mutated position.
-local function pos_rotate_90(pos, origin, clockwise)
+local function pos_rotate_ortho(pos, origin, count)
 	local x, y = pos_get(pos)
 	local ox, oy = pos_get(origin)
-	local dx, dy = x - ox, y - oy
-	if clockwise then
-		return pos_set(pos, ox - dy, oy + dx)
+
+	-- Normalize count to be within 0 to 3
+	count = (count % 4 + 4) % 4
+
+	if count == 1 then
+		-- 90 degrees counterclockwise
+		return pos_set(pos, ox + (y - oy), oy - (x - ox))
+	elseif count == 2 then
+		-- 180 degrees counterclockwise
+		return pos_set(pos, ox - (x - ox), oy - (y - oy))
+	elseif count == 3 then
+		-- 270 degrees counterclockwise (or 90 degrees clockwise)
+		return pos_set(pos, ox - (y - oy), oy + (x - ox))
 	else
-		return pos_set(pos, ox + dy, oy - dx)
+		-- 0 degrees (no rotation)
+		return pos
 	end
 end
-lib.pos_rotate_90 = pos_rotate_90
+lib.pos_rotate_ortho = pos_rotate_ortho
 
 --- Get the four corners of any bbox.
 ---@param bbox BoundingBox
@@ -203,6 +225,25 @@ local function bbox_normalize(l, t, r, b)
 end
 lib.bbox_normalize = bbox_normalize
 
+---Sets the points of a bounding box directly, making sure they are normalized
+---first.
+---@param bbox BoundingBox
+---@param l number
+---@param t number
+---@param r number
+---@param b number
+---@return BoundingBox bbox The mutated bbox.
+local function bbox_setn(bbox, l, t, r, b)
+	if l > r then
+		l, r = r, l
+	end
+	if t > b then
+		t, b = b, t
+	end
+	return bbox_set(bbox, l, t, r, b)
+end
+lib.bbox_setn = bbox_setn
+
 ---Extend a bbox to contain another bbox, mutating the first.
 ---@param bbox1 BoundingBox
 ---@param bbox2 BoundingBox
@@ -258,25 +299,60 @@ local function bbox_measure_ortho(bbox, direction, point)
 end
 lib.bbox_measure_ortho = bbox_measure_ortho
 
----Rotate a bbox 90 degrees around an origin.
----The direction of rotation is clockwise if `clockwise` is true, otherwise
----counterclockwise. Mutates the given bbox.
+---Rotate a bbox orthogonally (in increments of 90 degrees) counterclockwise
+---around an origin. Mutates the given bbox.
 ---@param bbox BoundingBox
 ---@param origin MapPosition
----@param clockwise boolean?
+---@param count int Rotates by `count * 90` degrees counterclockwise. May be negative to rotate clockwise.
 ---@return BoundingBox bbox The mutated bbox.
-local function bbox_rotate_90(bbox, origin, clockwise)
+local function bbox_rotate_ortho(bbox, origin, count)
 	local l, t, r, b = bbox_get(bbox)
 	local ox, oy = pos_get(origin)
-	if clockwise then
-		l, t, r, b = bbox_normalize(ox - b + oy, oy + l - ox, ox - t + oy, oy + r - ox)
-		return bbox_set(bbox, l, t, r, b)
+
+	-- Normalize count to be within 0 to 3
+	count = (count % 4 + 4) % 4
+
+	if count == 1 then
+		-- 90 degrees counterclockwise
+		return bbox_setn(bbox, ox - (oy - t), oy - (r - ox), ox - (oy - b), oy - (l - ox))
+	elseif count == 2 then
+		-- 180 degrees counterclockwise
+		return bbox_setn(bbox, ox - (r - ox), oy - (b - oy), ox - (l - ox), oy - (t - oy))
+	elseif count == 3 then
+		-- 270 degrees counterclockwise (or 90 degrees clockwise)
+		return bbox_setn(bbox, ox + (oy - b), oy + (l - ox), ox + (oy - t), oy + (r - ox))
 	else
-		l, t, r, b = bbox_normalize(ox + t - oy, oy - l + ox, ox + b - oy, oy - r + ox)
-		return bbox_set(bbox, l, t, r, b)
+		-- 0 degrees (no rotation)
+		return bbox
 	end
 end
-lib.bbox_rotate_90 = bbox_rotate_90
+lib.bbox_rotate_ortho = bbox_rotate_ortho
+
+---Flip a bbox horizontally across the vertical line given by the `x` parameter.
+---The bbox need not intersect with the vertical line.
+---@param bbox BoundingBox
+---@param x number
+---@return BoundingBox bbox The mutated bbox.
+local function bbox_flip_horiz(bbox, x)
+	local l, t, r, b = bbox_get(bbox)
+	local dx1 = x - l
+	local dx2 = r - x
+	return bbox_set(bbox, x - dx2, t, x + dx1, b)
+end
+lib.bbox_flip_horiz = bbox_flip_horiz
+
+---Flip a bbox vertically across the horizontal line given by the `y` parameter.
+---The bbox need not intersect with the horizontal line.
+---@param bbox BoundingBox
+---@param y number
+---@return BoundingBox bbox The mutated bbox.
+local function bbox_flip_vert(bbox, y)
+	local l, t, r, b = bbox_get(bbox)
+	local dy1 = y - t
+	local dy2 = b - y
+	return bbox_set(bbox, l, y - dy2, r, y + dy1)
+end
+lib.bbox_flip_vert = bbox_flip_vert
 
 ---Translate a bbox by the given vector. Mutates the given bbox.
 ---@param bbox BoundingBox

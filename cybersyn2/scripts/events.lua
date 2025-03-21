@@ -95,6 +95,9 @@ on_luatrain_changed_state, raise_luatrain_changed_state = event("luatrain_change
 on_built_blueprint, raise_built_blueprint = event("built_blueprint",
 	"LuaPlayer", "EventData.on_pre_build", "nil", "nil", "nil")
 
+on_blueprint_setup, raise_blueprint_setup = event("blueprint_setup",
+	"EventData.on_player_setup_blueprint", "nil", "nil", "nil", "nil")
+
 --------------------------------------------------------------------------------
 -- Cybersyn vehicle object events
 --------------------------------------------------------------------------------
