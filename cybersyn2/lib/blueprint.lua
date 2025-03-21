@@ -136,16 +136,6 @@ function lib.get_overlapping_entities(
 
 		-- Translate back to worldspace
 		pos_add(epos, 1, snapped_position)
-
-		-- DEBUG: render computed position
-		rendering.draw_circle({
-			color = { 0, 1, 0, 0.5 },
-			radius = 0.2,
-			filled = true,
-			target = epos,
-			surface = surface,
-			time_to_live = 3600,
-		})
 	end
 
 	-- Finally, attempt to find entities at the computed positions with the
