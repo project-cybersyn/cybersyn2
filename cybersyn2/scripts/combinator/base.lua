@@ -4,7 +4,7 @@ if not combinator_api then combinator_api = {} end
 
 ---Full internal game state of a combinator.
 ---@class Cybersyn.Combinator.Internal: Cybersyn.Combinator
----@field public settings_entity LuaEntity? The hidden settings entity for this combinator, if any.
+---@field public output_entity LuaEntity? The hidden output entity for this combinator, if any.
 
 ---@param combinator Cybersyn.Combinator.Ephemeral?
 ---@return boolean?

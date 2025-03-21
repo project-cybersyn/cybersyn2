@@ -146,6 +146,26 @@ on_built_combinator(function(combinator_entity, tags)
 	-- Store settings in cache
 	storage.combinator_settings_cache[comb.id] = tags or {}
 
+	-- Create hidden output entity
+	local out = combinator_entity.surface.create_entity({
+		name = "cybersyn2-output",
+		position = combinator_entity.position,
+		force = combinator_entity.force,
+		create_build_effect_smoke = false,
+	})
+	if not out then
+		error("fatal error: could not create hidden output entity")
+	end
+	comb.output_entity = out
+
+	-- Wire hidden entity to combinator
+	local comb_red = combinator_entity.get_wire_connector(defines.wire_connector_id.circuit_red, true)
+	local out_red = out.get_wire_connector(defines.wire_connector_id.circuit_red, true)
+	out_red.connect_to(comb_red, false, defines.wire_origin.script)
+	local comb_green = combinator_entity.get_wire_connector(defines.wire_connector_id.circuit_green, true)
+	local out_green = out.get_wire_connector(defines.wire_connector_id.circuit_green, true)
+	out_green.connect_to(comb_green, false, defines.wire_origin.script)
+
 	raise_combinator_created(comb)
 end)
 
@@ -155,6 +175,11 @@ on_broken_combinator(function(combinator_entity)
 	comb.is_being_destroyed = true
 
 	raise_combinator_destroyed(comb)
+
+	-- Destroy hidden settings entity
+	if comb.output_entity and comb.output_entity.valid then
+		comb.output_entity.destroy()
+	end
 
 	-- Clear settings cache
 	storage.combinator_settings_cache[comb.id] = nil
@@ -217,18 +242,9 @@ end)
 --------------------------------------------------------------------------------
 
 on_blueprint_setup(function(event)
-	local player = game.players[event.player_index]
-	if not player then return end
-	local blueprintish = bplib.get_actual_blueprint(player, event.record, event.stack)
-	if not blueprintish then return end
-	local lazy_mapping = event.mapping
-	if (not lazy_mapping) or (not lazy_mapping.valid) then return end
-	local mapping = lazy_mapping.get() --[[@as table<uint, LuaEntity>]]
-	if not mapping then return end
-	for bpid, entity in pairs(mapping) do
+	bplib.save_tags(event, function(entity)
 		if is_combinator_or_ghost_entity(entity) then
-			local tags = get_raw_values(entity)
-			blueprintish.set_blueprint_entity_tags(bpid, tags)
+			return get_raw_values(entity)
 		end
-	end
+	end)
 end)

@@ -94,8 +94,12 @@ local function on_repositioned(event)
 
 	if entity.type == "inserter" then
 		raise_entity_repositioned("inserter", entity)
-	elseif combinator_api.is_combinator_name(entity.name) then
-		raise_entity_repositioned("combinator", entity)
+
+		-- Not needed for square-shaped combinators.
+		-- TODO: remove when done prototyping combinators.
+
+		-- elseif entity.name == "cybersyn2-combinator" then
+		-- 	raise_entity_repositioned("combinator", entity)
 	end
 end
 

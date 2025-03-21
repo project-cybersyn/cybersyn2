@@ -12,6 +12,7 @@ data:extend({
 	item_slots_signal,
 	fluid_capacity_signal,
 	combinator_entity,
+	combinator_out_entity,
 	combinator_item,
 	combinator_recipe,
 })

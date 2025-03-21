@@ -21,6 +21,23 @@ local bbox_get = mlib.bbox_get
 
 local lib = {}
 
+---Information about a blueprint necessary to map it into worldspace.
+---@class BlueprintLib.BlueprintLayout
+---@field blueprint_entities BlueprintEntity[] The entities in the blueprint.
+---@field blueprint_snap_to_grid TilePosition? The snapping grid size.
+---@field blueprint_position_relative_to_grid TilePosition? The offset.
+---@field blueprint_absolute_snapping boolean Whether snapped to global grid.
+
+---Information about where a blueprint is being placed; along with the
+---BlueprintLayout, sufficient information to map the blueprint into
+---worldspace.
+---@class BlueprintLib.BlueprintPlacement
+---@field surface LuaSurface The surface where the blueprint is being placed.
+---@field position MapPosition The worldspace position where the blueprint is being placed.
+---@field rotation defines.direction The rotation of the blueprint expressed as a Factorio direction.
+---@field flip_horizontal boolean Whether the blueprint is flipped horizontally.
+---@field flip_vertical boolean Whether the blueprint is flipped vertically.
+
 -- Helper function for coordinate snapping
 local function snap(x, dx)
 	if (ceil(dx) % 2) == 0 then
@@ -148,6 +165,28 @@ function lib.get_overlapping_entities(
 	end
 
 	return map
+end
+
+---Using the event data for `on_player_setup_blueprint` and a tag generating
+---function, handle the entire process of saving tags for entities in a
+---blueprint.
+---@param setup_event EventData.on_player_setup_blueprint
+---@param tag_generator fun(entity: LuaEntity): Tags? Given an entity being blueprinted, return the tags to be saved in the blueprint. Returning `nil` will skip the entity.
+function lib.save_tags(setup_event, tag_generator)
+	local player = game.players[setup_event.player_index]
+	if not player then return end
+	local blueprintish = lib.get_actual_blueprint(player, setup_event.record, setup_event.stack)
+	if not blueprintish then return end
+	local lazy_mapping = setup_event.mapping
+	if (not lazy_mapping) or (not lazy_mapping.valid) then return end
+	local mapping = lazy_mapping.get() --[[@as table<uint, LuaEntity>]]
+	if not mapping then return end
+	for bpid, entity in pairs(mapping) do
+		local tags = tag_generator(entity)
+		if tags then
+			blueprintish.set_blueprint_entity_tags(bpid, tags)
+		end
+	end
 end
 
 return lib

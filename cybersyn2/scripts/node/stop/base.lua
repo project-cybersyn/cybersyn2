@@ -1,13 +1,9 @@
 local flib_position = require("__flib__.position")
-local tlib = require("__cybersyn2__.lib.table")
 local mlib = require("__cybersyn2__.lib.math")
 
 local distance_squared = flib_position.distance_squared
 local pos_get = mlib.pos_get
-local pos_move_ortho = mlib.pos_move_ortho
 local INF = math.huge
-local NORTH = defines.direction.north
-local SOUTH = defines.direction.south
 
 stop_api = {}
 
@@ -82,23 +78,12 @@ end
 ---@return LuaEntity? stop_entity The closest-to-front train stop within the combinator's association zone.
 ---@return LuaEntity? rail_entity The closest-to-front straight rail with a train stop within the combinator's association zone.
 function stop_api.find_associable_entities_for_combinator(combinator_entity)
-	local pos_x, pos_y = pos_get(combinator_entity.position)
-	-- We need to account for the direction the combinator is facing. If
-	-- the combinator would associate ambiguously with multiple stops or rails,
-	-- we prefer the one that is closer to the front of the combinator.
-	local front = pos_move_ortho(combinator_entity.position, combinator_entity.direction, 1)
-	local search_area
-	if combinator_entity.direction == NORTH or combinator_entity.direction == SOUTH then
-		search_area = {
-			{ pos_x - 1.5, pos_y - 2 },
-			{ pos_x + 1.5, pos_y + 2 },
-		}
-	else
-		search_area = {
-			{ pos_x - 2, pos_y - 1.5 },
-			{ pos_x + 2, pos_y + 1.5 },
-		}
-	end
+	local pos = combinator_entity.position
+	local pos_x, pos_y = pos_get(pos)
+	local search_area = {
+		{ pos_x - 1.5, pos_y - 1.5 },
+		{ pos_x + 1.5, pos_y + 1.5 },
+	}
 	local stop = nil
 	local rail = nil
 	local stop_dist = INF
@@ -112,7 +97,7 @@ function stop_api.find_associable_entities_for_combinator(combinator_entity)
 	})
 	for _, cur_entity in pairs(entities) do
 		if cur_entity.name == "train-stop" then
-			local dist = distance_squared(front, cur_entity.position)
+			local dist = distance_squared(pos, cur_entity.position)
 			if dist < stop_dist then
 				stop_dist = dist
 				stop = cur_entity
@@ -121,7 +106,7 @@ function stop_api.find_associable_entities_for_combinator(combinator_entity)
 			-- Prefer rails with stops, then prefer rails nearer the
 			-- front of the combinator.
 			if stop_api.find_stop_from_rail(cur_entity) then
-				local dist = distance_squared(front, cur_entity.position)
+				local dist = distance_squared(pos, cur_entity.position)
 				if dist < rail_dist then
 					rail_dist = dist
 					rail = cur_entity
