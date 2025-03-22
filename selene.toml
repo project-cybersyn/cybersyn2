@@ -1,0 +1,6 @@
+std = "selene-factorio"
+
+[lints]
+global_usage = "allow"
+multiple_statements = "allow"
+mixed_table = "allow"

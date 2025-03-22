@@ -1,0 +1,13 @@
+---
+base: lua51
+globals:
+  storage:
+    any: true
+  game:
+    any: true
+  script:
+    any: true
+  remote:
+    any: true
+  defines:
+    any: true
