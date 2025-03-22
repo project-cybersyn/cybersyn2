@@ -11,3 +11,9 @@ globals:
     any: true
   defines:
     any: true
+  data:
+    any: true
+  make_4way_animation_from_spritesheet:
+    any: true
+  util:
+    any: true
