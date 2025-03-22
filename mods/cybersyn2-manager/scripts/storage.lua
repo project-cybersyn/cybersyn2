@@ -1,5 +1,6 @@
 ---@class Cybersyn.Manager.Storage
 ---@field public players table<PlayerIndex, Cybersyn.Manager.PlayerStorage>
+storage = {}
 
 ---@class Cybersyn.Manager.PlayerStorage
 ---@field public inspector? Cybersyn.Manager.InspectorState If open, state of the player's Inspector.
