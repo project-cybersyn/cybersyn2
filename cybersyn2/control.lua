@@ -41,6 +41,12 @@ require("scripts.logistics.thread.create-deliveries")
 require("scripts.debug.base")
 require("scripts.debug.overlay")
 
+require("scripts.api.base")
+require("scripts.api.query")
+
+-- Register remote interface only after all API modules are loaded.
+remote.add_interface("cybersyn2", remote_api)
+
 -- Main should run last.
 require("scripts.main")
 

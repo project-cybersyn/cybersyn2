@@ -156,4 +156,75 @@ lib.DeliveryState = {
 ---@field public destination_inventory_id Id The id of the inventory this delivery is to, if any.
 ---@field public manifest SignalCounts The intended contents of the delivery.
 
+--------------------------------------------------------------------------------
+-- Public type encodings for the query interface.
+--------------------------------------------------------------------------------
+
+---Self-describing list of public primitive data types. (Primitive in this sense
+---means Cybersyn won't split it into further pieces, not that it is a Lua
+---primitive.)
+---@enum Cybersyn.PrimitiveType
+local PrimitiveType = {
+	"boolean",
+	"int",
+	"number",
+	"string",
+	"SignalKey",
+	"UnitNumber",
+	"Id",
+	"Cybersyn.Combinator",
+	"Cybersyn.Vehicle",
+	"Cybersyn.Train",
+	"Cybersyn.Node",
+	"Cybersyn.TrainStop",
+	"Cybersyn.TrainGroup",
+	"SurfaceIndex",
+	"ProductSignalKey",
+	"VirtualSignalKey",
+	"EnumValues",
+	"Cybersyn.QueryDef",
+	["boolean"] = 1,
+	["int"] = 2,
+	["number"] = 3,
+	["string"] = 4,
+	["SignalKey"] = 5,
+	["UnitNumber"] = 6,
+	["Id"] = 7,
+	["Cybersyn.Combinator"] = 8,
+	["Cybersyn.Vehicle"] = 9,
+	["Cybersyn.Train"] = 10,
+	["Cybersyn.Node"] = 11,
+	["Cybersyn.TrainStop"] = 12,
+	["Cybersyn.TrainGroup"] = 13,
+	["SurfaceIndex"] = 14,
+	["ProductSignalKey"] = 15,
+	["VirtualSignalKey"] = 16,
+	["EnumValues"] = 17,
+	["Cybersyn.QueryDef"] = 18,
+}
+lib.PrimitiveType = PrimitiveType
+
+---Species of non-primitive container that can contain items of a `Cybersyn.DataType`.
+---@enum Cybersyn.ContainerType
+local ContainerType = {
+	"value",
+	"list",
+	"set",
+	"map",
+	"enum",
+	["value"] = 1,
+	["list"] = 2,
+	["set"] = 3,
+	["map"] = 4,
+	["enum"] = 5,
+}
+lib.ContainerType = ContainerType
+
+---Machine readable description of a data type. Fields:
+--- * `is_required` - `true` if the corresponding data is required
+--- * `container_type` - The type of container this data is in.
+--- * `primary_type` - Primary type of container elements; key type for maps.
+--- * `subtype` - Subtype of the data. Value type for maps, enum name for enums.
+---@alias Cybersyn.DataType [boolean, Cybersyn.ContainerType, Cybersyn.PrimitiveType, Cybersyn.PrimitiveType|string|int|nil]
+
 return lib
