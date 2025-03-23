@@ -108,9 +108,7 @@ local function missed_key_to_signal_parts(key)
 		name = key
 	end
 	local ty = get_signal_type_from_name(name)
-	if ty == nil then
-		return nil
-	end
+	if ty == nil then return nil end
 	return name, ty, quality
 end
 

@@ -2,31 +2,31 @@
 -- Global constants
 --------------------------------------------------------------------------------
 
-CYBERSYN_TRAIN_GROUP_NAME_PREFIX = "[virtual-signal=cybersyn2-group]"
+_G.cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX = "[virtual-signal=cybersyn2-group]"
 
-WINDOW_NAME = "cybersyn-combinator-gui"
-COMBINATOR_CLOSE_SOUND = "entity-close/cybersyn-combinator"
+_G.cs2.WINDOW_NAME = "cybersyn-combinator-gui"
+_G.cs2.COMBINATOR_CLOSE_SOUND = "entity-close/cybersyn-combinator"
 
 -- Max rails to search away from station when checking layout.
 -- No idea why this is 112, the number comes from Cybersyn 1.
-MAX_RAILS_TO_SEARCH = 112
+_G.cs2.MAX_RAILS_TO_SEARCH = 112
 
 -- Longest reach of an inserter to account for when calculating bounding boxes
 -- for train stop layouts. Ultimately determines the "fatness" of bbox around
 -- rails.
 -- This is a bit of a hack, but it is what it is.
-LONGEST_INSERTER_REACH = 2
+_G.cs2.LONGEST_INSERTER_REACH = 2
 
 -- Base number of trains to examine per iteration of the train group monitor.
-PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 10
+_G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 10
 -- Base number of inventories to examine per `poll_inventories` iteration.
-PERF_INVENTORY_POLL_WORKLOAD = 5
+_G.cs2.PERF_INVENTORY_POLL_WORKLOAD = 5
 -- Base number of nodes to examine per `poll_nodes` iteration
-PERF_NODE_POLL_WORKLOAD = 5
+_G.cs2.PERF_NODE_POLL_WORKLOAD = 5
 
 -- Set of virtual signals considered configuration signals; these can't
 -- be used as network names.
-CONFIGURATION_VIRTUAL_SIGNAL_SET = {
+_G.cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET = {
 	["cybersyn2-group"] = true,
 	["cybersyn2-priority"] = true,
 	["cybersyn2-item-threshold"] = true,

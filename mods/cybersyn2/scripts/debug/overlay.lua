@@ -4,6 +4,10 @@
 
 local mlib = require("__cybersyn2__.lib.math")
 local tlib = require("__cybersyn2__.lib.table")
+local cs2 = _G.cs2
+local mod_settings = _G.cs2.mod_settings
+local combinator_api = _G.cs2.combinator_api
+local stop_api = _G.cs2.stop_api
 
 ---@class Cybersyn.Internal.DebugOverlayState
 ---@field public comb_overlays {[UnitNumber]: LuaRenderObject}
@@ -23,13 +27,19 @@ local tlib = require("__cybersyn2__.lib.table")
 
 ---@param objs LuaRenderObject[]?
 local function destroy_render_objects(objs)
-	if not objs then return end
-	for _, obj in pairs(objs) do obj.destroy() end
+	if not objs then
+		return
+	end
+	for _, obj in pairs(objs) do
+		obj.destroy()
+	end
 end
 
 ---@param state Cybersyn.Internal.MultiLineTextOverlay
 local function clear_text_overlay(state)
-	if state.backdrop then state.backdrop.destroy() end
+	if state.backdrop then
+		state.backdrop.destroy()
+	end
 	destroy_render_objects(state.text_lines)
 end
 
@@ -60,11 +70,14 @@ end
 local function set_text_overlay_text(overlay, lines)
 	if (not lines) or (#lines == 0) then
 		overlay.backdrop.visible = false
-		for _, line in pairs(overlay.text_lines) do line.visible = false end
+		for _, line in pairs(overlay.text_lines) do
+			line.visible = false
+		end
 		return
 	end
 	local base_target = overlay.backdrop.left_top --[[@as ScriptRenderTargetTable]]
-	local base_offset_x, base_offset_y = mlib.pos_get(base_target.offset or { 0, 0 })
+	local base_offset_x, base_offset_y =
+		mlib.pos_get(base_target.offset or { 0, 0 })
 	overlay.backdrop.visible = true
 	overlay.backdrop.right_bottom = {
 		entity = base_target.entity,
@@ -79,7 +92,13 @@ local function set_text_overlay_text(overlay, lines)
 			line_ro = rendering.draw_text({
 				text = "",
 				surface = overlay.backdrop.surface,
-				target = { entity = base_target.entity, offset = { base_offset_x, base_offset_y + (i - 1) * overlay.line_height } },
+				target = {
+					entity = base_target.entity,
+					offset = {
+						base_offset_x,
+						base_offset_y + (i - 1) * overlay.line_height,
+					},
+				},
 				color = { r = 1, g = 1, b = 1 },
 				use_rich_text = true,
 				alignment = "left",
@@ -90,41 +109,26 @@ local function set_text_overlay_text(overlay, lines)
 		line_ro.text = lines[i]
 		line_ro.visible = true
 	end
-	for i = #lines + 1, #overlay.text_lines do overlay.text_lines[i].visible = false end
+	for i = #lines + 1, #overlay.text_lines do
+		overlay.text_lines[i].visible = false
+	end
 end
 
 ---@param state Cybersyn.Internal.StopDebugOverlayState
 local function clear_stop_overlay(state)
 	clear_text_overlay(state.text)
 	destroy_render_objects(state.associations)
-	if state.bbox then state.bbox.destroy() end
-end
-
----@param combinator Cybersyn.Combinator
----@return LuaRenderObject?
-local function get_or_create_combinator_overlay(combinator)
-	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then return end
-	local overlay = ovl_data.comb_overlays[combinator.id]
-	if not overlay then
-		if not combinator_api.is_valid(combinator) then return end
-		overlay = rendering.draw_text({
-			text = "",
-			surface = combinator.entity.surface,
-			target = { entity = combinator.entity, offset = { 0, 0 } },
-			color = { r = 1, g = 1, b = 1 },
-			use_rich_text = true,
-			alignment = "center",
-		})
-		ovl_data.comb_overlays[combinator.id] = overlay
+	if state.bbox then
+		state.bbox.destroy()
 	end
-	return overlay
 end
 
 ---@param combinator Cybersyn.Combinator
 local function destroy_combinator_overlay(combinator)
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then return end
+	if not ovl_data then
+		return
+	end
 	local overlay = ovl_data.comb_overlays[combinator.id]
 	if overlay then
 		overlay.destroy()
@@ -136,13 +140,22 @@ end
 ---@return Cybersyn.Internal.StopDebugOverlayState?
 local function get_or_create_stop_overlay(stop)
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then return end
+	if not ovl_data then
+		return
+	end
 	local overlay = ovl_data.stop_overlays[stop.id]
 	if not overlay then
-		if not stop_api.is_valid(stop) then return end
+		if not stop_api.is_valid(stop) then
+			return
+		end
 		stop = stop --[[@as Cybersyn.TrainStop]]
 		overlay = {
-			text = create_text_overlay(stop.entity.surface, { entity = stop.entity, offset = { -2, -3 } }, 4, 0.6),
+			text = create_text_overlay(
+				stop.entity.surface,
+				{ entity = stop.entity, offset = { -2, -3 } },
+				4,
+				0.6
+			),
 			associations = {},
 		}
 		ovl_data.stop_overlays[stop.id] = overlay
@@ -153,7 +166,9 @@ end
 ---@param stop Cybersyn.Node
 local function destroy_stop_overlay(stop)
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then return end
+	if not ovl_data then
+		return
+	end
 	local overlay = ovl_data.stop_overlays[stop.id]
 	if overlay then
 		clear_stop_overlay(overlay)
@@ -161,47 +176,20 @@ local function destroy_stop_overlay(stop)
 	end
 end
 
----@param dir defines.direction
-local function dir_to_string(dir)
-	if dir == defines.direction.north then
-		return "N"
-	elseif dir == defines.direction.east then
-		return "E"
-	elseif dir == defines.direction.south then
-		return "S"
-	elseif dir == defines.direction.west then
-		return "W"
-	end
-	return "?"
-end
-
----@param combinator Cybersyn.Combinator
-local function update_combinator_overlay(combinator)
-	local overlay = get_or_create_combinator_overlay(combinator)
-	if overlay then
-		-- local items = { "[item=cybersyn-combinator]", combinator.id, " " }
-		-- if combinator.stop_id then
-		-- 	table.insert(items, "[item=train-stop]")
-		-- 	table.insert(items, combinator.stop_id)
-		-- 	table.insert(items, " ")
-		-- 	table.insert(items, tostring(combinator.distance))
-		-- 	table.insert(items, " ")
-		-- end
-		-- if combinator_api.is_valid(combinator) then
-		-- 	table.insert(items, dir_to_string(combinator.entity.direction))
-		-- end
-		-- overlay.text = table.concat(items)
-	end
-end
-
 ---@param stop Cybersyn.Node
 local function update_stop_overlay(stop)
-	if not stop_api.is_valid(stop) then return end
+	if not stop_api.is_valid(stop) then
+		return
+	end
 	stop = stop --[[@as Cybersyn.TrainStop]]
 	local overlay = get_or_create_stop_overlay(stop)
-	if not overlay then return end
+	if not overlay then
+		return
+	end
 	local layout = stop_api.get_layout(stop.id)
-	if not layout then return end
+	if not layout then
+		return
+	end
 
 	-- Text
 	local lines = { table.concat({ "[item=train-stop]", stop.id }) }
@@ -212,12 +200,12 @@ local function update_stop_overlay(stop)
 			local tlayout = storage.train_layouts[tl_id]
 			-- Make train layout into icons
 			if tlayout then
-				table.insert(lines, table.concat(
-					tlib.map(
-						(tlayout.carriage_names or {}),
-						function(name) return "[item=" .. name .. "]" end
-					)
-				))
+				table.insert(
+					lines,
+					table.concat(tlib.map((tlayout.carriage_names or {}), function(name)
+						return "[item=" .. name .. "]"
+					end))
+				)
 			end
 		end
 	else
@@ -268,37 +256,40 @@ local function update_stop_overlay(stop)
 			overlay.bbox.right_bottom = { r, b }
 		end
 	else
-		if overlay.bbox then overlay.bbox.destroy() end
-	end
-end
-
-local function create_combinator_overlays()
-	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then return end
-	for _, combinator in pairs(storage.combinators) do
-		update_combinator_overlay(combinator)
+		if overlay.bbox then
+			overlay.bbox.destroy()
+		end
 	end
 end
 
 local function create_stop_overlays()
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then return end
+	if not ovl_data then
+		return
+	end
 	for _, stop in pairs(storage.nodes) do
 		update_stop_overlay(stop)
 	end
 end
 
 local function create_all_overlays()
-	create_combinator_overlays()
 	create_stop_overlays()
 end
 
 local function clear_all_overlays()
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then return end
-	for _, ovl in pairs(ovl_data.comb_overlays or {}) do ovl.destroy() end
-	for _, ovl in pairs(ovl_data.stop_overlays or {}) do clear_stop_overlay(ovl) end
-	if ovl_data.bbox_overlay then ovl_data.bbox_overlay.destroy() end
+	if not ovl_data then
+		return
+	end
+	for _, ovl in pairs(ovl_data.comb_overlays or {}) do
+		ovl.destroy()
+	end
+	for _, ovl in pairs(ovl_data.stop_overlays or {}) do
+		clear_stop_overlay(ovl)
+	end
+	if ovl_data.bbox_overlay then
+		ovl_data.bbox_overlay.destroy()
+	end
 	storage.debug_state.overlay = nil
 end
 
@@ -320,11 +311,11 @@ local function enable_or_disable_overlays()
 	end
 end
 
-on_mod_settings_changed(enable_or_disable_overlays)
-on_combinator_destroyed(destroy_combinator_overlay)
-on_combinator_created(update_combinator_overlay)
-on_combinator_node_associated(function(combinator, new_node, old_node)
-	update_combinator_overlay(combinator)
+cs2.on_mod_settings_changed(enable_or_disable_overlays)
+cs2.on_combinator_destroyed(destroy_combinator_overlay)
+--cs2.on_combinator_created(update_combinator_overlay)
+cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
+	--update_combinator_overlay(combinator)
 	if new_node then
 		local l, t, r, b = mlib.bbox_get(combinator.entity.bounding_box)
 		rendering.draw_rectangle({
@@ -336,12 +327,12 @@ on_combinator_node_associated(function(combinator, new_node, old_node)
 		})
 	end
 end)
-on_node_destroyed(destroy_stop_overlay)
-on_node_created(update_stop_overlay)
-on_node_combinator_set_changed(update_stop_overlay)
-on_train_stop_layout_changed(update_stop_overlay)
-on_train_stop_pattern_changed(update_stop_overlay)
-on_node_data_changed(function(node)
+cs2.on_node_destroyed(destroy_stop_overlay)
+cs2.on_node_created(update_stop_overlay)
+cs2.on_node_combinator_set_changed(update_stop_overlay)
+cs2.on_train_stop_layout_changed(update_stop_overlay)
+cs2.on_train_stop_pattern_changed(update_stop_overlay)
+cs2.on_node_data_changed(function(node)
 	if node.type == "stop" then
 		update_stop_overlay(node)
 	end

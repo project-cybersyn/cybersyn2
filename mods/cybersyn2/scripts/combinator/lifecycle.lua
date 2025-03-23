@@ -8,8 +8,11 @@
 local log = require("__cybersyn2__.lib.logging")
 local tlib = require("__cybersyn2__.lib.table")
 local bplib = require("__cybersyn2__.lib.blueprint")
+local cs2 = _G.cs2
+local combinator_api = _G.cs2.combinator_api
 
-local is_combinator_or_ghost_entity = combinator_api.is_combinator_or_ghost_entity
+local is_combinator_or_ghost_entity =
+	combinator_api.is_combinator_or_ghost_entity
 
 ---@param combinator_entity LuaEntity A *valid* reference to a non-ghost combinator.
 ---@return Cybersyn.Combinator.Internal
@@ -55,7 +58,9 @@ end
 local function get_raw_values(combinator_entity)
 	-- If real combinator, should be in the cache.
 	local id = combinator_entity.unit_number
-	if storage.combinator_settings_cache[id] then return storage.combinator_settings_cache[id] end
+	if storage.combinator_settings_cache[id] then
+		return storage.combinator_settings_cache[id]
+	end
 
 	return combinator_entity.tags or {}
 end
@@ -95,7 +100,7 @@ end
 ---@param combinator_entity LuaEntity A *valid* combinator or ghost entity
 ---@param key string
 ---@return boolean|string|number|Tags|nil
-function combinator_api.get_raw_value(combinator_entity, key)
+function _G.cs2.combinator_api.get_raw_value(combinator_entity, key)
 	return get_raw_values(combinator_entity)[key]
 end
 
@@ -106,7 +111,7 @@ end
 ---@param key string
 ---@param value boolean|string|number|Tags|nil
 ---@return boolean #`true` if the value was stored, `false` if not.
-function combinator_api.set_raw_value(combinator_entity, key, value)
+function _G.cs2.combinator_api.set_raw_value(combinator_entity, key, value)
 	-- If ghost, store in tags.
 	if combinator_entity.name == "entity-ghost" then
 		local tags = combinator_entity.tags or {}
@@ -133,12 +138,15 @@ end
 -- Combinator lifecycle events.
 --------------------------------------------------------------------------------
 
-on_built_combinator(function(combinator_entity, tags)
+cs2.on_built_combinator(function(combinator_entity, tags)
 	local comb_id = combinator_entity.unit_number --[[@as UnitNumber]]
 	local comb = combinator_api.get_combinator(comb_id, true)
 	if comb then
 		-- Should be impossible
-		log.error("Duplicate combinator unit number, should be impossible.", comb_id)
+		log.error(
+			"Duplicate combinator unit number, should be impossible.",
+			comb_id
+		)
 		return
 	end
 	comb = create_combinator_state(combinator_entity)
@@ -159,22 +167,33 @@ on_built_combinator(function(combinator_entity, tags)
 	comb.output_entity = out
 
 	-- Wire hidden entity to combinator
-	local comb_red = combinator_entity.get_wire_connector(defines.wire_connector_id.circuit_red, true)
-	local out_red = out.get_wire_connector(defines.wire_connector_id.circuit_red, true)
+	local comb_red = combinator_entity.get_wire_connector(
+		defines.wire_connector_id.circuit_red,
+		true
+	)
+	local out_red =
+		out.get_wire_connector(defines.wire_connector_id.circuit_red, true)
 	out_red.connect_to(comb_red, false, defines.wire_origin.script)
-	local comb_green = combinator_entity.get_wire_connector(defines.wire_connector_id.circuit_green, true)
-	local out_green = out.get_wire_connector(defines.wire_connector_id.circuit_green, true)
+	local comb_green = combinator_entity.get_wire_connector(
+		defines.wire_connector_id.circuit_green,
+		true
+	)
+	local out_green =
+		out.get_wire_connector(defines.wire_connector_id.circuit_green, true)
 	out_green.connect_to(comb_green, false, defines.wire_origin.script)
 
-	raise_combinator_created(comb)
+	cs2.raise_combinator_created(comb)
 end)
 
-on_broken_combinator(function(combinator_entity)
-	local comb = combinator_api.get_combinator(combinator_entity.unit_number, true)
-	if not comb then return end
+cs2.on_broken_combinator(function(combinator_entity)
+	local comb =
+		combinator_api.get_combinator(combinator_entity.unit_number, true)
+	if not comb then
+		return
+	end
 	comb.is_being_destroyed = true
 
-	raise_combinator_destroyed(comb)
+	cs2.raise_combinator_destroyed(comb)
 
 	-- Destroy hidden settings entity
 	if comb.output_entity and comb.output_entity.valid then
@@ -187,13 +206,13 @@ on_broken_combinator(function(combinator_entity)
 	destroy_combinator_state(comb.id)
 end)
 
-on_entity_settings_pasted(function(event)
+cs2.on_entity_settings_pasted(function(event)
 	local source = combinator_api.entity_to_ephemeral(event.source)
 	local dest = combinator_api.entity_to_ephemeral(event.destination)
 	if source and dest then
 		local vals = get_raw_values(source.entity)
 		set_raw_values(dest.entity, vals)
-		raise_combinator_or_ghost_setting_changed(dest, nil, nil, nil)
+		cs2.raise_combinator_or_ghost_setting_changed(dest, nil, nil, nil)
 	end
 end)
 
@@ -210,11 +229,17 @@ local function bp_combinator_filter(bp_entity)
 	return bp_entity.name == "cybersyn2-combinator"
 end
 
-on_built_blueprint(function(player, event)
-	local blueprintish = bplib.get_actual_blueprint(player, player.cursor_record, player.cursor_stack)
+cs2.on_built_blueprint(function(player, event)
+	local blueprintish = bplib.get_actual_blueprint(
+		player,
+		player.cursor_record,
+		player.cursor_stack
+	)
 	if blueprintish then
 		local bp_entities = blueprintish.get_blueprint_entities()
-		if not bp_entities then return end
+		if not bp_entities then
+			return
+		end
 		local overlap_map = bplib.get_overlapping_entities(
 			bp_entities,
 			player.surface,
@@ -228,10 +253,12 @@ on_built_blueprint(function(player, event)
 			local comb = combinator_api.get_combinator(entity.unit_number, true)
 			local tags = bp_entities[i].tags or {}
 			if comb then
-				log.trace("Combinator lifecycle: combinator settings pasted via blueprint",
-					entity)
+				log.trace(
+					"Combinator lifecycle: combinator settings pasted via blueprint",
+					entity
+				)
 				set_raw_values(entity, tags)
-				raise_combinator_or_ghost_setting_changed(comb, nil, nil, nil)
+				cs2.raise_combinator_or_ghost_setting_changed(comb, nil, nil, nil)
 			end
 		end
 	end
@@ -241,7 +268,7 @@ end)
 -- Extract settings tags on blueprint setup.
 --------------------------------------------------------------------------------
 
-on_blueprint_setup(function(event)
+cs2.on_blueprint_setup(function(event)
 	bplib.save_tags(event, function(entity)
 		if is_combinator_or_ghost_entity(entity) then
 			return get_raw_values(entity)

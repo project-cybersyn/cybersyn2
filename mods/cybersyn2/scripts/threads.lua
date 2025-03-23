@@ -5,7 +5,7 @@
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local log = require("__cybersyn2__.lib.logging")
 
-threads_api = {}
+local cs2 = _G.cs2
 
 ---Schedule a thread to run every `work_period` ticks, automatically updating
 ---when user changes mod settings. The thread begins with `{ state = "init" }`
@@ -13,21 +13,17 @@ threads_api = {}
 ---@param name string
 ---@param main fun(state: Scheduler.RecurringTask)
 ---@param offset int Tick offset for task. Should be set differently than other tasks in the mod so all threads don't update on the same tick.
-function threads_api.schedule_thread(name, main, offset)
+function _G.cs2.threads_api.schedule_thread(name, main, offset)
 	scheduler.register_handler(name, main)
 
-	on_mod_settings_changed(function()
+	cs2.on_mod_settings_changed(function()
 		if storage.task_ids[name] then
-			scheduler.set_period(storage.task_ids[name], mod_settings.work_period)
+			scheduler.set_period(storage.task_ids[name], cs2.mod_settings.work_period)
 		else
-			storage.task_ids[name] = scheduler.every(
-				mod_settings.work_period,
-				name,
-				{
+			storage.task_ids[name] =
+				scheduler.every(cs2.mod_settings.work_period, name, {
 					state = "init",
-				},
-				offset
-			)
+				}, offset)
 		end
 	end)
 end
@@ -36,7 +32,7 @@ end
 ---functions from `dispatch_table` based on the current `state` field of the
 ---thread's data.
 ---@param dispatch_table table<string, fun(data: table)>
-function threads_api.create_standard_main_loop(dispatch_table)
+function _G.cs2.threads_api.create_standard_main_loop(dispatch_table)
 	return function(task)
 		local data = task.data
 		local state = data.state

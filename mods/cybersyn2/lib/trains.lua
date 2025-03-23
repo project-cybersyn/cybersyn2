@@ -49,7 +49,9 @@ function lib.get_connected_stop(rail_entity)
 	end
 	if stop_entity then
 		local connected_rail = stop_entity.connected_rail
-		if connected_rail and (connected_rail.unit_number == rail_entity.unit_number) then
+		if
+			connected_rail and (connected_rail.unit_number == rail_entity.unit_number)
+		then
 			return stop_entity
 		end
 	end
@@ -65,13 +67,12 @@ end
 ---@return LuaEntity? rail_br The rail entity connected to the given rail entity in the back-right direction, if it exists.
 function lib.get_all_connected_rails(rail_entity)
 	local get_connected_rail = rail_entity.get_connected_rail
-	return
-			get_connected_rail(connected_rail_fs),
-			get_connected_rail(connected_rail_fl),
-			get_connected_rail(connected_rail_fr),
-			get_connected_rail(connected_rail_bs),
-			get_connected_rail(connected_rail_bl),
-			get_connected_rail(connected_rail_br)
+	return get_connected_rail(connected_rail_fs),
+		get_connected_rail(connected_rail_fl),
+		get_connected_rail(connected_rail_fr),
+		get_connected_rail(connected_rail_bs),
+		get_connected_rail(connected_rail_bl),
+		get_connected_rail(connected_rail_br)
 end
 
 --------------------------------------------------------------------------------
@@ -124,7 +125,10 @@ local function iterate(state)
 	end
 
 	-- Check if rail begins a new search segment.
-	if (not state.segment_rail) or (not current_rail.is_rail_in_same_rail_segment_as(state.segment_rail)) then
+	if
+		not state.segment_rail
+		or (not current_rail.is_rail_in_same_rail_segment_as(state.segment_rail))
+	then
 		state.segment_rail = current_rail
 		state.changed_segment = true
 		state.front_stop = current_rail.get_rail_segment_stop(defines_front)

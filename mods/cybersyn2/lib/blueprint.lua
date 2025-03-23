@@ -61,17 +61,14 @@ function lib.get_actual_blueprint(player, record, stack)
 		while record and record.type == "blueprint-book" do
 			record = record.contents[record.get_active_index(player)]
 		end
-		if record and record.type == "blueprint" then
-			return record
-		end
+		if record and record.type == "blueprint" then return record end
 	elseif stack then
 		if not stack.valid_for_read then return end
 		while stack and stack.is_blueprint_book do
-			stack = stack.get_inventory(defines.inventory.item_main)[stack.active_index]
+			stack =
+				stack.get_inventory(defines.inventory.item_main)[stack.active_index]
 		end
-		if stack and stack.is_blueprint then
-			return stack
-		end
+		if stack and stack.is_blueprint then return stack end
 	end
 end
 
@@ -88,13 +85,14 @@ end
 ---@param bp_entity_filter? fun(bp_entity: BlueprintEntity): boolean Filters which blueprint entities are considered for overlap. Filtering can save considerable work in handling large blueprints. (Note that you MUST NOT prefilter the blueprint entities array before calling this function.)
 ---@return table<uint, LuaEntity> map A table mapping the index of the blueprint entity to the overlapping entity in the world. Note that this is not a true array as indices not corresponding to overlapped entities will be nil.
 function lib.get_overlapping_entities(
-		bp_entities,
-		surface,
-		position,
-		rotation,
-		flip_horizontal,
-		flip_vertical,
-		bp_entity_filter)
+	bp_entities,
+	surface,
+	position,
+	rotation,
+	flip_horizontal,
+	flip_vertical,
+	bp_entity_filter
+)
 	if (not bp_entities) or (#bp_entities == 0) then return {} end
 
 	-- Must first compute the center of blueprint space, as that will be translated
@@ -131,9 +129,7 @@ function lib.get_overlapping_entities(
 
 	-- Rotate by blueprint placement rotation
 	local bp_rot_n = 0
-	if rotation % 4 == 0 then
-		bp_rot_n = floor(rotation / 4)
-	end
+	if rotation % 4 == 0 then bp_rot_n = floor(rotation / 4) end
 	bbox_rotate_ortho(bpspace_bbox, bpspace_center, bp_rot_n)
 	l, t, r, b = bbox_get(bpspace_bbox)
 
@@ -175,17 +171,16 @@ end
 function lib.save_tags(setup_event, tag_generator)
 	local player = game.players[setup_event.player_index]
 	if not player then return end
-	local blueprintish = lib.get_actual_blueprint(player, setup_event.record, setup_event.stack)
+	local blueprintish =
+		lib.get_actual_blueprint(player, setup_event.record, setup_event.stack)
 	if not blueprintish then return end
 	local lazy_mapping = setup_event.mapping
-	if (not lazy_mapping) or (not lazy_mapping.valid) then return end
+	if (not lazy_mapping) or not lazy_mapping.valid then return end
 	local mapping = lazy_mapping.get() --[[@as table<uint, LuaEntity>]]
 	if not mapping then return end
 	for bpid, entity in pairs(mapping) do
 		local tags = tag_generator(entity)
-		if tags then
-			blueprintish.set_blueprint_entity_tags(bpid, tags)
-		end
+		if tags then blueprintish.set_blueprint_entity_tags(bpid, tags) end
 	end
 end
 

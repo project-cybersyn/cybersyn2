@@ -7,14 +7,23 @@
 
 local flib_gui = require("__flib__.gui")
 local tlib = require("__cybersyn2__.lib.table")
+local cs2 = _G.cs2
+local combinator_api = _G.cs2.combinator_api
+local combinator_settings = _G.cs2.combinator_settings
 
 --------------------------------------------------------------------------------
 -- Settings
 --------------------------------------------------------------------------------
 
-combinator_api.register_setting(combinator_api.make_raw_setting("allow_mode", "allow_mode", "auto"))
-combinator_api.register_setting(combinator_api.make_flag_setting("allow_strict", "allow_flags", 0))
-combinator_api.register_setting(combinator_api.make_flag_setting("allow_bidi", "allow_flags", 1))
+combinator_api.register_setting(
+	combinator_api.make_raw_setting("allow_mode", "allow_mode", "auto")
+)
+combinator_api.register_setting(
+	combinator_api.make_flag_setting("allow_strict", "allow_flags", 0)
+)
+combinator_api.register_setting(
+	combinator_api.make_flag_setting("allow_bidi", "allow_flags", 1)
+)
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -33,18 +42,20 @@ local mode_names = { "auto", "layout", "group", "all" }
 ---@param combinator Cybersyn.Combinator.Ephemeral
 local function handle_mode_dropdown(event, combinator)
 	local element = event.element
-	if not element then return end
+	if not element then
+		return
+	end
 	local new_mode = mode_names[element.selected_index] or "auto"
-	combinator_api.write_setting(combinator, combinator_settings.allow_mode, new_mode)
+	combinator_api.write_setting(
+		combinator,
+		combinator_settings.allow_mode,
+		new_mode
+	)
 end
 
-flib_gui.add_handlers(
-	{
-		["handle_mode_dropdown"] = handle_mode_dropdown,
-	},
-	combinator_api.flib_settings_handler_wrapper,
-	"allow_settings"
-)
+flib_gui.add_handlers({
+	["handle_mode_dropdown"] = handle_mode_dropdown,
+}, combinator_api.flib_settings_handler_wrapper, "allow_settings")
 
 ---@param parent LuaGuiElement
 local function create_gui(parent)
@@ -59,7 +70,10 @@ local function create_gui(parent)
 			type = "flow",
 			name = "mode_flow",
 			direction = "horizontal",
-			style_mods = { vertical_align = "center", horizontally_stretchable = true },
+			style_mods = {
+				vertical_align = "center",
+				horizontally_stretchable = true,
+			},
 			children = {
 				{
 					type = "label",
@@ -104,7 +118,8 @@ end
 ---@param settings Cybersyn.Combinator.Ephemeral
 ---@param changed_setting_name string?
 local function update_gui(parent, settings, changed_setting_name)
-	local allow_mode = combinator_api.read_setting(settings, combinator_settings.allow_mode)
+	local allow_mode =
+		combinator_api.read_setting(settings, combinator_settings.allow_mode)
 
 	if allow_mode == "auto" then
 		-- Unhide auto-mode checkboxes
@@ -116,10 +131,14 @@ local function update_gui(parent, settings, changed_setting_name)
 		parent["allow_bidi"].visible = false
 	end
 
-	parent["allow_strict"].state = combinator_api.read_setting(settings, combinator_settings.allow_strict)
-	parent["allow_bidi"].state = combinator_api.read_setting(settings, combinator_settings.allow_bidi)
+	parent["allow_strict"].state =
+		combinator_api.read_setting(settings, combinator_settings.allow_strict)
+	parent["allow_bidi"].state =
+		combinator_api.read_setting(settings, combinator_settings.allow_bidi)
 
-	local _, mode_index = tlib.find(mode_names, function(x) return x == allow_mode end)
+	local _, mode_index = tlib.find(mode_names, function(x)
+		return x == allow_mode
+	end)
 	parent["mode_flow"]["mode_dropdown"].selected_index = mode_index or 1
 end
 

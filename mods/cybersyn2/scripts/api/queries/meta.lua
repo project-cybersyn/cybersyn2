@@ -10,26 +10,32 @@ local query_defs = {
 	["queries"] = {
 		name = "queries",
 		args = {},
-		result_type = { true, ContainerType.map, PrimitiveType.string, PrimitiveType["Cybersyn.QueryDef"] },
+		result_type = {
+			true,
+			ContainerType.map,
+			PrimitiveType.string,
+			PrimitiveType["Cybersyn.QueryDef"],
+		},
 	},
 	["enums"] = {
 		name = "enums",
 		args = {},
-		result_type = { true, ContainerType.map, PrimitiveType.string, PrimitiveType.EnumValues },
+		result_type = {
+			true,
+			ContainerType.map,
+			PrimitiveType.string,
+			PrimitiveType.EnumValues,
+		},
 	},
 }
 
 ---Machine-readable definitions of enums used in Cybersyn queries. If a
 ---new query uses an enum in its params or result, it must be added here.
 ---@type table<string, table<string, string|number>>
-local enum_defs = {
-
-}
+local enum_defs = {}
 
 local query_query_result = { data = query_defs }
 
 ---@param arg Cybersyn.Query.Queries.Input
 ---@return Cybersyn.Query.Queries.Result
-function query_handlers.queries(arg)
-	return query_query_result
-end
+function _G.cs2.query_handlers.queries(arg) return query_query_result end

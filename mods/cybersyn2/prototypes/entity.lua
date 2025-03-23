@@ -5,22 +5,27 @@ local flib = require("__flib__.data-util")
 --------------------------------------------------------------------------------
 
 ---@type data.ConstantCombinatorPrototype
-combinator_entity = flib.copy_prototype(data.raw["constant-combinator"]["constant-combinator"], "cybersyn2-combinator")
+local combinator_entity = flib.copy_prototype(
+	data.raw["constant-combinator"]["constant-combinator"],
+	"cybersyn2-combinator"
+)
 combinator_entity.radius_visualisation_specification = {
 	sprite = {
 		filename = "__cybersyn2__/graphics/white.png",
-		tint = { r = 1, g = 1, b = 0, a = .5 },
+		tint = { r = 1, g = 1, b = 0, a = 0.5 },
 		height = 64,
 		width = 64,
 	},
 	distance = 1.5,
 }
-combinator_entity.minable = { mining_time = 0.1, result = "cybersyn2-combinator" }
+combinator_entity.minable =
+	{ mining_time = 0.1, result = "cybersyn2-combinator" }
 combinator_entity.fast_replaceable_group = "cybersyn2-combinator"
 local flags = combinator_entity.flags or {}
 table.insert(flags, "get-by-unit-number")
 combinator_entity.flags = flags
 
+---@diagnostic disable-next-line: undefined-global
 combinator_entity.sprites = make_4way_animation_from_spritesheet({
 	layers = {
 		{
@@ -43,11 +48,16 @@ combinator_entity.sprites = make_4way_animation_from_spritesheet({
 	},
 })
 
+data:extend({ combinator_entity })
+
 --------------------------------------------------------------------------------
 -- Hidden Output
 --------------------------------------------------------------------------------
 
-combinator_out_entity = flib.copy_prototype(data.raw["constant-combinator"]["constant-combinator"], "cybersyn2-output") --[[@as data.ConstantCombinatorPrototype]]
+local combinator_out_entity = flib.copy_prototype(
+	data.raw["constant-combinator"]["constant-combinator"],
+	"cybersyn2-output"
+) --[[@as data.ConstantCombinatorPrototype]]
 combinator_out_entity.icon = nil
 combinator_out_entity.icon_size = nil
 combinator_out_entity.next_upgrade = nil
@@ -56,11 +66,13 @@ combinator_out_entity.selection_box = nil
 combinator_out_entity.collision_box = nil
 combinator_out_entity.collision_mask = { layers = {} }
 combinator_out_entity.circuit_wire_max_distance = 3
-combinator_out_entity.flags = { "not-blueprintable", "not-deconstructable", "placeable-off-grid" }
+combinator_out_entity.flags =
+	{ "not-blueprintable", "not-deconstructable", "placeable-off-grid" }
 combinator_out_entity.hidden_in_factoriopedia = true
 
 local origin = { 0.0, 0.0 }
-local invisible_sprite = { filename = "__cybersyn2__/graphics/invisible.png", width = 1, height = 1 }
+local invisible_sprite =
+	{ filename = "__cybersyn2__/graphics/invisible.png", width = 1, height = 1 }
 local wire_con1 = {
 	red = origin,
 	green = origin,
@@ -72,7 +84,8 @@ combinator_out_entity.activity_led_light = {
 	intensity = 0,
 	size = 0,
 }
-combinator_out_entity.activity_led_light_offsets = { origin, origin, origin, origin }
+combinator_out_entity.activity_led_light_offsets =
+	{ origin, origin, origin, origin }
 combinator_out_entity.draw_circuit_wires = false
 combinator_out_entity.circuit_wire_connection_points = {
 	wire_con0,
@@ -80,3 +93,5 @@ combinator_out_entity.circuit_wire_connection_points = {
 	wire_con0,
 	wire_con0,
 }
+
+data:extend({ combinator_out_entity })

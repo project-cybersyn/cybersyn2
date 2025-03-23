@@ -16,13 +16,9 @@ lib.empty = empty
 ---@param B any[]
 ---@return boolean
 function lib.a_eqeq(A, B)
-	if #A ~= #B then
-		return false
-	end
+	if #A ~= #B then return false end
 	for i = 1, #A do
-		if A[i] ~= B[i] then
-			return false
-		end
+		if A[i] ~= B[i] then return false end
 	end
 	return true
 end
@@ -34,21 +30,21 @@ end
 ---@return T
 function lib.deep_copy(tbl, ignore_metatables)
 	local lookup_table = {}
-	local function _copy(tbl)
-		if type(tbl) ~= "table" then
-			return tbl
-		elseif lookup_table[tbl] then
-			return lookup_table[tbl]
+	local function _copy(_tbl)
+		if type(_tbl) ~= "table" then
+			return _tbl
+		elseif lookup_table[_tbl] then
+			return lookup_table[_tbl]
 		end
 		local new_table = {}
-		lookup_table[tbl] = new_table
-		for index, value in pairs(tbl) do
+		lookup_table[_tbl] = new_table
+		for index, value in pairs(_tbl) do
 			new_table[_copy(index)] = _copy(value)
 		end
 		if ignore_metatables then
 			return new_table
 		else
-			return setmetatable(new_table, getmetatable(tbl))
+			return setmetatable(new_table, getmetatable(_tbl))
 		end
 	end
 	return _copy(tbl)
@@ -89,9 +85,7 @@ end
 function lib.filter(A, f)
 	local B = {}
 	for i = 1, #A do
-		if f(A[i], i) then
-			B[#B + 1] = A[i]
-		end
+		if f(A[i], i) then B[#B + 1] = A[i] end
 	end
 	return B
 end
@@ -106,9 +100,7 @@ function lib.map(A, f)
 	local B = {}
 	for i = 1, #A do
 		local x = f(A[i], i)
-		if x ~= nil then
-			B[#B + 1] = x
-		end
+		if x ~= nil then B[#B + 1] = x end
 	end
 	return B
 end
@@ -131,9 +123,7 @@ end
 ---@return K? key The key of the first matching entry, or `nil` if none was found
 function lib.find(T, f)
 	for k, v in pairs(T) do
-		if f(v, k) then
-			return v, k
-		end
+		if f(v, k) then return v, k end
 	end
 end
 
@@ -147,9 +137,7 @@ function lib.t_map_a(T, f)
 	local A = {}
 	for k, v in pairs(T) do
 		local x = f(v, k)
-		if x ~= nil then
-			A[#A + 1] = x
-		end
+		if x ~= nil then A[#A + 1] = x end
 	end
 	return A
 end
@@ -165,9 +153,7 @@ function lib.t_map_t(T, f)
 	local U = {}
 	for k, v in pairs(T) do
 		local k2, v2 = f(k, v)
-		if k2 ~= nil then
-			U[k2] = v2
-		end
+		if k2 ~= nil then U[k2] = v2 end
 	end
 	return U
 end

@@ -13,6 +13,8 @@ local event_tracing_enabled = true -- TODO: turn off by default, toggle
 
 local lib = {}
 
+--selene: allow(unused_variable)
+
 ---Create an event.
 ---@generic T1, T2, T3, T4, T5
 ---@param name string The name of the event
@@ -48,8 +50,6 @@ lib.create_event = create_event
 ---the TRACE log level. Further filtering can be done using the logging
 ---library's interface.
 ---@param enabled boolean
-function lib.set_event_tracing_enabled(enabled)
-	event_tracing_enabled = enabled
-end
+function lib.set_event_tracing_enabled(enabled) event_tracing_enabled = enabled end
 
 return lib

@@ -1,4 +1,2 @@
-remote_api = {}
-
 ---@type table<string, fun(query: Cybersyn.QueryInput): Cybersyn.QueryResult>
-query_handlers = {}
+_G.cs2.query_handlers = {}

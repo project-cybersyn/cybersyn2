@@ -314,13 +314,31 @@ local function bbox_rotate_ortho(bbox, origin, count)
 
 	if count == 1 then
 		-- 90 degrees counterclockwise
-		return bbox_setn(bbox, ox - (oy - t), oy - (r - ox), ox - (oy - b), oy - (l - ox))
+		return bbox_setn(
+			bbox,
+			ox - (oy - t),
+			oy - (r - ox),
+			ox - (oy - b),
+			oy - (l - ox)
+		)
 	elseif count == 2 then
 		-- 180 degrees counterclockwise
-		return bbox_setn(bbox, ox - (r - ox), oy - (b - oy), ox - (l - ox), oy - (t - oy))
+		return bbox_setn(
+			bbox,
+			ox - (r - ox),
+			oy - (b - oy),
+			ox - (l - ox),
+			oy - (t - oy)
+		)
 	elseif count == 3 then
 		-- 270 degrees counterclockwise (or 90 degrees clockwise)
-		return bbox_setn(bbox, ox + (oy - b), oy + (l - ox), ox + (oy - t), oy + (r - ox))
+		return bbox_setn(
+			bbox,
+			ox + (oy - b),
+			oy + (l - ox),
+			ox + (oy - t),
+			oy + (r - ox)
+		)
 	else
 		-- 0 degrees (no rotation)
 		return bbox

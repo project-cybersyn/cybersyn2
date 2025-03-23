@@ -1,5 +1,5 @@
 ---
-base: lua51
+base: lua52
 globals:
   storage:
     any: true
@@ -16,4 +16,12 @@ globals:
   make_4way_animation_from_spritesheet:
     any: true
   util:
+    any: true
+  prototypes:
+    any: true
+  serpent:
+    any: true
+  rendering:
+    any: true
+  settings:
     any: true

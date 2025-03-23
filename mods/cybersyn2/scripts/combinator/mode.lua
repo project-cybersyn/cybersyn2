@@ -16,7 +16,7 @@ local mode_list = {}
 
 ---Register a new combinator mode.
 ---@param mode_definition Cybersyn.Combinator.ModeDefinition
-function combinator_api.register_combinator_mode(mode_definition)
+function _G.cs2.combinator_api.register_combinator_mode(mode_definition)
 	local name = mode_definition.name
 	if (not name) or modes[name] then
 		return false
@@ -27,12 +27,12 @@ function combinator_api.register_combinator_mode(mode_definition)
 end
 
 ---Get a list of name keys of all combinator modes.
-function combinator_api.get_combinator_mode_list()
+function _G.cs2.combinator_api.get_combinator_mode_list()
 	return mode_list
 end
 
 ---Get a combinator mode by name.
 ---@param name string
-function combinator_api.get_combinator_mode(name)
+function _G.cs2.combinator_api.get_combinator_mode(name)
 	return modes[name or ""]
 end

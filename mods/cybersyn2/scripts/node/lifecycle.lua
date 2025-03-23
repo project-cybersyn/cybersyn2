@@ -3,13 +3,17 @@
 --------------------------------------------------------------------------------
 local counters = require("__cybersyn2__.lib.counters")
 local tlib = require("__cybersyn2__.lib.table")
-local NodeNetworkOperation = require("__cybersyn2__.lib.types").NodeNetworkOperation
+local NodeNetworkOperation =
+	require("__cybersyn2__.lib.types").NodeNetworkOperation
+local cs2 = _G.cs2
+local combinator_api = _G.cs2.combinator_api
+local node_api = _G.cs2.node_api
 
 ---Create a new node. This should be used internally by providers of specific
 ---kinds of node, such as train stops.
 ---@param node_type string
 ---@param initial_data table #Initial state data appropriate to the node type which will be assigned to the new node.
-function node_api.create_node(node_type, initial_data)
+function _G.cs2.node_api.create_node(node_type, initial_data)
 	local id = counters.next("node")
 	initial_data.id = id
 	initial_data.type = node_type
@@ -21,18 +25,20 @@ function node_api.create_node(node_type, initial_data)
 	initial_data.is_being_destroyed = nil
 	storage.nodes[id] = initial_data
 
-	raise_node_created(storage.nodes[id])
+	cs2.raise_node_created(storage.nodes[id])
 	return storage.nodes[id]
 end
 
 ---Destroy the node with the given id.
 ---@param node_id Id
-function node_api.destroy_node(node_id)
+function _G.cs2.node_api.destroy_node(node_id)
 	local node = node_api.get_node(node_id, true)
-	if not node then return end
+	if not node then
+		return
+	end
 
 	node.is_being_destroyed = true
-	raise_node_destroyed(node)
+	cs2.raise_node_destroyed(node)
 
 	-- If type-specific destructors bound to the event failed to clear the
 	-- combinator set, we must do so here.
@@ -41,7 +47,7 @@ function node_api.destroy_node(node_id)
 			local combinator = combinator_api.get_combinator(combinator_id, true)
 			node_api.disassociate_combinator(combinator, true)
 		end)
-		raise_node_combinator_set_changed(node)
+		cs2.raise_node_combinator_set_changed(node)
 	end
 
 	-- Destroy state
@@ -49,7 +55,7 @@ function node_api.destroy_node(node_id)
 end
 
 -- When a combinator is destroyed, disassociate it from its node.
-on_combinator_destroyed(function(combinator)
+cs2.on_combinator_destroyed(function(combinator)
 	if combinator.node_id then
 		node_api.disassociate_combinator(combinator)
 	end

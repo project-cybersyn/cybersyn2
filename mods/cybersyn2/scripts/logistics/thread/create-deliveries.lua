@@ -1,3 +1,2 @@
 ---@param data Cybersyn.Internal.LogisticsThreadData
-function logistics_thread.create_deliveries(data)
-end
+function _G.cs2.logistics_thread.create_deliveries(data) end

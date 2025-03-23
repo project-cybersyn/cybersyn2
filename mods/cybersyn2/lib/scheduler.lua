@@ -1,3 +1,4 @@
+---@diagnostic disable: inject-field
 if ... ~= "__cybersyn2__.lib.scheduler" then
 	return require("__cybersyn2__.lib.scheduler")
 end
@@ -39,9 +40,7 @@ local handlers = {}
 ---at the global level of the control phase unconditionally for each handler.
 ---@param name string
 ---@param handler Scheduler.Handler
-function lib.register_handler(name, handler)
-	handlers[name] = handler
-end
+function lib.register_handler(name, handler) handlers[name] = handler end
 
 ---Initialize the scheduler system. Must be called in the mod's `on_init` handler.
 function lib.init()
@@ -73,22 +72,30 @@ function lib.tick(tick_data)
 	if task_set then
 		for task_id in pairs(task_set) do
 			local task = state.tasks[task_id]
-			if not task then goto continue end
-			local handler = handlers[task.handler_name]
-			if handler then
-				handler(task)
-			else
-				log.once(log.level.error, "sched_handler_" .. task.handler_name, nil, nil, "Scheduler: missing handler",
-					task.handler_name, "for task", task_id)
+			if task then
+				local handler = handlers[task.handler_name]
+				if handler then
+					handler(task)
+				else
+					log.once(
+						log.level.error,
+						"sched_handler_" .. task.handler_name,
+						nil,
+						nil,
+						"Scheduler: missing handler",
+						task.handler_name,
+						"for task",
+						task_id
+					)
+				end
+				if task.type == "once" then
+					state.tasks[task_id] = nil
+				elseif task.type == "many" then
+					local rtask = task --[[@as Scheduler.RecurringTask]]
+					rtask.next = tick_n + rtask.period
+					do_at(rtask.next, task_id)
+				end
 			end
-			if task.type == "once" then
-				state.tasks[task_id] = nil
-			elseif task.type == "many" then
-				local rtask = task --[[@as Scheduler.RecurringTask]]
-				rtask.next = tick_n + rtask.period
-				do_at(rtask.next, task_id)
-			end
-			::continue::
 		end
 		state.at[tick_n] = nil
 	end
@@ -141,12 +148,23 @@ end
 ---@return Scheduler.TaskId? #The unique identifier of the task, or `nil` if it couldnt be created.
 function lib.at(tick, handler_name, data)
 	if game and tick <= game.tick then
-		log.debug("Scheduler: Attempted to schedule task in the past", tick, game.tick, handler_name)
+		log.debug(
+			"Scheduler: Attempted to schedule task in the past",
+			tick,
+			game.tick,
+			handler_name
+		)
 		return nil
 	end
 	if not handlers[handler_name] then
-		log.once(log.level.error, "sched_handler_" .. handler_name, nil, nil, "Scheduler: missing handler",
-			handler_name)
+		log.once(
+			log.level.error,
+			"sched_handler_" .. handler_name,
+			nil,
+			nil,
+			"Scheduler: missing handler",
+			handler_name
+		)
 		return nil
 	end
 	return at(tick, handler_name, data)
@@ -160,7 +178,11 @@ end
 ---@return Scheduler.TaskId? #The unique identifier of the task, or `nil` if it couldnt be created.
 function lib.after(ticks, handler_name, data)
 	if ticks < 1 then
-		log.debug("Scheduler: Attempted to schedule task in the past", ticks, handler_name)
+		log.debug(
+			"Scheduler: Attempted to schedule task in the past",
+			ticks,
+			handler_name
+		)
 		return nil
 	end
 	return lib.at(game.tick + ticks, handler_name, data)
@@ -175,8 +197,14 @@ end
 ---@return Scheduler.TaskId? #The unique identifier of the task, or `nil` if it couldnt be created.
 function lib.every(period, handler_name, data, skew)
 	if not handlers[handler_name] then
-		log.once(log.level.error, "sched_handler_" .. handler_name, nil, nil, "Scheduler: missing handler",
-			handler_name)
+		log.once(
+			log.level.error,
+			"sched_handler_" .. handler_name,
+			nil,
+			nil,
+			"Scheduler: missing handler",
+			handler_name
+		)
 		return nil
 	end
 	local first_tick = game.tick + 1 + ((skew or 0) % period)

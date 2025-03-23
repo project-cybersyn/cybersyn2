@@ -1,7 +1,19 @@
+local cs2 = _G.cs2
+local inventory_api = _G.cs2.inventory_api
+local combinator_api = _G.cs2.combinator_api
+local stop_api = _G.cs2.stop_api
+local logistics_thread = _G.cs2.logistics_thread
+local mod_settings = _G.cs2.mod_settings
+
 ---@param stop Cybersyn.TrainStop
 ---@param combinator Cybersyn.Combinator
 ---@param data Cybersyn.Internal.LogisticsThreadData
-local function classify_train_stop_pull_inventory(inventory, stop, combinator, data)
+local function classify_train_stop_pull_inventory(
+	inventory,
+	stop,
+	combinator,
+	data
+)
 	if stop.can_provide then
 		local provided = inventory_api.get_net_provides(inventory)
 		for signal_name, count in pairs(provided) do
@@ -27,7 +39,13 @@ end
 ---@param stop Cybersyn.TrainStop
 ---@param combinator Cybersyn.Combinator
 ---@param data Cybersyn.Internal.LogisticsThreadData
-local function poll_train_stop_configuration_signal(signal, count, stop, combinator, data)
+local function poll_train_stop_configuration_signal(
+	signal,
+	count,
+	stop,
+	combinator,
+	data
+)
 	if signal.name == "cybersyn2-priority" then
 		stop.priority = count
 	elseif signal.name == "cybersyn2-item-threshold" then
@@ -47,7 +65,8 @@ end
 ---@param combinator Cybersyn.Combinator
 ---@param data Cybersyn.Internal.LogisticsThreadData
 local function poll_train_stop_configuration_signals(stop, combinator, data)
-	local signals = logistics_thread.get_combinator_signals(data, combinator.entity)
+	local signals =
+		logistics_thread.get_combinator_signals(data, combinator.entity)
 	if signals then
 		local i = 1
 		while signals[i] do
@@ -55,8 +74,14 @@ local function poll_train_stop_configuration_signals(stop, combinator, data)
 			local signal = container.signal
 			local count = container.count
 			-- Consume and process configuration virtual signals
-			if CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name] then
-				poll_train_stop_configuration_signal(signal, count, stop, combinator, data)
+			if cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name] then
+				poll_train_stop_configuration_signal(
+					signal,
+					count,
+					stop,
+					combinator,
+					data
+				)
 				signals[i] = signals[#signals]
 				signals[#signals] = nil
 			else
@@ -70,7 +95,8 @@ end
 ---@param combinator Cybersyn.Combinator
 ---@param data Cybersyn.Internal.LogisticsThreadData
 local function poll_train_stop_networks(stop, combinator, data)
-	local signals = logistics_thread.get_combinator_signals(data, combinator.entity)
+	local signals =
+		logistics_thread.get_combinator_signals(data, combinator.entity)
 	-- Get networks
 	if stop.base_network == "signal-each" then
 		local networks = {}
@@ -78,7 +104,10 @@ local function poll_train_stop_networks(stop, combinator, data)
 		if signals then
 			for i = 1, #signals do
 				local signal = signals[i].signal
-				if signal.type == "virtual" and (not CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name]) then
+				if
+					signal.type == "virtual"
+					and not cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name]
+				then
 					networks[signal.name] = signals[i].count
 				end
 			end
@@ -99,17 +128,17 @@ local function poll_train_stop_networks(stop, combinator, data)
 	end
 end
 
-
 ---@param stop Cybersyn.TrainStop
 ---@param data Cybersyn.Internal.LogisticsThreadData
 local function poll_train_stop(stop, data)
 	local combinator = combinator_api.get_combinator(stop.station_combinator_id)
-	if not combinator then return end
+	if not combinator then
+		return
+	end
 	poll_train_stop_configuration_signals(stop, combinator, data)
 	poll_train_stop_networks(stop, combinator, data)
 	classify_train_stop_inventories(stop, combinator, data)
 end
-
 
 ---@param node Cybersyn.Node
 ---@param data Cybersyn.Internal.LogisticsThreadData
@@ -123,13 +152,14 @@ end
 local function transition_to_create_deliveries(data)
 	data.nodes = nil
 	data.inventories = nil
-	data.stride = math.ceil(mod_settings.work_factor * PERF_NODE_POLL_WORKLOAD)
+	data.stride =
+		math.ceil(mod_settings.work_factor * cs2.PERF_NODE_POLL_WORKLOAD)
 	data.index = 1
 	data.state = "create_deliveries"
 end
 
 ---@param data Cybersyn.Internal.LogisticsThreadData
-function logistics_thread.poll_nodes(data)
+function _G.cs2.logistics_thread.poll_nodes(data)
 	local max_index = math.min(data.index + data.stride, #data.nodes)
 	for i = data.index, max_index do
 		poll_node(data.nodes[i], data)

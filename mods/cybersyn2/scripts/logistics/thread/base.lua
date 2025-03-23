@@ -4,8 +4,10 @@
 
 local log = require("__cybersyn2__.lib.logging")
 local scheduler = require("__cybersyn2__.lib.scheduler")
+local cs2 = _G.cs2
+local threads_api = _G.cs2.threads_api
 
-logistics_thread = {}
+_G.cs2.logistics_thread = {}
 
 ---@class (exact) Cybersyn.Internal.LogisticsThreadData
 ---@field state "init"|"poll_inventories"|"poll_nodes"|"create_deliveries" State of the task.
@@ -21,22 +23,31 @@ logistics_thread = {}
 ---@class Cybersyn.Internal.LogisticsThread: Scheduler.RecurringTask
 ---@field public data Cybersyn.Internal.LogisticsThreadData
 
-threads_api.schedule_thread("logistics_thread", threads_api.create_standard_main_loop(logistics_thread), 0)
+threads_api.schedule_thread(
+	"logistics_thread",
+	threads_api.create_standard_main_loop(_G.cs2.logistics_thread),
+	0
+)
 
 --------------------------------------------------------------------------------
 -- Helper fns
 --------------------------------------------------------------------------------
 
+-- TODO: Rewrite this, it should be ok to just cache the raw signals in
+-- global combinator cache, plus will help with debugging.
+
 ---Pull signals from thread cache or combinator.
 ---@param data Cybersyn.Internal.LogisticsThreadData
 ---@param combinator_entity LuaEntity The combinator entity to read from.
 ---@return Signal[]?
-function logistics_thread.get_combinator_signals(data, combinator_entity)
+function _G.cs2.logistics_thread.get_combinator_signals(data, combinator_entity)
 	local id = combinator_entity.unit_number --[[@as UnitNumber]]
 	local signals = data.signals[id] --[[@as Signal[]?]]
 	if not signals then
-		signals = combinator_entity.get_signals(defines.wire_connector_id.circuit_red,
-			defines.wire_connector_id.circuit_green)
+		signals = combinator_entity.get_signals(
+			defines.wire_connector_id.circuit_red,
+			defines.wire_connector_id.circuit_green
+		)
 		data.signals[id] = signals
 	end
 	return signals

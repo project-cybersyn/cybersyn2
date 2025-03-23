@@ -6,6 +6,8 @@ local counters = require("__cybersyn2__.lib.counters")
 local signal_keys = require("__cybersyn2__.lib.signal")
 local DeliveryState = require("__cybersyn2__.lib.types").DeliveryState
 local log = require("__cybersyn2__.lib.logging")
+local cs2 = _G.cs2
+local inventory_api = _G.cs2.inventory_api
 
 -- This code is called in high performance dispatch loops. We will take some
 -- care to microoptimize here by using upvalues rather than globals. We will
@@ -24,8 +26,6 @@ local Unloading = DeliveryState.Unloading
 local Completed = DeliveryState.Completed
 local Failed = DeliveryState.Failed
 
-inventory_api = {}
-
 -- Inventory notes:
 -- - Don't poll a station while a train is there, because result will be
 -- inaccurate.
@@ -36,7 +36,11 @@ inventory_api = {}
 ---@param owning_entity LuaEntity? If given, a *valid* entity that owns the inventory.
 ---@param surface_index int?
 ---@param node_ids IdSet? If given, the ID of the node that owns the inventory.
-function inventory_api.create_inventory(owning_entity, surface_index, node_ids)
+function _G.cs2.inventory_api.create_inventory(
+	owning_entity,
+	surface_index,
+	node_ids
+)
 	local id
 	if owning_entity then
 		id = owning_entity.unit_number
@@ -44,7 +48,9 @@ function inventory_api.create_inventory(owning_entity, surface_index, node_ids)
 		id = -counters.next("inventory")
 	end
 
-	storage.inventories[ id --[[@as Id]] ] = {
+	storage.inventories[
+		id --[[@as Id]]
+	] = {
 		id = id --[[@as Id]],
 		entity = owning_entity,
 		surface_index = surface_index,
@@ -53,23 +59,27 @@ function inventory_api.create_inventory(owning_entity, surface_index, node_ids)
 		request = {},
 	}
 
-	raise_inventory_created(storage.inventories[id])
+	cs2.raise_inventory_created(storage.inventories[id])
 end
 
 ---Get an inventory by ID.
 ---@param inventory_id Id?
 ---@return Cybersyn.Inventory?
-function inventory_api.get_inventory(inventory_id)
-	if not inventory_id then return nil end
+function _G.cs2.inventory_api.get_inventory(inventory_id)
+	if not inventory_id then
+		return nil
+	end
 	return storage.inventories[inventory_id]
 end
 local get_inventory = inventory_api.get_inventory
 
 ---@param id Id
-function inventory_api.destroy_inventory(id)
+function _G.cs2.inventory_api.destroy_inventory(id)
 	local inventory = storage.inventories[id]
-	if not inventory then return end
-	raise_inventory_destroyed(inventory)
+	if not inventory then
+		return
+	end
+	cs2.raise_inventory_destroyed(inventory)
 	storage.inventories[id] = nil
 end
 
@@ -91,7 +101,9 @@ local function recompute_net(inventory)
 		net_provide = {}
 		for key, count in pairs(provide) do
 			local net = count + min(flow[key] or 0, 0)
-			if net > 0 then net_provide[key] = net end
+			if net > 0 then
+				net_provide[key] = net
+			end
 		end
 	end
 	inventory.net_provide = net_provide
@@ -103,7 +115,9 @@ local function recompute_net(inventory)
 		net_request = {}
 		for key, count in pairs(request) do
 			local net = count + max(flow[key] or 0, 0)
-			if net < 0 then net_request[key] = net end
+			if net < 0 then
+				net_request[key] = net
+			end
 		end
 	end
 	inventory.net_request = net_request
@@ -116,7 +130,13 @@ end
 ---@param allow_requests boolean Process requests (negative inventory)
 ---@param allow_provides boolean Process provides (positive inventory)
 ---@param consume_signals boolean If `true`, mutate the signals array consuming the ones that were used.
-function inventory_api.set_inventory_from_signals(inventory, signals, allow_requests, allow_provides, consume_signals)
+function _G.cs2.inventory_api.set_inventory_from_signals(
+	inventory,
+	signals,
+	allow_requests,
+	allow_provides,
+	consume_signals
+)
 	local intangible_signal_id = nil
 	local provide = {}
 	local request = {}
@@ -131,32 +151,31 @@ function inventory_api.set_inventory_from_signals(inventory, signals, allow_requ
 		-- Filter intangible signals.
 		if signal_type ~= "item" and signal_type ~= "fluid" then
 			i = i + 1
-			goto continue
-		end
-
-		-- Iterate.
-		if consume_signals then
-			-- Swap last signal into this slot and pop the last.
-			signals[i] = signals[#signals]
-			signals[#signals] = nil
 		else
-			i = i + 1
-		end
+			-- Iterate.
+			if consume_signals then
+				-- Swap last signal into this slot and pop the last.
+				signals[i] = signals[#signals]
+				signals[#signals] = nil
+			else
+				i = i + 1
+			end
 
-		-- Bucket signal into provide or request.
-		-- This is unrolled on looking up the key signal for performance reasons.
-		local key
-		if count > 0 and allow_provides then
-			key = signal_to_key(signal)
-			if not key then goto continue end
-			provide[key] = count
-		elseif count < 0 and allow_requests then
-			key = signal_to_key(signal)
-			if not key then goto continue end
-			request[key] = count
+			-- Bucket signal into provide or request.
+			-- This is unrolled on looking up the key signal for performance reasons.
+			local key
+			if count > 0 and allow_provides then
+				key = signal_to_key(signal)
+				if key then
+					provide[key] = count
+				end
+			elseif count < 0 and allow_requests then
+				key = signal_to_key(signal)
+				if key then
+					request[key] = count
+				end
+			end
 		end
-
-		::continue::
 	end
 
 	inventory.provide = provide
@@ -169,7 +188,7 @@ end
 ---@param inventory Cybersyn.Inventory
 ---@param added_flow SignalCounts
 ---@param sign int 1 to add the flow, -1 to subtract it.
-function inventory_api.add_flow(inventory, added_flow, sign)
+function _G.cs2.inventory_api.add_flow(inventory, added_flow, sign)
 	local flow = inventory.flow or {}
 	local provide = inventory.provide
 	local request = inventory.request
@@ -196,7 +215,9 @@ function inventory_api.add_flow(inventory, added_flow, sign)
 					end
 					net_provide[key] = net
 				else
-					if net_provide then net_provide[key] = nil end
+					if net_provide then
+						net_provide[key] = nil
+					end
 				end
 			end
 		elseif new_flow > 0 then
@@ -210,12 +231,18 @@ function inventory_api.add_flow(inventory, added_flow, sign)
 					end
 					net_request[key] = net
 				else
-					if net_request then net_request[key] = nil end
+					if net_request then
+						net_request[key] = nil
+					end
 				end
 			end
 		else -- new_flow == 0
-			if net_provide then net_provide[key] = provide[key] end
-			if net_request then net_request[key] = request[key] end
+			if net_provide then
+				net_provide[key] = provide[key]
+			end
+			if net_request then
+				net_request[key] = request[key]
+			end
 		end
 	end
 
@@ -232,7 +259,7 @@ end
 ---that should not be retained beyond the current tick.
 ---@param inventory Cybersyn.Inventory
 ---@return SignalCounts
-function inventory_api.get_net_provides(inventory)
+function _G.cs2.inventory_api.get_net_provides(inventory)
 	return inventory.net_provide or inventory.provide
 end
 
@@ -240,7 +267,7 @@ end
 ---that should not be retained beyond the current tick.
 ---@param inventory Cybersyn.Inventory
 ---@return SignalCounts
-function inventory_api.get_net_requests(inventory)
+function _G.cs2.inventory_api.get_net_requests(inventory)
 	return inventory.net_request or inventory.request
 end
 
@@ -248,15 +275,24 @@ end
 -- Events
 --------------------------------------------------------------------------------
 
-on_delivery_state_changed(function(delivery, new_state, old_state)
+-- TODO: reexamine this in light of reservation systems.
+cs2.on_delivery_state_changed(function(delivery, new_state, old_state)
 	local source_inv = get_inventory(delivery.source_inventory_id)
 	local dest_inv = get_inventory(delivery.destination_inventory_id)
 	if not source_inv then
-		log.error("inventory.on_delivery_state_changed: Delivery", delivery.id, "has no source inventory")
+		log.error(
+			"inventory.on_delivery_state_changed: Delivery",
+			delivery.id,
+			"has no source inventory"
+		)
 		return
 	end
 	if not dest_inv then
-		log.error("inventory.on_delivery_state_changed: Delivery", delivery.id, "has no destination inventory")
+		log.error(
+			"inventory.on_delivery_state_changed: Delivery",
+			delivery.id,
+			"has no destination inventory"
+		)
 		return
 	end
 	if new_state == ToSource then
