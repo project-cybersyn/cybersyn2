@@ -17,28 +17,42 @@ local log_level = {
 }
 lib.level = log_level
 
+---Convert values to strings after the fashion of the `log` functions.
+---@param val any
+---@return string
+local function stringify(val)
+	local val_t = type(val)
+	if
+		val_t == "nil"
+		or val_t == "number"
+		or val_t == "string"
+		or val_t == "boolean"
+	then
+		return tostring(val)
+	else
+		return serpent.line(val, SERPENT_LINE_ARGS)
+	end
+end
+lib.stringify = stringify
+
 ---@param level Log.Level
 ---@param category string?
 ---@param filter any
 ---@param msg string
 local function log(level, category, filter, msg, ...)
-	if not game then return end
+	if not game then
+		return
+	end
 	local str = { msg }
 	for i = 1, select("#", ...) do
 		local val = select(i, ...)
-		local val_t = type(val)
-		if val_t == "nil" or val_t == "number" or val_t == "string" or val_t == "boolean" then
-			str[#str + 1] = tostring(val)
-		else
-			str[#str + 1] = serpent.line(val, SERPENT_LINE_ARGS)
-		end
+		str[#str + 1] = stringify(val)
 	end
-	game.print(tconcat(str, " "),
-		{
-			skip = defines.print_skip.never,
-			sound = defines.print_sound.never,
-			game_state = false,
-		})
+	game.print(tconcat(str, " "), {
+		skip = defines.print_skip.never,
+		sound = defines.print_sound.never,
+		game_state = false,
+	})
 end
 lib.log = log
 
@@ -71,7 +85,9 @@ local once_keys = {}
 ---@param filter any
 ---@param msg string
 function lib.once(level, once_key, category, filter, msg, ...)
-	if once_keys[once_key or ""] then return end
+	if once_keys[once_key or ""] then
+		return
+	end
 	once_keys[once_key or ""] = true
 	return log(level, category, filter, msg, ...)
 end

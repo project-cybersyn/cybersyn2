@@ -10,4 +10,9 @@ storage = {}
 
 ---@class Cybersyn.Manager.InspectorEntry
 ---@field public query Cybersyn.QueryInput Query that the entry is displaying.
----@field public result Cybersyn.QueryResult Most recent cached query result.
+---@field public result? Cybersyn.QueryResult Most recent cached query result.
+---@field public caption? string Entry window caption
+
+_G.mgr.on_init(function()
+	storage.players = {}
+end)

@@ -24,17 +24,37 @@ mgr.on_init(scheduler.init, true)
 
 script.on_init(mgr.raise_init)
 script.on_configuration_changed(mgr.raise_configuration_changed)
-script.on_event(defines.events.on_runtime_mod_setting_changed, mgr.handle_runtime_mod_setting_changed)
+script.on_event(
+	defines.events.on_runtime_mod_setting_changed,
+	mgr.handle_runtime_mod_setting_changed
+)
 script.on_nth_tick(nil)
 script.on_nth_tick(1, scheduler.tick)
 
 script.on_event(defines.events.on_player_selected_area, function(event)
 	---@cast event EventData.on_player_selected_area
 	local player = game.get_player(event.player_index)
-	if not player then return end
+	if not player then
+		return
+	end
 	local cursor_stack = player.cursor_stack
-	if not cursor_stack or not cursor_stack.valid or not cursor_stack.valid_for_read then return end
-	if cursor_stack.name ~= "cybersyn2-inspector" then return end
+	if
+		not cursor_stack
+		or not cursor_stack.valid
+		or not cursor_stack.valid_for_read
+	then
+		return
+	end
+	if cursor_stack.name ~= "cybersyn2-inspector" then
+		return
+	end
 
 	mgr.raise_inspector_selected(event)
+	player.clear_cursor()
 end)
+
+--------------------------------------------------------------------------------
+-- Gui
+--------------------------------------------------------------------------------
+
+flib_gui.handle_events()

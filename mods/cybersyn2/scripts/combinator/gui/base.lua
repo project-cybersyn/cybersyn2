@@ -2,8 +2,6 @@
 -- flib_gui's `elem_mods`.
 ---@diagnostic disable: missing-fields
 
---- @alias flib.GuiEventData EventData.on_gui_checked_state_changed|EventData.on_gui_click|EventData.on_gui_closed|EventData.on_gui_confirmed|EventData.on_gui_elem_changed|EventData.on_gui_location_changed|EventData.on_gui_opened|EventData.on_gui_selected_tab_changed|EventData.on_gui_selection_state_changed|EventData.on_gui_switch_state_changed|EventData.on_gui_text_changed|EventData.on_gui_value_changed
-
 local flib_gui = require("__flib__.gui")
 local tlib = require("__cybersyn2__.lib.table")
 local log = require("__cybersyn2__.lib.logging")
@@ -410,6 +408,7 @@ end
 --------------------------------------------------------------------------------
 -- Event handling
 --------------------------------------------------------------------------------
+
 flib_gui.add_handlers({
 	["comb_close"] = handle_close,
 	["comb_mode"] = handle_mode_dropdown,
