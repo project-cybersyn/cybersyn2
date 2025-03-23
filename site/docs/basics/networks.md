@@ -20,7 +20,7 @@ Only **virtual** signals are acceptable network names. Selecting a non-virtual s
 
 ## Subnetworks
 
-Subnetworks are defined by bitmasks associated to each network signal. The bitmasks are assigned by providing a numerical value on the associated signal with the circuit network.
+A stations subnetworks are defined by bitmasks associated to each network signal, with each bit representing one of the 32 subnetworks of a network. The bitmasks are assigned by providing a numerical value on the associated signal with the circuit network.
 
 Two subnetworks overlap if the bitwise `AND` operation on their bits is not zero.
 
