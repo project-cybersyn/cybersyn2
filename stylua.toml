@@ -1,0 +1,6 @@
+syntax = "Lua51"
+column_width = 80
+line_endings = "Windows"
+indent_type = "Tabs"
+indent_width = 2
+call_parentheses = "Always"

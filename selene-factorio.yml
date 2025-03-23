@@ -1,0 +1,27 @@
+---
+base: lua52
+globals:
+  storage:
+    any: true
+  game:
+    any: true
+  script:
+    any: true
+  remote:
+    any: true
+  defines:
+    any: true
+  data:
+    any: true
+  make_4way_animation_from_spritesheet:
+    any: true
+  util:
+    any: true
+  prototypes:
+    any: true
+  serpent:
+    any: true
+  rendering:
+    any: true
+  settings:
+    any: true
