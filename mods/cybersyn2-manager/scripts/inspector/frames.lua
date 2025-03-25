@@ -22,7 +22,7 @@ cs_gui.register_widget_type({
 })
 
 cs_gui.register_widget_type({
-	name = "inspector_frame",
+	name = "embed_frame",
 	create = function(self, customizations)
 		---@type flib.GuiElemDef
 		local def = {
@@ -44,7 +44,7 @@ cs_gui.register_widget_type({
 							type = "label",
 							name = "caption_label",
 							style = "frame_title",
-							caption = "Unknown",
+							caption = "unknown",
 							elem_mods = { ignored_by_interaction = true },
 						},
 						{
@@ -59,15 +59,6 @@ cs_gui.register_widget_type({
 			},
 		}
 		return def
-	end,
-	handle = function(self, widget, event, source_widget, bubble_key)
-		local player_index = event.player_index
-		if bubble_key == "close" then
-			local tags = widget.tags
-			if tags and tags.index then
-				mgr.inspector.remove_entry(player_index, tags.index --[[@as uint]])
-			end
-		end
 	end,
 	update = function(self, element, data)
 		local caption = element["titlebar"]["caption_label"]
@@ -123,5 +114,41 @@ cs_gui.register_widget_type({
 	end,
 	update = function(self, element, data)
 		element.caption = data
+	end,
+})
+
+local function embed_frame(index)
+	local w = cs_gui.create_widget("embed_frame") --[[@as flib.GuiElemDef]]
+	local tags = w.tags
+	tags.index = index
+	w.tags = tags
+	return w
+end
+
+local function close_handler(_, widget, event, _, bubble_key)
+	local player_index = event.player_index
+	if bubble_key == "close" then
+		local tags = widget.tags
+		if tags and tags.index then
+			mgr.inspector.remove_entry(player_index, tags.index --[[@as uint]])
+		end
+	end
+end
+
+cs_gui.register_widget_type({
+	name = "inspect_stop",
+	create = function(self, customizations)
+		return embed_frame(customizations.index)
+	end,
+	handle = close_handler,
+	---@param data Cybersyn.Manager.InspectorEntry
+	update = function(self, element, data)
+		local result = remote.call("cybersyn2", "query", {
+			type = "stops",
+			unit_numbers = { data.unit_number },
+		})
+		cs_gui.update_widget(element, {
+			type = "inspect_stop_body",
+		})
 	end,
 })

@@ -3,6 +3,10 @@ local cs_gui = require("__cybersyn2__.lib.gui")
 local log = require("__cybersyn2__.lib.logging")
 local mgr = _G.mgr
 
+---@class Cybersyn2.Manager.InspectorFrameType
+---@field public name string Type of this panel
+---@field public widget_type string CSGUI widget to create.
+
 _G.mgr.inspector = {}
 _G.mgr.INSPECTOR_WINDOW_NAME = "cybersyn2-inspector"
 local inspector = _G.mgr.inspector
@@ -77,7 +81,7 @@ function _G.mgr.inspector.open(player_index)
 	end
 	-- Close existing inspectors
 	inspector.close(player_index)
-	local state = get_or_create_inspector_state(player_index)
+	get_or_create_inspector_state(player_index)
 
 	-- Create window
 	local gui_root = player.gui.screen
@@ -150,7 +154,7 @@ function _G.mgr.inspector.update_layout(player_index)
 	local widget_ctr = window["widgets"]
 	for i = 1, #state.entries do
 		if not widget_ctr.children[i] then
-			local widget = cs_gui.create_widget("inspector_frame", { index = i })
+			local widget = cs_gui.create_widget(state.entries[i].type, { index = i })
 			widget.index = i
 			flib_gui.add(widget_ctr, widget)
 		end
@@ -159,10 +163,10 @@ function _G.mgr.inspector.update_layout(player_index)
 		widget_ctr.children[i].destroy()
 	end
 
-	mgr.inspector.update_queries(player_index)
+	mgr.inspector.update_frames(player_index)
 end
 
-function _G.mgr.inspector.update_queries(player_index)
+function _G.mgr.inspector.update_frames(player_index)
 	local window = inspector.get_window(player_index)
 	if not window then
 		return
@@ -179,20 +183,7 @@ function _G.mgr.inspector.update_queries(player_index)
 		if not widget then
 			break
 		end
-		entry.result = remote.call("cybersyn2", "query", entry.query)
-		cs_gui.update_widget(widget, {
-			widget_type = "string_label",
-			widget_customizer = function()
-				return {
-					style_mods = {
-						single_line = false,
-						horizontally_stretchable = true,
-					},
-				}
-			end,
-			caption = entry.caption,
-			widget_data = serpent.block(entry.result.data or {}),
-		})
+		cs_gui.update_widget(widget, entry)
 	end
 end
 

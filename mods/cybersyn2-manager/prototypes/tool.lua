@@ -65,6 +65,6 @@ data:extend({
 		toggleable = true,
 		action = "lua",
 		style = "blue",
-		associated_control_input = "cybersyn-toggle-gui",
+		associated_control_input = "cybersyn2-manager-keybind",
 	},
 })
