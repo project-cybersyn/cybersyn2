@@ -1,4 +1,4 @@
-# Notes on the Logistics Algorithm
+# Logistics Algorithm
 
 ## Terms
 
@@ -30,6 +30,7 @@
 - For each topology `T`:
 	1. **Reset Phase**
 		- Set `T.Providers`, `T.Pushers`, `T.Pullers`, `T.Sinks`, `T.Dumps`, `T.SeenItems` to empty structures
+		- Set `T.AllocationQueue` to an empty queue
 		- Generally clear out any other temp state
 	1. **Poll Phase** For each node `N` in `T`:
 		- Read all input combinator signals
