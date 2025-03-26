@@ -277,11 +277,6 @@ end
 -- CORE RENDERING ALGORITHM
 --------------------------------------------------------------------------------
 
----Diff a node against the live tree to determine if rendering is needed.
-local function vnode_diff(def, vnode, node)
-	return true
-end
-
 ---Normalize calls and results of `element.render`
 ---@param def? Relm.ElementDefinition
 ---@param type? string
@@ -322,7 +317,8 @@ local function vprune(vnode)
 		end
 		vnode.children = nil
 	end
-	-- TODO: unmount message
+
+	vmsg(vnode, { key = "destroy" })
 
 	vnode.type = nil
 	vnode.elem = nil
@@ -377,10 +373,6 @@ function vapply(vnode, node)
 		return
 	end
 	local is_creating = not vnode.type
-	-- Allow vdom diffing to elide entire subtrees.
-	if not is_creating and not vnode_diff(target_def, vnode, node) then
-		return
-	end
 
 	-- Create vnode
 	vnode.type = target_type
