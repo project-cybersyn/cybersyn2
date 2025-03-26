@@ -64,8 +64,6 @@ local Root = relm.define_element({
 	end,
 })
 
-mgr.on_init(relm.init, true)
-
 mgr.on_manager_toggle(function(idx)
 	local player = game.get_player(idx)
 	if not player then
@@ -86,3 +84,6 @@ mgr.on_manager_toggle(function(idx)
 end)
 
 relm.install_event_handlers()
+
+mgr.on_init(relm.init, true)
+mgr.on_load(relm.on_load, true)

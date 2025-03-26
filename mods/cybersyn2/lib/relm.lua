@@ -603,14 +603,6 @@ local function vrepaint(vnode)
 	vpaint(vnode, vnode, nil, true)
 end
 
----@param start Relm.Internal.VNode?
-local function find_first_elem(start)
-	while start and not start.elem do
-		start = start.children and start.children[1]
-	end
-	return start and start.elem
-end
-
 --------------------------------------------------------------------------------
 -- SIDE EFFECTS
 --------------------------------------------------------------------------------
@@ -788,6 +780,15 @@ function lib.on_load()
 			{ type = root.root_element_name, props = root.root_props, children = {} }
 		)
 	end
+end
+
+---This is only used for finding rendered roots.
+---@param start Relm.Internal.VNode?
+local function find_first_elem(start)
+	while start and not start.elem do
+		start = start.children and start.children[1]
+	end
+	return start and start.elem
 end
 
 ---Creates a root.

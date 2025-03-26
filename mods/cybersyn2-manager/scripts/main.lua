@@ -24,6 +24,7 @@ mgr.on_init(scheduler.init, true)
 --------------------------------------------------------------------------------
 
 script.on_init(mgr.raise_init)
+script.on_load(mgr.raise_load)
 script.on_configuration_changed(mgr.raise_configuration_changed)
 script.on_event(
 	defines.events.on_runtime_mod_setting_changed,
