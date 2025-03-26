@@ -54,6 +54,7 @@ local lib = {}
 
 ---@class Relm.MessagePayload
 ---@field public key string A key identifying the type of the message.
+---@field public propagation_mode "bubble"|"broadcast"|"unicast" The propagation mode of the message.
 
 ---@alias Relm.Element.RenderDefinition fun(props: Relm.Props, state?: Relm.State, children?: Relm.Node[]): Relm.Children
 
@@ -64,7 +65,7 @@ local lib = {}
 ---@alias Relm.NodeFactory fun(props?: Relm.Props, children?: Relm.Node[]): Relm.Children
 
 --------------------------------------------------------------------------------
--- CONSTANTS AND GLOBALS
+-- INTERNAL GLOBALS
 --------------------------------------------------------------------------------
 
 local APPLICABLE_KEYS = {
@@ -197,7 +198,8 @@ local STYLE_KEYS = {
 local registry = {}
 
 ---Internal representation of a vtree node. This is stored in state.
----@class (exact) Relm.Internal.VNode: Relm.Node
+---@class (exact) Relm.Internal.VNode
+---@field public type string The type of this node.
 ---@field public state? Relm.State
 ---@field public children? Relm.Internal.VNode[]
 ---@field public elem? LuaGuiElement The Lua element this node maps to, if a real element.
@@ -208,6 +210,9 @@ local registry = {}
 ---Map from "<player_index>:<element_index>" to vnodes
 ---@type table<string, Relm.Internal.VNode>
 local evcache = setmetatable({}, { __mode = "v" })
+
+---Map from vnodes to last rendered props
+local vprops = setmetatable({}, { __mode = "k" })
 
 -- Forward declarations
 local vmsg
@@ -302,7 +307,7 @@ local function normalized_render(def, type, props, state, children)
 	return rendered_children
 end
 
----@param node? Relm.Node
+---@param node? Relm.Node|Relm.Internal.VNode
 local function is_primitive(node)
 	return node and node.type == "Primitive"
 end
@@ -374,15 +379,13 @@ function vapply(vnode, node)
 	end
 	local is_creating = not vnode.type
 
-	-- Create vnode
 	vnode.type = target_type
-	vnode.props = node.props
+	vprops[vnode] = node.props
 	if is_creating then
 		if target_def.state then
 			vnode.state = target_def.state(node.props)
 		end
 		vmsg(vnode, { key = "create" })
-		-- TODO: queue mount effect
 	end
 
 	-- Render
@@ -399,10 +402,58 @@ end
 ---Force a vnode to rerender
 ---@param vnode Relm.Internal.VNode
 local function vrender(vnode)
+	local props = vprops[vnode]
+	if not props then
+		log.error("vrender: no props cached for vnode", vnode)
+	end
 	local target_def = registry[vnode.type]
 	local render_children =
-		normalized_render(target_def, nil, vnode.props, vnode.state, vnode.children)
+		normalized_render(target_def, nil, props, vnode.state, vnode.children)
 	return vapply_children(vnode, render_children)
+end
+
+---Special rendering mode that only hydrates prop cache.
+---@param vnode Relm.Internal.VNode
+---@param node? Relm.Node
+local function vhydrate(vnode, node)
+	-- TODO: any of these conditions will break all relm guis after a save/rl
+	-- how to best notify user?
+	if not node or not vnode then
+		log.error("vhydrate: existence mismatch", node, vnode)
+		return
+	end
+	if node.type ~= vnode.type then
+		log.error("vhydrate: type mismatch", node.type, vnode.type)
+		return
+	end
+	local def = registry[vnode.type]
+	if not def then
+		log.error("vhydrate: no definition for type", node.type)
+		return
+	end
+	-- Node is either root or from normalized_render, must have props
+	if not node.props then
+		log.error("vhydrate: no props in node", node)
+		return
+	end
+	vprops[vnode] = node.props
+	local render_children =
+		normalized_render(def, nil, node.props, vnode.state, node.children)
+	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
+	if #vchildren ~= #render_children then
+		log.error(
+			"vhydrate: child count mismatch",
+			node.type,
+			#vchildren,
+			#render_children
+		)
+	end
+	for i = 1, #render_children do
+		local vchild = vchildren[i]
+		if vchild then
+			vhydrate(vchild, render_children[i])
+		end
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -468,6 +519,12 @@ local function vpaint(vnode, vprim, context, same)
 		vnode = vnode.children and vnode.children[1]
 	end
 
+	local props = vprops[vnode]
+	if not props then
+		log.error("vpaint: no props cached for vnode", vnode)
+		return
+	end
+
 	if not same then
 		-- Create/destroy/typematch
 		if (not vnode) or not vnode.type then
@@ -475,7 +532,7 @@ local function vpaint(vnode, vprim, context, same)
 		end
 		elem = vpaint_context_get(vprim, context)
 		-- If different type, destroy the element
-		if elem and elem.type ~= vnode.props.type then
+		if elem and elem.type ~= props.type then
 			vpaint_context_destroy(vprim, context)
 			vnode.elem = nil
 			elem = nil
@@ -483,9 +540,9 @@ local function vpaint(vnode, vprim, context, same)
 		-- If no element, create it
 		if not elem then
 			-- TODO: props sanitization?
-			elem = vpaint_context_create(vprim, context, vnode.props)
+			elem = vpaint_context_create(vprim, context, props)
 			if not elem then
-				log.error("vpaint: failed to construct primitive", vnode.props)
+				log.error("vpaint: failed to construct primitive", props)
 				-- TODO: error handling for failed construction?
 				return
 			end
@@ -501,7 +558,7 @@ local function vpaint(vnode, vprim, context, same)
 	end
 
 	-- Apply props
-	for key, value in pairs(vnode.props) do
+	for key, value in pairs(props) do
 		-- TODO: `style.column_alignments`
 		if STYLE_KEYS[key] then
 			elem.style[key] = value
@@ -514,7 +571,7 @@ local function vpaint(vnode, vprim, context, same)
 
 	-- Apply tags
 	local tags = elem.tags
-	if vnode.props["listen"] then
+	if props["listen"] then
 		tags["__relm_listen"] = true
 	else
 		tags["__relm_listen"] = nil
@@ -568,12 +625,16 @@ local function enter_side_effect_barrier()
 	log.trace("enter barrier, count", barrier_count)
 end
 
-local function pop_barrier_queue()
-	if barrier_count == 0 and #barrier_queue > 0 then
+local function empty_barrier_queue()
+	while barrier_count == 0 and #barrier_queue > 0 do
 		local op = tremove(barrier_queue, 1)
 		local vnode = tremove(barrier_queue, 1)
 		local arg = tremove(barrier_queue, 1)
-		log.trace("popping", vnode.type, "from barrier queue with op", op)
+		log.trace(
+			vnode.type,
+			"is executing a queued side effect, remaining queue",
+			#barrier_queue / 3
+		)
 		op(vnode, arg)
 	end
 end
@@ -581,15 +642,21 @@ end
 local function exit_side_effect_barrier()
 	barrier_count = barrier_count - 1
 	log.trace("exit barrier, count", barrier_count)
-	return pop_barrier_queue()
+	return empty_barrier_queue()
 end
 
 local function barrier_wrap(op, vnode, arg)
 	if not vnode or not vnode.type then
-		return pop_barrier_queue()
+		return
 	end
 	if barrier_count > 0 then
-		log.trace("adding", vnode.type, "to barrier_queue", op, barrier_count)
+		log.trace(
+			vnode.type,
+			"is queueing a side effect. barrier_count ",
+			barrier_count,
+			"barrier_queue",
+			#barrier_queue / 3
+		)
 		barrier_queue[#barrier_queue + 1] = op
 		barrier_queue[#barrier_queue + 1] = vnode
 		barrier_queue[#barrier_queue + 1] = arg
@@ -619,7 +686,7 @@ local function vmsg_impl(vnode, payload)
 		return target_def.message(
 			vnode --[[@as Relm.Handle]],
 			payload,
-			vnode.props,
+			vprops[vnode],
 			vnode.state
 		)
 	end
@@ -630,6 +697,7 @@ end
 vmsg = function(vnode, payload)
 	-- TODO: a unicast message probably doesn't need a barrier_wrap
 	-- but there isnt much harm.
+	payload.propagation_mode = "unicast"
 	return barrier_wrap(vmsg_impl, vnode, payload)
 end
 
@@ -645,6 +713,7 @@ end
 ---@param vnode Relm.Internal.VNode
 ---@param	payload Relm.MessagePayload
 local function vbubble(vnode, payload)
+	payload.propagation_mode = "bubble"
 	return barrier_wrap(vbubble_impl, vnode, payload)
 end
 
@@ -695,6 +764,8 @@ end
 ---@field public root_element LuaGuiElement The rendered root element.
 ---@field public player_index int The player index of the owning player of the root element.
 ---@field public vtree_root Relm.Internal.VNode The root of the virtual tree.
+---@field public root_element_name string Relm element name used to render the root
+---@field public root_props Relm.Props The properties used to render the root
 
 ---Initialize Relm's storage. Must be called in the mod's `on_init` handler or
 ---in a suitable migration.
@@ -705,49 +776,58 @@ function lib.init()
 	end
 end
 
+---This function MUST BE CALLED in `on_load` handler in order to re-sync
+---Relm state with the save file. Failure to do so WILL CAUSE CRASHES after
+---loading saves.
+function lib.on_load()
+	---@type table<int,Relm.Internal.Root>
+	local roots = storage._relm.roots
+	for _, root in pairs(roots) do
+		vhydrate(
+			root.vtree_root,
+			{ type = root.root_element_name, props = root.root_props, children = {} }
+		)
+	end
+end
+
 ---Creates a root.
 ---@param base_element LuaGuiElement The render result will be `.add`ed to this element. e.g. `player.gui.screen`. MUST NOT be within another Relm tree.
----@param node Relm.Children The node to render at the root. Must be a single node.
+---@param type string Type of Relm element to render at the root. Must have previously been defined with `relm.define_element`.
+---@param props Relm.Props Props to pass to the newly created root. Unlike other props in Relm, these MUST be serializable (no functions!)
 ---@param name? string If given, the rendered root will have this name within the `base_element`.
 ---@return int? root_id ID of the newly created root.
 ---@return LuaGuiElement? root_element The root Factorio element.
-function lib.root_create(base_element, node, name)
+function lib.root_create(base_element, type, props, name)
 	if not base_element or not base_element.valid then
-		error("Base element must be a valid LuaGuiElement.")
+		error("relm.root_create: Base element must be a valid LuaGuiElement.")
 	end
-	if not node then
-		error("Node must be a valid Relm node.")
+	if not type or not registry[type] then
+		error("relm.root_create: Element type " .. (type or "") .. " not found.")
 	end
-	if not node.type then
-		node = node[1]
-	end
-	if not node or not node.type then
-		error("Node must be a valid Relm node.")
-	end
-
-	log.trace("root_create", node)
 
 	local player_index = base_element.player_index
 	local relm_state = storage._relm
 
 	local id = storage._relm.root_counter + 1
 	storage._relm.root_counter = id
+	props.root_id = id
 
 	relm_state.roots[id] = {
 		player_index = player_index,
 		vtree_root = {},
+		root_element_name = type,
+		root_props = props,
 	}
-	node.props.root_id = id
 	local vtree_root = relm_state.roots[id].vtree_root
 
 	-- Render the entire tree from the root
 	enter_side_effect_barrier()
-	vapply(vtree_root, node)
-	vpaint(vtree_root, nil, function(props)
-		local old_name = props.name
-		props.name = name
-		local elt = base_element.add(props)
-		props.name = old_name
+	vapply(vtree_root, { type = type, props = props, children = {} })
+	vpaint(vtree_root, nil, function(painted_props)
+		local old_name = painted_props.name
+		painted_props.name = name
+		local elt = base_element.add(painted_props)
+		painted_props.name = old_name
 		local tags = elt.tags
 		tags["__relm_root"] = id
 		elt.tags = tags
@@ -759,13 +839,10 @@ function lib.root_create(base_element, node, name)
 	if created_elt then
 		log.trace("root_create, rendered root", created_elt)
 		relm_state.roots[id].root_element = created_elt
-		local tags = created_elt.tags
-		tags["__relm_root"] = id
-		created_elt.tags = tags
 	else
-		-- TODO: error handling here
 		log.error("root_create: rendered nothing")
 		lib.root_destroy(id)
+		return nil
 	end
 
 	return id, created_elt

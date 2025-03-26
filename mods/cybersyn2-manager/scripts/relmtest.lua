@@ -74,7 +74,7 @@ mgr.on_manager_toggle(function(idx)
 	local screen = player.gui.screen
 	if not screen["relm"] then
 		log.debug("Creating relm root")
-		storage.test_root_id = relm.root_create(screen, Root(), "relm")
+		storage.test_root_id = relm.root_create(screen, "Root", {}, "relm")
 	end
 	local handle = relm.root_ref(storage.test_root_id)
 	if handle then
