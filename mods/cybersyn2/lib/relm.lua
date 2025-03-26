@@ -18,56 +18,28 @@ local lib = {}
 -- Side effects/`dirty_vnodes` diff arg
 
 --------------------------------------------------------------------------------
--- PUBLIC TYPES
+-- FACTORIO STUFF
+-- If they change something in factorio look here first for what needs updated
 --------------------------------------------------------------------------------
 
--- The below class is from `flib` and serves much the same function here.
+-- h/t `flib.gui` for the below code which serves much the same function here
 
 --- A GUI element definition. This extends `LuaGuiElement.add_param` with several new attributes.
 --- Children may be defined in the array portion as an alternative to the `children` subtable.
 --- @class Relm.PrimitiveDefinition: LuaGuiElement.add_param.button|LuaGuiElement.add_param.camera|LuaGuiElement.add_param.checkbox|LuaGuiElement.add_param.choose_elem_button|LuaGuiElement.add_param.drop_down|LuaGuiElement.add_param.flow|LuaGuiElement.add_param.frame|LuaGuiElement.add_param.line|LuaGuiElement.add_param.list_box|LuaGuiElement.add_param.minimap|LuaGuiElement.add_param.progressbar|LuaGuiElement.add_param.radiobutton|LuaGuiElement.add_param.scroll_pane|LuaGuiElement.add_param.slider|LuaGuiElement.add_param.sprite|LuaGuiElement.add_param.sprite_button|LuaGuiElement.add_param.switch|LuaGuiElement.add_param.tab|LuaGuiElement.add_param.table|LuaGuiElement.add_param.text_box|LuaGuiElement.add_param.textfield
---- @field style_mods LuaStyle? Modifications to make to the element's style.
 
----The primary output of `render` functions, representing nodes in the virtual
----tree.
----@class Relm.Node
----@field public type string The type of this node.
----@field public props? Relm.Props The properties of this node.
----@field public children? Relm.Node[] The children of this node.
+--- Aggregate type of all possible GUI events.
+--- @alias Relm.GuiEventData EventData.on_gui_checked_state_changed|EventData.on_gui_click|EventData.on_gui_closed|EventData.on_gui_confirmed|EventData.on_gui_elem_changed|EventData.on_gui_location_changed|EventData.on_gui_opened|EventData.on_gui_selected_tab_changed|EventData.on_gui_selection_state_changed|EventData.on_gui_switch_state_changed|EventData.on_gui_text_changed|EventData.on_gui_value_changed
 
----Opaque references used by Relm APIs. Do not read or write fields.
----@class (exact) Relm.Handle
+-- h/t flib for this code
+local gui_events = {}
+for name, id in pairs(defines.events) do
+	if string.find(name, "on_gui_") then
+		gui_events[id] = true
+	end
+end
 
----Definition of a reusable element distinguished by its name.
----@class Relm.ElementDefinition
----@field public name string The name of this element. Must be unique across the Lua state.
----@field public render Relm.Element.RenderDefinition
----@field public factory? Relm.NodeFactory
----@field public message? Relm.Element.MessageDefinition
----@field public state? Relm.Element.StateDefinition
-
----@alias Relm.Props table<string,string|number|int|boolean|table>
-
----@alias Relm.State string|number|int|boolean|table|nil
-
----@alias Relm.Children Relm.Node|Relm.Node[]|nil
-
----@class Relm.MessagePayload
----@field public key string A key identifying the type of the message.
----@field public propagation_mode "bubble"|"broadcast"|"unicast" The propagation mode of the message.
-
----@alias Relm.Element.RenderDefinition fun(props: Relm.Props, state?: Relm.State, children?: Relm.Node[]): Relm.Children
-
----@alias Relm.Element.MessageDefinition fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State): boolean|nil
-
----@alias Relm.Element.StateDefinition fun(initial_props: Relm.Props): Relm.State
-
----@alias Relm.NodeFactory fun(props?: Relm.Props, children?: Relm.Node[]): Relm.Children
-
---------------------------------------------------------------------------------
--- INTERNAL GLOBALS
---------------------------------------------------------------------------------
-
+-- `LuaGuiElement` keys that can safely be applied from `Primitive` props.
 local APPLICABLE_KEYS = {
 	caption = true,
 	value = true,
@@ -130,6 +102,20 @@ local APPLICABLE_KEYS = {
 	right_label_tooltip = true,
 }
 
+-- `LuaGuiElement` keys that can only be applied at creation.
+local CREATE_KEYS = {
+	index = true,
+	type = true,
+	name = true,
+	direction = true,
+	elem_type = true,
+	column_count = true,
+	style = true,
+}
+-- TODO: if an element props change in one of the `CREATE_KEYS` categories, recreate it in `vpaint`.
+
+-- `Primitive` props that will be set on the `LuaStyle` rather than the
+-- element itself.
 local STYLE_KEYS = {
 	minimal_width = true,
 	maximal_width = true,
@@ -193,6 +179,77 @@ local STYLE_KEYS = {
 	margin = true,
 }
 
+--------------------------------------------------------------------------------
+-- CORE PUBLIC TYPES
+-- These types, along with the exports defined on `lib`, constitute the public
+-- API of Relm and should not be changed.
+--------------------------------------------------------------------------------
+
+---The primary output of `render` functions, representing nodes in the virtual
+---tree.
+---@class (exact) Relm.Node
+---@field public type string The type of this node.
+---@field public props? Relm.Props The properties of this node.
+---@field public children? Relm.Node[] The children of this node.
+
+---Opaque reference used to refer to a vtree node. DO NOT read or write to
+---this object, only pass it to Relm APIs.
+---@class (exact) Relm.Handle
+
+---Opaque reference to the children of a node being rendered. ALWAYS use the
+---`relm.children_*` apis to access this object, as direct iteration will
+---give wrong results.
+---@class (exact) Relm.ChildrenHandle
+
+---Definition of a reusable element distinguished by its name.
+---@class (exact) Relm.ElementDefinition
+---@field public name string The name of this element. Must be unique across the Lua state.
+---@field public render Relm.Element.RenderDefinition Renders the element. Render MUST be a pure function of state, props, and authorized access to the `children` handle. It MUST NOT cause side effects!
+---@field public factory? Relm.NodeFactory If given, this will replace the automatically generated factory function returned by `define_element`.
+---@field public message? Relm.Element.MessageHandlerDefinition Defines the message handler for elements of this type. Message handlers may cause side effects.
+---@field public state? Relm.Element.StateDefinition If given, determines the initial state from the element's initial props. (This is NOT required to use state, only if you want a non-`nil` initial state)
+---@field public query? Relm.Element.QueryHandlerDefinition Defines the query handler for elements of this type. Query handlers MUST be pure functions of state, props, and other queries. They MUST NOT cause side effects!
+---@field public effect? Relm.Element.EffectHandlerDefinition Defines the effect handler for elements of this type. Effect handlers are called on every render for elements that define them and so should be avoided when possible. They are allowed to cause side effects.
+
+---@alias Relm.RootId int
+
+---@alias Relm.Props table<string,string|number|int|boolean|table>
+
+---@alias Relm.State string|number|int|boolean|table|nil
+
+---@alias Relm.QueryResponse string|number|int|boolean|table|nil
+
+---@alias Relm.Children Relm.Node|Relm.Node[]|nil
+
+---@class Relm.MessagePayload
+---@field public key string A key identifying the type of the message.
+---@field public propagation_mode? "bubble"|"broadcast"|"unicast" The propagation mode of the message.
+
+---@alias Relm.Element.RenderDefinition fun(props: Relm.Props, state?: Relm.State, children?: Relm.ChildrenHandle): Relm.Children
+
+---@alias Relm.Element.MessageHandlerDefinition fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State): boolean|nil
+
+---@alias Relm.Element.MessageHandlerWrapper fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State, base_handler: Relm.Element.MessageHandlerDefinition): boolean|nil
+
+---@alias Relm.Element.StateDefinition fun(initial_props: Relm.Props): Relm.State
+
+---@alias Relm.NodeFactory fun(props?: Relm.Props, children?: Relm.Node[]): Relm.Children
+
+---@alias Relm.Element.QueryHandlerDefinition fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State): boolean, Relm.QueryResponse?
+
+---@alias Relm.Element.EffectHandlerDefinition fun(me: Relm.Handle, payload: Relm.EffectPayload)
+
+---@class (exact) Relm.EffectPayload
+---@field props? Relm.Props Current props of the element. `nil` if the element is being destroyed.
+---@field last_props? Relm.Props Previous props of the element. `nil` if the element is new.
+---@field state? Relm.State Current state of the element.
+---@field last_state? Relm.State Previous state of the element. `nil` if the state has not changed.
+
+--------------------------------------------------------------------------------
+-- INTERNAL TYPES AND GLOBALS
+-- These can be changed as needed without breaking userspace.
+--------------------------------------------------------------------------------
+
 ---Registry of all elt types defined in this Relm instance.
 ---@type table<string, Relm.ElementDefinition>
 local registry = {}
@@ -203,22 +260,30 @@ local registry = {}
 ---@field public state? Relm.State
 ---@field public children? Relm.Internal.VNode[]
 ---@field public elem? LuaGuiElement The Lua element this node maps to, if a real element.
----@field public is_being_pruned true? `True` if this node is being pruned.
 ---@field public index? uint Index in parent node
 ---@field public parent? Relm.Internal.VNode Parent of this node.
 
----Map from "<player_index>:<element_index>" to vnodes
+---Map from `"<player_index>:<element_index>"` to vnodes
+---(We can't use weak `LuaGuiElement` keys here)
 ---@type table<string, Relm.Internal.VNode>
 local evcache = setmetatable({}, { __mode = "v" })
 
 ---Map from vnodes to last rendered props
 local vprops = setmetatable({}, { __mode = "k" })
 
--- Forward declarations
+local function noop() end
+local immutable_mt = { __newindex = noop }
+
+---Unique key for tables resulting from query gather ops.
+local WAS_GATHERED = setmetatable({}, immutable_mt)
+
+-- Forward declarations for mutually recursive functions.
 local vmsg
+local vapply
+local veffect
 
 --------------------------------------------------------------------------------
--- ELT->NODE CACHE
+-- VNODES
 --------------------------------------------------------------------------------
 
 ---Tree search from root to find vnode with given elt.
@@ -278,8 +343,13 @@ local function get_vnode(elt)
 	return vnode
 end
 
+---@param node? Relm.Node|Relm.Internal.VNode
+local function is_primitive(node)
+	return node and node.type == "Primitive"
+end
+
 --------------------------------------------------------------------------------
--- CORE RENDERING ALGORITHM
+-- VTREE BUILDING
 --------------------------------------------------------------------------------
 
 ---Normalize calls and results of `element.render`
@@ -296,7 +366,8 @@ local function normalized_render(def, type, props, state, children)
 	if not def then
 		error("Element type " .. (type or "") .. " not found.")
 	end
-	local rendered_children = def.render(props or {}, state, children)
+	local rendered_children =
+		def.render(props or {}, state, children --[[@as Relm.ChildrenHandle]])
 	-- Normalize to array
 	if not rendered_children then
 		rendered_children = {}
@@ -307,13 +378,6 @@ local function normalized_render(def, type, props, state, children)
 	return rendered_children
 end
 
----@param node? Relm.Node|Relm.Internal.VNode
-local function is_primitive(node)
-	return node and node.type == "Primitive"
-end
-
-local vapply
-
 ---@param vnode Relm.Internal.VNode
 local function vprune(vnode)
 	if vnode.children then
@@ -323,12 +387,22 @@ local function vprune(vnode)
 		vnode.children = nil
 	end
 
-	vmsg(vnode, { key = "destroy" })
+	local def = registry[vnode.type or {}]
+	if def and def.effect then
+		veffect(vnode, {
+			effect = def.effect,
+			last_props = vprops[vnode],
+			props = nil,
+			state = vnode.state,
+		})
+	end
 
+	vprops[vnode] = nil
 	vnode.type = nil
 	vnode.elem = nil
 	vnode.index = nil
 	vnode.parent = nil
+	vnode.state = nil
 end
 
 ---@param vnode Relm.Internal.VNode
@@ -357,7 +431,7 @@ end
 
 ---@param vnode Relm.Internal.VNode
 ---@param node? Relm.Node
-function vapply(vnode, node)
+vapply = function(vnode, node)
 	if not node then
 		if vnode.type then
 			return vprune(vnode)
@@ -380,12 +454,20 @@ function vapply(vnode, node)
 	local is_creating = not vnode.type
 
 	vnode.type = target_type
+	local last_props = vprops[vnode]
 	vprops[vnode] = node.props
 	if is_creating then
 		if target_def.state then
 			vnode.state = target_def.state(node.props)
 		end
-		vmsg(vnode, { key = "create" })
+	end
+	if target_def.effect then
+		veffect(vnode, {
+			effect = target_def.effect,
+			last_props = last_props,
+			props = node.props,
+			state = vnode.state,
+		})
 	end
 
 	-- Render
@@ -407,6 +489,8 @@ local function vrender(vnode)
 		log.error("vrender: no props cached for vnode", vnode)
 	end
 	local target_def = registry[vnode.type]
+	-- In case `render` introspects children props, we have to make a fake
+	-- `Node[]` representing the vnode children here.
 	local render_children =
 		normalized_render(target_def, nil, props, vnode.state, vnode.children)
 	return vapply_children(vnode, render_children)
@@ -492,9 +576,14 @@ local function vpaint_context_create(vprim, context, props)
 	if vprim then
 		local elem = vprim.elem
 		if context and elem and elem.valid then
-			props.index = context
-			local new_elem = elem.add(props)
-			props.index = nil
+			local addable_props = {}
+			for k, v in pairs(props) do
+				if APPLICABLE_KEYS[k] or CREATE_KEYS[k] then
+					addable_props[k] = v
+				end
+			end
+			addable_props.index = context
+			local new_elem = elem.add(addable_props)
 			-- Inherit __relm_root
 			local tags = new_elem.tags
 			tags["__relm_root"] = elem.tags["__relm_root"]
@@ -510,7 +599,7 @@ end
 ---@param vnode Relm.Internal.VNode? Node tree to paint
 ---@param vprim Relm.Internal.VNode? Parent primitive node
 ---@param context any Context within parent primitive node
----@param same boolean? If true, the vnode type is the same as the last paint
+---@param same boolean? If true, the vnode type is known to be the same as the last paint. Used in repainting.
 local function vpaint(vnode, vprim, context, same)
 	local elem = nil
 
@@ -519,16 +608,17 @@ local function vpaint(vnode, vprim, context, same)
 		vnode = vnode.children and vnode.children[1]
 	end
 
-	local props = vprops[vnode]
-	if not props then
-		log.error("vpaint: no props cached for vnode", vnode)
-		return
-	end
+	local props
 
 	if not same then
 		-- Create/destroy/typematch
 		if (not vnode) or not vnode.type then
 			return vpaint_context_destroy(vprim, context)
+		end
+		props = vprops[vnode]
+		if not props then
+			log.error("vpaint: no props cached for vnode", vnode)
+			return
 		end
 		elem = vpaint_context_get(vprim, context)
 		-- If different type, destroy the element
@@ -554,6 +644,7 @@ local function vpaint(vnode, vprim, context, same)
 			log.error("vpaint: repaint without painted vnode", vnode)
 			return
 		end
+		props = vprops[vnode]
 		elem = vnode.elem --[[@as LuaGuiElement]]
 	end
 
@@ -608,6 +699,8 @@ end
 --------------------------------------------------------------------------------
 
 -- TODO: consider a more efficient deque for barrier_queue
+-- TODO: this business with the pseudo_nils is getting weird, consider something
+-- else.
 
 local barrier_count = 0
 local barrier_queue = {}
@@ -619,15 +712,17 @@ end
 
 local function empty_barrier_queue()
 	while barrier_count == 0 and #barrier_queue > 0 do
-		local op = tremove(barrier_queue, 1)
-		local vnode = tremove(barrier_queue, 1)
-		local arg = tremove(barrier_queue, 1)
+		local entry = tremove(barrier_queue, 1)
+		local op = entry[1]
+		local vnode = entry[2]
+		local arg1 = entry[3]
+		local arg2 = entry[4]
 		log.trace(
 			vnode.type,
 			"is executing a queued side effect, remaining queue",
-			#barrier_queue / 3
+			#barrier_queue
 		)
-		op(vnode, arg)
+		op(vnode, arg1, arg2)
 	end
 end
 
@@ -637,30 +732,40 @@ local function exit_side_effect_barrier()
 	return empty_barrier_queue()
 end
 
-local function barrier_wrap(op, vnode, arg)
+local function barrier_wrap(op, vnode, arg1, arg2)
 	if not vnode or not vnode.type then
 		return
 	end
 	if barrier_count > 0 then
 		log.trace(
 			vnode.type,
-			"is queueing a side effect. barrier_count ",
+			"is queueing a side effect. barrier_count:",
 			barrier_count,
-			"barrier_queue",
-			#barrier_queue / 3
+			"barrier_queue:",
+			#barrier_queue
 		)
-		barrier_queue[#barrier_queue + 1] = op
-		barrier_queue[#barrier_queue + 1] = vnode
-		barrier_queue[#barrier_queue + 1] = arg
+		barrier_queue[#barrier_queue + 1] = { op or noop, vnode, arg1, arg2 }
 	else
 		enter_side_effect_barrier()
-		op(vnode, arg)
+		op(vnode, arg1, arg2)
 		return exit_side_effect_barrier()
 	end
 end
 
 local function vstate_impl(vnode, arg)
+	-- Already in an effect barrier
+	local old_state = vnode.state
 	vnode.state = arg
+	---@type Relm.ElementDefinition?
+	local target_def = registry[vnode.type or {}]
+	if target_def and target_def.effect then
+		target_def.effect(vnode, {
+			last_props = vprops[vnode],
+			props = vprops[vnode],
+			last_state = old_state,
+			state = vnode.state,
+		})
+	end
 	vrepaint(vnode)
 end
 
@@ -673,9 +778,19 @@ end
 ---@param vnode Relm.Internal.VNode
 ---@param payload any
 local function vmsg_impl(vnode, payload)
-	local target_def = registry[vnode.type]
-	if target_def and target_def.message then
-		return target_def.message(
+	local target_def = registry[vnode.type or {}]
+	local base_handler = target_def and target_def.message
+	local wrapper = vprops[vnode] and vprops[vnode].message_handler
+	if wrapper then
+		return wrapper(
+			vnode --[[@as Relm.Handle]],
+			payload,
+			vprops[vnode],
+			vnode.state,
+			base_handler
+		)
+	elseif base_handler then
+		return base_handler(
 			vnode --[[@as Relm.Handle]],
 			payload,
 			vprops[vnode],
@@ -688,14 +803,18 @@ end
 ---@param payload Relm.MessagePayload
 vmsg = function(vnode, payload)
 	-- TODO: a unicast message probably doesn't need a barrier_wrap
-	-- but there isnt much harm.
+	-- but there isnt much harm in having one and that's sure to be
+	-- correct.
 	payload.propagation_mode = "unicast"
 	return barrier_wrap(vmsg_impl, vnode, payload)
 end
 
-local function vbubble_impl(vnode, arg)
+local function vmsg_bubble_impl(vnode, payload, resent)
+	if resent == true then
+		vnode = vnode.parent
+	end
 	while vnode and vnode.type do
-		if vmsg_impl(vnode, arg) then
+		if vmsg_impl(vnode, payload) then
 			return
 		end
 		vnode = vnode.parent
@@ -704,28 +823,123 @@ end
 
 ---@param vnode Relm.Internal.VNode
 ---@param	payload Relm.MessagePayload
-local function vbubble(vnode, payload)
+---@param resent boolean?
+local function vmsg_bubble(vnode, payload, resent)
 	payload.propagation_mode = "bubble"
-	return barrier_wrap(vbubble_impl, vnode, payload)
+	return barrier_wrap(vmsg_bubble_impl, vnode, payload, resent)
 end
 
---------------------------------------------------------------------------------
--- EVENT HANDLING
---------------------------------------------------------------------------------
-
--- h/t flib for this code
-local gui_events = {}
-for name, id in pairs(defines.events) do
-	if string.find(name, "on_gui_") then
-		gui_events[id] = true
+local function vmsg_broadcast_impl(vnode, payload, resent)
+	if vnode and vnode.type then
+		if not resent then
+			if vmsg_impl(vnode, payload) then
+				return
+			end
+		end
+		local children = vnode.children
+		if children then
+			for i = 1, #children do
+				vmsg_broadcast_impl(children[i], payload)
+			end
+		end
 	end
 end
 
+---@param vnode Relm.Internal.VNode
+---@param payload Relm.MessagePayload
+---@param resent boolean?
+local function vmsg_broadcast(vnode, payload, resent)
+	payload.propagation_mode = "broadcast"
+	return barrier_wrap(vmsg_broadcast_impl, vnode, payload, resent)
+end
+
+veffect = function(vnode, payload)
+	return barrier_wrap(payload.effect, vnode, payload)
+end
+
+--------------------------------------------------------------------------------
+-- QUERIES
+--------------------------------------------------------------------------------
+
+local function vquery(node, payload)
+	if not node or not node.type then
+		return false, nil
+	end
+	local target_def = registry[node.type]
+	if target_def and target_def.query then
+		return target_def.query(
+			node --[[@as Relm.Handle]],
+			payload,
+			vprops[node],
+			node.state
+		)
+	end
+	return false, nil
+end
+
+local function vquery_bubble(node, payload)
+	while node and node.type do
+		local handled, result = vquery(node, payload)
+		if handled then
+			return handled, result
+		end
+		node = node.parent
+	end
+	return false, nil
+end
+
+local function vquery_broadcast(node, payload)
+	local handled, result = vquery(node, payload)
+	if handled then
+		return handled, result
+	end
+	local children = node.children
+	if not children or #children == 0 then
+		return false, nil
+	end
+	if #children == 1 then
+		return vquery_broadcast(children[1], payload)
+	else
+		-- Scatter/gather over children
+		---@type table<int|string, Relm.QueryResponse>
+		local results = { [WAS_GATHERED] = true }
+		local overall_handled = false
+		for i = 1, #children do
+			local child = children[i]
+			handled, result = vquery_broadcast(child, payload)
+			overall_handled = overall_handled or handled
+			if handled then
+				if result and type(result) == "table" and result.query_tag then
+					results[result.query_tag] = result
+				else
+					results[i] = result
+				end
+			else
+				results[i] = nil
+			end
+		end
+		return overall_handled, results
+	end
+end
+
+--------------------------------------------------------------------------------
+-- API: EVENT HANDLING
+--------------------------------------------------------------------------------
+
+---@class (exact) Relm.MessagePayload.FactorioEvent: Relm.MessagePayload
+---@field public key "factorio_event"
+---@field public event Relm.GuiEventData The Factorio event data. This is the same as the event data passed to `script.on_event` handlers.
+---@field public name defines.events The name of the Factorio event.
+
+---@param event Relm.GuiEventData
 local function dispatch(event)
 	if event.element and event.element.tags["__relm_listen"] then
 		local vnode = get_vnode(event.element)
 		if vnode and vnode.type then
-			vbubble(vnode, { key = "factorio_event", event = event })
+			vmsg_bubble(
+				vnode,
+				{ key = "factorio_event", event = event, name = event.name }
+			)
 		end
 	end
 end
@@ -749,7 +963,7 @@ function lib.delegate_event(event)
 end
 
 --------------------------------------------------------------------------------
--- API: STORAGE AND ROOTS
+-- API: STORAGE
 --------------------------------------------------------------------------------
 
 ---@class Relm.Internal.Root
@@ -760,7 +974,7 @@ end
 ---@field public root_props Relm.Props The properties used to render the root
 
 ---Initialize Relm's storage. Must be called in the mod's `on_init` handler or
----in a suitable migration.
+---in a migration.
 function lib.init()
 	-- Lint diagnostic here is ok. We can't disable it because of luals bug.
 	if not storage._relm then
@@ -782,7 +996,10 @@ function lib.on_load()
 	end
 end
 
----This is only used for finding rendered roots.
+--------------------------------------------------------------------------------
+-- API: ROOTS
+--------------------------------------------------------------------------------
+
 ---@param start Relm.Internal.VNode?
 local function find_first_elem(start)
 	while start and not start.elem do
@@ -791,12 +1008,12 @@ local function find_first_elem(start)
 	return start and start.elem
 end
 
----Creates a root.
+---Renders a new Relm root element by adding it to the given base element.
 ---@param base_element LuaGuiElement The render result will be `.add`ed to this element. e.g. `player.gui.screen`. MUST NOT be within another Relm tree.
 ---@param type string Type of Relm element to render at the root. Must have previously been defined with `relm.define_element`.
 ---@param props Relm.Props Props to pass to the newly created root. Unlike other props in Relm, these MUST be serializable (no functions!)
 ---@param name? string If given, the rendered root will have this name within the `base_element`.
----@return int? root_id ID of the newly created root.
+---@return Relm.RootId? root_id ID of the newly created root.
 ---@return LuaGuiElement? root_element The root Factorio element.
 function lib.root_create(base_element, type, props, name)
 	if not base_element or not base_element.valid then
@@ -838,7 +1055,6 @@ function lib.root_create(base_element, type, props, name)
 	local created_elt = find_first_elem(vtree_root)
 
 	if created_elt then
-		log.trace("root_create, rendered root", created_elt)
 		relm_state.roots[id].root_element = created_elt
 	else
 		log.error("root_create: rendered nothing")
@@ -849,8 +1065,8 @@ function lib.root_create(base_element, type, props, name)
 	return id, created_elt
 end
 
----Destoys a root and all components beneath it.
----@param id int The ID of the root.
+---Destoys a root and all associated child elements.
+---@param id Relm.RootId The ID of the root.
 function lib.root_destroy(id)
 	local relm_state = storage._relm
 	local root = relm_state.roots[id]
@@ -868,7 +1084,8 @@ function lib.root_destroy(id)
 	return true
 end
 
----@param id uint?
+---Returns a handle to the root element of the given ID.
+---@param id Relm.RootId?
 ---@return Relm.Handle? handle A handle to the root element.
 function lib.root_ref(id)
 	if not id then
@@ -881,7 +1098,7 @@ function lib.root_ref(id)
 end
 
 ---Given a `LuaGuiElement`, attempt to find a Relm handle to its associated
----virtual element.
+---Relm element.
 ---@param element? LuaGuiElement The element to search for.
 ---@return Relm.Handle? handle A handle to the node associated with the element.
 function lib.get_ref(element)
@@ -892,6 +1109,7 @@ end
 -- API: SIDE EFFECTS
 --------------------------------------------------------------------------------
 
+---Change the state of the Relm element with the given `handle`.
 ---@param handle Relm.Handle
 ---@param state? table|number|string|int|boolean|fun(current_state: Relm.State): Relm.State The new state, or an update function of the current state.
 ---@return nil
@@ -906,15 +1124,85 @@ function lib.set_state(handle, state)
 	end
 end
 
+---Send a message directly to the Relm element with the given `handle`.
+---If the target element does not handle the message, it will not propagate.
 ---@param handle Relm.Handle
 ---@param msg Relm.MessagePayload
-function lib.bubble(handle, msg)
-	return vbubble(handle --[[@as Relm.Internal.VNode]], msg)
+function lib.msg(handle, msg)
+	return vmsg(handle --[[@as Relm.Internal.VNode]], msg)
+end
+
+---Send a message to the Relm element with the given `handle`, which if not
+---handled will bubble up the vtree to the root.
+---@param handle Relm.Handle
+---@param msg Relm.MessagePayload
+---@param resent boolean? If `true`, resends ignoring the current node. Useful for nodes that transform messages going through them.
+function lib.msg_bubble(handle, msg, resent)
+	return vmsg_bubble(handle --[[@as Relm.Internal.VNode]], msg, resent)
+end
+
+---Send a message to the Relm element with the given `handle`, which if not
+---handled will be broadcast to all children.
+---@param handle Relm.Handle
+---@param msg Relm.MessagePayload
+---@param resent boolean? If `true`, resends ignoring the current node. Useful for nodes that transform messages going through them.
+function lib.msg_broadcast(handle, msg, resent)
+	return vmsg_broadcast(handle --[[@as Relm.Internal.VNode]], msg, resent)
+end
+
+--------------------------------------------------------------------------------
+-- API: QUERIES
+--------------------------------------------------------------------------------
+
+---Send a query to the Relm element with the given `handle`, which if not
+---handled, will not propagate.
+---@param handle Relm.Handle
+---@param payload Relm.MessagePayload
+---@return boolean handled Whether the query was handled.
+---@return Relm.QueryResponse? result The result of the query, if handled.
+function lib.query(handle, payload)
+	return vquery(handle --[[@as Relm.Internal.VNode]], payload)
+end
+
+---Send a query to the Relm element with the given `handle`, which will
+---propagate upward to parents if not handled.
+---@param handle Relm.Handle
+---@param payload Relm.MessagePayload
+---@return boolean handled Whether the query was handled.
+---@return Relm.QueryResponse? result The result of the query, if handled.
+function lib.query_bubble(handle, payload)
+	return vquery_bubble(handle --[[@as Relm.Internal.VNode]], payload)
+end
+
+---Send a query to the Relm element with the given `handle`, which will
+---propagate to all children if not handled. Responses from children past
+---a split in the vtree will be gathered into a table indexed by either
+---child number or `query_tag` if present. `handled` will be true if *any*
+---child reached by the propagation reported that it handled the query.
+---@param handle Relm.Handle
+---@param payload Relm.MessagePayload
+---@return boolean handled Whether the query was handled.
+---@return Relm.QueryResponse? result The result of the query, if handled.
+function lib.query_broadcast(handle, payload)
+	return vquery_broadcast(handle --[[@as Relm.Internal.VNode]], payload)
+end
+
+---Distinguish between a query result that was gathered from children and one ---that is a single `table`-valued result.
+---@param result? Relm.QueryResponse
+---@return boolean
+function lib.query_was_gathered(result)
+	if result and type(result) == "table" then
+		return result[WAS_GATHERED]
+	else
+		return false
+	end
 end
 
 ------------------------------------------------------------------------------
 -- API: ELEMENTS
 --------------------------------------------------------------------------------
+
+-- TODO: `ChildrenHandle` APIs
 
 ---Define a new re-usable Relm element type.
 ---@param definition Relm.ElementDefinition

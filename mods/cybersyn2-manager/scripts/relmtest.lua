@@ -1,27 +1,9 @@
 local relm = require("__cybersyn2__.lib.relm")
+local ultros = require("__cybersyn2__.lib.ultros")
 local log = require("__cybersyn2__.lib.logging")
 local mgr = _G.mgr
 
 local Pr = relm.Primitive
-
-local EventMap = relm.define_element({
-	name = "EventMap",
-	render = function(_, _, children)
-		return children
-	end,
-	message = function(me, payload, props)
-		if payload.key == "factorio_event" then
-			local mapped = props[payload.event.name]
-			if mapped then
-				relm.bubble(me, {
-					key = mapped --[[@as string]],
-					event = payload.event,
-				})
-				return true
-			end
-		end
-	end,
-})
 
 local Titlebar = relm.define_element({
 	name = "Titlebar",
@@ -38,22 +20,23 @@ local Titlebar = relm.define_element({
 				style = "flib_titlebar_drag_handle",
 				ignored_by_interaction = true,
 			}),
-			EventMap(
-				{ [defines.events.on_gui_click] = "close" },
-				Pr({
-					type = "sprite-button",
-					style = "frame_action_button",
-					sprite = "utility/close",
-					hovered_sprite = "utility/close",
-					mouse_button_filter = { "left" },
-					listen = true,
-				})
-			),
+			Pr({
+				message_handler = ultros.transform_events(
+					defines.events.on_gui_click,
+					"close"
+				),
+				type = "sprite-button",
+				style = "frame_action_button",
+				sprite = "utility/close",
+				hovered_sprite = "utility/close",
+				mouse_button_filter = { "left" },
+				listen = true,
+			}),
 		})
 	end,
 })
 
-local Root = relm.define_element({
+relm.define_element({
 	name = "Root",
 	render = function(props, state)
 		local n = state and state.n or 0

@@ -29,6 +29,8 @@ local function stringify(val)
 		or val_t == "boolean"
 	then
 		return tostring(val)
+	elseif val_t == "function" then
+		return "(function)"
 	else
 		return serpent.line(val, SERPENT_LINE_ARGS)
 	end
