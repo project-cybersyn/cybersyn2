@@ -4,6 +4,8 @@ end
 
 local log = require("__cybersyn2__.lib.logging")
 
+local tremove = table.remove
+
 local lib = {}
 
 --------------------------------------------------------------------------------
@@ -32,20 +34,22 @@ local lib = {}
 ---@field public type string The type of this node.
 ---@field public props? Relm.Props The properties of this node.
 ---@field public children? Relm.Node[] The children of this node.
----@field public is_listener? true `true` if this node is a primitive listening to Factorio events.
+
+---Opaque references used by Relm APIs. Do not read or write fields.
+---@class (exact) Relm.Handle
 
 ---Definition of a reusable element distinguished by its name.
 ---@class Relm.ElementDefinition
 ---@field public name string The name of this element. Must be unique across the Lua state.
 ---@field public render Relm.Element.RenderDefinition
----@field public factory? fun(props: Relm.Props, children?: Relm.Node[]): Relm.Children
+---@field public factory? Relm.NodeFactory
 ---@field public receive? Relm.Element.ReceiveDefinition
 ---@field public diff? Relm.Element.DiffDefinition
 ---@field public state? Relm.Element.StateDefinition
 
 ---@alias Relm.Props table
 
----@alias Relm.State table
+---@alias Relm.State string|number|int|boolean|table|nil
 
 ---@alias Relm.Children Relm.Node|Relm.Node[]|nil
 
@@ -55,7 +59,7 @@ local lib = {}
 
 ---@alias Relm.Element.StateDefinition fun(initial_props: Relm.Props): Relm.State
 
----@alias Relm.NodeFactory fun(props: Relm.Props, children?: Relm.Node[]): Relm.Node
+---@alias Relm.NodeFactory fun(props?: Relm.Props, children?: Relm.Node[]): Relm.Children
 
 --------------------------------------------------------------------------------
 -- CONSTANTS AND GLOBALS
@@ -197,11 +201,9 @@ local registry = {}
 --------------------------------------------------------------------------------
 
 ---Internal representation of a vtree node. This is stored in state.
----@class (exact) Relm.Internal.VNode
----@field public name? string Element name of this node. `nil` represents a node that has been pruned.
----@field public props? Relm.Props
+---@class (exact) Relm.Internal.VNode: Relm.Node
 ---@field public state? Relm.State
----@field public children? Relm.Internal.VNode[] Ordered children.
+---@field public children? Relm.Internal.VNode[]
 ---@field public elem? LuaGuiElement The Lua element this node maps to, if a real element.
 ---@field public is_being_pruned true? `True` if this node is being pruned.
 ---@field public index? uint Index in parent node
@@ -211,52 +213,54 @@ local registry = {}
 ---@field public root int Root id this node belongs to
 ---@field public event_id? int Event ID of this node in the root, if it is assigned one.
 
-local function construct_child(def, parent, index)
-	def.index = index
-	local elem = parent.add(def)
-	def.index = nil
-	return elem
+---Map from elts to vnodes
+---@type table<LuaGuiElement, Relm.Internal.VNode>
+local evcache = setmetatable({}, { __mode = "kv" })
+
+---Tree search from root to find vnode with given elt.
+---@param root Relm.Internal.VNode
+---@param elem LuaGuiElement
+local function find_vnode(root, elem)
+	if not root then
+		return nil
+	end
+
+	if root.elem == elem then
+		return root
+	end
+
+	if root.children then
+		for i = 1, #root.children do
+			local child = root.children[i]
+			local result = find_vnode(child, elem)
+			if result then
+				evcache[elem] = result
+				return result
+			end
+		end
+	end
+
+	return nil
 end
 
-local function destroy_child(orig_elem, parent, index)
-	local elem = parent.children[index]
-	if elem then
-		elem.destroy()
+---Find vnode with given element, using cache if possible.
+---@param root Relm.Internal.VNode
+---@param elt LuaGuiElement
+local function get_vnode(root, elt)
+	if not root or not elt or not elt.valid then
+		return nil
 	end
+	local vnode = evcache[elt]
+	if not vnode then
+		vnode = find_vnode(root, elt)
+		evcache[elt] = vnode
+	end
+	return vnode
 end
 
 ---Diff a node against the live tree to determine if rendering is needed.
 local function vnode_diff(def, vnode, node)
 	return true
-end
-
----Prune a branch of the vtree, possibly destroying related Factorio elts.
----@param node Relm.Internal.VNode
----@param elem? LuaGuiElement
----@param destroy fun(elem: LuaGuiElement, arg1: any?, arg2: any?) Destroy the Factorio element this vnode corresponds to
----@param cd_arg1 any? General arguments for creator/destructor
----@param cd_arg2 any? General arguments for creator/destructor
-local function vtree_prune(node, elem, destroy, cd_arg1, cd_arg2)
-	node.is_being_pruned = true
-	if elem then
-		destroy(elem, cd_arg1, cd_arg2)
-	end
-	-- Assume destroying the factorio element destroys elts associated to
-	-- all children. Simply prune vdom nodes.
-	if node.children then
-		for i = 1, #node.children do
-			vtree_prune(node.children[i], nil, noop)
-		end
-		node.children = nil
-	end
-	-- TODO: node_was_destroyed effect
-	node.props = nil
-	node.state = nil
-	node.name = nil
-	node.is_being_pruned = nil
-	node.elem = nil
-	node.index = nil
-	node.parent = nil
 end
 
 ---Normalize calls and results of `element.render`
@@ -284,237 +288,61 @@ local function normalized_render(def, type, props, state, children)
 	return rendered_children
 end
 
--- Recursive forward declared
-local vtree_diff
-
----Compare rendered children against known virtual children state, imposing
----the result on the vtree as well as the Factorio UI tree starting at `elem`
----@param vparent Relm.Internal.VNode
----@param vchildren Relm.Internal.VNode[]
----@param render_children Relm.Node[]
----@param elem LuaGuiElement
-local function vtree_diff_primitive_children(
-	vparent,
-	vchildren,
-	render_children,
-	elem
-)
-	log.trace("vtree_diff_primitive_children", vchildren, render_children)
-	local echildren = elem.children
-	if #render_children == 0 then
-		-- Fastpath 1: no children
-		for i = 1, #vchildren do
-			vtree_prune(vchildren[i], echildren[i], destroy_child, elem, i)
-			vchildren[i] = nil
-		end
-	elseif #render_children == 1 then
-		local vchild = vchildren[1]
-		if not vchild then
-			vchildren[1] = {}
-			vchild = vchildren[1]
-		end
-		vchild.parent = vparent
-		vchild.index = 1
-		-- Fastpath 2: 1 child
-		vtree_diff(
-			vchildren[1],
-			render_children[1],
-			echildren and echildren[1],
-			construct_child,
-			destroy_child,
-			elem,
-			1
-		)
-		for i = 2, #vchildren do
-			vtree_prune(vchildren[i], echildren[i], destroy_child, elem, i)
-			vchildren[i] = nil
-		end
-	else
-		for i = 1, #render_children do
-			local rchild = render_children[i]
-			if not rchild.props.key then
-				rchild.props.key = "__IMPLIED_KEY__" .. i
-			end
-			local vchild = vchildren[i]
-			if not vchild then
-				vchildren[i] = {}
-				vchild = vchildren[i]
-			end
-			-- TODO: handle nil renders?
-			-- find out if vtree_diff actually rendered a primitive or not...
-			local echild = echildren[i]
-			vtree_diff(
-				vchild,
-				render_children[i],
-				echild,
-				construct_child,
-				destroy_child,
-				elem,
-				i
-			)
-		end
-		-- Update children after dom op
-		echildren = elem.children
-		-- Prune children beyond those rendered.
-		for i = #render_children + 1, #vchildren do
-			vtree_prune(
-				vchildren[i],
-				echildren and echildren[i],
-				destroy_child,
-				elem,
-				i
-			)
-			vchildren[i] = nil
-		end
-	end
+---@param node? Relm.Node
+local function is_primitive(node)
+	return node and node.type == "Primitive"
 end
 
-local function vtree_diff_virtual_children(
-	vparent,
-	vchildren,
-	render_children,
-	elem,
-	construct,
-	destroy,
-	cd_arg1,
-	cd_arg2
-)
-	-- Pure virtual children handling
+local vapply
+
+---@param vnode Relm.Internal.VNode
+local function vprune(vnode)
+	vnode.is_being_pruned = true
+	if vnode.children then
+		for i = 1, #vnode.children do
+			vprune(vnode.children[i])
+		end
+		vnode.children = nil
+	end
+	-- TODO: queue unmount effect. (must lift out of renderloop)
+	-- unmount effect takes type, props, state args
+	vnode.props = nil
+	vnode.state = nil
+	vnode.type = nil
+	vnode.is_being_pruned = nil
+	vnode.elem = nil
+	vnode.index = nil
+	vnode.parent = nil
+end
+
+---@param vnode Relm.Internal.VNode
+---@param render_children Relm.Node[]
+local function vapply_children(vnode, render_children)
+	if not vnode.children then
+		vnode.children = {}
+	end
+	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
 	for i = 1, #render_children do
 		local vchild = vchildren[i]
 		if not vchild then
 			vchildren[i] = {}
 			vchild = vchildren[i]
 		end
-		vchild.parent = vparent
+		vchild.parent = vnode
 		vchild.index = i
-		vtree_diff(
-			vchild,
-			render_children[i],
-			elem,
-			construct,
-			destroy,
-			cd_arg1,
-			cd_arg2
-		)
+		vapply(vchild, render_children[i])
 	end
 	for i = #render_children + 1, #vchildren do
-		vtree_prune(vchildren[i], elem, destroy, cd_arg1, cd_arg2)
+		vprune(vchildren[i])
 		vchildren[i] = nil
 	end
 end
 
----Core tree comparison algorithm. Compares a rendered subtree to last known
----baseline while also comparing corresponding Factorio UI elts.
----@param vnode Relm.Internal.VNode The virtual node to hydrate.
----@param node? Relm.Node The node specification to match to the root.
----@param elem? LuaGuiElement Real element corresponding to this vnode if any
----@param construct fun(def: Relm.PrimitiveDefinition, arg1: any?, arg2: any?): LuaGuiElement Create the Factorio element this vnode corresponds to.
----@param destroy fun(elem: LuaGuiElement, arg1: any?, arg2: any?) Destroy the Factorio element this vnode corresponds to
----@param cd_arg1 any? General arguments for creator/destructor
----@param cd_arg2 any? General arguments for creator/destructor
-vtree_diff = function(vnode, node, elem, construct, destroy, cd_arg1, cd_arg2)
-	log.trace(
-		"vtree_diff",
-		vnode.name,
-		node and node.type,
-		vnode.props,
-		node and node.props
-	)
-	-- Vnode-vnode matching
-	-- Replace with nothing...
+---@param vnode Relm.Internal.VNode
+---@param node? Relm.Node
+function vapply(vnode, node)
 	if not node then
-		if vnode.name then
-			return vtree_prune(vnode, elem, destroy, cd_arg1, cd_arg2)
-		end
-		return
-	end
-	local target_type = node.type
-	local target_def = registry[target_type]
-	-- If type changing, prune the old node.
-	if (not target_def) or target_type ~= vnode.name then
-		vtree_prune(vnode, elem, destroy, cd_arg1, cd_arg2)
-		elem = nil
-	end
-	-- TODO: maybe error here but for now, missing node type = just prune
-	if not target_def then
-		return
-	end
-	local is_creating = not vnode.name
-	-- Allow vdom diffing to elide entire subtrees.
-	if not is_creating and not vnode_diff(target_def, vnode, node) then
-		return
-	end
-	vnode.name = target_type
-	vnode.props = node.props
-	if is_creating then
-		if target_def.state then
-			vnode.state = target_def.state(node.props)
-		end
-		-- TODO: mount effect
-	end
-
-	-- Render
-	local render_children = normalized_render(
-		target_def,
-		target_type,
-		node.props,
-		vnode.state,
-		node.children
-	)
-	if not vnode.children then
-		vnode.children = {}
-	end
-	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
-
-	if node.type == "Primitive" then
-		-- Vnode-elem matching
-		-- If different type, destroy the element
-		if elem and elem.type ~= node.props.type then
-			destroy(elem, cd_arg1, cd_arg2)
-			elem = nil
-		end
-		-- If no element, create it
-		if not elem then
-			-- TODO: props sanitization?
-			elem = construct(node.props, cd_arg1, cd_arg2)
-			if not elem then
-				log.error("vdiff: failed to construct primitive", node.props)
-				-- TODO: error handling for failed construction?
-				return
-			end
-			-- TODO: this is where to generate event handler keys
-			vnode.elem = elem
-		end
-		-- Apply props
-		for key, value in pairs(node.props) do
-			-- TODO: `style.column_alignments`
-			if STYLE_KEYS[key] then
-				elem.style[key] = value
-			elseif APPLICABLE_KEYS[key] then
-				elem[key] = value
-			end
-		end
-		-- Real-element child handling
-		vtree_diff_primitive_children(vchildren, render_children, elem)
-	else
-		vtree_diff_virtual_children(
-			vchildren,
-			render_children,
-			elem,
-			construct,
-			destroy,
-			cd_arg1,
-			cd_arg2
-		)
-	end
-end
-
-local function vprune(vnode) end
-
-local function vapply(vnode, node)
-	if not node then
-		if vnode.name then
+		if vnode.type then
 			return vprune(vnode)
 		end
 		return
@@ -522,7 +350,7 @@ local function vapply(vnode, node)
 	local target_type = node.type
 	local target_def = registry[target_type]
 	-- If type changing, prune the old node.
-	if (not target_def) or target_type ~= vnode.name then
+	if (not target_def) or target_type ~= vnode.type then
 		vprune(vnode)
 	end
 	if not target_def then
@@ -532,20 +360,20 @@ local function vapply(vnode, node)
 		)
 		return
 	end
-	local is_creating = not vnode.name
+	local is_creating = not vnode.type
 	-- Allow vdom diffing to elide entire subtrees.
 	if not is_creating and not vnode_diff(target_def, vnode, node) then
 		return
 	end
 
 	-- Create vnode
-	vnode.name = target_type
+	vnode.type = target_type
 	vnode.props = node.props
 	if is_creating then
 		if target_def.state then
 			vnode.state = target_def.state(node.props)
 		end
-		-- TODO: mount effect
+		-- TODO: queue mount effect
 	end
 
 	-- Render
@@ -556,23 +384,190 @@ local function vapply(vnode, node)
 		vnode.state,
 		node.children
 	)
+	return vapply_children(vnode, render_children)
+end
 
-	-- Apply rendered children to vtree
-	if not vnode.children then
-		vnode.children = {}
-	end
-	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
-	for i = 1, #render_children do
-		local vchild = vchildren[i]
-		if not vchild then
-			vchildren[i] = {}
-			vchild = vchildren[i]
+---Force a vnode to rerender
+---@param vnode Relm.Internal.VNode
+local function vrender(vnode)
+	local target_def = registry[vnode.type]
+	local render_children =
+		normalized_render(target_def, nil, vnode.props, vnode.state, vnode.children)
+	return vapply_children(vnode, render_children)
+end
+
+--------------------------------------------------------------------------------
+-- VNODE PAINTING
+--------------------------------------------------------------------------------
+
+local function vpaint_context_destroy(vprim, context)
+	if vprim then
+		local elem = vprim.elem
+		if context and elem and elem.valid then
+			local child = elem.children[context]
+			if child then
+				child.destroy()
+			end
 		end
-		vapply(vchild, render_children[i])
 	end
-	for i = #render_children + 1, #vchildren do
-		vprune(vchildren[i])
-		vchildren[i] = nil
+end
+
+local function vpaint_context_get(vprim, context)
+	if vprim then
+		local elem = vprim.elem
+		if elem and elem.valid then
+			if context then
+				return elem.children[context]
+			else
+				return elem
+			end
+		end
+	else
+		return nil
+	end
+end
+
+---@param vprim Relm.Internal.VNode?
+local function vpaint_context_create(vprim, context, props)
+	if vprim then
+		local elem = vprim.elem
+		if context and elem and elem.valid then
+			props.index = context
+			local elt = elem.add(props)
+			props.index = nil
+			return elt
+		end
+	elseif type(context) == "function" then
+		-- Render to context fn
+		return context(props)
+	end
+end
+
+---@param vnode Relm.Internal.VNode? Node tree to paint
+---@param vprim Relm.Internal.VNode? Parent primitive node
+---@param context any Context within parent primitive node
+---@param same boolean? If true, the vnode type is the same as the last paint
+local function vpaint(vnode, vprim, context, same)
+	local elem = nil
+	while vnode and not is_primitive(vnode) do
+		vnode = vnode.children and vnode.children[1]
+	end
+	if not same then
+		if (not vnode) or not vnode.type then
+			return vpaint_context_destroy(vprim, context)
+		end
+		elem = vpaint_context_get(vprim, context)
+		-- If different type, destroy the element
+		if elem and elem.type ~= vnode.props.type then
+			vpaint_context_destroy(vprim, context)
+			vnode.elem = nil
+			elem = nil
+		end
+		-- If no element, create it
+		if not elem then
+			-- TODO: props sanitization?
+			elem = vpaint_context_create(vprim, context, vnode.props)
+			if not elem then
+				log.error("vpaint: failed to construct primitive", vnode.props)
+				-- TODO: error handling for failed construction?
+				return
+			end
+			-- TODO: this is where to generate event handler keys
+			vnode.elem = elem
+		end
+	else
+		if not vnode or not vnode.elem then
+			log.error("vpaint: repaint without painted vnode", vnode)
+			return
+		end
+		elem = vnode.elem --[[@as LuaGuiElement]]
+	end
+	-- Apply props
+	for key, value in pairs(vnode.props) do
+		-- TODO: `style.column_alignments`
+		if STYLE_KEYS[key] then
+			elem.style[key] = value
+		elseif APPLICABLE_KEYS[key] then
+			elem[key] = value
+		end
+	end
+	-- Real-element child handling
+	local vchildren = vnode.children or {}
+	for i = 1, #vchildren do
+		vpaint(vchildren[i], vnode, i)
+	end
+	local echildren = elem.children
+	-- Prune children beyond those rendered.
+	for i = #vchildren + 1, #echildren do
+		echildren[i].destroy()
+	end
+	-- TODO: tabs frame
+end
+
+---Repaint a node. Type of `vnode` MUST be the same as its previous paint.
+---This does not apply to its children.
+---@param vnode Relm.Internal.VNode
+local function vrepaint(vnode)
+	vrender(vnode)
+	-- Must paint from primitive ancestor
+	while vnode and vnode.parent and not is_primitive(vnode) do
+		vnode = vnode.parent
+	end
+	vpaint(vnode, vnode, nil, true)
+end
+
+---@param start Relm.Internal.VNode?
+local function find_first_elem(start)
+	while start and not start.elem do
+		start = start.children and start.children[1]
+	end
+	return start and start.elem
+end
+
+--------------------------------------------------------------------------------
+-- SIDE EFFECT MANAGEMENT
+--------------------------------------------------------------------------------
+
+local barrier_count = 0
+local barrier_queue = {}
+
+local function enter_side_effect_barrier()
+	barrier_count = barrier_count + 1
+	log.trace("enter barrier, count", barrier_count)
+end
+
+local vstate -- forward decl
+
+local function pop_barrier_queue()
+	if barrier_count == 0 and #barrier_queue > 0 then
+		local vnode = tremove(barrier_queue, 1)
+		local state = tremove(barrier_queue, 1)
+		return vstate(vnode, state)
+	end
+end
+
+local function exit_side_effect_barrier()
+	barrier_count = barrier_count - 1
+	log.trace("exit barrier, count", barrier_count)
+	return pop_barrier_queue()
+end
+
+---@param vnode Relm.Internal.VNode
+---@param state Relm.State?
+function vstate(vnode, state)
+	if not vnode or not vnode.type then
+		return pop_barrier_queue()
+	end
+	if barrier_count > 0 then
+		log.trace("adding to barrier_queue", barrier_count, vnode.type)
+		barrier_queue[#barrier_queue + 1] = vnode
+		barrier_queue[#barrier_queue + 1] = state
+	else
+		log.trace("setting state and rerendering", vnode.type, state)
+		vnode.state = state
+		enter_side_effect_barrier()
+		vrepaint(vnode)
+		return exit_side_effect_barrier()
 	end
 end
 
@@ -585,7 +580,8 @@ end
 ---@field public player_index int The player index of the owning player of the root element.
 ---@field public vtree_root Relm.Internal.VNode The root of the virtual tree.
 
----Initialize Relm's storage. Must be called in the mod's `on_init` handler.
+---Initialize Relm's storage. Must be called in the mod's `on_init` handler or
+---in a suitable migration.
 function lib.init()
 	if not storage._relm then
 		storage._relm = { roots = {}, root_counter = 0 }
@@ -594,13 +590,22 @@ end
 
 ---Creates a root.
 ---@param base_element LuaGuiElement The render result will be `.add`ed to this element. e.g. `player.gui.screen`. MUST NOT be within another Relm tree.
----@param node Relm.Node The node to render at the root.
+---@param node Relm.Children The node to render at the root. Must be a single node.
 ---@param name? string If given, the rendered root will have this name within the `base_element`.
 ---@return int? root_id ID of the newly created root.
 ---@return LuaGuiElement? root_element The root Factorio element.
 function lib.root_create(base_element, node, name)
 	if not base_element or not base_element.valid then
 		error("Base element must be a valid LuaGuiElement.")
+	end
+	if not node then
+		error("Node must be a valid Relm node.")
+	end
+	if not node.type then
+		node = node[1]
+	end
+	if not node or not node.type then
+		error("Node must be a valid Relm node.")
 	end
 
 	log.trace("root_create", node)
@@ -616,17 +621,20 @@ function lib.root_create(base_element, node, name)
 		vtree_root = {},
 	}
 	node.props.root_id = id
+	local vtree_root = relm_state.roots[id].vtree_root
 
 	-- Render the entire tree from the root
-	local created_elt = nil
-	vtree_diff(relm_state.roots[id].vtree_root, node, nil, function(def)
-		if name then
-			def.name = name
-		end
-		created_elt = base_element.add(def)
-		def.name = nil
-		return created_elt
-	end, noop)
+	enter_side_effect_barrier()
+	vapply(vtree_root, node)
+	vpaint(vtree_root, nil, function(props)
+		local old_name = props.name
+		props.name = name
+		local elt = base_element.add(props)
+		props.name = old_name
+		return elt
+	end)
+	exit_side_effect_barrier()
+	local created_elt = find_first_elem(vtree_root)
 
 	if created_elt then
 		log.trace("root_create, rendered root", created_elt)
@@ -651,14 +659,48 @@ function lib.root_destroy(id)
 	if not root then
 		return
 	end
-	vtree_prune(root.vtree_root, root.root_element, function(elt)
-		elt.destroy()
-	end)
+	enter_side_effect_barrier()
+	vprune(root.vtree_root)
+	exit_side_effect_barrier()
+	local root_element = root.root_element
+	if root_element and root_element.valid then
+		root_element.destroy()
+	end
 	relm_state.roots[id] = nil
 	return true
 end
 
+---@param id uint?
+---@return Relm.Handle? handle A handle to the root element.
+function lib.root_ref(id)
+	if not id then
+		return nil
+	end
+	local root = storage._relm.roots[id]
+	if root then
+		return root.vtree_root
+	end
+end
+
 --------------------------------------------------------------------------------
+-- STATE AND MESSAGE
+--------------------------------------------------------------------------------
+
+---@param handle Relm.Handle
+---@param state? table|number|string|int|boolean|fun(current_state: Relm.State): Relm.State The new state, or an update function of the current state.
+---@return nil
+function lib.set_state(handle, state)
+	---@diagnostic disable-next-line: cast-type-mismatch
+	---@cast handle Relm.Internal.VNode
+	if handle and handle.type then
+		if type(state) == "function" then
+			state = state(handle.state)
+		end
+		return vstate(handle, state)
+	end
+end
+
+------------------------------------------------------------------------------
 -- ELEMENTS
 --------------------------------------------------------------------------------
 
@@ -681,7 +723,7 @@ function lib.define_element(definition)
 	local function factory(props, children)
 		return {
 			type = name,
-			props = props,
+			props = props or {},
 			children = children,
 		}
 	end
