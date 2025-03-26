@@ -67,9 +67,3 @@ script.on_event(defines.events.on_lua_shortcut, function(event)
 		mgr.raise_manager_toggle(event.player_index)
 	end
 end)
-
---------------------------------------------------------------------------------
--- Gui
---------------------------------------------------------------------------------
-
-flib_gui.handle_events()

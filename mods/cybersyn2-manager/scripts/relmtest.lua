@@ -4,6 +4,25 @@ local mgr = _G.mgr
 
 local Pr = relm.Primitive
 
+local EventMap = relm.define_element({
+	name = "EventMap",
+	render = function(_, _, children)
+		return children
+	end,
+	message = function(me, payload, props)
+		if payload.key == "factorio_event" then
+			local mapped = props[payload.event.name]
+			if mapped then
+				relm.bubble(me, {
+					key = mapped --[[@as string]],
+					event = payload.event,
+				})
+				return true
+			end
+		end
+	end,
+})
+
 local Titlebar = relm.define_element({
 	name = "Titlebar",
 	render = function(props)
@@ -19,13 +38,17 @@ local Titlebar = relm.define_element({
 				style = "flib_titlebar_drag_handle",
 				ignored_by_interaction = true,
 			}),
-			Pr({
-				type = "sprite-button",
-				style = "frame_action_button",
-				sprite = "utility/close",
-				hovered_sprite = "utility/close",
-				mouse_button_filter = { "left" },
-			}),
+			EventMap(
+				{ [defines.events.on_gui_click] = "close" },
+				Pr({
+					type = "sprite-button",
+					style = "frame_action_button",
+					sprite = "utility/close",
+					hovered_sprite = "utility/close",
+					mouse_button_filter = { "left" },
+					listen = true,
+				})
+			),
 		})
 	end,
 })
@@ -35,6 +58,9 @@ local Root = relm.define_element({
 	render = function(props, state)
 		local n = state and state.n or 0
 		return Titlebar({ caption = "Hello from Relm! " .. n })
+	end,
+	message = function(me, payload, props, state)
+		log.trace("Relm root got message", payload)
 	end,
 })
 
@@ -58,3 +84,5 @@ mgr.on_manager_toggle(function(idx)
 		end)
 	end
 end)
+
+relm.install_event_handlers()
