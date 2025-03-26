@@ -183,6 +183,7 @@ local PrimitiveType = {
 	"VirtualSignalKey",
 	"EnumValues",
 	"Cybersyn.QueryDef",
+	"Nil",
 	["boolean"] = 1,
 	["int"] = 2,
 	["number"] = 3,
@@ -201,6 +202,7 @@ local PrimitiveType = {
 	["VirtualSignalKey"] = 16,
 	["EnumValues"] = 17,
 	["Cybersyn.QueryDef"] = 18,
+	["Nil"] = 19,
 }
 lib.PrimitiveType = PrimitiveType
 

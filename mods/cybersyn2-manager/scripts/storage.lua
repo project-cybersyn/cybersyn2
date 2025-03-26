@@ -9,5 +9,8 @@ storage = {}
 ---@field public entries Cybersyn.Manager.InspectorEntry[] Open subwindows in the Inspector.
 
 ---@class Cybersyn.Manager.InspectorEntry
----@field public query Cybersyn.QueryInput Query that the entry is displaying.
----@field public result Cybersyn.QueryResult Most recent cached query result.
+---@field public type string Type of widget for panel.
+
+_G.mgr.on_init(function()
+	storage.players = {}
+end)

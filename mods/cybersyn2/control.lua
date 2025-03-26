@@ -61,6 +61,8 @@ require("scripts.debug.overlay")
 
 require("scripts.api.base")
 require("scripts.api.query")
+require("scripts.api.queries.meta")
+require("scripts.api.queries.objects")
 
 remote.add_interface("cybersyn2", _G.cs2.remote_api)
 

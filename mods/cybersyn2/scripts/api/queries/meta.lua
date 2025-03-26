@@ -27,6 +27,41 @@ local query_defs = {
 			PrimitiveType.EnumValues,
 		},
 	},
+	["combinators"] = {
+		name = "combinators",
+		args = {
+			ids = {
+				false,
+				ContainerType.list,
+				PrimitiveType.UnitNumber,
+			},
+		},
+		result_type = {
+			true,
+			ContainerType.list,
+			PrimitiveType["Cybersyn.Combinator"],
+		},
+	},
+	["stops"] = {
+		name = "stops",
+		args = {
+			ids = {
+				false,
+				ContainerType.list,
+				PrimitiveType.Id,
+			},
+			unit_numbers = {
+				false,
+				ContainerType.list,
+				PrimitiveType.UnitNumber,
+			},
+		},
+		result_type = {
+			true,
+			ContainerType.list,
+			PrimitiveType["Cybersyn.TrainStop"],
+		},
+	},
 }
 
 ---Machine-readable definitions of enums used in Cybersyn queries. If a
@@ -34,8 +69,19 @@ local query_defs = {
 ---@type table<string, table<string, string|number>>
 local enum_defs = {}
 
-local query_query_result = { data = query_defs }
+---@type Cybersyn.Query.Queries.Result
+local query_query_result = {
+	data = query_defs,
+	type = {
+		true,
+		ContainerType.map,
+		PrimitiveType.string,
+		PrimitiveType["Cybersyn.QueryDef"],
+	},
+}
 
 ---@param arg Cybersyn.Query.Queries.Input
 ---@return Cybersyn.Query.Queries.Result
-function _G.cs2.query_handlers.queries(arg) return query_query_result end
+function _G.cs2.query_handlers.queries(arg)
+	return query_query_result
+end
