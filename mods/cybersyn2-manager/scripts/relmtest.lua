@@ -38,7 +38,7 @@ local Titlebar = relm.define_element({
 
 local Window = relm.define_element({
 	name = "Window",
-	render = function(props, _, children)
+	render = function(props)
 		return Pr({ type = "frame", direction = "vertical" }, {
 			Titlebar({ caption = props.caption }),
 			Pr({
@@ -47,7 +47,7 @@ local Window = relm.define_element({
 					vertically_stretchable = true,
 					horizontally_stretchable = true,
 				},
-			}, children),
+			}, props.children),
 		})
 	end,
 })

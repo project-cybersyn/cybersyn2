@@ -190,16 +190,10 @@ local STYLE_KEYS = {
 ---@class (exact) Relm.Node
 ---@field public type string The type of this node.
 ---@field public props? Relm.Props The properties of this node.
----@field public children? Relm.Node[] The children of this node.
 
 ---Opaque reference used to refer to a vtree node. DO NOT read or write to
 ---this object, only pass it to Relm APIs.
 ---@class (exact) Relm.Handle
-
----Opaque reference to the children of a node being rendered. ALWAYS use the
----`relm.children_*` apis to access this object, as direct iteration will
----give wrong results.
----@class (exact) Relm.ChildrenHandle
 
 ---Definition of a reusable element distinguished by its name.
 ---@class (exact) Relm.ElementDefinition
@@ -214,7 +208,7 @@ local STYLE_KEYS = {
 
 ---@alias Relm.Value boolean|int|number|string
 
----@alias Relm.Props table<string,string|number|int|boolean|table>
+---@alias Relm.Props table<string|int, any>
 
 ---@alias Relm.State string|number|int|boolean|table|nil
 
@@ -222,13 +216,13 @@ local STYLE_KEYS = {
 
 ---@alias Relm.QueryResponse string|number|int|boolean|table|nil
 
----@alias Relm.EffectKey Relm.Value|table<int|string,Relm.EffectKey>
+---@alias Relm.EffectKey Relm.Value|table<int|string, Relm.EffectKey>
 
 ---@class Relm.MessagePayload
 ---@field public key string A key identifying the type of the message.
 ---@field public propagation_mode? "bubble"|"broadcast"|"unicast" The propagation mode of the message.
 
----@alias Relm.Element.RenderDefinition fun(props: Relm.Props, state?: Relm.State, children?: Relm.ChildrenHandle): Relm.Children
+---@alias Relm.Element.RenderDefinition fun(props: Relm.Props, state?: Relm.State): Relm.Children
 
 ---@alias Relm.Element.MessageHandlerDefinition fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State): boolean|nil
 
@@ -366,7 +360,6 @@ local render_is_hydrating = false
 ---@param type? string
 ---@param props? Relm.Props
 ---@param state? Relm.State
----@param children? Relm.Children
 ---@param hook_node_? Relm.Internal.VNode
 ---@param is_hydrating_? boolean
 ---@return Relm.Node[]
@@ -375,7 +368,6 @@ local function normalized_render(
 	type,
 	props,
 	state,
-	children,
 	hook_node_,
 	is_hydrating_
 )
@@ -388,8 +380,7 @@ local function normalized_render(
 	hook_num = 0
 	hook_node = hook_node_
 	render_is_hydrating = not not is_hydrating_
-	local rendered_children =
-		def.render(props or {}, state, children --[[@as Relm.ChildrenHandle]])
+	local rendered_children = def.render(props or {}, state)
 	hook_node = nil
 	render_is_hydrating = false
 	-- Normalize to array
@@ -497,7 +488,6 @@ vapply = function(vnode, node)
 		target_type,
 		node.props,
 		vnode.state,
-		node.children,
 		vnode,
 		false
 	)
@@ -514,17 +504,8 @@ local function vrender(vnode)
 		log.error("vrender: no props cached for vnode", vnode)
 	end
 	local target_def = registry[vnode.type]
-	-- XXX: In case `render` introspects children props, we have to make a fake
-	-- `Node[]` representing the vnode children here.
-	local render_children = normalized_render(
-		target_def,
-		nil,
-		props,
-		vnode.state,
-		vnode.children,
-		vnode,
-		false
-	)
+	local render_children =
+		normalized_render(target_def, nil, props, vnode.state, vnode, false)
 
 	return vapply_children(vnode, render_children)
 end
@@ -554,15 +535,8 @@ local function vhydrate(vnode, node)
 		return
 	end
 	vprops[vnode] = node.props
-	local render_children = normalized_render(
-		def,
-		nil,
-		node.props,
-		vnode.state,
-		node.children,
-		vnode,
-		true
-	)
+	local render_children =
+		normalized_render(def, nil, node.props, vnode.state, vnode, true)
 	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
 	if #vchildren ~= #render_children then
 		log.error(
@@ -1013,7 +987,7 @@ function lib.on_load()
 	for _, root in pairs(roots) do
 		vhydrate(
 			root.vtree_root,
-			{ type = root.root_element_name, props = root.root_props, children = {} }
+			{ type = root.root_element_name, props = root.root_props }
 		)
 	end
 end
@@ -1068,7 +1042,7 @@ function lib.root_create(base_element, type, props, name)
 
 	-- Render the entire tree from the root
 	enter_side_effect_barrier()
-	vapply(vtree_root, { type = type, props = props, children = {} })
+	vapply(vtree_root, { type = type, props = props })
 	vpaint(vtree_root, nil, function(painted_props)
 		local old_name = painted_props.name
 		painted_props.name = name
@@ -1348,10 +1322,11 @@ function lib.define_element(definition)
 		return definition.factory
 	else
 		return function(props, children)
+			props = props or {}
+			props.children = children
 			return {
 				type = name,
-				props = props or {},
-				children = children,
+				props = props,
 			}
 		end
 	end
@@ -1362,8 +1337,8 @@ end
 ---@type fun(props: Relm.PrimitiveDefinition, children?: Relm.Node[]): Relm.Node
 lib.Primitive = lib.define_element({
 	name = "Primitive",
-	render = function(_, _, children)
-		return children
+	render = function(props)
+		return props.children
 	end,
 })
 
