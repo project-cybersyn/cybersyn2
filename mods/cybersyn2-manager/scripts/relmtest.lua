@@ -5,6 +5,77 @@ local mgr = _G.mgr
 
 local Pr = relm.Primitive
 
+local Widget = relm.define_element({
+	name = "Widget",
+	render = function(props)
+		return Pr({ type = "flow", direction = "horizontal" }, {
+			Pr({
+				type = "label",
+				caption = props.caption,
+				ignored_by_interaction = true,
+			}),
+			Pr({
+				message_handler = ultros.transform_events(
+					defines.events.on_gui_click,
+					"delete_widget"
+				),
+				type = "sprite-button",
+				style = "frame_action_button",
+				sprite = "utility/close",
+				hovered_sprite = "utility/close",
+				mouse_button_filter = { "left" },
+				listen = true,
+			}),
+		})
+	end,
+})
+
+local Widgets = relm.define_element({
+	name = "Widgets",
+	render = function(props, state)
+		local children = {}
+		for i = 1, state do
+			table.insert(children, Widget({ caption = "Widget " .. i }))
+		end
+		table.insert(
+			children,
+			Pr({
+				type = "button",
+				style = "button",
+				caption = "Add Widget",
+				listen = true,
+				message_handler = ultros.transform_events(
+					defines.events.on_gui_click,
+					"add_widget"
+				),
+			})
+		)
+		return Pr({ type = "flow", direction = "vertical" }, children)
+	end,
+	state = function()
+		return 0
+	end,
+	message = function(me, payload, props, state)
+		if payload.key == "add_widget" then
+			log.trace("Adding widget")
+			relm.set_state(me, function(prev)
+				return prev + 1
+			end)
+			return true
+		elseif payload.key == "delete_widget" then
+			log.trace("Deleting widget")
+			relm.set_state(me, function(prev)
+				if prev > 0 then
+					return prev - 1
+				else
+					return 0
+				end
+			end)
+			return true
+		end
+	end,
+})
+
 local Titlebar = relm.define_element({
 	name = "Titlebar",
 	render = function(props)
@@ -62,7 +133,7 @@ relm.define_element({
 		end, function(p)
 			log.trace("use_effect cleanup", p)
 		end)
-		return Window({ caption = "Hello from Relm! " .. n })
+		return Window({ caption = "Hello from Relm! " .. n }, { Widgets() })
 	end,
 	message = function(me, payload, props, state)
 		log.trace("Relm root got message", payload)

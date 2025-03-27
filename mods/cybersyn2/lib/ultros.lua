@@ -4,6 +4,7 @@ end
 
 local lib = {}
 
+local log = require("__cybersyn2__.lib.logging")
 local relm = require("__cybersyn2__.lib.relm")
 
 local noop = function() end

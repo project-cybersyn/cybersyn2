@@ -318,10 +318,9 @@ local function get_vnode(elt)
 		return vnode
 	end
 
-	log.trace("get_vnode cache miss", elt)
 	local root_id = elt.tags["__relm_root"]
 	if not root_id then
-		log.trace(
+		log.error(
 			"get_vnode: ive got no roots (but my home was never on the ground)"
 		)
 		return nil
@@ -329,7 +328,7 @@ local function get_vnode(elt)
 	---@type Relm.Internal.Root?
 	local root = storage._relm.roots[root_id]
 	if not root then
-		log.trace("get_vnode: bad root id", root_id)
+		log.error("get_vnode: bad root id", root_id)
 		return nil
 	end
 	vnode = find_vnode(root.vtree_root, elt)
@@ -417,12 +416,13 @@ local function vprune(vnode)
 	end
 
 	-- Cleanup node data.
+	-- NOTE: we may not clear `parent` here because this node may be
+	-- reused at the same place in the vtree.
 	vprops[vnode] = nil
 	vhooks_transient[vnode] = nil
 	vnode.type = nil
 	vnode.elem = nil
 	vnode.index = nil
-	vnode.parent = nil
 	vnode.state = nil
 end
 
@@ -558,108 +558,137 @@ end
 -- PAINTING
 --------------------------------------------------------------------------------
 
-local function vpaint_context_destroy(vprim, context)
-	if vprim then
-		local elem = vprim.elem
-		if context and elem and elem.valid then
-			local child = elem.children[context]
-			if child then
-				child.destroy()
-			end
+---@class Relm.Internal.PaintContext
+---@field index uint Current real child being examined
+---@field elem LuaGuiElement Gui element we're rendering into
+---@field is_root boolean? `true` if we're rendering a root.
+---@field structure_changed boolean? `true` if something was create or destroyed in this context during the paint op.
+---@field constructor? fun(props: Relm.Props): LuaGuiElement Constructor function to use instead of `add` when creating a new element.
+
+---@param context Relm.Internal.PaintContext
+local function vpaint_context_destroy(context)
+	local elem = context.elem
+	if elem and elem.valid then
+		local child = elem.children[context.index]
+		if child then
+			log.trace(
+				"relm: vpaint_context_destroy: destroying child at index",
+				context.index
+			)
+			child.destroy()
+			context.structure_changed = true
 		end
 	end
 end
 
-local function vpaint_context_get(vprim, context)
-	if vprim then
-		local elem = vprim.elem
-		if elem and elem.valid then
-			if context then
-				return elem.children[context]
-			else
-				return elem
+---@param context Relm.Internal.PaintContext
+---@param props Relm.Props
+local function vpaint_context_create(context, props)
+	local elem = context.elem
+	if elem and elem.valid then
+		local addable_props = {}
+		for k, v in pairs(props) do
+			if APPLICABLE_KEYS[k] or CREATE_KEYS[k] then
+				addable_props[k] = v
 			end
 		end
-	else
-		return nil
-	end
-end
-
----@param vprim Relm.Internal.VNode?
-local function vpaint_context_create(vprim, context, props)
-	if vprim then
-		local elem = vprim.elem
-		if context and elem and elem.valid then
-			local addable_props = {}
-			for k, v in pairs(props) do
-				if APPLICABLE_KEYS[k] or CREATE_KEYS[k] then
-					addable_props[k] = v
-				end
-			end
-			addable_props.index = context
-			local new_elem = elem.add(addable_props)
+		if not context.is_root then
+			addable_props.index = context.index
+		end
+		log.trace(
+			"relm: vpaint_context_create: adding at index",
+			context,
+			addable_props
+		)
+		local new_elem
+		if context.constructor then
+			new_elem = context.constructor(addable_props)
+		else
+			new_elem = elem.add(addable_props)
 			-- Inherit __relm_root
 			local tags = new_elem.tags
 			tags["__relm_root"] = elem.tags["__relm_root"]
 			new_elem.tags = tags
-			return new_elem
 		end
-	elseif type(context) == "function" then
-		-- Render to context fn
-		return context(props)
+		context.structure_changed = true
+		if not context.is_root then
+			context.index = context.index + 1
+		end
+		return new_elem
 	end
 end
 
----@param vnode Relm.Internal.VNode? Node tree to paint
----@param vprim Relm.Internal.VNode? Parent primitive node
----@param context any Context within parent primitive node
----@param same boolean? If true, the vnode type is known to be the same as the last paint. Used in repainting.
-local function vpaint(vnode, vprim, context, same)
-	local elem = nil
+---@param context Relm.Internal.PaintContext
+---@param props Relm.Props
+local function vpaint_context_diff(context, props)
+	local elem
+	if context.is_root then
+		elem = context.elem
+	else
+		elem = context.elem.children[context.index]
+	end
+	if not elem then
+		if props then
+			return vpaint_context_create(context, props)
+		end
+		return
+	end
+	if not props then
+		return vpaint_context_destroy(context)
+	end
+	if elem.type ~= props.type then
+		log.trace(
+			"vpaint_context_diff: recreating because of type mismatch",
+			elem.type,
+			props.type
+		)
+		vpaint_context_destroy(context)
+		return vpaint_context_create(context, props)
+	end
+	-- No diff needed, increment context index
+	context.index = context.index + 1
+	return elem
+end
 
+---@param vnode Relm.Internal.VNode? Node tree to paint
+---@param context Relm.Internal.PaintContext Context within parent primitive node
+---@param same boolean? If true, the vnode type is known to be the same as the last paint. Used in repainting.
+local function vpaint(vnode, context, same)
 	-- Iterate through virtual parents
 	while vnode and not is_primitive(vnode) do
+		-- TODO: consider whether multiple vchildren should be allowed.
+		-- probably not, but if so ban it in the vtree.
 		vnode = vnode.children and vnode.children[1]
 	end
 
 	local props
 
 	if not same then
-		-- Create/destroy/typematch
 		if (not vnode) or not vnode.type then
-			return vpaint_context_destroy(vprim, context)
+			-- No renderable nodes in this branch of vtree.
+			return
 		end
 		props = vprops[vnode]
 		if not props then
 			log.error("vpaint: no props cached for vnode", vnode)
 			return
 		end
-		elem = vpaint_context_get(vprim, context)
-		-- If different type, destroy the element
-		if elem and elem.type ~= props.type then
-			vpaint_context_destroy(vprim, context)
-			vnode.elem = nil
-			elem = nil
-		end
-		-- If no element, create it
-		if not elem then
-			-- TODO: props sanitization?
-			elem = vpaint_context_create(vprim, context, props)
-			if not elem then
-				log.error("vpaint: failed to construct primitive", props)
-				-- TODO: error handling for failed construction?
-				return
-			end
-			-- TODO: this is where to generate event handler keys
-			vnode.elem = elem
-		end
+		vnode.elem = vpaint_context_diff(context, props)
 	else
-		if not vnode or not vnode.elem then
-			log.error("vpaint: repaint without painted vnode", vnode)
+		if not vnode then
+			log.error("vpaint: repainting a missing node")
 			return
 		end
 		props = vprops[vnode]
-		elem = vnode.elem --[[@as LuaGuiElement]]
+		if not vnode.elem then
+			log.error("vpaint: repainting an unpainted vnode", vnode.type, props.type)
+			return
+		end
+	end
+	local elem = vnode.elem --[[@as LuaGuiElement]]
+	if not elem then
+		-- elem destroyed by diff
+		return
 	end
 
 	-- Apply props
@@ -683,16 +712,29 @@ local function vpaint(vnode, vprim, context, same)
 	end
 	elem.tags = tags
 
-	-- Real-element child handling
+	-- Children
+
 	local vchildren = vnode.children or {}
-	for i = 1, #vchildren do
-		vpaint(vchildren[i], vnode, i)
+	if #vchildren > 0 then
+		local child_context = {
+			elem = elem,
+			index = 1,
+		}
+		for i = 1, #vchildren do
+			vpaint(vchildren[i], child_context)
+		end
+		-- Prune children beyond those rendered.
+		local echildren = elem.children
+		for i = child_context.index, #echildren do
+			echildren[i].destroy()
+		end
+	else
+		local echildren = elem.children
+		for i = 1, #echildren do
+			echildren[i].destroy()
+		end
 	end
-	local echildren = elem.children
-	-- Prune children beyond those rendered.
-	for i = #vchildren + 1, #echildren do
-		echildren[i].destroy()
-	end
+
 	-- TODO: tabs frame
 end
 
@@ -705,7 +747,19 @@ local function vrepaint(vnode)
 	while vnode and vnode.parent and not is_primitive(vnode) do
 		vnode = vnode.parent
 	end
-	vpaint(vnode, vnode, nil, true)
+	log.trace(
+		"vrepaint: repainting from primitive or root:",
+		vnode and vnode.type or "(no vnode)"
+	)
+	if vnode then
+		vpaint(
+			vnode,
+			{ elem = vnode.elem, index = 1, is_root = not vnode.parent },
+			true
+		)
+	else
+		log.error("relm.vrepaint: no vnode to paint")
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -1043,16 +1097,21 @@ function lib.root_create(base_element, type, props, name)
 	-- Render the entire tree from the root
 	enter_side_effect_barrier()
 	vapply(vtree_root, { type = type, props = props })
-	vpaint(vtree_root, nil, function(painted_props)
-		local old_name = painted_props.name
-		painted_props.name = name
-		local elt = base_element.add(painted_props)
-		painted_props.name = old_name
-		local tags = elt.tags
-		tags["__relm_root"] = id
-		elt.tags = tags
-		return elt
-	end)
+	vpaint(vtree_root, {
+		elem = base_element,
+		index = 1,
+		is_root = true,
+		constructor = function(painted_props)
+			local old_name = painted_props.name
+			painted_props.name = name
+			local elt = base_element.add(painted_props)
+			painted_props.name = old_name
+			local tags = elt.tags
+			tags["__relm_root"] = id
+			elt.tags = tags
+			return elt
+		end,
+	})
 	exit_side_effect_barrier()
 	local created_elt = find_first_elem(vtree_root)
 
