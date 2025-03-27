@@ -9,15 +9,6 @@ local tremove = table.remove
 local lib = {}
 
 --------------------------------------------------------------------------------
--- NOTES
---------------------------------------------------------------------------------
-
--- Messages - bubble, scatter/gather
--- Message barriers
--- Structured paint
--- Side effects/`dirty_vnodes` diff arg
-
---------------------------------------------------------------------------------
 -- FACTORIO STUFF
 -- If they change something in factorio look here first for what needs updated
 --------------------------------------------------------------------------------
@@ -650,6 +641,31 @@ local function vpaint_context_diff(context, props)
 	return elem
 end
 
+---@param elem LuaGuiElement
+local function vpaint_fix_tabs(elem)
+	-- Tabbed panes, or T-PAINs as I call them, are extremely annoying.
+	-- Algorithm here is to collect the first `n` children who are tabs
+	-- and match them in order with the first `m` non-tab children.
+	-- `min(m,n)` tabs will be created and the rest of the children
+	-- will be left alone.
+	local children = elem.children
+	local tabs = {}
+	local non_tabs = {}
+	for i = 1, #children do
+		local child = children[i]
+		if child.type == "tab" then
+			tabs[#tabs + 1] = child
+		else
+			non_tabs[#non_tabs + 1] = child
+		end
+	end
+	elem.remove_tab()
+	local ntabs = math.min(#tabs, #non_tabs)
+	for i = 1, ntabs do
+		elem.add_tab(tabs[i], non_tabs[i])
+	end
+end
+
 ---@param vnode Relm.Internal.VNode? Node tree to paint
 ---@param context Relm.Internal.PaintContext Context within parent primitive node
 ---@param same boolean? If true, the vnode type is known to be the same as the last paint. Used in repainting.
@@ -657,7 +673,7 @@ local function vpaint(vnode, context, same)
 	-- Iterate through virtual parents
 	while vnode and not is_primitive(vnode) do
 		-- TODO: consider whether multiple vchildren should be allowed.
-		-- probably not, but if so ban it in the vtree.
+		-- probably not, but if so ban it with an error in userspace.
 		vnode = vnode.children and vnode.children[1]
 	end
 
@@ -728,14 +744,22 @@ local function vpaint(vnode, context, same)
 		for i = child_context.index, #echildren do
 			echildren[i].destroy()
 		end
+		if
+			elem.type == "tabbed-pane"
+			and child_context
+			and child_context.structure_changed
+		then
+			vpaint_fix_tabs(elem)
+		end
 	else
 		local echildren = elem.children
 		for i = 1, #echildren do
 			echildren[i].destroy()
 		end
+		if elem.type == "tabbed-pane" then
+			elem.remove_tab()
+		end
 	end
-
-	-- TODO: tabs frame
 end
 
 ---Repaint a node. Type of `vnode` MUST be the same as its previous paint.
