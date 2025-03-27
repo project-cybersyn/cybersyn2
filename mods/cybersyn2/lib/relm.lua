@@ -209,17 +209,20 @@ local STYLE_KEYS = {
 ---@field public message? Relm.Element.MessageHandlerDefinition Defines the message handler for elements of this type. Message handlers may cause side effects.
 ---@field public state? Relm.Element.StateDefinition If given, determines the initial state from the element's initial props. (This is NOT required to use state, only if you want a non-`nil` initial state)
 ---@field public query? Relm.Element.QueryHandlerDefinition Defines the query handler for elements of this type. Query handlers MUST be pure functions of state, props, and other queries. They MUST NOT cause side effects!
----@field public effect? Relm.Element.EffectHandlerDefinition Defines the effect handler for elements of this type. Effect handlers are called on every render for elements that define them and so should be avoided when possible. They are allowed to cause side effects.
 
 ---@alias Relm.RootId int
+
+---@alias Relm.Value boolean|int|number|string
 
 ---@alias Relm.Props table<string,string|number|int|boolean|table>
 
 ---@alias Relm.State string|number|int|boolean|table|nil
 
+---@alias Relm.Children Relm.Node|Relm.Node[]|nil
+
 ---@alias Relm.QueryResponse string|number|int|boolean|table|nil
 
----@alias Relm.Children Relm.Node|Relm.Node[]|nil
+---@alias Relm.EffectKey Relm.Value|table<int|string,Relm.EffectKey>
 
 ---@class Relm.MessagePayload
 ---@field public key string A key identifying the type of the message.
@@ -236,14 +239,6 @@ local STYLE_KEYS = {
 ---@alias Relm.NodeFactory fun(props?: Relm.Props, children?: Relm.Node[]): Relm.Children
 
 ---@alias Relm.Element.QueryHandlerDefinition fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State): boolean, Relm.QueryResponse?
-
----@alias Relm.Element.EffectHandlerDefinition fun(me: Relm.Handle, payload: Relm.EffectPayload)
-
----@class (exact) Relm.EffectPayload
----@field props? Relm.Props Current props of the element. `nil` if the element is being destroyed.
----@field last_props? Relm.Props Previous props of the element. `nil` if the element is new.
----@field state? Relm.State Current state of the element.
----@field last_state? Relm.State Previous state of the element. `nil` if the state has not changed.
 
 --------------------------------------------------------------------------------
 -- INTERNAL TYPES AND GLOBALS
@@ -262,6 +257,7 @@ local registry = {}
 ---@field public elem? LuaGuiElement The Lua element this node maps to, if a real element.
 ---@field public index? uint Index in parent node
 ---@field public parent? Relm.Internal.VNode Parent of this node.
+---@field public hooks? table<uint, any> Hook data for this node, if it has hooks.
 
 ---Map from `"<player_index>:<element_index>"` to vnodes
 ---(We can't use weak `LuaGuiElement` keys here)
@@ -269,7 +265,12 @@ local registry = {}
 local evcache = setmetatable({}, { __mode = "v" })
 
 ---Map from vnodes to last rendered props
+---@type table<Relm.Internal.VNode, Relm.Props>
 local vprops = setmetatable({}, { __mode = "k" })
+
+---Map from vnodes to hook transient data
+---@type table<Relm.Internal.VNode, table<uint, table>>
+local vhooks_transient = setmetatable({}, { __mode = "k" })
 
 local function noop() end
 local immutable_mt = { __newindex = noop }
@@ -280,7 +281,6 @@ local WAS_GATHERED = setmetatable({}, immutable_mt)
 -- Forward declarations for mutually recursive functions.
 local vmsg
 local vapply
-local veffect
 
 --------------------------------------------------------------------------------
 -- VNODES
@@ -349,8 +349,17 @@ local function is_primitive(node)
 end
 
 --------------------------------------------------------------------------------
--- VTREE BUILDING
+-- VTREE RENDERING
 --------------------------------------------------------------------------------
+
+-- Hook renderstate implementation vars.
+---Currently hooking node.
+---@type Relm.Internal.VNode?
+local hook_node = nil
+---Current hook number within the node's rendering
+local hook_num = 0
+---Whether we are in a hydrating render.
+local render_is_hydrating = false
 
 ---Normalize calls and results of `element.render`
 ---@param def? Relm.ElementDefinition
@@ -358,16 +367,31 @@ end
 ---@param props? Relm.Props
 ---@param state? Relm.State
 ---@param children? Relm.Children
+---@param hook_node_? Relm.Internal.VNode
+---@param is_hydrating_? boolean
 ---@return Relm.Node[]
-local function normalized_render(def, type, props, state, children)
+local function normalized_render(
+	def,
+	type,
+	props,
+	state,
+	children,
+	hook_node_,
+	is_hydrating_
+)
 	if not def then
 		def = registry[type or ""]
 	end
 	if not def then
 		error("Element type " .. (type or "") .. " not found.")
 	end
+	hook_num = 0
+	hook_node = hook_node_
+	render_is_hydrating = not not is_hydrating_
 	local rendered_children =
 		def.render(props or {}, state, children --[[@as Relm.ChildrenHandle]])
+	hook_node = nil
+	render_is_hydrating = false
 	-- Normalize to array
 	if not rendered_children then
 		rendered_children = {}
@@ -387,17 +411,23 @@ local function vprune(vnode)
 		vnode.children = nil
 	end
 
-	local def = registry[vnode.type or {}]
-	if def and def.effect then
-		veffect(vnode, {
-			effect = def.effect,
-			last_props = vprops[vnode],
-			props = nil,
-			state = vnode.state,
-		})
+	-- Cleanup effects
+	local transients = vhooks_transient[vnode]
+	if transients then
+		for index, transient in pairs(transients) do
+			local cleanup = transient.cleanup
+			if cleanup then
+				local hook_state = vnode.hooks and vnode.hooks[index]
+				if hook_state then
+					transient.cleanup(hook_state.callback_return)
+				end
+			end
+		end
 	end
 
+	-- Cleanup node data.
 	vprops[vnode] = nil
+	vhooks_transient[vnode] = nil
 	vnode.type = nil
 	vnode.elem = nil
 	vnode.index = nil
@@ -454,20 +484,11 @@ vapply = function(vnode, node)
 	local is_creating = not vnode.type
 
 	vnode.type = target_type
-	local last_props = vprops[vnode]
 	vprops[vnode] = node.props
 	if is_creating then
 		if target_def.state then
 			vnode.state = target_def.state(node.props)
 		end
-	end
-	if target_def.effect then
-		veffect(vnode, {
-			effect = target_def.effect,
-			last_props = last_props,
-			props = node.props,
-			state = vnode.state,
-		})
 	end
 
 	-- Render
@@ -476,8 +497,12 @@ vapply = function(vnode, node)
 		target_type,
 		node.props,
 		vnode.state,
-		node.children
+		node.children,
+		vnode,
+		false
 	)
+
+	-- Render children
 	return vapply_children(vnode, render_children)
 end
 
@@ -489,10 +514,18 @@ local function vrender(vnode)
 		log.error("vrender: no props cached for vnode", vnode)
 	end
 	local target_def = registry[vnode.type]
-	-- In case `render` introspects children props, we have to make a fake
+	-- XXX: In case `render` introspects children props, we have to make a fake
 	-- `Node[]` representing the vnode children here.
-	local render_children =
-		normalized_render(target_def, nil, props, vnode.state, vnode.children)
+	local render_children = normalized_render(
+		target_def,
+		nil,
+		props,
+		vnode.state,
+		vnode.children,
+		vnode,
+		false
+	)
+
 	return vapply_children(vnode, render_children)
 end
 
@@ -521,8 +554,15 @@ local function vhydrate(vnode, node)
 		return
 	end
 	vprops[vnode] = node.props
-	local render_children =
-		normalized_render(def, nil, node.props, vnode.state, node.children)
+	local render_children = normalized_render(
+		def,
+		nil,
+		node.props,
+		vnode.state,
+		node.children,
+		vnode,
+		true
+	)
 	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
 	if #vchildren ~= #render_children then
 		log.error(
@@ -541,7 +581,7 @@ local function vhydrate(vnode, node)
 end
 
 --------------------------------------------------------------------------------
--- VNODE PAINTING
+-- PAINTING
 --------------------------------------------------------------------------------
 
 local function vpaint_context_destroy(vprim, context)
@@ -699,18 +739,17 @@ end
 --------------------------------------------------------------------------------
 
 -- TODO: consider a more efficient deque for barrier_queue
--- TODO: this business with the pseudo_nils is getting weird, consider something
--- else.
 
 local barrier_count = 0
 local barrier_queue = {}
 
 local function enter_side_effect_barrier()
 	barrier_count = barrier_count + 1
-	log.trace("enter barrier, count", barrier_count)
+	log.trace("relm.enter_side_effect_barrier: barrier_count:", barrier_count)
 end
 
 local function empty_barrier_queue()
+	log.trace("relm.empty_barrier_queue: barrier_count:", barrier_count)
 	while barrier_count == 0 and #barrier_queue > 0 do
 		local entry = tremove(barrier_queue, 1)
 		local op = entry[1]
@@ -718,8 +757,9 @@ local function empty_barrier_queue()
 		local arg1 = entry[3]
 		local arg2 = entry[4]
 		log.trace(
+			"relm.element:",
 			vnode.type,
-			"is executing a queued side effect, remaining queue",
+			"executing queued effect. #barrier_queue:",
 			#barrier_queue
 		)
 		op(vnode, arg1, arg2)
@@ -728,7 +768,6 @@ end
 
 local function exit_side_effect_barrier()
 	barrier_count = barrier_count - 1
-	log.trace("exit barrier, count", barrier_count)
 	return empty_barrier_queue()
 end
 
@@ -738,10 +777,11 @@ local function barrier_wrap(op, vnode, arg1, arg2)
 	end
 	if barrier_count > 0 then
 		log.trace(
+			"relm.element:",
 			vnode.type,
 			"is queueing a side effect. barrier_count:",
 			barrier_count,
-			"barrier_queue:",
+			"#barrier_queue:",
 			#barrier_queue
 		)
 		barrier_queue[#barrier_queue + 1] = { op or noop, vnode, arg1, arg2 }
@@ -754,18 +794,7 @@ end
 
 local function vstate_impl(vnode, arg)
 	-- Already in an effect barrier
-	local old_state = vnode.state
 	vnode.state = arg
-	---@type Relm.ElementDefinition?
-	local target_def = registry[vnode.type or {}]
-	if target_def and target_def.effect then
-		target_def.effect(vnode, {
-			last_props = vprops[vnode],
-			props = vprops[vnode],
-			last_state = old_state,
-			state = vnode.state,
-		})
-	end
 	vrepaint(vnode)
 end
 
@@ -802,9 +831,6 @@ end
 ---@param vnode Relm.Internal.VNode
 ---@param payload Relm.MessagePayload
 vmsg = function(vnode, payload)
-	-- TODO: a unicast message probably doesn't need a barrier_wrap
-	-- but there isnt much harm in having one and that's sure to be
-	-- correct.
 	payload.propagation_mode = "unicast"
 	return barrier_wrap(vmsg_impl, vnode, payload)
 end
@@ -851,10 +877,6 @@ end
 local function vmsg_broadcast(vnode, payload, resent)
 	payload.propagation_mode = "broadcast"
 	return barrier_wrap(vmsg_broadcast_impl, vnode, payload, resent)
-end
-
-veffect = function(vnode, payload)
-	return barrier_wrap(payload.effect, vnode, payload)
 end
 
 --------------------------------------------------------------------------------
@@ -1008,10 +1030,13 @@ local function find_first_elem(start)
 	return start and start.elem
 end
 
----Renders a new Relm root element by adding it to the given base element.
+---Renders a new Relm root element by adding it to the given base element. The
+---element will be rendered with the given props, along with an additional
+---`root_id` prop reflecting the ID of the newly created Relm root.
+---
 ---@param base_element LuaGuiElement The render result will be `.add`ed to this element. e.g. `player.gui.screen`. MUST NOT be within another Relm tree.
 ---@param type string Type of Relm element to render at the root. Must have previously been defined with `relm.define_element`.
----@param props Relm.Props Props to pass to the newly created root. Unlike other props in Relm, these MUST be serializable (no functions!)
+---@param props Relm.Props Props to pass to the newly created root. Unlike other props in Relm, these MUST be serializable (no functions!) and may not contain `children`.
 ---@param name? string If given, the rendered root will have this name within the `base_element`.
 ---@return Relm.RootId? root_id ID of the newly created root.
 ---@return LuaGuiElement? root_element The root Factorio element.
@@ -1021,6 +1046,9 @@ function lib.root_create(base_element, type, props, name)
 	end
 	if not type or not registry[type] then
 		error("relm.root_create: Element type " .. (type or "") .. " not found.")
+	end
+	if props.children then
+		error("relm.root_create: Root props may not contain children.")
 	end
 
 	local player_index = base_element.player_index
@@ -1148,6 +1176,101 @@ end
 ---@param resent boolean? If `true`, resends ignoring the current node. Useful for nodes that transform messages going through them.
 function lib.msg_broadcast(handle, msg, resent)
 	return vmsg_broadcast(handle --[[@as Relm.Internal.VNode]], msg, resent)
+end
+
+---Shallowly compare two values for equality. If tables, they are compared
+---by key shallowly with `==`.
+---@param lhs any
+---@param rhs any
+---@return boolean
+local function shallow_eq(lhs, rhs)
+	if type(lhs) ~= "table" or type(rhs) ~= "table" then
+		return lhs == rhs
+	end
+
+	for key, value in pairs(lhs) do
+		if rhs[key] ~= value then
+			return false
+		end
+	end
+
+	for key in pairs(rhs) do
+		if lhs[key] == nil then
+			return false
+		end
+	end
+
+	return true
+end
+
+local function setup_hook(wants_state, wants_transient)
+	hook_num = hook_num + 1
+	local node = hook_node --[[@as Relm.Internal.VNode]]
+	local state, transient
+	if wants_state then
+		local hooks = node.hooks or {}
+		if not node.hooks then
+			node.hooks = hooks
+		end
+		state = hooks[hook_num] or {}
+		if not hooks[hook_num] then
+			hooks[hook_num] = state
+		end
+	end
+	if wants_transient then
+		if not vhooks_transient[node] then
+			vhooks_transient[node] = {}
+		end
+		local hooks = vhooks_transient[node]
+		transient = hooks[hook_num] or {}
+		if not hooks[hook_num] then
+			hooks[hook_num] = transient
+		end
+	end
+	return state, transient
+end
+
+---Isolate a side effect from the rendering algorithm. Similar to React's
+---`useEffect` hook, this will run the given `callback` and `cleanup` functions
+---in the following way:
+---
+---  - When the element is first created, `callback` will be called with `nil`
+---    as the previous effect key, and `cleanup` will be stored.
+---  - When the effect key changes as defined by shallow comparison, the
+---    previous `cleanup` will be run, `callback` will be run with the previous
+---    effect key provided, and the new `cleanup` will be stored.
+---  - When the element is destroyed, the last stored `cleanup` will be run.
+---
+---This function may **only** be called during `render` and **may not** be
+---called conditionally.
+---@param effect_key Relm.EffectKey The effect key, compared shallowly against the previous to determine if the effect should run. `nil` is NOT a valid effect key.
+---@param callback fun(current_key: Relm.EffectKey, previous_key: Relm.EffectKey?): any Callback that runs on creation or whenever the effect key changes as defined by shallow comparison. Return value will be passed to the next `cleanup` when it runs.
+---@param cleanup fun(previous_callback_return: any) Cleanup that runs on destruction; the previous cleanup will be run when the effect key changes as well.
+function lib.use_effect(effect_key, callback, cleanup)
+	if not hook_node then
+		error("relm.use_effect: must be called during `render` of a Relm element.")
+	end
+	if effect_key == nil then
+		error("relm.use_effect: effect key may not be `nil`")
+	end
+	local state, transient = setup_hook(true, true)
+	local last_effect_key = state.effect_key
+	local last_callback_return = state.callback_return
+	local last_cleanup = transient.cleanup
+	if render_is_hydrating then
+		-- Hydrating render, restore cleanup function but do nothing else
+		transient.cleanup = cleanup
+		return
+	else
+		if not shallow_eq(effect_key, last_effect_key) then
+			state.effect_key = effect_key
+			if last_cleanup then
+				last_cleanup(last_callback_return)
+			end
+			transient.cleanup = cleanup
+			state.callback_return = callback(effect_key, last_effect_key)
+		end
+	end
 end
 
 --------------------------------------------------------------------------------

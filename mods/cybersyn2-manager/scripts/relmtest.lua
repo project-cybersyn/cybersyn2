@@ -36,14 +36,40 @@ local Titlebar = relm.define_element({
 	end,
 })
 
+local Window = relm.define_element({
+	name = "Window",
+	render = function(props, _, children)
+		return Pr({ type = "frame", direction = "vertical" }, {
+			Titlebar({ caption = props.caption }),
+			Pr({
+				type = "scroll-pane",
+				style_mods = {
+					vertically_stretchable = true,
+					horizontally_stretchable = true,
+				},
+			}, children),
+		})
+	end,
+})
+
 relm.define_element({
 	name = "Root",
 	render = function(props, state)
 		local n = state and state.n or 0
-		return Titlebar({ caption = "Hello from Relm! " .. n })
+		relm.use_effect(n, function()
+			log.trace("use_effect callback", n)
+			return n + 100
+		end, function(p)
+			log.trace("use_effect cleanup", p)
+		end)
+		return Window({ caption = "Hello from Relm! " .. n })
 	end,
 	message = function(me, payload, props, state)
 		log.trace("Relm root got message", payload)
+		if payload.key == "close" then
+			relm.root_destroy(props.root_id)
+			return true
+		end
 	end,
 })
 
