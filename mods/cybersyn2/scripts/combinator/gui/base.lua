@@ -167,7 +167,7 @@ local ModePicker = relm.define_element({
 		return ultros.Dropdown({
 			options = options,
 			horizontally_stretchable = true,
-			selected_option = desired_mode_name,
+			value = desired_mode_name,
 			on_change = "set_combinator_mode",
 		})
 	end,
@@ -278,10 +278,17 @@ local Help = relm.define_element({
 local LeftCol = relm.define_element({
 	name = "CombinatorGui.LeftCol",
 	render = function(props)
-		return VF({ width = 400, right_padding = 8 }, {
-			Pr({ type = "label", style = "heading_2_label", caption = "Mode" }),
-			ModePicker({ combinator = props.combinator }),
-			Pr({ type = "label", style = "heading_2_label", caption = "Settings" }),
+		return Pr({
+			type = "frame",
+			style = "inside_shallow_frame",
+			direction = "vertical",
+			vertically_stretchable = true,
+			width = 400,
+		}, {
+			ultros.WellSection(
+				{ caption = "Mode" },
+				{ ModePicker({ combinator = props.combinator }) }
+			),
 			ModeSettings({ combinator = props.combinator }),
 		})
 	end,
@@ -290,7 +297,7 @@ local LeftCol = relm.define_element({
 local RightCol = relm.define_element({
 	name = "CombinatorGui.RightCol",
 	render = function(props)
-		return VF({ width = 250, left_padding = 8 }, {
+		return VF({ width = 250, left_margin = 8, visible = props.visible }, {
 			Status({ combinator = props.combinator }),
 			Help({ combinator = props.combinator }),
 		})
@@ -299,19 +306,35 @@ local RightCol = relm.define_element({
 
 relm.define_element({
 	name = "CombinatorGui",
-	render = function(props)
+	render = function(props, state)
+		local show_info = false
+		if state then
+			show_info = state.show_info
+		end
 		return ultros.WindowFrame({
 			caption = { "cybersyn-gui.combinator-title" },
+			decoration = function()
+				return ultros.SpriteButton({
+					style = "frame_action_button",
+					sprite = "utility/tip_icon",
+					on_click = "toggle_info",
+				})
+			end,
 		}, {
 			HF({
 				LeftCol({ combinator = props.combinator }),
-				RightCol({ combinator = props.combinator }),
+				RightCol({ combinator = props.combinator, visible = show_info }),
 			}),
 		})
 	end,
 	message = function(me, payload, props, state)
 		if payload.key == "close" then
 			combinator_api.close_gui(props.player_index)
+			return true
+		elseif payload.key == "toggle_info" then
+			relm.set_state(me, function(prev)
+				return { show_info = not (prev or {}).show_info }
+			end)
 			return true
 		end
 	end,
