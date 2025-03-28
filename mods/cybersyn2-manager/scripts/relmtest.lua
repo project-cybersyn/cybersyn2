@@ -87,42 +87,6 @@ local Tabs = relm.define_element({
 	end,
 })
 
-local Titlebar = relm.define_element({
-	name = "Titlebar",
-	render = function(props)
-		return Pr({ type = "flow", direction = "horizontal" }, {
-			Pr({
-				type = "label",
-				caption = props.caption,
-				style = "frame_title",
-				ignored_by_interaction = true,
-			}),
-			Pr({
-				type = "empty-widget",
-				style = "flib_titlebar_drag_handle",
-				ignored_by_interaction = true,
-			}),
-			ultros.CloseButton(),
-		})
-	end,
-})
-
-local Window = relm.define_element({
-	name = "Window",
-	render = function(props)
-		return Pr({ type = "frame", direction = "vertical" }, {
-			Titlebar({ caption = props.caption }),
-			Pr({
-				type = "scroll-pane",
-				style_mods = {
-					vertically_stretchable = true,
-					horizontally_stretchable = true,
-				},
-			}, props.children),
-		})
-	end,
-})
-
 relm.define_element({
 	name = "Root",
 	render = function(props, state)
@@ -133,7 +97,7 @@ relm.define_element({
 		end, function(p)
 			log.trace("use_effect cleanup", p)
 		end)
-		return Window({ caption = "Hello from Relm! " .. n }, { Widgets(), Tabs() })
+		return ultros.WindowFrame({ caption = "Title" }, { Widgets(), Tabs() })
 	end,
 	message = function(me, payload, props, state)
 		log.trace("Relm root got message", payload)
@@ -154,7 +118,7 @@ mgr.on_manager_toggle(function(idx)
 		log.debug("Creating relm root")
 		storage.test_root_id = relm.root_create(screen, "Root", {}, "relm")
 	end
-	local handle = relm.root_ref(storage.test_root_id)
+	local handle = relm.root_handle(storage.test_root_id)
 	if handle then
 		relm.set_state(handle, function(prev)
 			local n = prev and prev.n or 0

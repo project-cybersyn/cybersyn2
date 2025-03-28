@@ -8,9 +8,23 @@ local log = require("__cybersyn2__.lib.logging")
 local relm = require("__cybersyn2__.lib.relm")
 
 local noop = function() end
+local empty = setmetatable({}, {
+	__newindex = noop,
+})
 local msg_bubble = relm.msg_bubble
 local msg_broadcast = relm.msg_broadcast
 local Pr = relm.Primitive
+
+local function run_event_handler(handler, me, value, element, event)
+	if type(handler) == "function" then
+		handler(me, value, element, event)
+	elseif type(handler) == "string" then
+		relm.msg_bubble(
+			me,
+			{ key = handler, value = value, element = element, event = event }
+		)
+	end
+end
 
 ---Generate a transform function for use with a `message_handler` prop. This
 ---function will transform messages targeting the node and forward them to
@@ -56,6 +70,24 @@ function lib.map_events(...)
 			end
 		end
 	end)
+end
+
+function lib.handle_gui_events(...)
+	local event_map = {}
+	for i = 1, select("#", ...), 2 do
+		event_map[select(i, ...) or {}] = select(i + 1, ...)
+	end
+	return function(me, payload, props, state)
+		if payload.key == "factorio_event" then
+			---@cast payload Relm.MessagePayload.FactorioEvent
+			local handler = event_map[payload.name]
+			if handler then
+				handler(me, payload.event, props, state)
+			end
+			return true
+		end
+		return false
+	end
 end
 
 ---Shallowly copies `src` into `dest`, returning `dest`.
@@ -140,10 +172,12 @@ lib.VFlow = lib.customize_primitive({
 	type = "flow",
 	direction = "vertical",
 }, nil, true)
+local VF = lib.VFlow
 lib.HFlow = lib.customize_primitive({
 	type = "flow",
 	direction = "horizontal",
 }, nil, true)
+local HF = lib.HFlow
 lib.Button = lib.customize_primitive({
 	type = "button",
 	style = "button",
@@ -225,9 +259,16 @@ lib.Dropdown = lib.customize_primitive({
 }, function(props)
 	if props.on_change then
 		props.listen = true
-		props.message_handler = lib.map_events(
+		props.message_handler = lib.handle_gui_events(
 			defines.events.on_gui_selection_state_changed,
-			props.on_change
+			function(me, gui_event, props2)
+				local my_elt = gui_event.element
+				local value = my_elt.selected_index
+				if props2.options then
+					value = props2.options[value].key
+				end
+				run_event_handler(props2.on_change, me, value, my_elt, gui_event)
+			end
 		)
 	end
 	if props.options then
@@ -241,6 +282,104 @@ lib.Dropdown = lib.customize_primitive({
 		end
 		props.items = items
 		props.selected_index = selected_index
+	end
+end)
+
+lib.Labeled = relm.define_element({
+	name = "Labeled",
+	render = function(props)
+		local label_props = assign({
+			type = "label",
+			font_color = { 255, 230, 192 },
+			font = "default-bold",
+			caption = props.caption,
+		}, props.label_props)
+		local hf_props = assign({
+			vertical_align = "center",
+			horizontally_stretchable = true,
+		}, props)
+		return HF(hf_props, {
+			Pr(label_props),
+			HF({ horizontally_stretchable = true }, {}),
+			props.children[1],
+		})
+	end,
+})
+
+function lib.If(cond, then_node)
+	if cond then
+		return then_node
+	else
+		return empty
+	end
+end
+
+lib.Fold = relm.define_element({
+	name = "Fold",
+	render = function(props, state)
+		local opened = state and state.opened
+		local button_caption = opened and "Close" or "Expand"
+		local children = {
+			HF({
+				vertical_align = "center",
+				horizontally_stretchable = true,
+			}, {
+				Pr({
+					type = "label",
+					caption = props.caption,
+					style = "heading_2_label",
+				}),
+				HF({ horizontally_stretchable = true }, {}),
+				lib.Button({ caption = button_caption, on_click = "open_fold" }),
+			}),
+		}
+		if opened then
+			table.insert(children, Pr({ type = "line", direction = "horizontal" }))
+			for _, child in ipairs(props.children) do
+				table.insert(children, child)
+			end
+		end
+		return VF(props, children)
+	end,
+	message = function(me, payload)
+		if payload.key == "open_fold" then
+			relm.set_state(me, function(prev)
+				return { opened = not prev.opened }
+			end)
+			return true
+		end
+	end,
+	state = function(props)
+		return { opened = props.default_opened }
+	end,
+})
+
+lib.SignalPicker = lib.customize_primitive({
+	type = "choose-elem-button",
+	elem_type = "signal",
+}, function(props)
+	if props.value then
+		props.elem_value = props.value
+		props.value = nil
+	elseif props.virtual_signal then
+		props.elem_value = { type = "virtual", name = props.virtual_signal }
+	end
+
+	if props.on_change then
+		props.listen = true
+		props.message_handler = lib.handle_gui_events(
+			defines.events.on_gui_elem_changed,
+			function(me, gui_event, props2)
+				local my_elt = gui_event.element
+				run_event_handler(
+					props2.on_change,
+					me,
+					my_elt.elem_value,
+					my_elt,
+					gui_event
+				)
+			end
+		)
 	end
 end)
 

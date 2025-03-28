@@ -199,7 +199,7 @@ local STYLE_KEYS = {
 
 ---@alias Relm.Value boolean|int|number|string
 
----@alias Relm.Props table<string|int, any>
+---@alias Relm.Props {children?: Relm.Children, [string|int]:any}
 
 ---@alias Relm.State string|number|int|boolean|table|nil
 
