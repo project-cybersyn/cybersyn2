@@ -10,6 +10,7 @@ local relm = require("__cybersyn2__.lib.relm")
 local noop = function() end
 local msg_bubble = relm.msg_bubble
 local msg_broadcast = relm.msg_broadcast
+local Pr = relm.Primitive
 
 ---Generate a transform function for use with a `message_handler` prop. This
 ---function will transform messages targeting the node and forward them to
@@ -62,7 +63,7 @@ end
 ---@param dest table<K, V>
 ---@param src table<K, V>?
 ---@return table<K, V>
-local function assign(dest, src)
+function lib.assign(dest, src)
 	if not src then
 		return dest
 	end
@@ -71,6 +72,24 @@ local function assign(dest, src)
 	end
 	return dest
 end
+local assign = lib.assign
+
+---Concatenate two arrays
+---@generic T
+---@param a1 T[]
+---@param a2 T[]
+---@return T[]
+function lib.concat(a1, a2)
+	local A = {}
+	for i = 1, #a1 do
+		A[i] = a1[i]
+	end
+	for i = 1, #a2 do
+		A[#a1 + i] = a2[i]
+	end
+	return A
+end
+local concat = lib.concat
 
 local function va_container(...)
 	if select("#", ...) == 1 then
@@ -140,5 +159,89 @@ lib.CloseButton = lib.customize_primitive({
 	mouse_button_filter = { "left" },
 	on_click = "close",
 }, on_click_transformer)
+
+-- TODO: implement barriers
+local Barrier = relm.define_element({
+	name = "Barrier",
+	render = function(props)
+		return props.children
+	end,
+	message = function()
+		return true
+	end,
+})
+
+lib.Titlebar = relm.define_element({
+	name = "Titlebar",
+	render = function(props)
+		return Pr({ type = "flow", direction = "horizontal" }, {
+			Pr({
+				type = "label",
+				caption = props.caption,
+				style = "frame_title",
+				ignored_by_interaction = true,
+			}),
+			Pr({
+				ref = props.drag_handle_ref,
+				type = "empty-widget",
+				style = "flib_titlebar_drag_handle",
+			}),
+			lib.CloseButton(),
+		})
+	end,
+})
+
+lib.WindowFrame = relm.define_element({
+	name = "WindowFrame",
+	render = function(props)
+		local window_ref, drag_handle_ref
+		local function set_window(ref)
+			window_ref = ref
+			if window_ref and drag_handle_ref then
+				drag_handle_ref.drag_target = window_ref
+			end
+		end
+		local function set_drag_handle(ref)
+			drag_handle_ref = ref
+			if window_ref and drag_handle_ref then
+				drag_handle_ref.drag_target = window_ref
+			end
+		end
+		local children = concat({
+			lib.Titlebar({
+				caption = props.caption,
+				drag_handle_ref = set_drag_handle,
+			}),
+		}, props.children)
+		return Pr(
+			{ ref = set_window, type = "frame", direction = "vertical" },
+			children
+		)
+	end,
+})
+
+lib.Dropdown = lib.customize_primitive({
+	type = "drop-down",
+}, function(props)
+	if props.on_change then
+		props.listen = true
+		props.message_handler = lib.map_events(
+			defines.events.on_gui_selection_state_changed,
+			props.on_change
+		)
+	end
+	if props.options then
+		local items = {}
+		local selected_index = nil
+		for i, option in ipairs(props.options) do
+			table.insert(items, option.caption)
+			if option.key == props.selected_key then
+				selected_index = i
+			end
+		end
+		props.items = items
+		props.selected_index = selected_index
+	end
+end)
 
 return lib

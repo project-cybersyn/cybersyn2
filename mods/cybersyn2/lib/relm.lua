@@ -263,6 +263,9 @@ local immutable_mt = { __newindex = noop }
 ---Unique key for tables resulting from query gather ops.
 local WAS_GATHERED = setmetatable({}, immutable_mt)
 
+---Unique per-mod key for event listening
+local LISTEN_KEY = "__relm_listen_" .. script.mod_name
+
 -- Forward declarations for mutually recursive functions.
 local vmsg
 local vapply
@@ -620,12 +623,12 @@ local function vpaint_context_diff(context, props)
 	end
 	if not elem then
 		if props then
-			return vpaint_context_create(context, props)
+			return vpaint_context_create(context, props), true
 		end
-		return
+		return nil, false
 	end
 	if not props then
-		return vpaint_context_destroy(context)
+		return vpaint_context_destroy(context), true
 	end
 	if elem.type ~= props.type then
 		log.trace(
@@ -634,11 +637,11 @@ local function vpaint_context_diff(context, props)
 			props.type
 		)
 		vpaint_context_destroy(context)
-		return vpaint_context_create(context, props)
+		return vpaint_context_create(context, props), true
 	end
 	-- No diff needed, increment context index
 	context.index = context.index + 1
-	return elem
+	return elem, false
 end
 
 ---@param elem LuaGuiElement
@@ -678,6 +681,7 @@ local function vpaint(vnode, context, same)
 	end
 
 	local props
+	local elem_changed = false
 
 	if not same then
 		if (not vnode) or not vnode.type then
@@ -689,7 +693,7 @@ local function vpaint(vnode, context, same)
 			log.error("vpaint: no props cached for vnode", vnode)
 			return
 		end
-		vnode.elem = vpaint_context_diff(context, props)
+		vnode.elem, elem_changed = vpaint_context_diff(context, props)
 	else
 		if not vnode then
 			log.error("vpaint: repainting a missing node")
@@ -721,15 +725,19 @@ local function vpaint(vnode, context, same)
 
 	-- Apply tags
 	local tags = elem.tags
-	if props["listen"] then
-		tags["__relm_listen"] = true
+	if props.listen then
+		tags[LISTEN_KEY] = true
 	else
-		tags["__relm_listen"] = nil
+		tags[LISTEN_KEY] = nil
 	end
 	elem.tags = tags
 
-	-- Children
+	-- Handle `ref`s
+	if type(props.ref) == "function" and elem_changed then
+		props.ref(vnode.elem, vnode)
+	end
 
+	-- Handle children
 	local vchildren = vnode.children or {}
 	if #vchildren > 0 then
 		local child_context = {
@@ -1007,7 +1015,7 @@ end
 
 ---@param event Relm.GuiEventData
 local function dispatch(event)
-	if event.element and event.element.tags["__relm_listen"] then
+	if event.element and event.element.tags[LISTEN_KEY] then
 		local vnode = get_vnode(event.element)
 		if vnode and vnode.type then
 			vmsg_bubble(
@@ -1169,10 +1177,10 @@ function lib.root_destroy(id)
 	return true
 end
 
----Returns a handle to the root element of the given ID.
+---Returns a handle to the root element with the given ID.
 ---@param id Relm.RootId?
 ---@return Relm.Handle? handle A handle to the root element.
-function lib.root_ref(id)
+function lib.root_handle(id)
 	if not id then
 		return nil
 	end
@@ -1186,13 +1194,43 @@ end
 ---Relm element.
 ---@param element? LuaGuiElement The element to search for.
 ---@return Relm.Handle? handle A handle to the node associated with the element.
-function lib.get_ref(element)
+function lib.get_handle(element)
 	return get_vnode(element) --[[@as Relm.Handle]]
+end
+
+---@class Relm.PublicRootInfo
+---@field public id Relm.RootId The ID of the root.
+---@field public player_index int The player index of the root.
+---@field public handle Relm.Handle The handle to the root element.
+---@field public gui_element LuaGuiElement The root element.
+
+---Enumerate all global Relm roots. This should only be used when necessary
+---to find a global root. Note that **all** players' roots will be returned.
+---@return Relm.PublicRootInfo[] roots A list of all global Relm roots.
+function lib.roots()
+	local roots = {}
+	for id, root in pairs(storage._relm.roots) do
+		if root.root_element and root.root_element.valid then
+			roots[#roots + 1] = {
+				id = id,
+				player_index = root.player_index,
+				handle = root.vtree_root,
+				gui_element = root.root_element,
+			}
+		end
+	end
+	return roots
 end
 
 --------------------------------------------------------------------------------
 -- API: SIDE EFFECTS
 --------------------------------------------------------------------------------
+
+---Repaint the Relm element with the given `handle`.
+---@param handle Relm.Handle
+function lib.paint(handle)
+	barrier_wrap(vrepaint, handle --[[@as Relm.Internal.VNode]])
+end
 
 ---Change the state of the Relm element with the given `handle`.
 ---@param handle Relm.Handle
@@ -1301,8 +1339,8 @@ end
 ---This function may **only** be called during `render` and **may not** be
 ---called conditionally.
 ---@param effect_key Relm.EffectKey The effect key, compared shallowly against the previous to determine if the effect should run. `nil` is NOT a valid effect key.
----@param callback fun(current_key: Relm.EffectKey, previous_key: Relm.EffectKey?): any Callback that runs on creation or whenever the effect key changes as defined by shallow comparison. Return value will be passed to the next `cleanup` when it runs.
----@param cleanup fun(previous_callback_return: any) Cleanup that runs on destruction; the previous cleanup will be run when the effect key changes as well.
+---@param callback fun(me: Relm.Handle, current_key: Relm.EffectKey, previous_key: Relm.EffectKey?): any Callback that runs on creation or whenever the effect key changes as defined by shallow comparison. Return value will be passed to the next `cleanup` when it runs.
+---@param cleanup? fun(previous_callback_return: any) Cleanup that runs on destruction; the previous cleanup will be run when the effect key changes as well.
 function lib.use_effect(effect_key, callback, cleanup)
 	if not hook_node then
 		error("relm.use_effect: must be called during `render` of a Relm element.")
@@ -1325,7 +1363,8 @@ function lib.use_effect(effect_key, callback, cleanup)
 				last_cleanup(last_callback_return)
 			end
 			transient.cleanup = cleanup
-			state.callback_return = callback(effect_key, last_effect_key)
+			state.callback_return =
+				callback(hook_node --[[@as Relm.Handle]], effect_key, last_effect_key)
 		end
 	end
 end
@@ -1381,8 +1420,6 @@ end
 ------------------------------------------------------------------------------
 -- API: ELEMENTS
 --------------------------------------------------------------------------------
-
--- TODO: `ChildrenHandle` APIs
 
 ---Define a new re-usable Relm element type.
 ---@param definition Relm.ElementDefinition
