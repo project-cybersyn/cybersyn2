@@ -427,18 +427,23 @@ local function vapply_children(vnode, render_children)
 		vnode.children = {}
 	end
 	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
+	local vindex = 1
 	for i = 1, #render_children do
-		local vchild = vchildren[i]
-		if not vchild then
-			---@diagnostic disable-next-line: missing-fields
-			vchildren[i] = {}
-			vchild = vchildren[i]
+		local rchild = render_children[i]
+		if rchild and rchild.type then
+			local vchild = vchildren[vindex]
+			if not vchild then
+				---@diagnostic disable-next-line: missing-fields
+				vchildren[vindex] = {}
+				vchild = vchildren[vindex]
+			end
+			vchild.parent = vnode
+			vchild.index = vindex
+			vapply(vchild, rchild)
+			vindex = vindex + 1
 		end
-		vchild.parent = vnode
-		vchild.index = i
-		vapply(vchild, render_children[i])
 	end
-	for i = #render_children + 1, #vchildren do
+	for i = vindex, #vchildren do
 		vprune(vchildren[i])
 		vchildren[i] = nil
 	end
@@ -523,7 +528,6 @@ local function vhydrate(vnode, node)
 		log.error("vhydrate: no definition for type", node.type)
 		return
 	end
-	-- Node is either root or from normalized_render, must have props
 	if not node.props then
 		log.error("vhydrate: no props in node", node)
 		return
@@ -540,10 +544,13 @@ local function vhydrate(vnode, node)
 			#render_children
 		)
 	end
+	local vindex = 1
 	for i = 1, #render_children do
-		local vchild = vchildren[i]
-		if vchild then
+		local rchild = render_children[i]
+		local vchild = vchildren[vindex]
+		if rchild and next(rchild) and vchild then
 			vhydrate(vchild, render_children[i])
+			vindex = vindex + 1
 		end
 	end
 end
@@ -805,23 +812,30 @@ local barrier_queue = {}
 
 local function enter_side_effect_barrier()
 	barrier_count = barrier_count + 1
-	log.trace("relm.enter_side_effect_barrier: barrier_count:", barrier_count)
+	if barrier_count > 1 then
+		log.warn(
+			"relm.enter_side_effect_barrier: unexpected barrier_count:",
+			barrier_count,
+			" probably indicates a bug"
+		)
+	end
 end
 
 local function empty_barrier_queue()
-	log.trace("relm.empty_barrier_queue: barrier_count:", barrier_count)
+	if #barrier_queue > 0 then
+		log.trace(
+			"relm.empty_barrier_queue: barrier_count:",
+			barrier_count,
+			"#barrier_queue:",
+			#barrier_queue
+		)
+	end
 	while barrier_count == 0 and #barrier_queue > 0 do
 		local entry = tremove(barrier_queue, 1)
 		local op = entry[1]
 		local vnode = entry[2]
 		local arg1 = entry[3]
 		local arg2 = entry[4]
-		log.trace(
-			"relm.element:",
-			vnode.type,
-			"executing queued effect. #barrier_queue:",
-			#barrier_queue
-		)
 		op(vnode, arg1, arg2)
 	end
 end
@@ -836,14 +850,6 @@ local function barrier_wrap(op, vnode, arg1, arg2)
 		return
 	end
 	if barrier_count > 0 then
-		log.trace(
-			"relm.element:",
-			vnode.type,
-			"is queueing a side effect. barrier_count:",
-			barrier_count,
-			"#barrier_queue:",
-			#barrier_queue
-		)
 		barrier_queue[#barrier_queue + 1] = { op or noop, vnode, arg1, arg2 }
 	else
 		enter_side_effect_barrier()
@@ -1450,6 +1456,22 @@ function lib.define_element(definition)
 			}
 		end
 	end
+end
+
+---Generate a node for an element of the given named type with the given
+---props. Returns `nil` if the type was invalid.
+---@param type string The type of element to create.
+---@param props Relm.Props The properties to pass to the element.
+---@return Relm.Node? node The generated node, or `nil` if the type was invalid.
+function lib.element(type, props)
+	if not type or not registry[type] then
+		return nil
+	end
+	props = props or {}
+	return {
+		type = type,
+		props = props,
+	}
 end
 
 ---A primitive element whose props are passed directly to Factorio GUI
