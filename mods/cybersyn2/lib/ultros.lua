@@ -26,6 +26,22 @@ local function run_event_handler(handler, me, value, element, event)
 	end
 end
 
+function lib.If(cond, then_node)
+	if cond then
+		return then_node
+	else
+		return empty
+	end
+end
+
+function lib.CallIf(cond, fn, ...)
+	if cond then
+		return fn(...)
+	else
+		return empty
+	end
+end
+
 ---Generate a transform function for use with a `message_handler` prop. This
 ---function will transform messages targeting the node and forward them to
 ---the element's base handler. If the base handler doesn't handle the message
@@ -137,13 +153,14 @@ end
 
 ---@alias Ultros.VarargNodeFactory fun(props_or_children: Relm.Props | Relm.Children, children?: Relm.Children): Relm.Node
 
----Creates a factory for customized primitive nodes. If only prop changes are
----needed, you can use this rather than wrapping primitives in virtual nodes.
+---Creates a factory for customized nodes. If only prop changes are
+---needed, you can use this rather than wrapping in virtual nodes.
+---@param type string Node type to customize.
 ---@param default_props Relm.Props
 ---@param prop_transformer fun(props: table)? A function that will be called with the props table before it is passed to the node.
 ---@param is_container boolean? If true, the first argument to the constructor can be given as children rather than props.
 ---@return Ultros.VarargNodeFactory
-function lib.customize_primitive(default_props, prop_transformer, is_container)
+function lib.customize(type, default_props, prop_transformer, is_container)
 	local va_parser = is_container and va_container or va_primitive
 	return function(...)
 		local props, children = va_parser(...)
@@ -154,10 +171,23 @@ function lib.customize_primitive(default_props, prop_transformer, is_container)
 		end
 		next_props.children = children
 		return {
-			type = "Primitive",
+			type = type,
 			props = next_props,
 		}
 	end
+end
+
+lib.customize_primitive = function(
+	default_props,
+	prop_transformer,
+	is_container
+)
+	return lib.customize(
+		"Primitive",
+		default_props,
+		prop_transformer,
+		is_container
+	)
 end
 
 local function on_click_transformer(props)
@@ -220,6 +250,7 @@ lib.Titlebar = relm.define_element({
 				type = "empty-widget",
 				style = "flib_titlebar_drag_handle",
 			}),
+			lib.CallIf(props.decoration, props.decoration, props),
 			lib.CloseButton(),
 		})
 	end,
@@ -245,6 +276,7 @@ lib.WindowFrame = relm.define_element({
 			lib.Titlebar({
 				caption = props.caption,
 				drag_handle_ref = set_drag_handle,
+				decoration = props.decoration,
 			}),
 		}, props.children)
 		return Pr(
@@ -306,14 +338,6 @@ lib.Labeled = relm.define_element({
 		})
 	end,
 })
-
-function lib.If(cond, then_node)
-	if cond then
-		return then_node
-	else
-		return empty
-	end
-end
 
 lib.Fold = relm.define_element({
 	name = "Fold",
@@ -402,5 +426,56 @@ lib.Checkbox = lib.customize_primitive({
 		)
 	end
 end)
+
+lib.WellSection = relm.define_element({
+	name = "WellSection",
+	render = function(props, state)
+		local collapsed = (state or {}).collapsed
+		-- TODO: Fragment simplification
+		return VF({ bottom_margin = 8 }, {
+			Pr({
+				type = "frame",
+				style = "subheader_frame",
+				horizontally_stretchable = true,
+				bottom_margin = 4,
+			}, {
+				Pr({
+					type = "label",
+					style = "subheader_caption_label",
+					caption = props.caption,
+				}),
+				lib.If(props.decorate, HF({ horizontally_stretchable = true }, {})),
+				lib.CallIf(props.decorate, props.decorate, props, state),
+			}),
+			VF(
+				{ left_padding = 8, right_padding = 8, visible = not collapsed },
+				props.children
+			),
+		})
+	end,
+	state = function(props)
+		return { collapsed = props.collapsed }
+	end,
+})
+
+lib.WellFold = lib.customize("WellSection", {
+	collapsed = true,
+	decorate = function(_, state)
+		return lib.SpriteButton({
+			style = "frame_action_button",
+			sprite = "utility/add_white",
+			on_click = "toggle_fold",
+			toggled = not state.collapsed,
+		})
+	end,
+	message_handler = function(me, payload, props, state)
+		if payload.key == "toggle_fold" then
+			relm.set_state(me, function(prev)
+				return { collapsed = not (prev or {}).collapsed }
+			end)
+			return true
+		end
+	end,
+}, function(props) end)
 
 return lib

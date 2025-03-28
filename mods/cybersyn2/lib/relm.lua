@@ -720,9 +720,19 @@ end
 local function vpaint(vnode, context, same)
 	-- Iterate through virtual parents
 	while vnode and not is_primitive(vnode) do
-		-- TODO: consider whether multiple vchildren should be allowed.
-		-- probably not, but if so ban it with an error in userspace.
-		vnode = vnode.children and vnode.children[1]
+		local vchildren = vnode.children
+		local nvchildren = #vchildren
+		if not vchildren or nvchildren == 0 then
+			break
+		elseif nvchildren == 1 then
+			vnode = vchildren[1]
+		else
+			-- Use tail recursion
+			for i = 1, nvchildren - 1 do
+				vpaint(vchildren[i], context)
+			end
+			return vpaint(vchildren[nvchildren], context)
+		end
 	end
 
 	local props
