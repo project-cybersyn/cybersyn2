@@ -26,6 +26,7 @@ storage = {}
 ---@field public player_index int
 ---@field public open_combinator? Cybersyn.Combinator.Ephemeral The combinator OR ghost currently open in the player's UI, if any.
 ---@field public open_combinator_unit_number? UnitNumber The unit number of the combinator currently open in the player's UI, if any. This is stored separately to allow for cases where the combinator is removed while the UI is open, eg ghost revival.
+---@field public combinator_gui_root? int The Relm root id of the open combinator gui.
 
 _G.cs2.on_init(function()
 	storage.players = {}

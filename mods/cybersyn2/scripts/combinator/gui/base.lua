@@ -1,25 +1,10 @@
--- Sumneko gives lots of false errors in this file due to no partial typing in
--- flib_gui's `elem_mods`.
----@diagnostic disable: missing-fields
-
-local flib_gui = require("__flib__.gui")
+local relm = require("__cybersyn2__.lib.relm")
+local ultros = require("__cybersyn2__.lib.ultros")
 local tlib = require("__cybersyn2__.lib.table")
 local log = require("__cybersyn2__.lib.logging")
 local cs2 = _G.cs2
 local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
-
----Get the state for a player if that player's GUI is open. (This checks
----the stored game state's `players` table, not the actual GUI.)
----@param player_index PlayerIndex
----@return Cybersyn.PlayerState? #The GUI state for the player, or `nil` if the player's GUI is not open.
-function _G.cs2.combinator_api.get_gui_state(player_index)
-	local state = storage.players[player_index]
-	if (not state) or not state.open_combinator then
-		return nil
-	end
-	return state
-end
 
 ---@param player_index PlayerIndex
 local function destroy_gui_state(player_index)
@@ -43,6 +28,41 @@ local function create_gui_state(player_index, combinator)
 	storage.players[player_index].open_combinator = combinator
 	storage.players[player_index].open_combinator_unit_number =
 		combinator.entity.unit_number
+	return storage.players[player_index]
+end
+
+---Run a callback on each player who has an open combinator GUI.
+---@param callback fun(state: Cybersyn.PlayerState, relm_root: Relm.Handle?)
+local function for_each_open_combinator_gui(callback)
+	for _, state in pairs(storage.players) do
+		local player = game.get_player(state.player_index)
+		if player and state.combinator_gui_root then
+			local root = relm.root_handle(state.combinator_gui_root)
+			callback(state, root)
+		end
+	end
+end
+
+local function close_guis_with_invalid_combinators()
+	for_each_open_combinator_gui(function(state)
+		local comb = state.open_combinator
+		if not comb or not combinator_api.is_valid(comb) then
+			combinator_api.close_gui(state.player_index)
+		end
+	end)
+end
+
+---@param combinator Cybersyn.Combinator.Ephemeral
+local function update_guis_referencing_combinator(combinator)
+	local unit_number = combinator.entity.unit_number
+	for_each_open_combinator_gui(function(state, root)
+		if state.open_combinator_unit_number == unit_number then
+			relm.msg_broadcast(root, {
+				key = "combinator_settings_updated",
+				combinator = combinator,
+			})
+		end
+	end)
 end
 
 ---Determine if a player has the combinator GUI open.
@@ -53,9 +73,8 @@ function _G.cs2.combinator_api.is_gui_open(player_index)
 	if not player then
 		return false
 	end
-	local gui_root = player.gui.screen
-	local combinator_ui = combinator_api.get_gui_state(player_index)
-	if combinator_ui or gui_root[cs2.WINDOW_NAME] then
+	local state = storage.players[player_index]
+	if state and state.combinator_gui_root then
 		return true
 	else
 		return false
@@ -70,194 +89,27 @@ function _G.cs2.combinator_api.close_gui(player_index, silent)
 	if not player then
 		return
 	end
-	local gui_root = player.gui.screen
-	if gui_root[cs2.WINDOW_NAME] then
-		gui_root[cs2.WINDOW_NAME].destroy()
+
+	-- Try to close the GUI the easy way
+	local state = storage.players[player_index]
+	if state and state.combinator_gui_root then
+		relm.root_destroy(state.combinator_gui_root)
+		state.combinator_gui_root = nil
 		if not silent then
 			player.play_sound({ path = cs2.COMBINATOR_CLOSE_SOUND })
 		end
 	end
-	destroy_gui_state(player_index)
-end
 
----@param window LuaGuiElement
----@param settings Cybersyn.Combinator.Ephemeral
-local function rebuild_mode_section(window, settings)
-	if (not window) or (window.name ~= cs2.WINDOW_NAME) then
-		return
-	end
-	local mode_section = window["frame"]["vflow"]["mode_settings"]
-	local mode_dropdown = window["frame"]["vflow"]["mode_flow"]["mode_dropdown"]
-
-	-- TODO: fix this
-	-- internal_update_combinator_gui_status_section(window, settings)
-
-	-- Impose desired mode from combinator settiongs
-	local desired_mode_name =
-		combinator_api.read_setting(settings, combinator_settings.mode)
-	local desired_mode = combinator_api.get_combinator_mode(desired_mode_name)
-	if not desired_mode then
-		-- Invalid mode
-		mode_section.clear()
-		mode_dropdown.selected_index = 0
-		return
-	end
-
-	-- Impose mode on dropdown
-	local _, desired_mode_index = tlib.find(
-		combinator_api.get_combinator_mode_list(),
-		function(x)
-			return x == desired_mode_name
-		end
-	)
-	if desired_mode_index then
-		mode_dropdown.selected_index = desired_mode_index
-	end
-
-	-- Impose mode on lower GUI section
-	-- If GUI for mode is already built, update it.
-	if mode_section.tags.current_mode == desired_mode then
-		desired_mode.update_gui(mode_section, settings)
-		return
-	end
-	-- Teardown the old mode section and rebuild/update
-	mode_section.clear()
-	desired_mode.create_gui(mode_section)
-	mode_section.tags.current_mode = desired_mode
-	desired_mode.update_gui(mode_section, settings)
-end
-
----@param window LuaGuiElement
----@param settings Cybersyn.Combinator.Ephemeral
----@param updated_setting string?
-local function update_mode_section(window, settings, updated_setting)
-	if (not window) or (window.name ~= cs2.WINDOW_NAME) then
-		return
-	end
-	local mode_section = window["frame"]["vflow"]["mode_settings"]
-	local desired_mode_name =
-		combinator_api.read_setting(settings, combinator_settings.mode)
-	local desired_mode = combinator_api.get_combinator_mode(desired_mode_name)
-	if
-		not desired_mode or (mode_section.tags.current_mode ~= desired_mode_name)
-	then
-		return rebuild_mode_section(window, settings)
-	end
-	desired_mode.update_gui(mode_section, settings, updated_setting)
-end
-
----Run a callback on each player who has an open combinator GUI.
----@param callback fun(state: Cybersyn.PlayerState, ui_root: LuaGuiElement)
-function _G.cs2.combinator_api.for_each_open_combinator_gui(callback)
-	for _, state in pairs(storage.players) do
-		local player = game.get_player(state.player_index)
-		if player then
-			local comb_gui = player.gui.screen[cs2.WINDOW_NAME]
-			if comb_gui then
-				callback(state, comb_gui)
-			end
-		end
-	end
-end
-
-local function close_guis_with_invalid_combinators()
-	combinator_api.for_each_open_combinator_gui(function(state)
-		local comb = state.open_combinator
-		if not comb or not combinator_api.is_valid(comb) then
-			combinator_api.close_gui(state.player_index)
-		end
-	end)
-end
-
----@param settings Cybersyn.Combinator.Ephemeral
-local function rebuild_mode_sections(settings)
-	local comb_unit_number = settings.entity.unit_number
-	combinator_api.for_each_open_combinator_gui(function(ui_state, comb_gui)
-		if ui_state.open_combinator_unit_number == comb_unit_number then
-			rebuild_mode_section(comb_gui, settings)
-		end
-	end)
-end
-
----@param settings Cybersyn.Combinator.Ephemeral
-local function update_mode_sections(settings, updated_setting)
-	local comb_unit_number = settings.entity.unit_number
-	combinator_api.for_each_open_combinator_gui(function(ui_state, comb_gui)
-		if ui_state.open_combinator_unit_number == comb_unit_number then
-			update_mode_section(comb_gui, settings, updated_setting)
-		end
-	end)
-end
-
----Generic flib wrapper to attach setting and gui info before calling the
----handler function.
----@param event flib.GuiEventData
----@param handler function
-function _G.cs2.combinator_api.flib_settings_handler_wrapper(event, handler)
-	local player = game.get_player(event.player_index)
-	if not player then
-		return
-	end
-	local gui_root = player.gui.screen[cs2.WINDOW_NAME]
-	if not gui_root then
-		return
-	end
-	local state = combinator_api.get_gui_state(event.player_index)
-	if
-		state
-		and state.open_combinator
-		and combinator_api.is_valid(state.open_combinator)
-	then
-		local mode_section = gui_root["frame"]["vflow"]["mode_settings"]
-		handler(event, state.open_combinator, mode_section, player, state, gui_root)
-	end
-end
-
----Generic flib handler to handle toggling a flag based setting.
----@param event flib.GuiEventData
----@param settings Cybersyn.Combinator.Ephemeral
-function _G.cs2.combinator_api.generic_checkbox_handler(event, settings)
-	local elt = event.element
-	if not elt then
-		return
-	end
-	local setting = elt.tags.setting
-	local inverted = elt.tags.inverted
-	local new_value = event.element.state
-	if inverted then
-		new_value = not new_value
-	end
-	combinator_api.write_setting(
-		settings,
-		combinator_settings[setting],
-		new_value
-	)
-end
-
----@param e EventData.on_gui_click
-local function handle_close(e)
-	combinator_api.close_gui(e.player_index)
-end
-
----@param e EventData.on_gui_selection_state_changed
-local function handle_mode_dropdown(e)
-	local state = combinator_api.get_gui_state(e.player_index)
-	if
-		state
-		and state.open_combinator
-		and combinator_api.is_valid(state.open_combinator)
-	then
-		local new_mode =
-			combinator_api.get_combinator_mode_list()[e.element.selected_index]
-		if not new_mode then
-			return
-		end
-		combinator_api.write_setting(
-			state.open_combinator,
-			combinator_settings.mode,
-			new_mode
+	-- Hard way
+	local gui_root = player.gui.screen
+	if gui_root[cs2.WINDOW_NAME] then
+		log.error(
+			"couldn't destroy associated gui root, probably invalid relm state now",
+			player_index
 		)
+		gui_root[cs2.WINDOW_NAME].destroy()
 	end
+	destroy_gui_state(player_index)
 end
 
 ---@param player_index PlayerIndex
@@ -273,150 +125,201 @@ function _G.cs2.combinator_api.open_gui(player_index, combinator)
 	-- Close any existing gui
 	combinator_api.close_gui(player_index, true)
 	-- Create new gui state
-	create_gui_state(player_index, combinator)
+	local state = create_gui_state(player_index, combinator)
 
-	-- Generate main gui window
-	local gui_root = player.gui.screen
-	local mode_dropdown_items = tlib.map(
-		combinator_api.get_combinator_mode_list(),
-		function(mode_name)
-			local mode = combinator_api.get_combinator_mode(mode_name)
-			return { mode.localized_string }
-		end
-	)
-	if #mode_dropdown_items == 0 then
-		mode_dropdown_items = { "unknown" }
+	local root_id, main_window =
+		relm.root_create(player.gui.screen, "CombinatorGui", {
+			player_index = player_index,
+			combinator = combinator,
+		}, cs2.WINDOW_NAME)
+
+	if main_window then
+		main_window.force_auto_center()
+		player.opened = main_window
+		state.combinator_gui_root = root_id
+	else
+		log.error("Could not open Combinator GUI", player_index, combinator)
 	end
-	local _, main_window = flib_gui.add(gui_root, {
-		{
-			type = "frame",
-			direction = "vertical",
-			name = cs2.WINDOW_NAME,
-			children = {
-				--title bar
-				{
-					type = "flow",
-					name = "titlebar",
-					children = {
-						{
-							type = "label",
-							style = "frame_title",
-							caption = { "cybersyn-gui.combinator-title" },
-							elem_mods = { ignored_by_interaction = true },
-						},
-						{
-							type = "empty-widget",
-							style = "flib_titlebar_drag_handle",
-							elem_mods = { ignored_by_interaction = true },
-						},
-						{
-							type = "sprite-button",
-							style = "frame_action_button",
-							mouse_button_filter = { "left" },
-							sprite = "utility/close",
-							hovered_sprite = "utility/close",
-							handler = handle_close,
-						},
-					},
-				},
-				{
-					type = "frame",
-					name = "frame",
-					style = "inside_shallow_frame_with_padding",
-					style_mods = { padding = 12, bottom_padding = 9 },
-					children = {
-						{
-							type = "flow",
-							name = "vflow",
-							direction = "vertical",
-							style_mods = { horizontal_align = "left" },
-							children = {
-								{
-									name = "statuses",
-									type = "flow",
-									direction = "vertical",
-									style_mods = {
-										bottom_padding = 4,
-									},
-								},
-								--preview
-								{
-									type = "frame",
-									name = "preview_frame",
-									style = "deep_frame_in_shallow_frame",
-									style_mods = {
-										minimal_width = 0,
-										horizontally_stretchable = true,
-										padding = 0,
-									},
-									children = {
-										{
-											type = "entity-preview",
-											name = "preview",
-											style = "wide_entity_button",
-										},
-									},
-								},
-								--mode picker
-								{
-									type = "label",
-									style = "heading_2_label",
-									caption = { "cybersyn-gui.operation" },
-									style_mods = { top_padding = 8 },
-								},
-								{
-									type = "flow",
-									name = "mode_flow",
-									direction = "horizontal",
-									style_mods = { vertical_align = "center" },
-									children = {
-										{
-											type = "drop-down",
-											name = "mode_dropdown",
-											style_mods = { top_padding = 3, right_margin = 8 },
-											handler = handle_mode_dropdown,
-											selected_index = 1,
-											items = mode_dropdown_items,
-										},
-									},
-								},
-								---Settings section for modal settings
-								{
-									type = "flow",
-									name = "mode_settings",
-									direction = "vertical",
-									tags = { current_mode = "" },
-									style_mods = { horizontal_align = "left" },
-									children = {}, -- children
-								}, -- mode_settings
-							}, -- children
-						}, -- vflow
-					}, -- children
-				}, -- frame
-			}, -- children
-		}, -- window
-	})
-
-	main_window.titlebar.drag_target = main_window
-	main_window.force_auto_center()
-
-	rebuild_mode_section(main_window, combinator)
-
-	player.opened = main_window
 end
+
+--------------------------------------------------------------------------------
+-- Relm combinator gui
+--------------------------------------------------------------------------------
+
+local HF = ultros.HFlow
+local VF = ultros.VFlow
+local Pr = relm.Primitive
+
+local ModePicker = relm.define_element({
+	name = "CombinatorGui.ModePicker",
+	render = function(props)
+		local desired_mode_name =
+			combinator_api.read_setting(props.combinator, combinator_settings.mode)
+		local options = tlib.map(
+			combinator_api.get_combinator_mode_list(),
+			function(x)
+				return {
+					key = x,
+					caption = { combinator_api.get_combinator_mode(x).localized_string },
+				}
+			end
+		)
+		return ultros.Dropdown({
+			options = options,
+			horizontally_stretchable = true,
+			selected_option = desired_mode_name,
+			on_change = "set_combinator_mode",
+		})
+	end,
+	message = function(me, payload, props, state)
+		if payload.key == "combinator_settings_updated" then
+			relm.paint(me)
+			return true
+		elseif payload.key == "set_combinator_mode" then
+			local new_mode = payload.value
+			if new_mode then
+				combinator_api.write_setting(
+					props.combinator,
+					combinator_settings.mode,
+					new_mode
+				)
+			end
+			return true
+		end
+	end,
+})
+
+local ModeSettings = relm.define_element({
+	name = "CombinatorGui.ModeSettings",
+	render = function(props)
+		local desired_mode_name =
+			combinator_api.read_setting(props.combinator, combinator_settings.mode)
+		local mode = combinator_api.get_combinator_mode(desired_mode_name)
+		if mode and mode.settings_element then
+			return relm.element(mode.settings_element, {
+				combinator = props.combinator,
+				mode = mode,
+			})
+		else
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-settings" } }),
+			})
+		end
+	end,
+	message = function(me, payload, props, state)
+		if payload.key == "combinator_settings_updated" then
+			relm.paint(me)
+			return true
+		end
+	end,
+})
+
+local Status = relm.define_element({
+	name = "CombinatorGui.Status",
+	render = function(props)
+		local entity = props.combinator.entity
+		return VF({
+			Pr({
+				type = "frame",
+				name = "preview_frame",
+				style = "deep_frame_in_shallow_frame",
+
+				minimal_width = 0,
+				horizontally_stretchable = true,
+				padding = 0,
+			}, {
+				Pr({
+					type = "entity-preview",
+					style = "wide_entity_button",
+					entity = entity,
+				}),
+			}),
+			HF({ vertical_align = "center" }, {
+				Pr({
+					type = "sprite",
+					sprite = "utility/status_working",
+					style = "status_image",
+					stretch_image_to_widget_size = true,
+				}),
+				Pr({
+					type = "label",
+					caption = "Working",
+				}),
+			}),
+		})
+	end,
+})
+
+local Help = relm.define_element({
+	name = "CombinatorGui.Help",
+	render = function(props)
+		local desired_mode_name =
+			combinator_api.read_setting(props.combinator, combinator_settings.mode)
+		local mode = combinator_api.get_combinator_mode(desired_mode_name)
+		if mode and mode.help_element then
+			return relm.element(mode.help_element, {
+				combinator = props.combinator,
+				mode = mode,
+			})
+		else
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-settings" } }),
+			})
+		end
+	end,
+	message = function(me, payload, props, state)
+		if payload.key == "combinator_settings_updated" then
+			relm.paint(me)
+			return true
+		end
+	end,
+})
+
+local LeftCol = relm.define_element({
+	name = "CombinatorGui.LeftCol",
+	render = function(props)
+		return VF({ width = 400, right_padding = 8 }, {
+			Pr({ type = "label", style = "heading_2_label", caption = "Mode" }),
+			ModePicker({ combinator = props.combinator }),
+			Pr({ type = "label", style = "heading_2_label", caption = "Settings" }),
+			ModeSettings({ combinator = props.combinator }),
+		})
+	end,
+})
+
+local RightCol = relm.define_element({
+	name = "CombinatorGui.RightCol",
+	render = function(props)
+		return VF({ width = 250, left_padding = 8 }, {
+			Status({ combinator = props.combinator }),
+			Help({ combinator = props.combinator }),
+		})
+	end,
+})
+
+relm.define_element({
+	name = "CombinatorGui",
+	render = function(props)
+		return ultros.WindowFrame({
+			caption = { "cybersyn-gui.combinator-title" },
+		}, {
+			HF({
+				LeftCol({ combinator = props.combinator }),
+				RightCol({ combinator = props.combinator }),
+			}),
+		})
+	end,
+	message = function(me, payload, props, state)
+		if payload.key == "close" then
+			combinator_api.close_gui(props.player_index)
+			return true
+		end
+	end,
+})
 
 --------------------------------------------------------------------------------
 -- Event handling
 --------------------------------------------------------------------------------
-
-flib_gui.add_handlers({
-	["comb_close"] = handle_close,
-	["comb_mode"] = handle_mode_dropdown,
-})
-
-flib_gui.add_handlers({
-	["generic_checkbox_handler"] = combinator_api.generic_checkbox_handler,
-}, combinator_api.flib_settings_handler_wrapper)
 
 -- When a combinator ghost revives, close any guis that may be referencing it.
 -- (We're doing this every time a combinator is built which is overkill but
@@ -424,10 +327,4 @@ flib_gui.add_handlers({
 cs2.on_built_combinator(close_guis_with_invalid_combinators)
 
 -- Repaint GUIs when a combinator's settings change.
-cs2.on_combinator_or_ghost_setting_changed(function(combinator, setting_name)
-	if setting_name == nil or setting_name == "mode" then
-		rebuild_mode_sections(combinator)
-	else
-		update_mode_sections(combinator, setting_name)
-	end
-end)
+cs2.on_combinator_or_ghost_setting_changed(update_guis_referencing_combinator)

@@ -26,23 +26,23 @@ data:extend({
 
 	{
 		type = "virtual-signal",
-		name = "cybersyn2-item-threshold",
-		icon = "__cybersyn2__/graphics/icons/item-threshold.png",
+		name = "cybersyn2-all-items",
+		icon = "__cybersyn2__/graphics/icons/all-items.png",
 		icon_size = 64,
 		subgroup = "cybersyn2-signals",
 		order = "c",
 	},
 
-	fluid_threshold_signal = {
+	{
 		type = "virtual-signal",
-		name = "cybersyn2-fluid-threshold",
-		icon = "__cybersyn2__/graphics/icons/fluid-threshold.png",
+		name = "cybersyn2-all-fluids",
+		icon = "__cybersyn2__/graphics/icons/all-fluids.png",
 		icon_size = 64,
 		subgroup = "cybersyn2-signals",
 		order = "d",
 	},
 
-	item_slots_signal = {
+	{
 		type = "virtual-signal",
 		name = "cybersyn2-item-slots",
 		icon = "__cybersyn2__/graphics/icons/item-slots.png",
@@ -51,7 +51,7 @@ data:extend({
 		order = "e",
 	},
 
-	fluid_capacity_signal = {
+	{
 		type = "virtual-signal",
 		name = "cybersyn2-fluid-capacity",
 		icon = "__cybersyn2__/graphics/icons/fluid-capacity.png",

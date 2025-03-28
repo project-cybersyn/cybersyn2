@@ -13,9 +13,11 @@ local event = require("__cybersyn2__.lib.events").create_event
 -- Factorio core control phase events
 --------------------------------------------------------------------------------
 
----Event corresponding to Factorio's `on_init`.
 _G.cs2.on_init, _G.cs2.raise_init =
 	event("init", "nil", "nil", "nil", "nil", "nil")
+
+_G.cs2.on_load, _G.cs2.raise_load =
+	event("load", "nil", "nil", "nil", "nil", "nil")
 
 ---Event corresponding to Factorio's `on_configuration_changed`.
 _G.cs2.on_configuration_changed, _G.cs2.raise_configuration_changed = event(

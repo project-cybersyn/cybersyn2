@@ -2,11 +2,11 @@
 -- Database of combinator modes.
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Combinator.ModeDefinition
+---@class (exact) Cybersyn.Combinator.ModeDefinition
 ---@field name string The name of the mode, which must be unique. Used as the internal storage key for the mode.
 ---@field localized_string string The Factorio localized string for the mode.
----@field create_gui fun(parent: LuaGuiElement): nil Create gui elements representing the mode.
----@field update_gui fun(parent: LuaGuiElement, settings: Cybersyn.Combinator.Ephemeral, changed_setting: string?): nil Update the combinator's gui elements. If `changed_setting` is given, can be used as a hint to update only the changed setting. If nil, the whole GUI should be updated.
+---@field settings_element string? Name of a Relm element to use as the GUI settings element for this mode. Will be passed the active combinator as a `combinator` prop. If not provided, a noninteractive placeholder element will be rendered.
+---@field help_element string? Name of a Relm element to use as the GUI help element for this mode. Will be passed the active combinator as a `combinator` prop. If not provided, a noninteractive placeholder element will be rendered.
 
 ---@type {[string]: Cybersyn.Combinator.ModeDefinition}
 local modes = {}

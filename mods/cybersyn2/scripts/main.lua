@@ -8,23 +8,27 @@
 local counters = require("__cybersyn2__.lib.counters")
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local tlib = require("__cybersyn2__.lib.table")
-local flib_gui = require("__flib__.gui")
+local relm = require("__cybersyn2__.lib.relm")
 local cs2 = _G.cs2
 local stop_api = _G.cs2.stop_api
 local combinator_api = _G.cs2.combinator_api
 
 --------------------------------------------------------------------------------
--- Library init
+-- Required library event bindings
 --------------------------------------------------------------------------------
 
 cs2.on_init(counters.init, true)
 cs2.on_init(scheduler.init, true)
+cs2.on_init(relm.init, true)
+
+cs2.on_load(relm.on_load)
 
 --------------------------------------------------------------------------------
 -- Core Factorio control phase
 --------------------------------------------------------------------------------
 
 script.on_init(cs2.raise_init)
+script.on_load(cs2.raise_load)
 script.on_configuration_changed(cs2.raise_configuration_changed)
 script.on_event(
 	defines.events.on_runtime_mod_setting_changed,
@@ -50,7 +54,9 @@ script.on_event(
 ---@param event EventData.script_raised_built|EventData.script_raised_revive|EventData.on_built_entity|EventData.on_robot_built_entity|EventData.on_entity_cloned|EventData.on_space_platform_built_entity
 local function on_built(event)
 	local entity = event.entity or event.destination
-	if not entity or not entity.valid then return end
+	if not entity or not entity.valid then
+		return
+	end
 
 	if entity.name == "train-stop" then
 		cs2.raise_built_train_stop(entity)
@@ -110,7 +116,9 @@ script.on_event(defines.events.on_entity_cloned, on_built)
 ---@param event EventData.on_player_rotated_entity
 local function on_repositioned(event)
 	local entity = event.entity
-	if not entity or not entity.valid then return end
+	if not entity or not entity.valid then
+		return
+	end
 
 	if entity.type == "inserter" then
 		cs2.raise_entity_repositioned("inserter", entity)
@@ -133,7 +141,9 @@ end
 ---@param event EventData.on_pre_build
 local function on_maybe_blueprint_pasted(event)
 	local player = game.players[event.player_index]
-	if not player.is_cursor_blueprint() then return end
+	if not player.is_cursor_blueprint() then
+		return
+	end
 	cs2.raise_built_blueprint(player, event)
 end
 
@@ -156,7 +166,9 @@ script.on_event(
 ---@param event EventData.on_entity_died|EventData.on_pre_player_mined_item|EventData.on_robot_pre_mined|EventData.on_space_platform_pre_mined|EventData.script_raised_destroy
 local function on_destroyed(event)
 	local entity = event.entity
-	if not entity or not entity.valid then return end
+	if not entity or not entity.valid then
+		return
+	end
 
 	if entity.name == "train-stop" then
 		cs2.raise_broken_train_stop(entity)
@@ -202,8 +214,10 @@ script.on_event(
 script.on_event(defines.events.script_raised_destroy, on_destroyed)
 
 --------------------------------------------------------------------------------
--- Surface destruction
+-- Surfaces
 --------------------------------------------------------------------------------
+
+-- TODO: implied surface topology management
 
 ---@param event EventData.on_pre_surface_cleared|EventData.on_pre_surface_deleted
 local function on_surface_removed(event)
@@ -217,15 +231,19 @@ script.on_event(defines.events.on_pre_surface_deleted, on_surface_removed)
 -- Combinator GUI
 --------------------------------------------------------------------------------
 
-flib_gui.handle_events()
+relm.install_event_handlers()
 
 script.on_event(defines.events.on_gui_opened, function(event)
 	local comb = combinator_api.entity_to_ephemeral(event.entity)
-	if not comb then return end
+	if not comb then
+		return
+	end
 	combinator_api.open_gui(event.player_index, comb)
 end)
 script.on_event(defines.events.on_gui_closed, function(event)
 	local element = event.element
-	if not element or element.name ~= cs2.WINDOW_NAME then return end
+	if not element or element.name ~= cs2.WINDOW_NAME then
+		return
+	end
 	combinator_api.close_gui(event.player_index)
 end)

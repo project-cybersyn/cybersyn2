@@ -2,14 +2,15 @@
 -- Allowlist combinator
 --------------------------------------------------------------------------------
 
--- flib_gui typing causes a lot of extraneous missing fields errors
----@diagnostic disable: missing-fields
-
-local flib_gui = require("__flib__.gui")
 local tlib = require("__cybersyn2__.lib.table")
+local relm = require("__cybersyn2__.lib.relm")
+local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
 local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
+
+local Pr = relm.Primitive
+local VF = ultros.VFlow
 
 --------------------------------------------------------------------------------
 -- Settings
@@ -52,10 +53,6 @@ local function handle_mode_dropdown(event, combinator)
 		new_mode
 	)
 end
-
-flib_gui.add_handlers({
-	["handle_mode_dropdown"] = handle_mode_dropdown,
-}, combinator_api.flib_settings_handler_wrapper, "allow_settings")
 
 ---@param parent LuaGuiElement
 local function create_gui(parent)
@@ -142,6 +139,20 @@ local function update_gui(parent, settings, changed_setting_name)
 	parent["mode_flow"]["mode_dropdown"].selected_index = mode_index or 1
 end
 
+relm.define_element({
+	name = "CombinatorGui.Mode.Allow",
+	render = function(props)
+		return VF({ Pr({ type = "label", caption = "Allowlist combinator" }) })
+	end,
+})
+
+relm.define_element({
+	name = "CombinatorGui.Mode.Allow.Help",
+	render = function(props)
+		return VF({ Pr({ type = "label", caption = "Allowlist combinator help" }) })
+	end,
+})
+
 --------------------------------------------------------------------------------
 -- Station combinator mode registration.
 --------------------------------------------------------------------------------
@@ -149,6 +160,6 @@ end
 combinator_api.register_combinator_mode({
 	name = "allow",
 	localized_string = "cybersyn2-gui.allow-list",
-	create_gui = create_gui,
-	update_gui = update_gui,
+	settings_element = "CombinatorGui.Mode.Allow",
+	help_element = "CombinatorGui.Mode.Allow.Help",
 })
