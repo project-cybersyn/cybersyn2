@@ -359,10 +359,9 @@ lib.SignalPicker = lib.customize_primitive({
 	type = "choose-elem-button",
 	elem_type = "signal",
 }, function(props)
-	if props.value then
-		props.elem_value = props.value
-		props.value = nil
-	elseif props.virtual_signal then
+	props.elem_value = props.value
+	props.value = nil
+	if props.virtual_signal then
 		props.elem_value = { type = "virtual", name = props.virtual_signal }
 	end
 
@@ -379,6 +378,26 @@ lib.SignalPicker = lib.customize_primitive({
 					my_elt,
 					gui_event
 				)
+			end
+		)
+	end
+end)
+
+lib.Checkbox = lib.customize_primitive({
+	type = "checkbox",
+}, function(props)
+	if props.value == true or props.value == false then
+		props.state = props.value
+		props.value = nil
+	end
+
+	if props.on_change then
+		props.listen = true
+		props.message_handler = lib.handle_gui_events(
+			defines.events.on_gui_checked_state_changed,
+			function(me, gui_event, props2)
+				local my_elt = gui_event.element
+				run_event_handler(props2.on_change, me, my_elt.state, my_elt, gui_event)
 			end
 		)
 	end

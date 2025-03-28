@@ -15,8 +15,7 @@ local lib = {}
 
 -- h/t `flib.gui` for the below code which serves much the same function here
 
---- A GUI element definition. This extends `LuaGuiElement.add_param` with several new attributes.
---- Children may be defined in the array portion as an alternative to the `children` subtable.
+--- A GUI element definition.
 --- @class Relm.PrimitiveDefinition: LuaGuiElement.add_param.button|LuaGuiElement.add_param.camera|LuaGuiElement.add_param.checkbox|LuaGuiElement.add_param.choose_elem_button|LuaGuiElement.add_param.drop_down|LuaGuiElement.add_param.flow|LuaGuiElement.add_param.frame|LuaGuiElement.add_param.line|LuaGuiElement.add_param.list_box|LuaGuiElement.add_param.minimap|LuaGuiElement.add_param.progressbar|LuaGuiElement.add_param.radiobutton|LuaGuiElement.add_param.scroll_pane|LuaGuiElement.add_param.slider|LuaGuiElement.add_param.sprite|LuaGuiElement.add_param.sprite_button|LuaGuiElement.add_param.switch|LuaGuiElement.add_param.tab|LuaGuiElement.add_param.table|LuaGuiElement.add_param.text_box|LuaGuiElement.add_param.textfield
 
 --- Aggregate type of all possible GUI events.
@@ -347,6 +346,9 @@ local hook_node = nil
 local hook_num = 0
 ---Whether we are in a hydrating render.
 local render_is_hydrating = false
+---Removed keys on primitive nodes. We must set these to `nil` when
+---painting if we reuse the node.
+local removed_keys = setmetatable({}, { __mode = "k" })
 
 ---Normalize calls and results of `element.render`
 ---@param def? Relm.ElementDefinition
@@ -473,11 +475,41 @@ vapply = function(vnode, node)
 	end
 	local is_creating = not vnode.type
 
+	-- Compute props and state
 	vnode.type = target_type
-	vprops[vnode] = node.props
+	local prev_props = vprops[vnode]
+	local next_props = node.props
+	-- Special handling for primitives
+	if prev_props and is_primitive(vnode) then
+		local rk = removed_keys[vnode]
+		-- We need to know what fields were set to `nil` since last render so
+		-- we can poke the factorio fields as well.
+		for key, _ in pairs(prev_props) do
+			if (not next_props) or (next_props[key] == nil) then
+				if not rk then
+					removed_keys[vnode] = {}
+					rk = removed_keys[vnode]
+				end
+				rk[#rk + 1] = key
+			end
+		end
+		-- There are issues with modifying string `style`. If attempt to do so
+		-- we will pessimize and just rebuild. As a hack, we flag this as if
+		-- the `style` was removed.
+		if (not next_props) or prev_props.style ~= next_props.style then
+			if not rk then
+				removed_keys[vnode] = {}
+				rk = removed_keys[vnode]
+			end
+			rk[#rk + 1] = "style"
+		end
+	else
+		removed_keys[vnode] = nil
+	end
+	vprops[vnode] = next_props
 	if is_creating then
 		if target_def.state then
-			vnode.state = target_def.state(node.props)
+			vnode.state = target_def.state(next_props or {})
 		end
 	end
 
@@ -612,7 +644,8 @@ end
 
 ---@param context Relm.Internal.PaintContext
 ---@param props Relm.Props
-local function vpaint_context_diff(context, props)
+---@param vnode Relm.Internal.VNode
+local function vpaint_context_diff(context, props, vnode)
 	local elem
 	if context.is_root then
 		elem = context.elem
@@ -625,13 +658,32 @@ local function vpaint_context_diff(context, props)
 		end
 		return nil, false
 	end
-	if not props then
+	if not props or not vnode then
 		return vpaint_context_destroy(context), true
 	end
+
+	-- Rebuild node if needed.
+	local needs_rebuild = false
 	if elem.type ~= props.type then
+		needs_rebuild = true
+	end
+	-- Factorio doesn't support deleting style keys; if any style key
+	-- was deleted, just rebuild
+	local rk = removed_keys[vnode]
+	if rk then
+		for i = 1, #rk do
+			local key = rk[i]
+			if (key == "style") or STYLE_KEYS[key] then
+				needs_rebuild = true
+				break
+			end
+		end
+	end
+	if needs_rebuild then
 		vpaint_context_destroy(context)
 		return vpaint_context_create(context, props), true
 	end
+
 	-- No diff needed, increment context index
 	context.index = context.index + 1
 	return elem, false
@@ -686,7 +738,7 @@ local function vpaint(vnode, context, same)
 			log.error("vpaint: no props cached for vnode", vnode)
 			return
 		end
-		vnode.elem, elem_changed = vpaint_context_diff(context, props)
+		vnode.elem, elem_changed = vpaint_context_diff(context, props, vnode)
 	else
 		if not vnode then
 			log.error("vpaint: repainting a missing node")
@@ -710,10 +762,21 @@ local function vpaint(vnode, context, same)
 		if STYLE_KEYS[key] then
 			elem.style[key] = value
 		elseif APPLICABLE_KEYS[key] then
-			-- TODO: further investigate this, probably is an actual
-			-- mistake here.
 			elem[key] = value
 		end
+	end
+	-- Remove nil'd keys if the elem didn't change
+	local rk = removed_keys[vnode]
+	if rk then
+		if not elem_changed then
+			for i = 1, #rk do
+				local key = rk[i]
+				if APPLICABLE_KEYS[key] then
+					elem[key] = nil
+				end
+			end
+		end
+		removed_keys[vnode] = nil
 	end
 
 	-- Apply tags
