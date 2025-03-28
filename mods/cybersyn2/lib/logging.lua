@@ -3,7 +3,7 @@ if ... ~= "__cybersyn2__.lib.logging" then
 end
 
 local tconcat = table.concat
-local SERPENT_LINE_ARGS = { maxlevel = 5, maxnum = 20 }
+local SERPENT_LINE_ARGS = { maxlevel = 5, maxnum = 20, nocode = true }
 
 local lib = {}
 
