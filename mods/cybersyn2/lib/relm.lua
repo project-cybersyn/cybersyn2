@@ -572,10 +572,6 @@ local function vpaint_context_destroy(context)
 	if elem and elem.valid then
 		local child = elem.children[context.index]
 		if child then
-			log.trace(
-				"relm: vpaint_context_destroy: destroying child at index",
-				context.index
-			)
 			child.destroy()
 			context.structure_changed = true
 		end
@@ -596,11 +592,6 @@ local function vpaint_context_create(context, props)
 		if not context.is_root then
 			addable_props.index = context.index
 		end
-		log.trace(
-			"relm: vpaint_context_create: adding at index",
-			context,
-			addable_props
-		)
 		local new_elem
 		if context.constructor then
 			new_elem = context.constructor(addable_props)
@@ -638,11 +629,6 @@ local function vpaint_context_diff(context, props)
 		return vpaint_context_destroy(context), true
 	end
 	if elem.type ~= props.type then
-		log.trace(
-			"vpaint_context_diff: recreating because of type mismatch",
-			elem.type,
-			props.type
-		)
 		vpaint_context_destroy(context)
 		return vpaint_context_create(context, props), true
 	end
@@ -786,10 +772,6 @@ local function vrepaint(vnode)
 	while vnode and vnode.parent and not is_primitive(vnode) do
 		vnode = vnode.parent
 	end
-	log.trace(
-		"vrepaint: repainting from primitive or root:",
-		vnode and vnode.type or "(no vnode)"
-	)
 	if vnode then
 		vpaint(
 			vnode,
@@ -822,14 +804,6 @@ local function enter_side_effect_barrier()
 end
 
 local function empty_barrier_queue()
-	if #barrier_queue > 0 then
-		log.trace(
-			"relm.empty_barrier_queue: barrier_count:",
-			barrier_count,
-			"#barrier_queue:",
-			#barrier_queue
-		)
-	end
 	while barrier_count == 0 and #barrier_queue > 0 do
 		local entry = tremove(barrier_queue, 1)
 		local op = entry[1]

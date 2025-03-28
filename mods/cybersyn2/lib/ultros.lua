@@ -276,13 +276,14 @@ lib.Dropdown = lib.customize_primitive({
 		local selected_index = nil
 		for i, option in ipairs(props.options) do
 			table.insert(items, option.caption)
-			if option.key == props.selected_key then
+			if option.key == props.value then
 				selected_index = i
 			end
 		end
 		props.items = items
 		props.selected_index = selected_index
 	end
+	props.value = nil
 end)
 
 lib.Labeled = relm.define_element({
