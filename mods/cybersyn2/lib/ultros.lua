@@ -34,6 +34,10 @@ function lib.If(cond, then_node)
 	end
 end
 
+---Call `fn` if `cond` is true, otherwise return an empty table. Useful for
+---conditional Relm rendering.
+---@param cond boolean|nil
+---@param fn fun(...): any
 function lib.CallIf(cond, fn, ...)
 	if cond then
 		return fn(...)

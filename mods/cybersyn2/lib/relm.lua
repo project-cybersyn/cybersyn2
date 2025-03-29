@@ -653,12 +653,12 @@ local function vpaint_context_diff(context, props, vnode)
 		elem = context.elem.children[context.index]
 	end
 	if not elem then
-		if props then
+		if props and props.type then
 			return vpaint_context_create(context, props), true
 		end
 		return nil, false
 	end
-	if not props or not vnode then
+	if not props or not vnode or not props.type then
 		return vpaint_context_destroy(context), true
 	end
 
@@ -733,6 +733,10 @@ local function vpaint(vnode, context, same)
 			end
 			return vpaint(vchildren[nvchildren], context)
 		end
+	end
+	-- If we haven't reached a primitive node, don't paint.
+	if not is_primitive(vnode) then
+		return
 	end
 
 	local props
