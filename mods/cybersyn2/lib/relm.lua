@@ -624,6 +624,17 @@ local function vpaint_context_create(context, props)
 		if not context.is_root then
 			addable_props.index = context.index
 		end
+		-- Special handling for textboxes; treat them like React "uncontrolled"
+		-- components and allow initial text to be specified but then let
+		-- Factorio do the rest.
+		if
+			props["initial_text"]
+			and (
+				addable_props.type == "text-box" or addable_props.type == "textfield"
+			)
+		then
+			addable_props.text = props["initial_text"]
+		end
 		local new_elem
 		if context.constructor then
 			new_elem = context.constructor(addable_props)
