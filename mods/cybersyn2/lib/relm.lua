@@ -675,13 +675,20 @@ local function vpaint_context_diff(context, props, vnode)
 
 	-- Rebuild node if needed.
 	local needs_rebuild = false
+	local rk = removed_keys[vnode]
 	if elem.type ~= props.type then
 		needs_rebuild = true
-	end
-	-- Factorio doesn't support deleting style keys; if any style key
-	-- was deleted, just rebuild
-	local rk = removed_keys[vnode]
-	if rk then
+	elseif props.type == "label" and vnode.elem ~= elem then
+		-- If labels get shuffled between vnodes, just pessimize and rebuild them
+		-- selene: allow(if_same_then_else)
+		needs_rebuild = true
+	elseif rk then
+		-- TODO: optimize here, we don't need the list of removed keys, just have
+		-- vdom rendering throw a flag if it hits a removed style key. figuring
+		-- that out will be faster up there.
+
+		-- Factorio doesn't support deleting style keys; if any style key
+		-- was deleted, just rebuild
 		for i = 1, #rk do
 			local key = rk[i]
 			if (key == "style") or STYLE_KEYS[key] then
