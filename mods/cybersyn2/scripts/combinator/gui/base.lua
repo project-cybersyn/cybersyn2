@@ -284,12 +284,24 @@ local LeftCol = relm.define_element({
 			direction = "vertical",
 			vertically_stretchable = true,
 			width = 400,
+			minimal_height = 400,
 		}, {
-			ultros.WellSection(
-				{ caption = "Mode" },
-				{ ModePicker({ combinator = props.combinator }) }
-			),
-			ModeSettings({ combinator = props.combinator }),
+			Pr({
+				type = "scroll-pane",
+				direction = "vertical",
+				vertically_stretchable = true,
+				vertical_scroll_policy = "always",
+				extra_top_padding_when_activated = 0,
+				extra_left_padding_when_activated = 0,
+				extra_right_padding_when_activated = 0,
+				extra_bottom_padding_when_activated = 0,
+			}, {
+				ultros.WellSection(
+					{ caption = "Mode" },
+					{ ModePicker({ combinator = props.combinator }) }
+				),
+				ModeSettings({ combinator = props.combinator }),
+			}),
 		})
 	end,
 })
@@ -307,10 +319,7 @@ local RightCol = relm.define_element({
 relm.define_element({
 	name = "CombinatorGui",
 	render = function(props, state)
-		local show_info = false
-		if state then
-			show_info = state.show_info
-		end
+		local show_info = not not (state or {}).show_info
 		return ultros.WindowFrame({
 			caption = { "cybersyn-gui.combinator-title" },
 			decoration = function()
@@ -318,6 +327,7 @@ relm.define_element({
 					style = "frame_action_button",
 					sprite = "utility/tip_icon",
 					on_click = "toggle_info",
+					toggled = show_info,
 				})
 			end,
 		}, {
@@ -337,6 +347,9 @@ relm.define_element({
 			end)
 			return true
 		end
+	end,
+	state = function()
+		return { show_info = false }
 	end,
 })
 

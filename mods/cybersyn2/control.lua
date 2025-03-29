@@ -13,6 +13,7 @@ _G.cs2 = {
 	delivery_api = {},
 	inventory_api = {},
 	train_api = {},
+	gui = {},
 }
 
 require("scripts.types")
@@ -28,11 +29,13 @@ require("scripts.combinator.mode")
 require("scripts.combinator.setting")
 require("scripts.combinator.lifecycle")
 require("scripts.combinator.gui.base")
+require("scripts.combinator.gui.elements")
 
 require("scripts.combinator.modes.station.base")
 require("scripts.combinator.modes.station.impl")
 require("scripts.combinator.modes.allow.base")
 require("scripts.combinator.modes.allow.impl")
+require("scripts.combinator.modes.dt.base")
 
 require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")
