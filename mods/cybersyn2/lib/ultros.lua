@@ -26,6 +26,10 @@ local function run_event_handler(handler, me, value, element, event)
 	end
 end
 
+---Return `then_node` if `cond` is true, otherwise return an empty table. Useful for
+---conditional Relm rendering.
+---@param cond boolean|nil
+---@param then_node Relm.Children
 function lib.If(cond, then_node)
 	if cond then
 		return then_node
@@ -37,7 +41,7 @@ end
 ---Call `fn` if `cond` is true, otherwise return an empty table. Useful for
 ---conditional Relm rendering.
 ---@param cond boolean|nil
----@param fn fun(...): any
+---@param fn fun(...): Relm.Children
 function lib.CallIf(cond, fn, ...)
 	if cond then
 		return fn(...)
@@ -227,6 +231,45 @@ lib.CloseButton = lib.customize_primitive({
 	mouse_button_filter = { "left" },
 	on_click = "close",
 }, on_click_transformer)
+lib.Label = function(caption)
+	return Pr({
+		type = "label",
+		caption = caption,
+	})
+end
+lib.BoldLabel = function(caption)
+	return Pr({
+		type = "label",
+		font = "default-bold",
+		caption = caption,
+	})
+end
+lib.RtLabel = function(caption)
+	return Pr({
+		type = "label",
+		rich_text_setting = defines.rich_text_setting.enabled,
+		caption = caption,
+	})
+end
+--- Rich text label with large font size
+lib.RtLgLabel = function(caption)
+	return Pr({
+		type = "label",
+		rich_text_setting = defines.rich_text_setting.enabled,
+		font = "default-large",
+		caption = caption,
+	})
+end
+lib.RtMultilineLabel = function(caption)
+	return Pr({
+		type = "label",
+		rich_text_setting = defines.rich_text_setting.enabled,
+		single_line = false,
+		caption = caption,
+	})
+end
+
+lib.customize_primitive()
 
 -- TODO: implement barriers
 local Barrier = relm.define_element({
@@ -373,7 +416,7 @@ lib.Fold = relm.define_element({
 	message = function(me, payload)
 		if payload.key == "open_fold" then
 			relm.set_state(me, function(prev)
-				return { opened = not prev.opened }
+				return { opened = not (prev or {}).opened }
 			end)
 			return true
 		end
@@ -435,8 +478,7 @@ lib.WellSection = relm.define_element({
 	name = "WellSection",
 	render = function(props, state)
 		local collapsed = (state or {}).collapsed
-		-- TODO: Fragment simplification
-		return VF({ bottom_margin = 8 }, {
+		return VF({ bottom_margin = 6 }, {
 			Pr({
 				type = "frame",
 				style = "subheader_frame",
@@ -472,7 +514,7 @@ lib.WellFold = lib.customize("WellSection", {
 			toggled = not state.collapsed,
 		})
 	end,
-	message_handler = function(me, payload, props, state)
+	message_handler = function(me, payload)
 		if payload.key == "toggle_fold" then
 			relm.set_state(me, function(prev)
 				return { collapsed = not (prev or {}).collapsed }
@@ -480,6 +522,86 @@ lib.WellFold = lib.customize("WellSection", {
 			return true
 		end
 	end,
-}, function(props) end)
+})
+
+lib.Switch = lib.customize_primitive({
+	type = "switch",
+}, function(props)
+	if props.value == true or props.value == false then
+		props.switch_state = props.value and "right" or "left"
+	elseif type(props.value) == "number" then
+		props.switch_state = props.value == 0 and "none"
+			or (props.value == 1 and "left" or "right")
+	end
+	props.value = nil
+
+	if props.on_change then
+		props.listen = true
+		props.message_handler = lib.handle_gui_events(
+			defines.events.on_gui_switch_state_changed,
+			function(me, gui_event, props2)
+				local my_elt = gui_event.element
+				local state = my_elt.switch_state
+				run_event_handler(
+					props2.on_change,
+					me,
+					state == "none" and 0 or (state == "left" and 1 or 2),
+					my_elt,
+					gui_event
+				)
+			end
+		)
+	end
+end)
+
+local function get_text_value(text, is_numeric, is_float)
+	if is_numeric then
+		local value = tonumber(text)
+		if value and not is_float then
+			value = math.floor(value)
+		end
+		return value
+	else
+		return text or ""
+	end
+end
+
+lib.Input = lib.customize_primitive({
+	type = "textfield",
+	lose_focus_on_confirm = true,
+}, function(props)
+	if props.value then
+		props.initial_text = tostring(props.value)
+		props.value = nil
+	end
+
+	if props.on_confirm or props.on_change then
+		props.listen = true
+		props.message_handler = lib.handle_gui_events(
+			defines.events.on_gui_confirmed,
+			function(me, gui_event, props2)
+				local my_elt = gui_event.element
+				run_event_handler(
+					props2.on_confirm,
+					me,
+					get_text_value(my_elt.text, props2.numeric, props2.allow_decimal),
+					my_elt,
+					gui_event
+				)
+			end,
+			defines.events.on_gui_text_changed,
+			function(me, gui_event, props2)
+				local my_elt = gui_event.element
+				run_event_handler(
+					props2.on_change,
+					me,
+					get_text_value(gui_event.text, props2.numeric, props2.allow_decimal),
+					my_elt,
+					gui_event
+				)
+			end
+		)
+	end
+end)
 
 return lib
