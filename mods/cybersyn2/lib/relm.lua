@@ -24,9 +24,7 @@ local lib = {}
 -- h/t flib for this code
 local gui_events = {}
 for name, id in pairs(defines.events) do
-	if string.find(name, "on_gui_") then
-		gui_events[id] = true
-	end
+	if string.find(name, "on_gui_") then gui_events[id] = true end
 end
 
 -- `LuaGuiElement` keys that can safely be applied from `Primitive` props.
@@ -277,21 +275,15 @@ local vapply
 ---@param root Relm.Internal.VNode
 ---@param elem LuaGuiElement
 local function find_vnode(root, elem)
-	if not root then
-		return nil
-	end
+	if not root then return nil end
 
-	if root.elem and (root.elem.index == elem.index) then
-		return root
-	end
+	if root.elem and (root.elem.index == elem.index) then return root end
 
 	if root.children then
 		for i = 1, #root.children do
 			local child = root.children[i]
 			local result = find_vnode(child, elem)
-			if result then
-				return result
-			end
+			if result then return result end
 		end
 	end
 
@@ -301,15 +293,11 @@ end
 ---Find vnode with given element, using cache if possible.
 ---@param elt? LuaGuiElement
 local function get_vnode(elt)
-	if not elt or not elt.valid then
-		return nil
-	end
+	if not elt or not elt.valid then return nil end
 	local cache_key = elt.player_index .. ":" .. elt.index
 	---@type Relm.Internal.VNode?
 	local vnode = evcache[cache_key]
-	if vnode then
-		return vnode
-	end
+	if vnode then return vnode end
 
 	local root_id = elt.tags["__relm_root"]
 	if not root_id then
@@ -330,9 +318,7 @@ local function get_vnode(elt)
 end
 
 ---@param node? Relm.Node|Relm.Internal.VNode
-local function is_primitive(node)
-	return node and node.type == "Primitive"
-end
+local function is_primitive(node) return node and node.type == "Primitive" end
 
 --------------------------------------------------------------------------------
 -- VTREE RENDERING
@@ -366,12 +352,8 @@ local function normalized_render(
 	hook_node_,
 	is_hydrating_
 )
-	if not def then
-		def = registry[type or ""]
-	end
-	if not def then
-		error("Element type " .. (type or "") .. " not found.")
-	end
+	if not def then def = registry[type or ""] end
+	if not def then error("Element type " .. (type or "") .. " not found.") end
 	hook_num = 0
 	hook_node = hook_node_
 	render_is_hydrating = not not is_hydrating_
@@ -404,9 +386,7 @@ local function vprune(vnode)
 			local cleanup = transient.cleanup
 			if cleanup then
 				local hook_state = vnode.hooks and vnode.hooks[index]
-				if hook_state then
-					transient.cleanup(hook_state.callback_return)
-				end
+				if hook_state then transient.cleanup(hook_state.callback_return) end
 			end
 		end
 	end
@@ -425,9 +405,7 @@ end
 ---@param vnode Relm.Internal.VNode
 ---@param render_children Relm.Node[]
 local function vapply_children(vnode, render_children)
-	if not vnode.children then
-		vnode.children = {}
-	end
+	if not vnode.children then vnode.children = {} end
 	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
 	local vindex = 1
 	for i = 1, #render_children do
@@ -455,17 +433,13 @@ end
 ---@param node? Relm.Node
 vapply = function(vnode, node)
 	if not node then
-		if vnode.type then
-			return vprune(vnode)
-		end
+		if vnode.type then return vprune(vnode) end
 		return
 	end
 	local target_type = node.type
 	local target_def = registry[target_type]
 	-- If type changing, prune the old node.
-	if (not target_def) or target_type ~= vnode.type then
-		vprune(vnode)
-	end
+	if (not target_def) or target_type ~= vnode.type then vprune(vnode) end
 	if not target_def then
 		log.warn(
 			"vapply: pruning subtree because no def for element type",
@@ -531,9 +505,7 @@ end
 ---@param vnode Relm.Internal.VNode
 local function vrender(vnode)
 	local props = vprops[vnode]
-	if not props then
-		log.error("vrender: no props cached for vnode", vnode)
-	end
+	if not props then log.error("vrender: no props cached for vnode", vnode) end
 	local target_def = registry[vnode.type]
 	local render_children =
 		normalized_render(target_def, nil, props, vnode.state, vnode, false)
@@ -617,13 +589,9 @@ local function vpaint_context_create(context, props)
 	if elem and elem.valid then
 		local addable_props = {}
 		for k, v in pairs(props) do
-			if APPLICABLE_KEYS[k] or CREATE_KEYS[k] then
-				addable_props[k] = v
-			end
+			if APPLICABLE_KEYS[k] or CREATE_KEYS[k] then addable_props[k] = v end
 		end
-		if not context.is_root then
-			addable_props.index = context.index
-		end
+		if not context.is_root then addable_props.index = context.index end
 		-- Special handling for textboxes; treat them like React "uncontrolled"
 		-- components and allow initial text to be specified but then let
 		-- Factorio do the rest.
@@ -646,9 +614,7 @@ local function vpaint_context_create(context, props)
 			new_elem.tags = tags
 		end
 		context.structure_changed = true
-		if not context.is_root then
-			context.index = context.index + 1
-		end
+		if not context.is_root then context.index = context.index + 1 end
 		return new_elem
 	end
 end
@@ -753,9 +719,7 @@ local function vpaint(vnode, context, same)
 		end
 	end
 	-- If we haven't reached a primitive node, don't paint.
-	if not is_primitive(vnode) then
-		return
-	end
+	if not is_primitive(vnode) then return end
 
 	local props
 	local elem_changed = false
@@ -803,9 +767,7 @@ local function vpaint(vnode, context, same)
 		if not elem_changed then
 			for i = 1, #rk do
 				local key = rk[i]
-				if APPLICABLE_KEYS[key] then
-					elem[key] = nil
-				end
+				if APPLICABLE_KEYS[key] then elem[key] = nil end
 			end
 		end
 		removed_keys[vnode] = nil
@@ -852,9 +814,7 @@ local function vpaint(vnode, context, same)
 		for i = 1, #echildren do
 			echildren[i].destroy()
 		end
-		if elem.type == "tabbed-pane" then
-			elem.remove_tab()
-		end
+		if elem.type == "tabbed-pane" then elem.remove_tab() end
 	end
 end
 
@@ -915,9 +875,7 @@ local function exit_side_effect_barrier()
 end
 
 local function barrier_wrap(op, vnode, arg1, arg2)
-	if not vnode or not vnode.type then
-		return
-	end
+	if not vnode or not vnode.type then return end
 	if barrier_count > 0 then
 		barrier_queue[#barrier_queue + 1] = { op or noop, vnode, arg1, arg2 }
 	else
@@ -971,13 +929,9 @@ vmsg = function(vnode, payload)
 end
 
 local function vmsg_bubble_impl(vnode, payload, resent)
-	if resent == true then
-		vnode = vnode.parent
-	end
+	if resent == true then vnode = vnode.parent end
 	while vnode and vnode.type do
-		if vmsg_impl(vnode, payload) then
-			return
-		end
+		if vmsg_impl(vnode, payload) then return end
 		vnode = vnode.parent
 	end
 end
@@ -993,9 +947,7 @@ end
 local function vmsg_broadcast_impl(vnode, payload, resent)
 	if vnode and vnode.type then
 		if not resent then
-			if vmsg_impl(vnode, payload) then
-				return
-			end
+			if vmsg_impl(vnode, payload) then return end
 		end
 		local children = vnode.children
 		if children then
@@ -1019,9 +971,7 @@ end
 --------------------------------------------------------------------------------
 
 local function vquery(node, payload)
-	if not node or not node.type then
-		return false, nil
-	end
+	if not node or not node.type then return false, nil end
 	local target_def = registry[node.type]
 	if target_def and target_def.query then
 		return target_def.query(
@@ -1037,9 +987,7 @@ end
 local function vquery_bubble(node, payload)
 	while node and node.type do
 		local handled, result = vquery(node, payload)
-		if handled then
-			return handled, result
-		end
+		if handled then return handled, result end
 		node = node.parent
 	end
 	return false, nil
@@ -1047,13 +995,9 @@ end
 
 local function vquery_broadcast(node, payload)
 	local handled, result = vquery(node, payload)
-	if handled then
-		return handled, result
-	end
+	if handled then return handled, result end
 	local children = node.children
-	if not children or #children == 0 then
-		return false, nil
-	end
+	if not children or #children == 0 then return false, nil end
 	if #children == 1 then
 		return vquery_broadcast(children[1], payload)
 	else
@@ -1103,9 +1047,7 @@ end
 ---AFTER calling this function if need be.
 function lib.install_event_handlers()
 	for id in pairs(gui_events) do
-		if not script.get_event_handler(id) then
-			script.on_event(id, dispatch)
-		end
+		if not script.get_event_handler(id) then script.on_event(id, dispatch) end
 	end
 end
 
@@ -1113,9 +1055,7 @@ end
 ---with a custom one, you may call this to enable Relm to process the event
 ---if your code doesn't.
 ---@param event Relm.GuiEventData
-function lib.delegate_event(event)
-	return dispatch(event)
-end
+function lib.delegate_event(event) return dispatch(event) end
 
 --------------------------------------------------------------------------------
 -- API: STORAGE
@@ -1132,9 +1072,7 @@ end
 ---in a migration.
 function lib.init()
 	-- Lint diagnostic here is ok. We can't disable it because of luals bug.
-	if not storage._relm then
-		storage._relm = { roots = {}, root_counter = 0 }
-	end
+	if not storage._relm then storage._relm = { roots = {}, root_counter = 0 } end
 end
 
 ---This function MUST BE CALLED in `on_load` handler in order to re-sync
@@ -1236,16 +1174,12 @@ end
 function lib.root_destroy(id)
 	local relm_state = storage._relm
 	local root = relm_state.roots[id]
-	if not root then
-		return
-	end
+	if not root then return end
 	enter_side_effect_barrier()
 	vprune(root.vtree_root)
 	exit_side_effect_barrier()
 	local root_element = root.root_element
-	if root_element and root_element.valid then
-		root_element.destroy()
-	end
+	if root_element and root_element.valid then root_element.destroy() end
 	relm_state.roots[id] = nil
 	return true
 end
@@ -1254,13 +1188,9 @@ end
 ---@param id Relm.RootId?
 ---@return Relm.Handle? handle A handle to the root element.
 function lib.root_handle(id)
-	if not id then
-		return nil
-	end
+	if not id then return nil end
 	local root = storage._relm.roots[id]
-	if root then
-		return root.vtree_root
-	end
+	if root then return root.vtree_root end
 end
 
 ---Given a `LuaGuiElement`, attempt to find a Relm handle to its associated
@@ -1313,9 +1243,7 @@ function lib.set_state(handle, state)
 	---@diagnostic disable-next-line: cast-type-mismatch
 	---@cast handle Relm.Internal.VNode
 	if handle and handle.type then
-		if type(state) == "function" then
-			state = state(handle.state)
-		end
+		if type(state) == "function" then state = state(handle.state) end
 		return vstate(handle, state)
 	end
 end
@@ -1352,20 +1280,14 @@ end
 ---@param rhs any
 ---@return boolean
 local function shallow_eq(lhs, rhs)
-	if type(lhs) ~= "table" or type(rhs) ~= "table" then
-		return lhs == rhs
-	end
+	if type(lhs) ~= "table" or type(rhs) ~= "table" then return lhs == rhs end
 
 	for key, value in pairs(lhs) do
-		if rhs[key] ~= value then
-			return false
-		end
+		if rhs[key] ~= value then return false end
 	end
 
 	for key in pairs(rhs) do
-		if lhs[key] == nil then
-			return false
-		end
+		if lhs[key] == nil then return false end
 	end
 
 	return true
@@ -1377,23 +1299,15 @@ local function setup_hook(wants_state, wants_transient)
 	local state, transient
 	if wants_state then
 		local hooks = node.hooks or {}
-		if not node.hooks then
-			node.hooks = hooks
-		end
+		if not node.hooks then node.hooks = hooks end
 		state = hooks[hook_num] or {}
-		if not hooks[hook_num] then
-			hooks[hook_num] = state
-		end
+		if not hooks[hook_num] then hooks[hook_num] = state end
 	end
 	if wants_transient then
-		if not vhooks_transient[node] then
-			vhooks_transient[node] = {}
-		end
+		if not vhooks_transient[node] then vhooks_transient[node] = {} end
 		local hooks = vhooks_transient[node]
 		transient = hooks[hook_num] or {}
-		if not hooks[hook_num] then
-			hooks[hook_num] = transient
-		end
+		if not hooks[hook_num] then hooks[hook_num] = transient end
 	end
 	return state, transient
 end
@@ -1432,9 +1346,7 @@ function lib.use_effect(effect_key, callback, cleanup)
 	else
 		if not shallow_eq(effect_key, last_effect_key) then
 			state.effect_key = effect_key
-			if last_cleanup then
-				last_cleanup(last_callback_return)
-			end
+			if last_cleanup then last_cleanup(last_callback_return) end
 			transient.cleanup = cleanup
 			state.callback_return =
 				callback(hook_node --[[@as Relm.Handle]], effect_key, last_effect_key)
@@ -1498,9 +1410,7 @@ end
 ---@param definition Relm.ElementDefinition
 ---@return Relm.NodeFactory #A factory function that creates a node of this type.
 function lib.define_element(definition)
-	if not definition.name then
-		error("Element definition must have a name.")
-	end
+	if not definition.name then error("Element definition must have a name.") end
 	if registry[definition.name] then
 		error("Element " .. definition.name .. " already defined.")
 	end
@@ -1531,9 +1441,7 @@ end
 ---@param props Relm.Props The properties to pass to the element.
 ---@return Relm.Node? node The generated node, or `nil` if the type was invalid.
 function lib.element(type, props)
-	if not type or not registry[type] then
-		return nil
-	end
+	if not type or not registry[type] then return nil end
 	props = props or {}
 	return {
 		type = type,
@@ -1546,9 +1454,7 @@ end
 ---@type fun(props: Relm.PrimitiveDefinition, children?: Relm.Node[]): Relm.Node
 lib.Primitive = lib.define_element({
 	name = "Primitive",
-	render = function(props)
-		return props.children
-	end,
+	render = function(props) return props.children end,
 })
 
 return lib
