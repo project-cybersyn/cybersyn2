@@ -105,9 +105,7 @@ function lib.handle_gui_events(...)
 		if payload.key == "factorio_event" then
 			---@cast payload Relm.MessagePayload.FactorioEvent
 			local handler = event_map[payload.name]
-			if handler then
-				handler(me, payload.event, props, state)
-			end
+			if handler then handler(me, payload.event, props, state) end
 			return true
 		end
 		return false
@@ -120,9 +118,7 @@ end
 ---@param src table<K, V>?
 ---@return table<K, V>
 function lib.assign(dest, src)
-	if not src then
-		return dest
-	end
+	if not src then return dest end
 	for k, v in pairs(src) do
 		dest[k] = v
 	end
@@ -155,9 +151,7 @@ local function va_container(...)
 	end
 end
 
-local function va_primitive(...)
-	return ...
-end
+local function va_primitive(...) return ... end
 
 ---@alias Ultros.VarargNodeFactory fun(props_or_children: Relm.Props | Relm.Children, children?: Relm.Children): Relm.Node
 
@@ -174,9 +168,7 @@ function lib.customize(type, default_props, prop_transformer, is_container)
 		local props, children = va_parser(...)
 		local next_props = assign({}, default_props) --[[@as Relm.Props]]
 		assign(next_props, props)
-		if prop_transformer then
-			prop_transformer(next_props)
-		end
+		if prop_transformer then prop_transformer(next_props) end
 		next_props.children = children
 		return {
 			type = type,
@@ -216,6 +208,7 @@ lib.HFlow = lib.customize_primitive({
 	direction = "horizontal",
 }, nil, true)
 local HF = lib.HFlow
+-- TODO: fix buttons to new event handling paradigm
 lib.Button = lib.customize_primitive({
 	type = "button",
 	style = "button",
@@ -274,12 +267,8 @@ lib.customize_primitive()
 -- TODO: implement barriers
 local Barrier = relm.define_element({
 	name = "Barrier",
-	render = function(props)
-		return props.children
-	end,
-	message = function()
-		return true
-	end,
+	render = function(props) return props.children end,
+	message = function() return true end,
 })
 
 lib.Titlebar = relm.define_element({
@@ -343,9 +332,7 @@ lib.Dropdown = lib.customize_primitive({
 			function(me, gui_event, props2)
 				local my_elt = gui_event.element
 				local value = my_elt.selected_index
-				if props2.options then
-					value = props2.options[value].key
-				end
+				if props2.options then value = props2.options[value].key end
 				run_event_handler(props2.on_change, me, value, my_elt, gui_event)
 			end
 		)
@@ -355,9 +342,7 @@ lib.Dropdown = lib.customize_primitive({
 		local selected_index = nil
 		for i, option in ipairs(props.options) do
 			table.insert(items, option.caption)
-			if option.key == props.value then
-				selected_index = i
-			end
+			if option.key == props.value then selected_index = i end
 		end
 		props.items = items
 		props.selected_index = selected_index
@@ -415,15 +400,14 @@ lib.Fold = relm.define_element({
 	end,
 	message = function(me, payload)
 		if payload.key == "open_fold" then
-			relm.set_state(me, function(prev)
-				return { opened = not (prev or {}).opened }
-			end)
+			relm.set_state(
+				me,
+				function(prev) return { opened = not (prev or {}).opened } end
+			)
 			return true
 		end
 	end,
-	state = function(props)
-		return { opened = props.default_opened }
-	end,
+	state = function(props) return { opened = props.default_opened } end,
 })
 
 lib.SignalPicker = lib.customize_primitive({
@@ -499,9 +483,7 @@ lib.WellSection = relm.define_element({
 			),
 		})
 	end,
-	state = function(props)
-		return { collapsed = props.collapsed }
-	end,
+	state = function(props) return { collapsed = props.collapsed } end,
 })
 
 lib.WellFold = lib.customize("WellSection", {
@@ -516,9 +498,10 @@ lib.WellFold = lib.customize("WellSection", {
 	end,
 	message_handler = function(me, payload)
 		if payload.key == "toggle_fold" then
-			relm.set_state(me, function(prev)
-				return { collapsed = not (prev or {}).collapsed }
-			end)
+			relm.set_state(
+				me,
+				function(prev) return { collapsed = not (prev or {}).collapsed } end
+			)
 			return true
 		end
 	end,
@@ -557,9 +540,7 @@ end)
 local function get_text_value(text, is_numeric, is_float)
 	if is_numeric then
 		local value = tonumber(text)
-		if value and not is_float then
-			value = math.floor(value)
-		end
+		if value and not is_float then value = math.floor(value) end
 		return value
 	else
 		return text or ""

@@ -7,6 +7,7 @@
 ---@field public players table<PlayerIndex, Cybersyn.PlayerState> Per-player state
 ---@field public vehicles table<Id, Cybersyn.Vehicle> All Cybersyn vehicles indexed by id
 ---@field public combinators table<UnitNumber, Cybersyn.Combinator.Internal> All Cybersyn combinators indexed by unit number
+---@field public topologies table<Id, Cybersyn.Topology> All Cybersyn topologies indexed by id
 ---@field public nodes table<Id, Cybersyn.Node> All Cybersyn nodes indexed by id
 ---@field public inventories table<Id, Cybersyn.Inventory> All Cybersyn inventories indexed by id
 ---@field public deliveries table<Id, Cybersyn.Delivery> All Cybersyn deliveries indexed by id
@@ -19,6 +20,7 @@
 ---@field public stop_layouts table<Id, Cybersyn.TrainStopLayout> Layouts of train stops, indexed by node id
 ---@field public train_layouts table<Id, Cybersyn.TrainLayout> Layouts of trains, indexed by layout id
 ---@field public debug_state Cybersyn.Internal.DebugState Debug state, should remain empty unless debug mode is enabled for the save
+---@field public surface_index_to_train_topology table<uint,Id> Map from planetary surfaces to associated train topologies
 storage = {}
 
 ---Per-player global state.
@@ -32,6 +34,7 @@ _G.cs2.on_init(function()
 	storage.players = {}
 	storage.vehicles = {}
 	storage.combinators = {}
+	storage.topologies = {}
 	storage.nodes = {}
 	storage.inventories = {}
 	storage.deliveries = {}
@@ -44,4 +47,5 @@ _G.cs2.on_init(function()
 	storage.stop_layouts = {}
 	storage.train_layouts = {}
 	storage.debug_state = {}
+	storage.surface_index_to_train_topology = {}
 end, true)

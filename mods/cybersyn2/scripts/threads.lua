@@ -13,7 +13,8 @@ local cs2 = _G.cs2
 ---@param name string
 ---@param main fun(state: Scheduler.RecurringTask)
 ---@param offset int Tick offset for task. Should be set differently than other tasks in the mod so all threads don't update on the same tick.
-function _G.cs2.threads_api.schedule_thread(name, main, offset)
+---@param initial_state? table Initial thread state.
+function _G.cs2.threads_api.schedule_thread(name, main, offset, initial_state)
 	scheduler.register_handler(name, main)
 
 	cs2.on_mod_settings_changed(function()
@@ -21,7 +22,7 @@ function _G.cs2.threads_api.schedule_thread(name, main, offset)
 			scheduler.set_period(storage.task_ids[name], cs2.mod_settings.work_period)
 		else
 			storage.task_ids[name] =
-				scheduler.every(cs2.mod_settings.work_period, name, {
+				scheduler.every(cs2.mod_settings.work_period, name, initial_state or {
 					state = "init",
 				}, offset)
 		end

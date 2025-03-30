@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- DT combinator
+-- PushT combinator
 --------------------------------------------------------------------------------
 
 local tlib = require("__cybersyn2__.lib.table")
@@ -14,54 +14,22 @@ local Pr = relm.Primitive
 local VF = ultros.VFlow
 
 --------------------------------------------------------------------------------
--- Settings
---------------------------------------------------------------------------------
-
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("dt_inbound", "dt_flags", 0)
-)
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("dt_outbound", "dt_flags", 1)
-)
-
---------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
 
 relm.define_element({
-	name = "CombinatorGui.Mode.DT",
+	name = "CombinatorGui.Mode.PushT",
 	render = function(props)
-		local mode = combinator_api.read_setting(
-			props.combinator,
-			combinator_settings.allow_mode
-		)
-		return VF({
-			ultros.WellSection({ caption = "Settings" }, {
-
-				gui.InnerHeading({
-					caption = "Flags",
-				}),
-				gui.Checkbox(
-					"Set inbound delivery thresholds",
-					props.combinator,
-					combinator_settings.dt_inbound
-				),
-				gui.Checkbox(
-					"Set outbound delivery thresholds",
-					props.combinator,
-					combinator_settings.dt_outbound
-				),
-			}),
-		})
+		return nil
 	end,
 })
 
 relm.define_element({
-	name = "CombinatorGui.Mode.DT.Help",
+	name = "CombinatorGui.Mode.PushT.Help",
 	render = function(props)
 		return VF({
 			ultros.RtMultilineLabel(
-				"Stations will not take orders below their [font=default-bold]inbound delivery threshold[/font] or send orders below their [font=default-bold]outbound delivery threshold[/font]. Thresholds apply to each item individually."
+				"When net inventory is above the (nonzero positive) [font=default-bold]push threshold[/font], the remainder above the threshold will be offered to [font=default-bold]sinks[/font] and [font=default-bold]dumps[/font]."
 			),
 			Pr({
 				type = "label",
@@ -78,15 +46,15 @@ relm.define_element({
 				ultros.BoldLabel("Effect"),
 				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
 				ultros.RtMultilineLabel(
-					"Set checked thresholds for individual items at this station. Each item's threshold will be set to its signal value."
+					"Set push thresholds for individual items at this station. Each item's threshold will be set to its signal value."
 				),
 				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
 				ultros.RtMultilineLabel(
-					"Set checked thresholds for all items at this station."
+					"Set push thresholds for all items at this station."
 				),
 				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
 				ultros.RtMultilineLabel(
-					"Set checked thresholds for all fluids at this station."
+					"Set push thresholds for all fluids at this station."
 				),
 			}),
 		})
@@ -98,8 +66,8 @@ relm.define_element({
 --------------------------------------------------------------------------------
 
 combinator_api.register_combinator_mode({
-	name = "dt",
-	localized_string = "cybersyn2-combinator-modes.dt",
-	settings_element = "CombinatorGui.Mode.DT",
-	help_element = "CombinatorGui.Mode.DT.Help",
+	name = "pusht",
+	localized_string = "cybersyn2-combinator-modes.pusht",
+	settings_element = "CombinatorGui.Mode.PushT",
+	help_element = "CombinatorGui.Mode.PushT.Help",
 })

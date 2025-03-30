@@ -171,7 +171,7 @@ local ModePicker = relm.define_element({
 			on_change = "set_combinator_mode",
 		})
 	end,
-	message = function(me, payload, props, state)
+	message = function(me, payload, props)
 		if payload.key == "combinator_settings_updated" then
 			relm.paint(me)
 			return true
@@ -206,7 +206,7 @@ local ModeSettings = relm.define_element({
 			})
 		end
 	end,
-	message = function(me, payload, props, state)
+	message = function(me, payload)
 		if payload.key == "combinator_settings_updated" then
 			relm.paint(me)
 			return true
@@ -267,7 +267,7 @@ local Help = relm.define_element({
 			})
 		end
 	end,
-	message = function(me, payload, props, state)
+	message = function(me, payload)
 		if payload.key == "combinator_settings_updated" then
 			relm.paint(me)
 			return true
@@ -291,6 +291,7 @@ local LeftCol = relm.define_element({
 				direction = "vertical",
 				vertically_stretchable = true,
 				vertical_scroll_policy = "always",
+				horizontal_scroll_policy = "never",
 				extra_top_padding_when_activated = 0,
 				extra_left_padding_when_activated = 0,
 				extra_right_padding_when_activated = 0,
@@ -337,7 +338,7 @@ relm.define_element({
 			}),
 		})
 	end,
-	message = function(me, payload, props, state)
+	message = function(me, payload, props)
 		if payload.key == "close" then
 			combinator_api.close_gui(props.player_index)
 			return true

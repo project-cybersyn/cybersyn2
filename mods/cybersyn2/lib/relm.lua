@@ -208,9 +208,9 @@ local STYLE_KEYS = {
 
 ---@alias Relm.EffectKey Relm.Value|table<int|string, Relm.EffectKey>
 
----@class Relm.MessagePayload
----@field public key string A key identifying the type of the message.
----@field public propagation_mode? "bubble"|"broadcast"|"unicast" The propagation mode of the message.
+---@alias Relm.SendMessagePayload {key: string, [any]:any}
+
+---@alias Relm.MessagePayload {key: string, propagation_mode: "bubble"|"broadcast"|"unicast", [any]:any}
 
 ---@alias Relm.Element.RenderDefinition fun(props: Relm.Props, state?: Relm.State): Relm.Children
 
@@ -964,7 +964,7 @@ local function vmsg_impl(vnode, payload)
 end
 
 ---@param vnode Relm.Internal.VNode
----@param payload Relm.MessagePayload
+---@param payload Relm.SendMessagePayload
 vmsg = function(vnode, payload)
 	payload.propagation_mode = "unicast"
 	return barrier_wrap(vmsg_impl, vnode, payload)
@@ -983,7 +983,7 @@ local function vmsg_bubble_impl(vnode, payload, resent)
 end
 
 ---@param vnode Relm.Internal.VNode
----@param	payload Relm.MessagePayload
+---@param	payload Relm.SendMessagePayload
 ---@param resent boolean?
 local function vmsg_bubble(vnode, payload, resent)
 	payload.propagation_mode = "bubble"
@@ -1007,7 +1007,7 @@ local function vmsg_broadcast_impl(vnode, payload, resent)
 end
 
 ---@param vnode Relm.Internal.VNode
----@param payload Relm.MessagePayload
+---@param payload Relm.SendMessagePayload
 ---@param resent boolean?
 local function vmsg_broadcast(vnode, payload, resent)
 	payload.propagation_mode = "broadcast"
@@ -1083,10 +1083,7 @@ end
 -- API: EVENT HANDLING
 --------------------------------------------------------------------------------
 
----@class (exact) Relm.MessagePayload.FactorioEvent: Relm.MessagePayload
----@field public key "factorio_event"
----@field public event Relm.GuiEventData The Factorio event data. This is the same as the event data passed to `script.on_event` handlers.
----@field public name defines.events The name of the Factorio event.
+---@alias Relm.MessagePayload.FactorioEvent { key: "factorio_event", event: Relm.GuiEventData, name: defines.events }
 
 ---@param event Relm.GuiEventData
 local function dispatch(event)
@@ -1115,6 +1112,7 @@ end
 ---Delegate an event to Relm. If you need to override a Relm default GUI handler
 ---with a custom one, you may call this to enable Relm to process the event
 ---if your code doesn't.
+---@param event Relm.GuiEventData
 function lib.delegate_event(event)
 	return dispatch(event)
 end
@@ -1325,7 +1323,7 @@ end
 ---Send a message directly to the Relm element with the given `handle`.
 ---If the target element does not handle the message, it will not propagate.
 ---@param handle Relm.Handle
----@param msg Relm.MessagePayload
+---@param msg Relm.SendMessagePayload
 function lib.msg(handle, msg)
 	return vmsg(handle --[[@as Relm.Internal.VNode]], msg)
 end
@@ -1333,7 +1331,7 @@ end
 ---Send a message to the Relm element with the given `handle`, which if not
 ---handled will bubble up the vtree to the root.
 ---@param handle Relm.Handle
----@param msg Relm.MessagePayload
+---@param msg Relm.SendMessagePayload
 ---@param resent boolean? If `true`, resends ignoring the current node. Useful for nodes that transform messages going through them.
 function lib.msg_bubble(handle, msg, resent)
 	return vmsg_bubble(handle --[[@as Relm.Internal.VNode]], msg, resent)
@@ -1342,7 +1340,7 @@ end
 ---Send a message to the Relm element with the given `handle`, which if not
 ---handled will be broadcast to all children.
 ---@param handle Relm.Handle
----@param msg Relm.MessagePayload
+---@param msg Relm.SendMessagePayload
 ---@param resent boolean? If `true`, resends ignoring the current node. Useful for nodes that transform messages going through them.
 function lib.msg_broadcast(handle, msg, resent)
 	return vmsg_broadcast(handle --[[@as Relm.Internal.VNode]], msg, resent)

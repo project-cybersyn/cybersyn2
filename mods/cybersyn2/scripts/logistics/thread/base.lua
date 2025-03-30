@@ -8,59 +8,114 @@ local cs2 = _G.cs2
 local threads_api = _G.cs2.threads_api
 
 _G.cs2.logistics_thread = {}
+local dispatch_table = _G.cs2.logistics_thread
+
+---@alias Cybersyn.Internal.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"
 
 ---@class (exact) Cybersyn.Internal.LogisticsThreadData
----@field state "init"|"poll_inventories"|"poll_nodes"|"create_deliveries" State of the task.
----@field stride int The number of trains to process per iteration
+---@field state Cybersyn.Internal.LogisticsThreadState State of the task.
+---@field paused boolean? `true` if loop is paused
+---@field stepped boolean? `true` if user wants to execute one step
+---@field iteration int The current number of iterations in this state.
+---@field stride int The number of items to process per iteration
 ---@field index int The current index in the enumeration.
----@field inventories Cybersyn.Inventory[]? The inventories to poll.
----@field signals table<UnitNumber, Signal[]> Cache of signals read during poll phases, indexed by combinator ID.
----@field nodes Cybersyn.Node[]? The nodes to poll.
----@field item_network_names string[]? All `item_network_names`
----@field requesters table<string, Id[]>? Map of item network names to requester node ids
----@field providers table<string, Id[]>? Map of item network names to provider node ids
+---@field topologies Cybersyn.Topology[]? Topologies to iterate
+---@field current_topology int Current topology being iterated.
+---@field combinators UnitNumber[]? Combinators to iterate
+---@field active_topologies table<Id, true> Topologies seen while iterating combinators.
+---@field nodes Cybersyn.Node[]? Nodes to iterate within topology.
+---@field providers table<SignalKey, Cybersyn.Node[]>? Ids of nodes providing the given product
+---@field pushers table<SignalKey, Cybersyn.Node[]>? Ids of nodes pushing the given product
+---@field pullers table<SignalKey, Cybersyn.Node[]>? Ids of nodes pulling the given product
+---@field sinks table<SignalKey, Cybersyn.Node[]>? Ids of nodes that are sinks for the given product
+---@field dumps Cybersyn.Node[]? Nodes that are dumps
+---@field seen_cargo table<SignalKey, true>? Items we've seen and need to iterate over.
 
 ---@class Cybersyn.Internal.LogisticsThread: Scheduler.RecurringTask
 ---@field public data Cybersyn.Internal.LogisticsThreadData
 
+---@param task Cybersyn.Internal.LogisticsThread
+local function main_loop(task)
+	local data = task.data
+	-- TODO: pause/resume/step
+	if data.paused and not data.stepped then return end
+	local state = data.state
+	if not state then
+		log.error("Invalid thread state:", state)
+		return
+	end
+
+	local func = dispatch_table[state]
+	if not func then
+		log.error("Invalid thread state:", state)
+		return
+	end
+
+	func(data)
+	data.stepped = false
+	if data.paused then cs2.raise_debug_loop("step", data) end
+end
+
+-- TODO: logistics start pauised for debugging, change for beta.
 threads_api.schedule_thread(
-	"logistics_thread",
-	threads_api.create_standard_main_loop(_G.cs2.logistics_thread),
-	0
+	"logistics",
+	main_loop,
+	0,
+	{ state = "init", paused = true }
 )
+
+---@param data Cybersyn.Internal.LogisticsThreadData
+---@param state Cybersyn.Internal.LogisticsThreadState
+function _G.cs2.logistics_thread.set_state(data, state)
+	if state ~= data.state then
+		data.state = state
+		cs2.raise_debug_loop("state", data)
+	end
+end
+
+function _G.cs2.logistics_thread.goto_init(data)
+	cs2.logistics_thread.set_state(data, "init")
+end
+
+---@param data Cybersyn.Internal.LogisticsThreadData
+function _G.cs2.logistics_thread.init(data)
+	_G.cs2.logistics_thread.goto_poll_combinators(data)
+end
+
+---@return Cybersyn.Internal.LogisticsThreadData?
+function _G.cs2.debug.get_logistics_thread_data()
+	local id = storage.task_ids["logistics"]
+	if id then
+		local t = scheduler.get(id) --[[@as Cybersyn.Internal.LogisticsThread]]
+		if t then return t.data end
+	end
+end
 
 --------------------------------------------------------------------------------
 -- Helper fns
 --------------------------------------------------------------------------------
 
--- TODO: Rewrite this, it should be ok to just cache the raw signals in
--- global combinator cache, plus will help with debugging.
-
----Pull signals from thread cache or combinator.
+---Execute `stride` iterations of a general loop over state data.
 ---@param data Cybersyn.Internal.LogisticsThreadData
----@param combinator_entity LuaEntity The combinator entity to read from.
----@return Signal[]?
-function _G.cs2.logistics_thread.get_combinator_signals(data, combinator_entity)
-	local id = combinator_entity.unit_number --[[@as UnitNumber]]
-	local signals = data.signals[id] --[[@as Signal[]?]]
-	if not signals then
-		signals = combinator_entity.get_signals(
-			defines.wire_connector_id.circuit_red,
-			defines.wire_connector_id.circuit_green
-		)
-		data.signals[id] = signals
+---@param list any[]
+---@param item_handler fun(item: any, data: Cybersyn.Internal.LogisticsThreadData)
+---@param finish_handler fun(data: Cybersyn.Internal.LogisticsThreadData)
+function _G.cs2.logistics_thread.stride_loop(
+	data,
+	list,
+	item_handler,
+	finish_handler
+)
+	local n = #list
+	-- Handle `stride` number of items
+	local max_index = math.min(data.index + data.stride, n)
+	for i = data.index, max_index do
+		item_handler(list[i], data)
 	end
-	return signals
+	-- If this finished, exec the finish handler
+	if max_index >= n then
+		finish_handler(data)
+	else
+		data.index = max_index + 1
+	end
 end
-
--- Logistics thread:
--- - `init`
--- 		- Collect all `Inventory`s, clear data
--- 		- Transition to `poll_inventories`
--- - `poll_inventories`
--- 		- Poll all combinators governing inventories
--- 		- Store values in cache via `inventory_api.set_inventory_from_signals`
--- 		- Transition to `poll_nodes`
--- - `poll_nodes`
--- 		- Update all train stops for network and settings
--- 		- Create cache of item names, providers of each item, requesters of each item

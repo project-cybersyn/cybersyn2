@@ -1,3 +1,4 @@
+---@diagnostic disable: need-check-nil
 --------------------------------------------------------------------------------
 -- Shared utility library for working with Factorio signals, including hashing
 -- signals to and from strings.
@@ -63,6 +64,10 @@ end
 ---@type table<SignalKey, SignalID>
 local key_to_sig = {}
 
+---Cache of signal keys to virtual/product
+---@type table<SignalKey, boolean>
+local key_v = {}
+
 ---Convert a signal to a key.
 ---@param signal SignalID
 ---@return SignalKey
@@ -77,15 +82,20 @@ local function signal_to_key(signal)
 	else
 		quality_name = quality.name
 	end
+	-- TODO: benchmark caching this in a 2d hash like hash[quality][type]
+	---@type string
 	local key
 	if quality_name == nil or quality_name == "normal" then
 		key = signal.name
 	else
 		key = signal.name .. "|" .. quality_name
 	end
-	if stype == "item" or stype == "fluid" or stype == "virtual" then
-		---@diagnostic disable-next-line: need-check-nil
+	if stype == "item" or stype == "fluid" then
 		key_to_sig[key] = signal
+		key_v[key] = false
+	elseif stype == "virtual" then
+		key_to_sig[key] = signal
+		key_v[key] = true
 	end
 	return key --[[@as SignalKey]]
 end
@@ -122,8 +132,12 @@ local function key_to_signal(key)
 	local name, ty, quality = missed_key_to_signal_parts(key)
 	if name then
 		signal = { name = name, type = ty, quality = quality }
-		if ty == "item" or ty == "fluid" or ty == "virtual" then
+		if ty == "item" or ty == "fluid" then
 			key_to_sig[key] = signal
+			key_v[key] = false
+		elseif ty == "virtual" then
+			key_to_sig[key] = signal
+			key_v[key] = true
 		end
 		return signal
 	else
@@ -131,5 +145,30 @@ local function key_to_signal(key)
 	end
 end
 lib.key_to_signal = key_to_signal
+
+---@param key SignalKey
+local function key_is_virtual(key)
+	local verdict = key_v[key]
+	if verdict ~= nil then return verdict end
+	local sig = key_to_signal(key)
+	return sig.type == "virtual"
+end
+lib.key_is_virtual = key_is_virtual
+
+---@param key SignalKey
+local function key_is_cargo(key)
+	local verdict = key_v[key]
+	if verdict ~= nil then return not verdict end
+	local sig = key_to_signal(key)
+	return sig.type == "item" or sig.type == "fluid"
+end
+lib.key_is_cargo = key_is_cargo
+
+---@param key SignalKey
+local function key_is_fluid(key)
+	local s = key_to_signal(key)
+	if s then return s.type == "fluid" end
+end
+lib.key_is_fluid = key_is_fluid
 
 return lib

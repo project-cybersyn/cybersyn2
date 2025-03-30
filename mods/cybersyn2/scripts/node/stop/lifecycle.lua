@@ -13,7 +13,9 @@ local combinator_api = _G.cs2.combinator_api
 ---@return Cybersyn.TrainStop
 local function create_stop_state(stop_entity)
 	local stop_id = stop_entity.unit_number
+	local topology = node_api.get_train_topology(stop_entity.surface_index)
 	return node_api.create_node("stop", {
+		topology_id = topology and topology.id,
 		entity = stop_entity,
 		entity_id = stop_id,
 		allowed_layouts = {},

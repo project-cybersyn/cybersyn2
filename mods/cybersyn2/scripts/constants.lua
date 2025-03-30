@@ -19,10 +19,11 @@ _G.cs2.LONGEST_INSERTER_REACH = 2
 
 -- Base number of trains to examine per iteration of the train group monitor.
 _G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 10
--- Base number of inventories to examine per `poll_inventories` iteration.
-_G.cs2.PERF_INVENTORY_POLL_WORKLOAD = 5
+-- Base number of combinators to examine per `poll_combinators` iteration.
+-- TODO: all these are set to 1 for debugging convenience, adjust later
+_G.cs2.PERF_COMB_POLL_WORKLOAD = 1
 -- Base number of nodes to examine per `poll_nodes` iteration
-_G.cs2.PERF_NODE_POLL_WORKLOAD = 5
+_G.cs2.PERF_NODE_POLL_WORKLOAD = 1
 
 -- Set of virtual signals considered configuration signals; these can't
 -- be used as network names.

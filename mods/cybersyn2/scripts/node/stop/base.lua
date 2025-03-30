@@ -1,5 +1,6 @@
 local flib_position = require("__flib__.position")
 local mlib = require("__cybersyn2__.lib.math")
+local slib = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 local combinator_api = _G.cs2.combinator_api
 local node_api = _G.cs2.node_api
@@ -65,9 +66,7 @@ stop_api.is_valid = is_valid
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.TrainStop?
 function _G.cs2.stop_api.get_stop(node_id, skip_validation)
-	if not node_id then
-		return nil
-	end
+	if not node_id then return nil end
 	local node = node_api.get_node(node_id, skip_validation)
 	if skip_validation then
 		return node --[[@as Cybersyn.TrainStop]]
@@ -82,7 +81,10 @@ end
 ---@param unit_number UnitNumber?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.TrainStop?
-function _G.cs2.stop_api.get_stop_from_unit_number(unit_number, skip_validation)
+function _G.cs2.stop_api.get_stop_from_unit_number(
+	unit_number,
+	skip_validation
+)
 	return stop_api.get_stop(
 		storage.stop_id_to_node_id[unit_number or ""],
 		skip_validation
@@ -134,4 +136,30 @@ function _G.cs2.stop_api.find_associable_entities_for_combinator(
 		end
 	end
 	return stop, rail
+end
+
+-- TODO: make these faster as they are called a lot in dispatch
+
+---@param stop Cybersyn.TrainStop
+---@param key SignalKey
+function _G.cs2.stop_api.get_outbound_threshold(stop, key)
+	local thresh = stop.thresholds_out and stop.thresholds_out[key] --[[@as int]]
+	if thresh then return thresh end
+	if slib.key_is_fluid(key) then
+		return stop.threshold_fluid_out or 1
+	else
+		return stop.threshold_item_out or 1
+	end
+end
+
+---@param stop Cybersyn.TrainStop
+---@param key SignalKey
+function _G.cs2.stop_api.get_inbound_threshold(stop, key)
+	local thresh = stop.thresholds_in and stop.thresholds_in[key] --[[@as int]]
+	if thresh then return thresh end
+	if slib.key_is_fluid(key) then
+		return stop.threshold_fluid_in or 1
+	else
+		return stop.threshold_item_in or 1
+	end
 end

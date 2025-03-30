@@ -110,7 +110,11 @@ relm.define_element({
 relm.define_element({
 	name = "CombinatorGui.Mode.Allow.Help",
 	render = function(props)
-		return VF({ Pr({ type = "label", caption = "Allowlist combinator help" }) })
+		return VF({
+			ultros.RtMultilineLabel(
+				"The [font=default-bold]allow list[/font] determines which trains can be sent to this station. An automatic algorithm can be used to determine this for you based on nearby equipment, or you may choose specific train layouts or groups."
+			),
+		})
 	end,
 })
 

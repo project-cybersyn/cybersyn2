@@ -25,3 +25,5 @@ globals:
     any: true
   settings:
     any: true
+  commands:
+    any: true

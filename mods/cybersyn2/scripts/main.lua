@@ -217,15 +217,15 @@ script.on_event(defines.events.script_raised_destroy, on_destroyed)
 -- Surfaces
 --------------------------------------------------------------------------------
 
--- TODO: implied surface topology management
-
----@param event EventData.on_pre_surface_cleared|EventData.on_pre_surface_deleted
-local function on_surface_removed(event)
-	cs2.raise_surface_removed(event.surface_index)
-end
-
-script.on_event(defines.events.on_pre_surface_cleared, on_surface_removed)
-script.on_event(defines.events.on_pre_surface_deleted, on_surface_removed)
+script.on_event(defines.events.on_pre_surface_cleared, function(event)
+	cs2.raise_surface(event.surface_index, "cleared")
+end)
+script.on_event(defines.events.on_pre_surface_deleted, function(event)
+	cs2.raise_surface(event.surface_index, "deleted")
+end)
+script.on_event(defines.events.on_surface_created, function(event)
+	cs2.raise_surface(event.surface_index, "created")
+end)
 
 --------------------------------------------------------------------------------
 -- Combinator GUI

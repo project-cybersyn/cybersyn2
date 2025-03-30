@@ -87,8 +87,8 @@ _G.cs2.on_entity_repositioned, _G.cs2.raise_entity_repositioned =
 _G.cs2.on_entity_renamed, _G.cs2.raise_entity_renamed =
 	event("entity_renamed", "string", "LuaEntity", "nil", "nil", "nil")
 
-_G.cs2.on_surface_removed, _G.cs2.raise_surface_removed =
-	event("surface_removed", "int", "nil", "nil", "nil", "nil")
+_G.cs2.on_surface, _G.cs2.raise_surface =
+	event("surface", "int", "string", "nil", "nil", "nil")
 
 ---Event raised when equipment recognized by the layout algorithm is built.
 _G.cs2.on_built_equipment, _G.cs2.raise_built_equipment =
@@ -263,6 +263,10 @@ _G.cs2.on_combinator_setting_changed, _G.cs2.raise_combinator_setting_changed =
 -- Cybersyn node object events
 --------------------------------------------------------------------------------
 
+---Event fired when the collection of topologies changes.
+_G.cs2.on_topologies, _G.cs2.raise_topologies =
+	event("topologies", "Cybersyn.Topology", "string", "nil", "nil", "nil")
+
 ---Event raised when the set of combinators associated with a node changes.
 _G.cs2.on_node_combinator_set_changed, _G.cs2.raise_node_combinator_set_changed =
 	event(
@@ -320,6 +324,17 @@ _G.cs2.on_train_stop_pattern_changed, _G.cs2.raise_train_stop_pattern_changed =
 --------------------------------------------------------------------------------
 -- Inventories and deliveries.
 --------------------------------------------------------------------------------
+
+---Event raised only when the dispatch loop is paused and then stepped
+---manually by the user.
+_G.cs2.on_debug_loop, _G.cs2.raise_debug_loop = event(
+	"debug_loop",
+	"string",
+	"Cybersyn.Internal.LogisticsThreadData",
+	"nil",
+	"nil",
+	"nil"
+)
 
 _G.cs2.on_inventory_created, _G.cs2.raise_inventory_created =
 	event("inventory_created", "Cybersyn.Inventory", "nil", "nil", "nil", "nil")

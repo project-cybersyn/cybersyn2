@@ -25,6 +25,9 @@ local lib = {}
 ---@field public id UnitNumber The unique unit number of the combinator entity.
 ---@field public node_id? uint The id of the node this combinator is associated with, if any.
 ---@field public is_being_destroyed true? `true` if the combinator is being removed from state at this time.
+---@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
+---@field public inputs? SignalCounts The most recent signals read from the combinator. This will be `nil` if the combinator has not been polled yet or if it is being destroyed. This is a cached value.
+---@field public inputs_volatile? boolean `true` if a vehicle was at the station making a delivery when inputs were being read, therefore making them suspect.
 
 ---A vehicle managed by Cybersyn.
 ---@class Cybersyn.Vehicle
@@ -68,20 +71,30 @@ lib.NodeNetworkOperation = {
 	All = 2,
 }
 
+---An isolated group of `Node`s that can only communicate with each other.
+---@class Cybersyn.Topology
+---@field public id Id Unique id of the topology.
+---@field public surface_index? uint The index of the surface this topology is associated with, if any. This is not a 1-1 association; a surface may have multiple topologies.
+---@field public name? string The name of the topology, if any. This is not a unique key and primarily used for debugging.
+---@field public vehicle_type string The vehicle type intended to traverse this topology.
+
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
 ---@class Cybersyn.Node
----@field public id uint Unique id of the node.
+---@field public id Id Unique id of the node.
+---@field public topology_id Id Id of the topology this node belongs to.
 ---@field public type string The type of the node.
 ---@field public combinator_set UnitNumberSet Set of combinators associated to this node, by unit number.
+---@field public created_tick uint Tick number when this node was created.
 ---@field public is_being_destroyed true? `true` if the node is in the process of being removed from game state.
----@field public dropoffs IdSet Deliveries scheduled to be dropped off at this node.
----@field public pickups IdSet Deliveries scheduled to be picked up from this node.
----@field public networks SignalCounts The network masks of the node. Updated only when the node is polled.
+---@field public inventory_id Id? Inventory of this node.
+---@field public is_producer boolean? `true` if the node can send deliveries
+---@field public is_consumer boolean? `true` if the node can receive deliveries
+---@field public networks? SignalCounts The network masks of the node. Updated only when the node is polled.
 ---@field public network_operation Cybersyn.Node.NetworkOperation How the network masks of the node should be combined.
----@field public can_provide boolean? `true` if the node can provide items
----@field public can_request boolean? `true` if the node can request items
 ---@field public priority int? Priority of the node.
 ---@field public priorities SignalCounts? Per-item priorities.
+---@field public channel int? Default channel of the node.
+---@field public channels SignalCounts? Per-item channels.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
@@ -90,18 +103,14 @@ lib.NodeNetworkOperation = {
 ---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
 ---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
----@field public base_network string? Virtual signal name of the base network set in the station combinator.
 ---@field public threshold_item_in uint? General inbound item threshold
 ---@field public threshold_fluid_in uint? General inbound fluid threshold
 ---@field public threshold_item_out uint? General outbound item threshold
 ---@field public threshold_fluid_out uint? General outbound fluid threshold
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
----@field public reserved_slots uint? Reserved item slots per car when providing.
----@field public reserved_fluid_capacity uint? Reserved fluid capacity per car when providing.
----@field public station_combinator_id UnitNumber? Unit number of the station combinator associated with this stop, if any.
----@field public request_threshold_combinator_id UnitNumber? Unit number of the threshold combinator associated with this stop, if any.
----@field public pull_inventory_id Id? The id of the inventory this stop uses for pull logistics.
+---@field public dropoffs IdSet Deliveries scheduled to be dropped off at this node.
+---@field public pickups IdSet Deliveries scheduled to be picked up from this node.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
@@ -124,11 +133,11 @@ lib.NodeNetworkOperation = {
 ---@field public surface_index Id? The index of the surface this inventory should be associated with if any.
 ---@field public combinator_id UnitNumber? The unit number of the combinator associated with this inventory, if any.
 ---@field public node_ids IdSet? The nodes that reference this inventory, if any
----@field public provide SignalCounts Positive contents of inventory at last poll.
----@field public request SignalCounts Negative contents of inventory at last poll.
+---@field public produce SignalCounts Positive contents of inventory at last poll.
+---@field public consume SignalCounts Negative contents of inventory at last poll.
 ---@field public flow SignalCounts? The net of all future incoming and outgoing deliveries to this inventory. Positive values represent inflows, negative outflows.
----@field public net_provide SignalCounts? Provide net of outflow, cached. Pessimistically excludes inflows.
----@field public net_request SignalCounts? Request net of infflow, cached.
+---@field public net_produce SignalCounts? Provide net of outflow, cached. Pessimistically excludes inflows.
+---@field public net_consume SignalCounts? Request net of infflow, cached.
 ---@field public deliveries IdSet? The set of future deliveries targeting this inventory.
 
 ---@enum Cybersyn.Delivery.State

@@ -202,4 +202,5 @@ combinator_api.register_combinator_mode({
 	localized_string = "cybersyn2-gui.station",
 	settings_element = "CombinatorGui.Mode.Station",
 	help_element = "CombinatorGui.Mode.Station.Help",
+	is_input = true,
 })

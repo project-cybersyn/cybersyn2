@@ -16,6 +16,7 @@ local inventory_api = _G.cs2.inventory_api
 local next = _G.next
 local pairs = _G.pairs
 local signal_to_key = signal_keys.signal_to_key
+local key_is_cargo = signal_keys.key_is_cargo
 local min = math.min
 local max = math.max
 
@@ -55,8 +56,8 @@ function _G.cs2.inventory_api.create_inventory(
 		entity = owning_entity,
 		surface_index = surface_index,
 		node_ids = node_ids,
-		provide = {},
-		request = {},
+		produce = {},
+		consume = {},
 	}
 
 	cs2.raise_inventory_created(storage.inventories[id])
@@ -66,9 +67,7 @@ end
 ---@param inventory_id Id?
 ---@return Cybersyn.Inventory?
 function _G.cs2.inventory_api.get_inventory(inventory_id)
-	if not inventory_id then
-		return nil
-	end
+	if not inventory_id then return nil end
 	return storage.inventories[inventory_id]
 end
 local get_inventory = inventory_api.get_inventory
@@ -76,9 +75,7 @@ local get_inventory = inventory_api.get_inventory
 ---@param id Id
 function _G.cs2.inventory_api.destroy_inventory(id)
 	local inventory = storage.inventories[id]
-	if not inventory then
-		return
-	end
+	if not inventory then return end
 	cs2.raise_inventory_destroyed(inventory)
 	storage.inventories[id] = nil
 end
@@ -88,100 +85,65 @@ local function recompute_net(inventory)
 	-- If no flow, net = base.
 	if (not inventory.flow) or (not next(inventory.flow)) then
 		inventory.flow = nil
-		inventory.net_provide = nil
-		inventory.net_request = nil
+		inventory.net_produce = nil
+		inventory.net_consume = nil
 		return
 	end
 	local flow = inventory.flow --[[@as SignalCounts]]
 
-	-- Compute net provide
-	local provide = inventory.provide
-	local net_provide = nil
-	if next(provide) then
-		net_provide = {}
-		for key, count in pairs(provide) do
+	-- Compute net produce
+	local produce = inventory.produce
+	local net_produce = nil
+	if next(produce) then
+		net_produce = {}
+		for key, count in pairs(produce) do
 			local net = count + min(flow[key] or 0, 0)
-			if net > 0 then
-				net_provide[key] = net
-			end
+			if net > 0 then net_produce[key] = net end
 		end
 	end
-	inventory.net_provide = net_provide
+	inventory.net_produce = net_produce
 
-	-- Compute net request
-	local request = inventory.request
-	local net_request = nil
-	if next(request) then
-		net_request = {}
-		for key, count in pairs(request) do
+	-- Compute net consume
+	local consume = inventory.consume
+	local net_consume = nil
+	if next(consume) then
+		net_consume = {}
+		for key, count in pairs(consume) do
 			local net = count + max(flow[key] or 0, 0)
-			if net < 0 then
-				net_request[key] = net
-			end
+			if net < 0 then net_consume[key] = net end
 		end
 	end
-	inventory.net_request = net_request
+	inventory.net_consume = net_consume
 end
 
----Set the core provide/request data of this inventory from signal values obtained
+---Set the core produce/consume data of this inventory from signal values obtained
 ---by polling live Factorio data.
 ---@param inventory Cybersyn.Inventory
----@param signals Signal[]
----@param allow_requests boolean Process requests (negative inventory)
----@param allow_provides boolean Process provides (positive inventory)
----@param consume_signals boolean If `true`, mutate the signals array consuming the ones that were used.
-function _G.cs2.inventory_api.set_inventory_from_signals(
+---@param signals SignalCounts
+---@param is_consumer boolean Process consumes (negative inventory)
+---@param is_producer boolean Process produces (positive inventory)
+function _G.cs2.inventory_api.set_base_inventory(
 	inventory,
 	signals,
-	allow_requests,
-	allow_provides,
-	consume_signals
+	is_consumer,
+	is_producer
 )
-	local intangible_signal_id = nil
-	local provide = {}
-	local request = {}
-	local i = 1
+	local produce = {}
+	local consume = {}
 
-	while signals[i] do
-		local wrapper = signals[i]
-		local signal = wrapper.signal
-		local signal_type = signal.type
-		local count = wrapper.count
-
-		-- Filter intangible signals.
-		if signal_type ~= "item" and signal_type ~= "fluid" then
-			i = i + 1
-		else
-			-- Iterate.
-			if consume_signals then
-				-- Swap last signal into this slot and pop the last.
-				signals[i] = signals[#signals]
-				signals[#signals] = nil
-			else
-				i = i + 1
-			end
-
-			-- Bucket signal into provide or request.
-			-- This is unrolled on looking up the key signal for performance reasons.
-			local key
-			if count > 0 and allow_provides then
-				key = signal_to_key(signal)
-				if key then
-					provide[key] = count
-				end
-			elseif count < 0 and allow_requests then
-				key = signal_to_key(signal)
-				if key then
-					request[key] = count
-				end
+	for k, count in pairs(signals) do
+		if key_is_cargo(k) then
+			if count > 0 and is_producer then
+				produce[k] = count
+			elseif count < 0 and is_consumer then
+				consume[k] = count
 			end
 		end
 	end
 
-	inventory.provide = provide
-	inventory.request = request
+	inventory.produce = produce
+	inventory.consume = consume
 	recompute_net(inventory)
-	return intangible_signal_id
 end
 
 ---Add the given counts to the current flow of this inventory.
@@ -190,10 +152,10 @@ end
 ---@param sign int 1 to add the flow, -1 to subtract it.
 function _G.cs2.inventory_api.add_flow(inventory, added_flow, sign)
 	local flow = inventory.flow or {}
-	local provide = inventory.provide
-	local request = inventory.request
-	local net_provide = inventory.net_provide
-	local net_request = inventory.net_request
+	local produce = inventory.produce
+	local consume = inventory.consume
+	local net_produce = inventory.net_produce
+	local net_consume = inventory.net_consume
 
 	for key, count in pairs(added_flow) do
 		local new_flow = (flow[key] or 0) + sign * count
@@ -202,47 +164,39 @@ function _G.cs2.inventory_api.add_flow(inventory, added_flow, sign)
 		else
 			flow[key] = new_flow
 		end
-		-- Update net provide and request entries.
+		-- Update net produce and consume entries.
 		-- This is highly unrolled for performance reasons.
 		if new_flow < 0 then
-			local p_count = provide[key]
+			local p_count = produce[key]
 			if p_count then
 				local net = p_count + new_flow
 				if net > 0 then
-					if not net_provide then
-						net_provide = {}
-						inventory.net_provide = net_provide
+					if not net_produce then
+						net_produce = {}
+						inventory.net_produce = net_produce
 					end
-					net_provide[key] = net
+					net_produce[key] = net
 				else
-					if net_provide then
-						net_provide[key] = nil
-					end
+					if net_produce then net_produce[key] = nil end
 				end
 			end
 		elseif new_flow > 0 then
-			local r_count = request[key]
+			local r_count = consume[key]
 			if r_count then
 				local net = r_count + new_flow
 				if net < 0 then
-					if not net_request then
-						net_request = {}
-						inventory.net_request = net_request
+					if not net_consume then
+						net_consume = {}
+						inventory.net_consume = net_consume
 					end
-					net_request[key] = net
+					net_consume[key] = net
 				else
-					if net_request then
-						net_request[key] = nil
-					end
+					if net_consume then net_consume[key] = nil end
 				end
 			end
 		else -- new_flow == 0
-			if net_provide then
-				net_provide[key] = provide[key]
-			end
-			if net_request then
-				net_request[key] = request[key]
-			end
+			if net_produce then net_produce[key] = produce[key] end
+			if net_consume then net_consume[key] = consume[key] end
 		end
 	end
 
@@ -250,25 +204,25 @@ function _G.cs2.inventory_api.add_flow(inventory, added_flow, sign)
 		inventory.flow = flow
 	else
 		inventory.flow = nil
-		inventory.net_provide = nil
-		inventory.net_request = nil
+		inventory.net_produce = nil
+		inventory.net_consume = nil
 	end
 end
 
----Get the net provides of this inventory. This is a READ-ONLY cached table
+---Get the net produces of this inventory. This is a READ-ONLY cached table
 ---that should not be retained beyond the current tick.
 ---@param inventory Cybersyn.Inventory
 ---@return SignalCounts
-function _G.cs2.inventory_api.get_net_provides(inventory)
-	return inventory.net_provide or inventory.provide
+function _G.cs2.inventory_api.get_net_produce(inventory)
+	return inventory.net_produce or inventory.produce
 end
 
----Get the net requests of this inventory. This is a READ-ONLY cached table
+---Get the net consumes of this inventory. This is a READ-ONLY cached table
 ---that should not be retained beyond the current tick.
 ---@param inventory Cybersyn.Inventory
 ---@return SignalCounts
-function _G.cs2.inventory_api.get_net_requests(inventory)
-	return inventory.net_request or inventory.request
+function _G.cs2.inventory_api.get_net_consume(inventory)
+	return inventory.net_consume or inventory.consume
 end
 
 --------------------------------------------------------------------------------

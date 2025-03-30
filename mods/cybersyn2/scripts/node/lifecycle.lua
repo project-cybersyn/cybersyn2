@@ -18,8 +18,7 @@ function _G.cs2.node_api.create_node(node_type, initial_data)
 	initial_data.id = id
 	initial_data.type = node_type
 	initial_data.combinator_set = {}
-	initial_data.dropoffs = {}
-	initial_data.pickups = {}
+	initial_data.created_tick = game.tick
 	initial_data.networks = {}
 	initial_data.network_operation = NodeNetworkOperation.Any
 	initial_data.is_being_destroyed = nil
@@ -33,9 +32,7 @@ end
 ---@param node_id Id
 function _G.cs2.node_api.destroy_node(node_id)
 	local node = node_api.get_node(node_id, true)
-	if not node then
-		return
-	end
+	if not node then return end
 
 	node.is_being_destroyed = true
 	cs2.raise_node_destroyed(node)
@@ -56,7 +53,5 @@ end
 
 -- When a combinator is destroyed, disassociate it from its node.
 cs2.on_combinator_destroyed(function(combinator)
-	if combinator.node_id then
-		node_api.disassociate_combinator(combinator)
-	end
+	if combinator.node_id then node_api.disassociate_combinator(combinator) end
 end)
