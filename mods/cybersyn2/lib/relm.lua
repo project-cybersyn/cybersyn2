@@ -886,7 +886,6 @@ local function barrier_wrap(op, vnode, arg1, arg2)
 end
 
 local function vstate_impl(vnode, arg)
-	-- Already in an effect barrier
 	vnode.state = arg
 	vrepaint(vnode)
 end
@@ -900,7 +899,10 @@ end
 ---@param vnode Relm.Internal.VNode
 ---@param payload any
 local function vmsg_impl(vnode, payload)
-	local target_def = registry[vnode.type or {}]
+	if not vnode then return end
+	local ty = vnode.type
+	if not ty then return end
+	local target_def = registry[ty]
 	local base_handler = target_def and target_def.message
 	local wrapper = vprops[vnode] and vprops[vnode].message_handler
 	if wrapper then
