@@ -266,6 +266,7 @@ local LISTEN_KEY = "__relm_listen_" .. script.mod_name
 -- Forward declarations for mutually recursive functions.
 local vmsg
 local vapply
+local vhydrate
 
 --------------------------------------------------------------------------------
 -- VNODES
@@ -357,6 +358,8 @@ local function normalized_render(
 	hook_num = 0
 	hook_node = hook_node_
 	render_is_hydrating = not not is_hydrating_
+	-- TODO: support rendering parameter packs ...
+	-- trick: we have to clear render state at the call site...
 	local rendered_children = def.render(props or {}, state)
 	hook_node = nil
 	render_is_hydrating = false
@@ -405,6 +408,8 @@ end
 ---@param vnode Relm.Internal.VNode
 ---@param render_children Relm.Node[]
 local function vapply_children(vnode, render_children)
+	-- TODO: when switching to parameter pack, must cleanup and normalize
+	-- render result here.
 	if not vnode.children then vnode.children = {} end
 	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
 	local vindex = 1
@@ -487,18 +492,19 @@ vapply = function(vnode, node)
 		end
 	end
 
-	-- Render
-	local render_children = normalized_render(
-		target_def,
-		target_type,
-		node.props,
-		vnode.state,
-		vnode,
-		false
-	)
-
 	-- Render children
-	return vapply_children(vnode, render_children)
+	-- TODO: support vchildren parameter pack ...
+	return vapply_children(
+		vnode,
+		normalized_render(
+			target_def,
+			target_type,
+			node.props,
+			vnode.state,
+			vnode,
+			false
+		)
+	)
 end
 
 ---Force a vnode to rerender
@@ -507,16 +513,40 @@ local function vrender(vnode)
 	local props = vprops[vnode]
 	if not props then log.error("vrender: no props cached for vnode", vnode) end
 	local target_def = registry[vnode.type]
-	local render_children =
-		normalized_render(target_def, nil, props, vnode.state, vnode, false)
 
-	return vapply_children(vnode, render_children)
+	return vapply_children(
+		vnode,
+		normalized_render(target_def, nil, props, vnode.state, vnode, false)
+	)
+end
+
+local function vhydrate_children(vnode, render_children)
+	-- TODO: support rendering via ... parameter packs
+	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
+	local nrchildren = #render_children
+	if #vchildren ~= nrchildren then
+		log.error(
+			"vhydrate: child count mismatch",
+			vnode.type,
+			#vchildren,
+			nrchildren
+		)
+	end
+	local vindex = 1
+	for i = 1, nrchildren do
+		local rchild = render_children[i]
+		local vchild = vchildren[vindex]
+		if rchild and next(rchild) and vchild then
+			vhydrate(vchild, render_children[i])
+			vindex = vindex + 1
+		end
+	end
 end
 
 ---Special rendering mode that only hydrates prop cache.
 ---@param vnode Relm.Internal.VNode
 ---@param node? Relm.Node
-local function vhydrate(vnode, node)
+vhydrate = function(vnode, node)
 	-- TODO: any of these conditions will break all relm guis after a save/rl
 	-- how to best notify user?
 	if not node or not vnode then
@@ -536,32 +566,22 @@ local function vhydrate(vnode, node)
 		log.error("vhydrate: no props in node", node)
 		return
 	end
+	-- Restore props
 	vprops[vnode] = node.props
-	local render_children =
+	return vhydrate_children(
+		vnode,
 		normalized_render(def, nil, node.props, vnode.state, vnode, true)
-	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
-	if #vchildren ~= #render_children then
-		log.error(
-			"vhydrate: child count mismatch",
-			node.type,
-			#vchildren,
-			#render_children
-		)
-	end
-	local vindex = 1
-	for i = 1, #render_children do
-		local rchild = render_children[i]
-		local vchild = vchildren[vindex]
-		if rchild and next(rchild) and vchild then
-			vhydrate(vchild, render_children[i])
-			vindex = vindex + 1
-		end
-	end
+	)
 end
 
 --------------------------------------------------------------------------------
 -- PAINTING
 --------------------------------------------------------------------------------
+
+-- Stats
+local optimae = 0
+local pessimae = 0
+local elements = 0
 
 ---@class Relm.Internal.PaintContext
 ---@field index uint Current real child being examined
@@ -746,9 +766,28 @@ local function vpaint(vnode, context, same)
 			return
 		end
 	end
+
+	-- Stats
+	elements = elements + 1
+	if elem_changed then
+		pessimae = pessimae + 1
+	else
+		optimae = optimae + 1
+	end
+
 	local elem = vnode.elem --[[@as LuaGuiElement]]
 	if not elem then
 		-- elem destroyed by diff
+		return
+	end
+	if not elem.valid then
+		log.error(
+			"found invalid elem for vnode",
+			vnode.type,
+			props and props.type,
+			same
+		)
+		vnode.elem = nil
 		return
 	end
 
@@ -818,6 +857,25 @@ local function vpaint(vnode, context, same)
 	end
 end
 
+---@param vnode Relm.Internal.VNode? Node tree to paint
+---@param context Relm.Internal.PaintContext Context within parent primitive node
+---@param same boolean? If true, the vnode type is known to be the same as the last paint. Used in repainting.
+local function vpaint_stats(vnode, context, same)
+	optimae = 0
+	pessimae = 0
+	elements = 0
+	vpaint(vnode, context, same)
+	log.trace(
+		"vpaint complete: ",
+		elements,
+		"elements",
+		optimae,
+		"optimae",
+		pessimae,
+		"pessimae"
+	)
+end
+
 ---Repaint a node. Type of `vnode` MUST be the same as its previous paint.
 ---This does not apply to its children.
 ---@param vnode Relm.Internal.VNode
@@ -828,7 +886,7 @@ local function vrepaint(vnode)
 		vnode = vnode.parent
 	end
 	if vnode then
-		vpaint(
+		vpaint_stats(
 			vnode,
 			{ elem = vnode.elem, index = 1, is_root = not vnode.parent },
 			true
@@ -1142,7 +1200,7 @@ function lib.root_create(base_element, type, props, name)
 	-- Render the entire tree from the root
 	enter_side_effect_barrier()
 	vapply(vtree_root, { type = type, props = props })
-	vpaint(vtree_root, {
+	vpaint_stats(vtree_root, {
 		elem = base_element,
 		index = 1,
 		is_root = true,
