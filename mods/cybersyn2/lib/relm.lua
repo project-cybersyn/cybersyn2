@@ -182,8 +182,10 @@ local STYLE_KEYS = {
 ---@field public type string The type of this node.
 ---@field public props? Relm.Props The properties of this node.
 
----Opaque reference used to refer to a vtree node. DO NOT read or write to
----this object, only pass it to Relm APIs.
+---Opaque reference used to refer to a vtree node. Safe for use in `storage`,
+---though after storing a handle long-term you should validate it with
+---`is_valid`. DO NOT access internal fields of handles or you WILL crash
+---your game. Use only designated Relm APIs with handles.
 ---@class (exact) Relm.Handle
 
 ---Definition of a reusable element distinguished by its name.
@@ -1223,7 +1225,7 @@ local function vquery_broadcast(node, payload)
 end
 
 --------------------------------------------------------------------------------
--- API: EVENT HANDLING
+-- API: FACTORIO GUI EVENTS
 --------------------------------------------------------------------------------
 
 ---@alias Relm.MessagePayload.FactorioEvent { key: "factorio_event", event: Relm.GuiEventData, name: defines.events }
@@ -1568,6 +1570,16 @@ end
 ------------------------------------------------------------------------------
 -- API: ELEMENTS
 --------------------------------------------------------------------------------
+
+---Determine if a `Relm.Handle` refers to a valid element of the vtree.
+---@param handle Relm.Handle?
+function lib.is_valid(handle)
+	if type(handle) ~= "table" then
+		return false
+	else
+		return not not (handle --[[@as Relm.Internal.VNode]]).type
+	end
+end
 
 ---Define a new re-usable Relm element type.
 ---@param definition Relm.ElementDefinition
