@@ -1164,6 +1164,7 @@ function lib.delegate_event(event) return dispatch(event) end
 --------------------------------------------------------------------------------
 
 ---@class Relm.Internal.Root
+---@field public id uint The id of the root.
 ---@field public root_element LuaGuiElement The rendered root element.
 ---@field public player_index int The player index of the owning player of the root element.
 ---@field public vtree_root Relm.Internal.VNode The root of the virtual tree.
@@ -1232,8 +1233,11 @@ function lib.root_create(base_element, type, props, name)
 	props.root_id = id
 
 	relm_state.roots[id] = {
+		id = id,
 		player_index = player_index,
-		vtree_root = {},
+		vtree_root = {
+			root_id = id,
+		},
 		root_element_name = type,
 		root_props = props,
 	}
@@ -1272,8 +1276,9 @@ function lib.root_create(base_element, type, props, name)
 end
 
 ---Destoys a root and all associated child elements.
----@param id Relm.RootId The ID of the root.
+---@param id Relm.RootId? The ID of the root.
 function lib.root_destroy(id)
+	if not id then return end
 	local relm_state = storage._relm
 	local root = relm_state.roots[id]
 	if not root then return end
@@ -1303,28 +1308,30 @@ function lib.get_handle(element)
 	return get_vnode(element) --[[@as Relm.Handle]]
 end
 
----@class Relm.PublicRootInfo
----@field public id Relm.RootId The ID of the root.
----@field public player_index int The player index of the root.
----@field public handle Relm.Handle The handle to the root element.
----@field public gui_element LuaGuiElement The root element.
-
----Enumerate all global Relm roots. This should only be used when necessary
----to find a global root. Note that **all** players' roots will be returned.
----@return Relm.PublicRootInfo[] roots A list of all global Relm roots.
-function lib.roots()
-	local roots = {}
-	for id, root in pairs(storage._relm.roots) do
-		if root.root_element and root.root_element.valid then
-			roots[#roots + 1] = {
-				id = id,
-				player_index = root.player_index,
-				handle = root.vtree_root,
-				gui_element = root.root_element,
-			}
-		end
+---Given a `LuaGuiElement`, get the Relm root it is owned by if any.
+---@param element LuaGuiElement?
+---@return Relm.RootId?
+function lib.get_root_id(element)
+	if element and element.valid then
+		return element.tags.__relm_root --[[@as Relm.RootId?]]
 	end
-	return roots
+end
+
+---Iterate all Relm roots. This is an "escape valve" for debugging and
+---dealing with edge cases and you should carefully evaluate why you are
+---using it. Do not use this to paint windows.
+---@param handler fun(handle: Relm.Handle, root_id: Relm.RootId, element: LuaGuiElement?, player_index: uint)
+function lib.root_foreach(handler)
+	---@type table<int, Relm.Internal.Root>
+	local roots = storage._relm.roots
+	for _, root in pairs(roots) do
+		handler(
+			root.vtree_root --[[@as Relm.Handle]],
+			root.id,
+			root.root_element,
+			root.player_index
+		)
+	end
 end
 
 --------------------------------------------------------------------------------
