@@ -4,6 +4,7 @@
 
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
+local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
 local tlib = require("__cybersyn2__.lib.table")
 local log = require("__cybersyn2__.lib.logging")
 local cs2 = _G.cs2
@@ -45,7 +46,7 @@ end
 local LoopState = relm.define_element({
 	name = "LogisticsLoopDebugger.State",
 	render = function(props, state)
-		cs2.use_event("on_debug_loop")
+		relm_helpers.use_event("on_debug_loop")
 		local data = cs2.debug.get_logistics_thread_data()
 		if not data then return nil end
 		local tstate = data.state

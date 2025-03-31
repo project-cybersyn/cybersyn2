@@ -9,20 +9,34 @@ local counters = require("__cybersyn2__.lib.counters")
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
+local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
 local log = require("__cybersyn2__.lib.logging")
 local cs2 = _G.cs2
 local stop_api = _G.cs2.stop_api
 local combinator_api = _G.cs2.combinator_api
+
+local db_dispatch = dynamic_binding.dispatch
 
 --------------------------------------------------------------------------------
 -- Required library event bindings
 --------------------------------------------------------------------------------
 
 cs2.on_init(counters.init, true)
-cs2.on_init(scheduler.init, true)
-cs2.on_init(relm.init, true)
 
+cs2.on_init(scheduler.init, true)
+
+cs2.on_init(relm.init, true)
 cs2.on_load(relm.on_load)
+relm.install_event_handlers()
+
+-- Connect `dynamic_binding` to cs2 event backplane
+cs2.on_init(dynamic_binding.init, true)
+cs2.on_load(dynamic_binding.on_load)
+dynamic_binding.on_event_bound(function(event_name)
+	if _G.cs2[event_name] and string.sub(event_name, 1, 3) == "on_" then
+		_G.cs2[event_name](function(...) return db_dispatch(event_name, ...) end)
+	end
+end)
 
 --------------------------------------------------------------------------------
 -- Core Factorio control phase
@@ -226,8 +240,6 @@ script.on_event(
 --------------------------------------------------------------------------------
 -- Combinator GUI
 --------------------------------------------------------------------------------
-
-relm.install_event_handlers()
 
 script.on_event(defines.events.on_gui_opened, function(event)
 	local comb = combinator_api.entity_to_ephemeral(event.entity)
