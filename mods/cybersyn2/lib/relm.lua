@@ -231,6 +231,16 @@ local STYLE_KEYS = {
 ---@type table<string, Relm.ElementDefinition>
 local registry = {}
 
+---@class Relm.Internal.Root
+---@field public id uint The id of the root.
+---@field public container_element LuaGuiElement The element the root was rendered into.
+---@field public name_in_container string `root_element` name within the `container_element` children set.
+---@field public root_element LuaGuiElement The rendered root element.
+---@field public player_index int The player index of the owning player of the root element.
+---@field public vtree_root Relm.Internal.VNode The root of the virtual tree.
+---@field public root_element_type string Relm element type used to render the root
+---@field public root_props Relm.Props The properties used to render the root
+
 ---Internal representation of a vtree node. This is stored in state.
 ---@class (exact) Relm.Internal.VNode
 ---@field public type string The type of this node.
@@ -241,6 +251,13 @@ local registry = {}
 ---@field public parent? Relm.Internal.VNode Parent of this node.
 ---@field public hooks? table<uint, any> Hook data for this node, if it has hooks.
 ---@field public root_id? Relm.RootId Exists only on a root, and contains the root id.
+
+---@class (exact) Relm.Internal.PaintContext
+---@field index uint Current real child being examined
+---@field elem LuaGuiElement Gui element we're rendering into
+---@field root_id Relm.RootId? Set to the id of the root if rendering a root.
+---@field root_name string? Set to the name of the root in its container if we are rendering a root.
+---@field structure_changed boolean? `true` if something was create or destroyed in this context during the paint op.
 
 ---Map from `"<player_index>:<element_index>"` to vnodes
 ---(We can't use weak `LuaGuiElement` keys here)
@@ -582,23 +599,27 @@ end
 -- Stats
 local optimae = 0
 local pessimae = 0
+local root_touched = 0
 local elements = 0
-
----@class Relm.Internal.PaintContext
----@field index uint Current real child being examined
----@field elem LuaGuiElement Gui element we're rendering into
----@field is_root boolean? `true` if we're rendering a root.
----@field structure_changed boolean? `true` if something was create or destroyed in this context during the paint op.
----@field constructor? fun(props: Relm.Props): LuaGuiElement Constructor function to use instead of `add` when creating a new element.
 
 ---@param context Relm.Internal.PaintContext
 local function vpaint_context_destroy(context)
 	local elem = context.elem
 	if elem and elem.valid then
-		local child = elem.children[context.index]
-		if child then
-			child.destroy()
-			context.structure_changed = true
+		if context.root_name then
+			log.trace("relm: destruction of root was requested...")
+			root_touched = root_touched + 1
+			local child = elem[context.root_name]
+			if child then
+				child.destroy()
+				context.structure_changed = true
+			end
+		else
+			local child = elem.children[context.index]
+			if child then
+				child.destroy()
+				context.structure_changed = true
+			end
 		end
 	end
 end
@@ -608,11 +629,16 @@ end
 local function vpaint_context_create(context, props)
 	local elem = context.elem
 	if elem and elem.valid then
+		if context.root_name and context.index > 1 then
+			log.error("ERROR: Attempted to add multiple elements to the root.")
+			return nil
+		end
+
+		-- Assemble props valid for `add`ing.
 		local addable_props = {}
 		for k, v in pairs(props) do
 			if APPLICABLE_KEYS[k] or CREATE_KEYS[k] then addable_props[k] = v end
 		end
-		if not context.is_root then addable_props.index = context.index end
 		-- Special handling for textboxes; treat them like React "uncontrolled"
 		-- components and allow initial text to be specified but then let
 		-- Factorio do the rest.
@@ -624,18 +650,23 @@ local function vpaint_context_create(context, props)
 		then
 			addable_props.text = props["initial_text"]
 		end
+
+		-- Create
 		local new_elem
-		if context.constructor then
-			new_elem = context.constructor(addable_props)
+		if context.root_name then
+			root_touched = root_touched + 1
+			addable_props.name = context.root_name
 		else
-			new_elem = elem.add(addable_props)
-			-- Inherit __relm_root
-			local tags = new_elem.tags
-			tags["__relm_root"] = elem.tags["__relm_root"]
-			new_elem.tags = tags
+			addable_props.index = context.index
 		end
+		new_elem = elem.add(addable_props)
+		-- Inherit __relm_root
+		local tags = new_elem.tags
+		tags["__relm_root"] = context.root_id or elem.tags["__relm_root"]
+		new_elem.tags = tags
+
 		context.structure_changed = true
-		if not context.is_root then context.index = context.index + 1 end
+		context.index = context.index + 1
 		return new_elem
 	end
 end
@@ -645,8 +676,8 @@ end
 ---@param vnode Relm.Internal.VNode
 local function vpaint_context_diff(context, props, vnode)
 	local elem
-	if context.is_root then
-		elem = context.elem
+	if context.root_name then
+		elem = context.elem[context.root_name]
 	else
 		elem = context.elem.children[context.index]
 	end
@@ -865,21 +896,25 @@ local function vpaint_stats(vnode, context, same)
 	optimae = 0
 	pessimae = 0
 	elements = 0
+	root_touched = 0
 	vpaint(vnode, context, same)
 	log.trace(
-		"vpaint complete: ",
+		"relm.vpaint: complete: ",
 		elements,
 		"elements",
 		optimae,
 		"optimae",
 		pessimae,
-		"pessimae"
+		"pessimae",
+		root_touched,
+		"root_touched"
 	)
 end
 
 ---Determine if a node is part of a tree with a valid rendered root.
 ---If not, destroy the whole root.
 ---@param vnode Relm.Internal.VNode
+---@return Relm.Internal.Root? root The validated root for this vnode, or `nil` if there's a structure problem.
 local function vcheckroot(vnode)
 	while vnode and vnode.parent do
 		vnode = vnode.parent
@@ -890,7 +925,7 @@ local function vcheckroot(vnode)
 			(vnode or {}).type,
 			"isn't a child of a proper root vnode"
 		)
-		return false
+		return nil
 	end
 	local root = storage._relm.roots[vnode.root_id] --[[@as Relm.Internal.Root]]
 	if (not root) or (root.vtree_root ~= vnode) then
@@ -899,10 +934,10 @@ local function vcheckroot(vnode)
 			vnode.type,
 			"doesn't match a root in storage"
 		)
-		return false
+		return nil
 	end
 	if root.root_element and root.root_element.valid then
-		return true
+		return root
 	else
 		log.error(
 			"vcheckroot: vnode",
@@ -910,7 +945,7 @@ local function vcheckroot(vnode)
 			"root doesn't have a rendered element and is being aggressively pruned."
 		)
 		lib.root_destroy(vnode.root_id)
-		return false
+		return nil
 	end
 end
 
@@ -928,11 +963,24 @@ local function vrepaint(vnode)
 		-- Check for dead roots.
 		local elem = vnode.elem
 		local is_root = not vnode.parent
-		if not elem then
+		local root = nil
+		if not elem or is_root then
 			log.info("relm.vrepaint: vcheckroot on", vnode.type)
-			if not vcheckroot(vnode) then return end
+			root = vcheckroot(vnode)
+			if not root then return end
 		end
-		vpaint_stats(vnode, { elem = elem, index = 1, is_root = is_root }, true)
+		if is_root and root then
+			vpaint_stats(vnode, {
+				elem = root.container_element,
+				root_id = root.id,
+				root_name = root.name_in_container,
+				index = 1,
+			})
+		elseif elem then
+			vpaint_stats(vnode, { elem = elem, index = 1 }, true)
+		else
+			log.error("ran out of options for painting", vnode.type)
+		end
 	else
 		log.error("relm.vrepaint: no vnode to paint")
 	end
@@ -1163,14 +1211,6 @@ function lib.delegate_event(event) return dispatch(event) end
 -- API: STORAGE
 --------------------------------------------------------------------------------
 
----@class Relm.Internal.Root
----@field public id uint The id of the root.
----@field public root_element LuaGuiElement The rendered root element.
----@field public player_index int The player index of the owning player of the root element.
----@field public vtree_root Relm.Internal.VNode The root of the virtual tree.
----@field public root_element_name string Relm element name used to render the root
----@field public root_props Relm.Props The properties used to render the root
-
 ---Initialize Relm's storage. Must be called in the mod's `on_init` handler or
 ---in a migration.
 function lib.init()
@@ -1187,7 +1227,7 @@ function lib.on_load()
 	for _, root in pairs(roots) do
 		vhydrate(
 			root.vtree_root,
-			{ type = root.root_element_name, props = root.root_props }
+			{ type = root.root_element_type, props = root.root_props }
 		)
 	end
 end
@@ -1208,15 +1248,17 @@ end
 ---element will be rendered with the given props, along with an additional
 ---`root_id` prop reflecting the ID of the newly created Relm root.
 ---
----@param base_element LuaGuiElement The render result will be `.add`ed to this element. e.g. `player.gui.screen`. MUST NOT be within another Relm tree.
+---@param container_element LuaGuiElement The render result will be `.add`ed to this element. e.g. `player.gui.screen`. MUST NOT be within another Relm tree.
+---@param name string The rendered root will be given this `name` within the `container_element` children. Name is mandatory for re-rendering the root when needed.
 ---@param type string Type of Relm element to render at the root. Must have previously been defined with `relm.define_element`.
 ---@param props Relm.Props Props to pass to the newly created root. Unlike other props in Relm, these MUST be serializable (no functions!) and may not contain `children`.
----@param name? string If given, the rendered root will have this name within the `base_element`.
 ---@return Relm.RootId? root_id ID of the newly created root.
 ---@return LuaGuiElement? root_element The root Factorio element.
-function lib.root_create(base_element, type, props, name)
-	if not base_element or not base_element.valid then
-		error("relm.root_create: Base element must be a valid LuaGuiElement.")
+function lib.root_create(container_element, name, type, props)
+	if not container_element or not container_element.valid then
+		error(
+			"relm.root_create: `container_element` must be a valid LuaGuiElement."
+		)
 	end
 	if not type or not registry[type] then
 		error("relm.root_create: Element type " .. (type or "") .. " not found.")
@@ -1224,8 +1266,14 @@ function lib.root_create(base_element, type, props, name)
 	if props.children then
 		error("relm.root_create: Root props may not contain children.")
 	end
+	if not name or (name == "") then
+		error("relm.root_create: root must be given a nonempty name.")
+	end
+	if container_element[name] then
+		error("relm.root_create: name of root must be unique within container")
+	end
 
-	local player_index = base_element.player_index
+	local player_index = container_element.player_index
 	local relm_state = storage._relm
 
 	local id = storage._relm.root_counter + 1
@@ -1235,10 +1283,12 @@ function lib.root_create(base_element, type, props, name)
 	relm_state.roots[id] = {
 		id = id,
 		player_index = player_index,
+		container_element = container_element,
+		name_in_container = name,
 		vtree_root = {
 			root_id = id,
 		},
-		root_element_name = type,
+		root_element_type = type,
 		root_props = props,
 	}
 	local vtree_root = relm_state.roots[id].vtree_root
@@ -1247,19 +1297,10 @@ function lib.root_create(base_element, type, props, name)
 	enter_side_effect_barrier()
 	vapply(vtree_root, { type = type, props = props })
 	vpaint_stats(vtree_root, {
-		elem = base_element,
+		elem = container_element,
 		index = 1,
-		is_root = true,
-		constructor = function(painted_props)
-			local old_name = painted_props.name
-			painted_props.name = name
-			local elt = base_element.add(painted_props)
-			painted_props.name = old_name
-			local tags = elt.tags
-			tags["__relm_root"] = id
-			elt.tags = tags
-			return elt
-		end,
+		root_name = name,
+		root_id = id,
 	})
 	exit_side_effect_barrier()
 	local created_elt = find_first_elem(vtree_root)
