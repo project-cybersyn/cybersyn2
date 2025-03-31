@@ -240,6 +240,7 @@ local registry = {}
 ---@field public index? uint Index in parent node
 ---@field public parent? Relm.Internal.VNode Parent of this node.
 ---@field public hooks? table<uint, any> Hook data for this node, if it has hooks.
+---@field public root_id? Relm.RootId Exists only on a root, and contains the root id.
 
 ---Map from `"<player_index>:<element_index>"` to vnodes
 ---(We can't use weak `LuaGuiElement` keys here)
@@ -876,6 +877,43 @@ local function vpaint_stats(vnode, context, same)
 	)
 end
 
+---Determine if a node is part of a tree with a valid rendered root.
+---If not, destroy the whole root.
+---@param vnode Relm.Internal.VNode
+local function vcheckroot(vnode)
+	while vnode and vnode.parent do
+		vnode = vnode.parent
+	end
+	if (not vnode) or not vnode.root_id then
+		log.error(
+			"vcheckroot: vnode",
+			(vnode or {}).type,
+			"isn't a child of a proper root vnode"
+		)
+		return false
+	end
+	local root = storage._relm.roots[vnode.root_id] --[[@as Relm.Internal.Root]]
+	if (not root) or (root.vtree_root ~= vnode) then
+		log.error(
+			"vcheckroot: vnode",
+			vnode.type,
+			"doesn't match a root in storage"
+		)
+		return false
+	end
+	if root.root_element and root.root_element.valid then
+		return true
+	else
+		log.error(
+			"vcheckroot: vnode",
+			vnode.type,
+			"root doesn't have a rendered element and is being aggressively pruned."
+		)
+		lib.root_destroy(vnode.root_id)
+		return false
+	end
+end
+
 ---Repaint a node. Type of `vnode` MUST be the same as its previous paint.
 ---This does not apply to its children.
 ---@param vnode Relm.Internal.VNode
@@ -886,11 +924,15 @@ local function vrepaint(vnode)
 		vnode = vnode.parent
 	end
 	if vnode then
-		vpaint_stats(
-			vnode,
-			{ elem = vnode.elem, index = 1, is_root = not vnode.parent },
-			true
-		)
+		-- Repainting something without an elem is suspicious.
+		-- Check for dead roots.
+		local elem = vnode.elem
+		local is_root = not vnode.parent
+		if not elem then
+			log.info("relm.vrepaint: vcheckroot on", vnode.type)
+			if not vcheckroot(vnode) then return end
+		end
+		vpaint_stats(vnode, { elem = elem, index = 1, is_root = is_root }, true)
 	else
 		log.error("relm.vrepaint: no vnode to paint")
 	end
