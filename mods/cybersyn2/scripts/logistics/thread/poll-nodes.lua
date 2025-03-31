@@ -155,8 +155,7 @@ end
 
 ---@param data Cybersyn.Internal.LogisticsThreadData
 local function cleanup_poll_nodes(data)
-	data.nodes = nil
-	logistics_thread.set_state(data, "init")
+	logistics_thread.set_state(data, "next_t")
 end
 
 ---@param data Cybersyn.Internal.LogisticsThreadData

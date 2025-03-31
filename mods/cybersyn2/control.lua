@@ -24,6 +24,7 @@ require("scripts.events")
 require("scripts.storage")
 require("scripts.settings")
 require("scripts.threads")
+require("scripts.dynamic-binding")
 
 require("scripts.combinator.base")
 require("scripts.combinator.setting")

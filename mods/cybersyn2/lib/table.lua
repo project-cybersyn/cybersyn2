@@ -16,13 +16,9 @@ lib.empty = empty
 ---@param B any[]
 ---@return boolean
 function lib.a_eqeq(A, B)
-	if #A ~= #B then
-		return false
-	end
+	if #A ~= #B then return false end
 	for i = 1, #A do
-		if A[i] ~= B[i] then
-			return false
-		end
+		if A[i] ~= B[i] then return false end
 	end
 	return true
 end
@@ -60,9 +56,7 @@ end
 ---@param src table<K, V>?
 ---@return table<K, V>
 function lib.assign(dest, src)
-	if not src then
-		return dest
-	end
+	if not src then return dest end
 	for k, v in pairs(src) do
 		dest[k] = v
 	end
@@ -84,6 +78,19 @@ function lib.concat(...)
 	return A
 end
 
+---Appends all non-`nil` args to the array `A`, returning `A`
+---@generic T
+---@param A T[]
+---@param ... T?
+---@return T[]
+function lib.append(A, ...)
+	for i = 1, select("#", ...) do
+		local value = select(i, ...)
+		if value ~= nil then A[#A + 1] = value end
+	end
+	return A
+end
+
 ---Filter an array by a predicate function.
 ---@generic T
 ---@param A T[]
@@ -92,9 +99,7 @@ end
 function lib.filter(A, f)
 	local B = {}
 	for i = 1, #A do
-		if f(A[i], i) then
-			B[#B + 1] = A[i]
-		end
+		if f(A[i], i) then B[#B + 1] = A[i] end
 	end
 	return B
 end
@@ -109,9 +114,7 @@ function lib.map(A, f)
 	local B = {}
 	for i = 1, #A do
 		local x = f(A[i], i)
-		if x ~= nil then
-			B[#B + 1] = x
-		end
+		if x ~= nil then B[#B + 1] = x end
 	end
 	return B
 end
@@ -134,9 +137,7 @@ end
 ---@return K? key The key of the first matching entry, or `nil` if none was found
 function lib.find(T, f)
 	for k, v in pairs(T) do
-		if f(v, k) then
-			return v, k
-		end
+		if f(v, k) then return v, k end
 	end
 end
 
@@ -150,9 +151,7 @@ function lib.t_map_a(T, f)
 	local A = {}
 	for k, v in pairs(T) do
 		local x = f(v, k)
-		if x ~= nil then
-			A[#A + 1] = x
-		end
+		if x ~= nil then A[#A + 1] = x end
 	end
 	return A
 end
@@ -168,9 +167,7 @@ function lib.t_map_t(T, f)
 	local U = {}
 	for k, v in pairs(T) do
 		local k2, v2 = f(k, v)
-		if k2 ~= nil then
-			U[k2] = v2
-		end
+		if k2 ~= nil then U[k2] = v2 end
 	end
 	return U
 end

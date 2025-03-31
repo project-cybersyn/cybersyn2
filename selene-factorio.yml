@@ -27,3 +27,6 @@ globals:
     any: true
   commands:
     any: true
+  table_size:
+    any: true
+
