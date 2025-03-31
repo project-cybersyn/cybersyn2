@@ -4,7 +4,10 @@ end
 
 local log = require("__cybersyn2__.lib.logging")
 
-local tremove = table.remove
+local tremove = _G.table.remove
+local type = _G.type
+local min = _G.math.min
+local error = _G.error
 
 local lib = {}
 
@@ -224,7 +227,6 @@ local STYLE_KEYS = {
 
 --------------------------------------------------------------------------------
 -- INTERNAL TYPES AND GLOBALS
--- These can be changed as needed without breaking userspace.
 --------------------------------------------------------------------------------
 
 ---Registry of all elt types defined in this Relm instance.
@@ -280,6 +282,25 @@ local WAS_GATHERED = setmetatable({}, immutable_mt)
 
 ---Unique per-mod key for event listening
 local LISTEN_KEY = "__relm_listen_" .. script.mod_name
+
+---Shallowly compare two values for equality. If tables, they are compared
+---by key shallowly with `==`.
+---@param lhs any
+---@param rhs any
+---@return boolean
+local function shallow_eq(lhs, rhs)
+	if type(lhs) ~= "table" or type(rhs) ~= "table" then return lhs == rhs end
+
+	for key, value in pairs(lhs) do
+		if rhs[key] ~= value then return false end
+	end
+
+	for key in pairs(rhs) do
+		if lhs[key] == nil then return false end
+	end
+
+	return true
+end
 
 -- Forward declarations for mutually recursive functions.
 local vmsg
@@ -357,7 +378,7 @@ local removed_keys = setmetatable({}, { __mode = "k" })
 
 ---Normalize calls and results of `element.render`
 ---@param def? Relm.ElementDefinition
----@param type? string
+---@param element_type? string
 ---@param props? Relm.Props
 ---@param state? Relm.State
 ---@param hook_node_? Relm.Internal.VNode
@@ -365,14 +386,16 @@ local removed_keys = setmetatable({}, { __mode = "k" })
 ---@return Relm.Node[]
 local function normalized_render(
 	def,
-	type,
+	element_type,
 	props,
 	state,
 	hook_node_,
 	is_hydrating_
 )
-	if not def then def = registry[type or ""] end
-	if not def then error("Element type " .. (type or "") .. " not found.") end
+	if not def then def = registry[element_type or ""] end
+	if not def then
+		error("Element type " .. (element_type or "") .. " not found.")
+	end
 	hook_num = 0
 	hook_node = hook_node_
 	render_is_hydrating = not not is_hydrating_
@@ -744,7 +767,7 @@ local function vpaint_fix_tabs(elem)
 		end
 	end
 	elem.remove_tab()
-	local ntabs = math.min(#tabs, #non_tabs)
+	local ntabs = min(#tabs, #non_tabs)
 	for i = 1, ntabs do
 		elem.add_tab(tabs[i], non_tabs[i])
 	end
@@ -995,16 +1018,7 @@ end
 local barrier_count = 0
 local barrier_queue = {}
 
-local function enter_side_effect_barrier()
-	barrier_count = barrier_count + 1
-	if barrier_count > 1 then
-		log.warn(
-			"relm.enter_side_effect_barrier: unexpected barrier_count:",
-			barrier_count,
-			" probably indicates a bug"
-		)
-	end
-end
+local function enter_side_effect_barrier() barrier_count = barrier_count + 1 end
 
 local function empty_barrier_queue()
 	while barrier_count == 0 and #barrier_queue > 0 do
@@ -1027,7 +1041,7 @@ local function barrier_wrap(op, vnode, arg1, arg2)
 	if barrier_count > 0 then
 		barrier_queue[#barrier_queue + 1] = { op or noop, vnode, arg1, arg2 }
 	else
-		enter_side_effect_barrier()
+		barrier_count = barrier_count + 1
 		op(vnode, arg1, arg2)
 		return exit_side_effect_barrier()
 	end
@@ -1035,7 +1049,7 @@ end
 
 local function vstate_impl(vnode, arg)
 	vnode.state = arg
-	vrepaint(vnode)
+	return vrepaint(vnode)
 end
 
 ---@param vnode Relm.Internal.VNode
@@ -1114,6 +1128,41 @@ end
 local function vmsg_broadcast(vnode, payload, resent)
 	payload.propagation_mode = "broadcast"
 	return barrier_wrap(vmsg_broadcast_impl, vnode, payload, resent)
+end
+
+---Common state management for render hooks.
+---@param wants_state boolean
+---@param wants_transient boolean
+local function setup_hook(wants_state, wants_transient)
+	hook_num = hook_num + 1
+	local node = hook_node --[[@as Relm.Internal.VNode]]
+	local state, transient
+	if wants_state then
+		local hooks = node.hooks
+		if not hooks then
+			node.hooks = {}
+			hooks = node.hooks
+		end
+		---@cast hooks table<integer, any>
+		state = hooks[hook_num]
+		if not state then
+			hooks[hook_num] = {}
+			state = hooks[hook_num]
+		end
+	end
+	if wants_transient then
+		local hooks = vhooks_transient[node]
+		if not hooks then
+			hooks = {}
+			vhooks_transient[node] = hooks
+		end
+		transient = hooks[hook_num]
+		if not transient then
+			transient = {}
+			hooks[hook_num] = transient
+		end
+	end
+	return state, transient
 end
 
 --------------------------------------------------------------------------------
@@ -1250,18 +1299,20 @@ end
 ---
 ---@param container_element LuaGuiElement The render result will be `.add`ed to this element. e.g. `player.gui.screen`. MUST NOT be within another Relm tree.
 ---@param name string The rendered root will be given this `name` within the `container_element` children. Name is mandatory for re-rendering the root when needed.
----@param type string Type of Relm element to render at the root. Must have previously been defined with `relm.define_element`.
+---@param element_type string Type of Relm element to render at the root. Must have previously been defined with `relm.define_element`.
 ---@param props Relm.Props Props to pass to the newly created root. Unlike other props in Relm, these MUST be serializable (no functions!) and may not contain `children`.
 ---@return Relm.RootId? root_id ID of the newly created root.
 ---@return LuaGuiElement? root_element The root Factorio element.
-function lib.root_create(container_element, name, type, props)
+function lib.root_create(container_element, name, element_type, props)
 	if not container_element or not container_element.valid then
 		error(
 			"relm.root_create: `container_element` must be a valid LuaGuiElement."
 		)
 	end
-	if not type or not registry[type] then
-		error("relm.root_create: Element type " .. (type or "") .. " not found.")
+	if not element_type or not registry[element_type] then
+		error(
+			"relm.root_create: Element type " .. (element_type or "") .. " not found."
+		)
 	end
 	if props.children then
 		error("relm.root_create: Root props may not contain children.")
@@ -1288,14 +1339,14 @@ function lib.root_create(container_element, name, type, props)
 		vtree_root = {
 			root_id = id,
 		},
-		root_element_type = type,
+		root_element_type = element_type,
 		root_props = props,
 	}
 	local vtree_root = relm_state.roots[id].vtree_root
 
 	-- Render the entire tree from the root
 	enter_side_effect_barrier()
-	vapply(vtree_root, { type = type, props = props })
+	vapply(vtree_root, { type = element_type, props = props })
 	vpaint_stats(vtree_root, {
 		elem = container_element,
 		index = 1,
@@ -1424,44 +1475,6 @@ function lib.msg_broadcast(handle, msg, resent)
 	return vmsg_broadcast(handle --[[@as Relm.Internal.VNode]], msg, resent)
 end
 
----Shallowly compare two values for equality. If tables, they are compared
----by key shallowly with `==`.
----@param lhs any
----@param rhs any
----@return boolean
-local function shallow_eq(lhs, rhs)
-	if type(lhs) ~= "table" or type(rhs) ~= "table" then return lhs == rhs end
-
-	for key, value in pairs(lhs) do
-		if rhs[key] ~= value then return false end
-	end
-
-	for key in pairs(rhs) do
-		if lhs[key] == nil then return false end
-	end
-
-	return true
-end
-
-local function setup_hook(wants_state, wants_transient)
-	hook_num = hook_num + 1
-	local node = hook_node --[[@as Relm.Internal.VNode]]
-	local state, transient
-	if wants_state then
-		local hooks = node.hooks or {}
-		if not node.hooks then node.hooks = hooks end
-		state = hooks[hook_num] or {}
-		if not hooks[hook_num] then hooks[hook_num] = state end
-	end
-	if wants_transient then
-		if not vhooks_transient[node] then vhooks_transient[node] = {} end
-		local hooks = vhooks_transient[node]
-		transient = hooks[hook_num] or {}
-		if not hooks[hook_num] then hooks[hook_num] = transient end
-	end
-	return state, transient
-end
-
 ---Isolate a side effect from the rendering algorithm. Similar to React's
 ---`useEffect` hook, this will run the given `callback` and `cleanup` functions
 ---in the following way:
@@ -1587,14 +1600,14 @@ end
 
 ---Generate a node for an element of the given named type with the given
 ---props. Returns `nil` if the type was invalid.
----@param type string The type of element to create.
+---@param element_type string The type of element to create.
 ---@param props Relm.Props The properties to pass to the element.
 ---@return Relm.Node? node The generated node, or `nil` if the type was invalid.
-function lib.element(type, props)
-	if not type or not registry[type] then return nil end
+function lib.element(element_type, props)
+	if not element_type or not registry[element_type] then return nil end
 	props = props or {}
 	return {
-		type = type,
+		type = element_type,
 		props = props,
 	}
 end
