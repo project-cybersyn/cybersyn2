@@ -70,9 +70,7 @@ end
 ---@return boolean
 function _G.cs2.combinator_api.is_gui_open(player_index)
 	local player = game.get_player(player_index)
-	if not player then
-		return false
-	end
+	if not player then return false end
 	local state = storage.players[player_index]
 	if state and state.combinator_gui_root then
 		return true
@@ -86,9 +84,7 @@ end
 ---@param silent boolean?
 function _G.cs2.combinator_api.close_gui(player_index, silent)
 	local player = game.get_player(player_index)
-	if not player then
-		return
-	end
+	if not player then return end
 
 	-- Try to close the GUI the easy way
 	local state = storage.players[player_index]
@@ -115,23 +111,20 @@ end
 ---@param player_index PlayerIndex
 ---@param combinator Cybersyn.Combinator.Ephemeral
 function _G.cs2.combinator_api.open_gui(player_index, combinator)
-	if not combinator_api.is_valid(combinator) then
-		return
-	end
+	if not combinator_api.is_valid(combinator) then return end
 	local player = game.get_player(player_index)
-	if not player then
-		return
-	end
+	if not player then return end
+
 	-- Close any existing gui
 	combinator_api.close_gui(player_index, true)
 	-- Create new gui state
 	local state = create_gui_state(player_index, combinator)
 
 	local root_id, main_window =
-		relm.root_create(player.gui.screen, "CombinatorGui", {
+		relm.root_create(player.gui.screen, cs2.WINDOW_NAME, "CombinatorGui", {
 			player_index = player_index,
 			combinator = combinator,
-		}, cs2.WINDOW_NAME)
+		})
 
 	if main_window then
 		main_window.force_auto_center()
@@ -343,15 +336,14 @@ relm.define_element({
 			combinator_api.close_gui(props.player_index)
 			return true
 		elseif payload.key == "toggle_info" then
-			relm.set_state(me, function(prev)
-				return { show_info = not (prev or {}).show_info }
-			end)
+			relm.set_state(
+				me,
+				function(prev) return { show_info = not (prev or {}).show_info } end
+			)
 			return true
 		end
 	end,
-	state = function()
-		return { show_info = false }
-	end,
+	state = function() return { show_info = false } end,
 })
 
 --------------------------------------------------------------------------------

@@ -7,7 +7,7 @@
 
 local counters = require("__cybersyn2__.lib.counters")
 local scheduler = require("__cybersyn2__.lib.scheduler")
-local flib_gui = require("__flib__.gui")
+local relm = require("__cybersyn2__.lib.relm")
 local log = require("__cybersyn2__.lib.logging")
 
 local mgr = _G.mgr
@@ -18,6 +18,9 @@ local mgr = _G.mgr
 
 mgr.on_init(counters.init, true)
 mgr.on_init(scheduler.init, true)
+mgr.on_init(relm.init, true)
+mgr.on_load(relm.on_load, true)
+relm.install_event_handlers()
 
 --------------------------------------------------------------------------------
 -- Core Factorio control phase
@@ -40,9 +43,7 @@ script.on_nth_tick(1, scheduler.tick)
 script.on_event(defines.events.on_player_selected_area, function(event)
 	---@cast event EventData.on_player_selected_area
 	local player = game.get_player(event.player_index)
-	if not player then
-		return
-	end
+	if not player then return end
 	local cursor_stack = player.cursor_stack
 	if
 		not cursor_stack
@@ -51,17 +52,16 @@ script.on_event(defines.events.on_player_selected_area, function(event)
 	then
 		return
 	end
-	if cursor_stack.name ~= "cybersyn2-inspector" then
-		return
-	end
+	if cursor_stack.name ~= "cybersyn2-inspector" then return end
 
 	mgr.raise_inspector_selected(event)
 	player.clear_cursor()
 end)
 
-script.on_event("cybersyn2-manager-keybind", function(event)
-	mgr.raise_manager_toggle(event.player_index)
-end)
+script.on_event(
+	"cybersyn2-manager-keybind",
+	function(event) mgr.raise_manager_toggle(event.player_index) end
+)
 
 script.on_event(defines.events.on_lua_shortcut, function(event)
 	if event.prototype_name == "cybersyn2-manager-shortcut" then

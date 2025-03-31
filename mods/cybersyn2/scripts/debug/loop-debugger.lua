@@ -105,6 +105,10 @@ function _G.cs2.debug.open_loop_debugger(player_index)
 	local player = game.get_player(player_index)
 	if not player then return end
 	local screen = player.gui.screen
-	if screen["LogisticsLoopDebugger"] then return end
-	relm.root_create(screen, "LogisticsLoopDebugger", {}, "LogisticsLoopDebugger")
+	-- Close existing one
+	if screen["LogisticsLoopDebugger"] then
+		relm.root_destroy(relm.get_root_id(screen["LogisticsLoopDebugger"]))
+	end
+	-- Reopen
+	relm.root_create(screen, "LogisticsLoopDebugger", "LogisticsLoopDebugger", {})
 end

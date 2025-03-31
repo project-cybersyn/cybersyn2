@@ -4,7 +4,7 @@
 
 _G.cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX = "[virtual-signal=cybersyn2-group]"
 
-_G.cs2.WINDOW_NAME = "cybersyn-combinator-gui"
+_G.cs2.WINDOW_NAME = "cybersyn2-combinator-gui"
 _G.cs2.COMBINATOR_CLOSE_SOUND = "entity-close/cybersyn-combinator"
 
 -- Max rails to search away from station when checking layout.

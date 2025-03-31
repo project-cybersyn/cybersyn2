@@ -3,7 +3,7 @@
 storage = {}
 
 ---@class Cybersyn.Manager.PlayerStorage
----@field public inspector? Cybersyn.Manager.InspectorState If open, state of the player's Inspector.
+---@field public inspector_root_id? Relm.RootId Relm root of the player's inspector.
 
 ---@class Cybersyn.Manager.InspectorState
 ---@field public entries Cybersyn.Manager.InspectorEntry[] Open subwindows in the Inspector.
@@ -11,6 +11,4 @@ storage = {}
 ---@class Cybersyn.Manager.InspectorEntry
 ---@field public type string Type of widget for panel.
 
-_G.mgr.on_init(function()
-	storage.players = {}
-end)
+_G.mgr.on_init(function() storage.players = {} end)
