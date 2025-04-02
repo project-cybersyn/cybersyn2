@@ -6,12 +6,12 @@ end
 
 local tinsert = table.insert
 
-local logging = require("__cybersyn2__.lib.logging")
-local log = logging.log
-local TRACE = logging.level.trace
-local event_tracing_enabled = true -- TODO: turn off by default, toggle
-
 local lib = {}
+
+-- strace support
+local strace = nil
+local TRACE = 10
+local mod_name = script.mod_name
 
 --selene: allow(unused_variable)
 
@@ -35,8 +35,8 @@ local function create_event(name, p1, p2, p3, p4, p5)
 		end
 	end
 	local function raise(...)
-		if event_tracing_enabled then
-			log(TRACE, "event", name, "CS2 Event:", name, ...)
+		if strace then
+			strace(TRACE, "mod", mod_name, "event", name, "message", ...)
 		end
 		for i = 1, #bindings do
 			bindings[i](...)
@@ -46,10 +46,8 @@ local function create_event(name, p1, p2, p3, p4, p5)
 end
 lib.create_event = create_event
 
----Enable or disable event tracing, which logs all events by name using
----the TRACE log level. Further filtering can be done using the logging
----library's interface.
----@param enabled boolean
-function lib.set_event_tracing_enabled(enabled) event_tracing_enabled = enabled end
+---Set strace handler. `nil` disables tracing entirely.
+---@param handler? fun(level: int, ...)
+function lib.set_strace_handler(handler) strace = handler end
 
 return lib

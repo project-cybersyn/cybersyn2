@@ -172,4 +172,22 @@ function lib.t_map_t(T, f)
 	return U
 end
 
+---Map over the elements of an array, flattening out one level of arrays.
+---@generic I, O
+---@param A I[]
+---@param f fun(x: I): O[]
+---@return O[]
+function lib.flat_map(A, f)
+	local B = {}
+	for i = 1, #A do
+		local C = f(A[i])
+		if C then
+			for j = 1, #C do
+				B[#B + 1] = C[j]
+			end
+		end
+	end
+	return B
+end
+
 return lib

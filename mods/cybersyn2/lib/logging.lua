@@ -2,22 +2,23 @@ if ... ~= "__cybersyn2__.lib.logging" then
 	return require("__cybersyn2__.lib.logging")
 end
 
+local strace_lib = require("__cybersyn2__.lib.strace")
+
+local strace = strace_lib.strace
+local TRACE = strace_lib.TRACE
+local DEBUG = strace_lib.DEBUG
+local WARN = strace_lib.WARN
+local ERROR = strace_lib.ERROR
+local INFO = strace_lib.INFO
 local tconcat = table.concat
+
 local SERPENT_LINE_ARGS = { maxlevel = 5, maxnum = 20, nocode = true }
+local mod_name = script.mod_name
 
 local lib = {}
 
----@enum Log.Level
-local log_level = {
-	["trace"] = 1,
-	["debug"] = 2,
-	["info"] = 3,
-	["warn"] = 4,
-	["error"] = 5,
-}
-lib.level = log_level
-
 ---Convert values to strings after the fashion of the `log` functions.
+---@deprecated
 ---@param val any
 ---@return string
 local function stringify(val)
@@ -42,9 +43,7 @@ lib.stringify = stringify
 ---@param filter any
 ---@param msg string
 local function log(level, category, filter, msg, ...)
-	if not game then
-		return
-	end
+	if not game then return end
 	local str = { msg }
 	for i = 1, select("#", ...) do
 		local val = select(i, ...)
@@ -56,42 +55,75 @@ local function log(level, category, filter, msg, ...)
 		game_state = false,
 	})
 end
-lib.log = log
 
+---@deprecated Use strace
 function lib.trace(msg, ...)
-	return log(log_level.trace, nil, nil, msg, ...)
+	return strace(
+		TRACE,
+		"mod",
+		mod_name,
+		"logging",
+		"deprecated",
+		"message",
+		msg,
+		...
+	)
 end
 
+---@deprecated Use strace
 function lib.debug(msg, ...)
-	return log(log_level.debug, nil, nil, msg, ...)
+	return strace(
+		DEBUG,
+		"mod",
+		mod_name,
+		"logging",
+		"deprecated",
+		"message",
+		msg,
+		...
+	)
 end
 
+---@deprecated Use strace
 function lib.info(msg, ...)
-	return log(log_level.info, nil, nil, msg, ...)
+	return strace(
+		INFO,
+		"mod",
+		mod_name,
+		"logging",
+		"deprecated",
+		"message",
+		msg,
+		...
+	)
 end
 
+---@deprecated Use strace
 function lib.warn(msg, ...)
-	return log(log_level.warn, nil, nil, msg, ...)
+	return strace(
+		WARN,
+		"mod",
+		mod_name,
+		"logging",
+		"deprecated",
+		"message",
+		msg,
+		...
+	)
 end
 
+---@deprecated Use strace
 function lib.error(msg, ...)
-	return log(log_level.error, nil, nil, msg, ...)
-end
-
-local once_keys = {}
-
----Log something exactly once per Lua session based on key.
----@param level Log.Level
----@param once_key string
----@param category string?
----@param filter any
----@param msg string
-function lib.once(level, once_key, category, filter, msg, ...)
-	if once_keys[once_key or ""] then
-		return
-	end
-	once_keys[once_key or ""] = true
-	return log(level, category, filter, msg, ...)
+	return strace(
+		ERROR,
+		"mod",
+		mod_name,
+		"logging",
+		"deprecated",
+		"message",
+		msg,
+		...
+	)
 end
 
 return lib
