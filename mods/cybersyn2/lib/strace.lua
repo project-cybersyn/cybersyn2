@@ -48,6 +48,7 @@ lib.INFO = 30
 lib.STATS = 40
 lib.WARN = 50
 lib.ERROR = 60
+lib.MAX_LEVEL = 1000
 
 local level_to_string = {
 	[lib.TRACE] = "TRACE",
@@ -60,7 +61,7 @@ local level_to_string = {
 lib.level_to_string = level_to_string
 
 ---Global strace handler per Lua state.
----@type fun(level: int, ...)|nil
+---@type fun(...)|nil
 local handler = nil
 
 ---Get a key-value pair from an strace message by linear search for the key.
@@ -155,11 +156,11 @@ function lib.strace(level, ...)
 end
 
 ---Set a global tracing handler
----@param new_handler? fun(level: int, ...)
+---@param new_handler? fun(...)
 function lib.set_handler(new_handler) handler = new_handler end
 
 ---Get the global tracing handler
----@return fun(level:int, ...)|nil
+---@return fun(...)|nil
 function lib.get_handler() return handler end
 
 local function stringify_with(val, serpent_printer)

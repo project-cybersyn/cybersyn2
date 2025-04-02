@@ -66,7 +66,7 @@ require("scripts.logistics.thread.poll-nodes")
 
 require("scripts.debug.base")
 require("scripts.debug.overlay")
-require("scripts.debug.loop-debugger")
+require("scripts.debug.debugger")
 
 require("scripts.api.base")
 require("scripts.api.query")

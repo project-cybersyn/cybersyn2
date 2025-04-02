@@ -1,7 +1,11 @@
-local flib_gui = require("__flib__.gui")
-local cs_gui = require("__cybersyn2__.lib.gui")
 local log = require("__cybersyn2__.lib.logging")
+local relm = require("__cybersyn2__.lib.relm")
+local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
+local ultros = require("__cybersyn2__.lib.ultros")
+local tlib = require("__cybersyn2__.lib.table")
 local mgr = _G.mgr
+
+local Pr = relm.Primitive
 
 ---@class Cybersyn2.Manager.InspectorFrameType
 ---@field public name string Type of this panel
@@ -11,131 +15,216 @@ _G.mgr.inspector = {}
 _G.mgr.INSPECTOR_WINDOW_NAME = "cybersyn2-inspector"
 local inspector = _G.mgr.inspector
 
----@param player_index uint
----@param no_create boolean?
----@return Cybersyn.Manager.InspectorState?
-local function get_or_create_inspector_state(player_index, no_create)
-	local pstate = storage.players[player_index]
-	if not pstate then
-		storage.players[player_index] = {}
-		pstate = storage.players[player_index]
-	end
-	local istate = pstate.inspector
-	if not istate and not no_create then
-		pstate.inspector = {
-			entries = {},
-		}
-		istate = pstate.inspector
-	end
-	return istate
+---Get open inspector window for given player.
+---@return Relm.RootId? root_id Relm root id of open inspector
+---@return LuaGuiElement? element Factorio element of open inspector
+function _G.mgr.inspector.get(player_index)
+	local player = game.get_player(player_index)
+	if not player then return end
+	return storage.inspector_root[player_index],
+		player.gui.screen[mgr.INSPECTOR_WINDOW_NAME]
 end
 
 function _G.mgr.inspector.close(player_index)
-	local player = game.get_player(player_index)
-	if not player then return end
-	local gui_root = player.gui.screen
-	if gui_root[mgr.INSPECTOR_WINDOW_NAME] then
-		gui_root[mgr.INSPECTOR_WINDOW_NAME].destroy()
-	end
-	destroy_inspector_state(player_index)
+	local id, window = inspector.get(player_index)
+	if id then relm.root_destroy(id) end
+	if window and window.valid then window.destroy() end
+	storage.inspector_root[player_index] = nil
 end
 
----Open a new inspector for the given player. Destroys any existing inspector;
----call `inspector.get_window` to check if one is already open.
+---Open inspector for player if not already open.
 ---@param player_index uint
+---@return Relm.RootId? id If a window was opened, the id of the new root.
 function _G.mgr.inspector.open(player_index)
 	local player = game.get_player(player_index)
 	if not player then return end
+	local screen = player.gui.screen
 
-	-- Close existing inspectors
-	inspector.close(player_index)
-	get_or_create_inspector_state(player_index)
-end
-
-function _G.mgr.inspector.update_layout(player_index)
-	local window = inspector.get_window(player_index)
-	if not window then return end
-	local state = get_or_create_inspector_state(player_index, true)
-	if not state then return end
-
-	-- Create inspector frames for each inspected object.
-	local widget_ctr = window["widgets"]
-	for i = 1, #state.entries do
-		if not widget_ctr.children[i] then
-			local widget = cs_gui.create_widget(state.entries[i].type, { index = i })
-			widget.index = i
-			flib_gui.add(widget_ctr, widget)
-		end
-	end
-	for i = #state.entries + 1, #widget_ctr.children do
-		widget_ctr.children[i].destroy()
-	end
-
-	mgr.inspector.update_frames(player_index)
-end
-
-function _G.mgr.inspector.update_frames(player_index)
-	local window = inspector.get_window(player_index)
-	if not window then return end
-	local state = get_or_create_inspector_state(player_index, true)
-	if not state then return end
-	local widget_ctr = window["widgets"]
-	-- Apply results data to widget frames
-	for i = 1, #state.entries do
-		local entry = state.entries[i]
-		local widget = widget_ctr.children[i]
-		if not widget then break end
-		cs_gui.update_widget(widget, entry)
+	if
+		(not inspector.get(player_index))
+		and not screen[mgr.INSPECTOR_WINDOW_NAME]
+	then
+		local id = relm.root_create(
+			screen,
+			"CybersynInspector",
+			"Cybersyn.Inspector",
+			{ player_index = player_index }
+		)
+		storage.inspector_root[player_index] = id
 	end
 end
 
----@param player_index uint
----@param entry Cybersyn.Manager.InspectorEntry
-function _G.mgr.inspector.add_entry(player_index, entry)
-	local state = get_or_create_inspector_state(player_index, true)
-	if not state then return end
-	table.insert(state.entries, entry)
-	inspector.update_layout(player_index)
-end
+---@class Cybersyn.Manager.InspectorEntry
+---@field public type string
+---@field public key string Unique key to avoid dupe entries.
+---@field public caption string
 
 ---@param player_index uint
----@param entry_index uint
-function _G.mgr.inspector.remove_entry(player_index, entry_index)
-	local state = get_or_create_inspector_state(player_index, true)
-	if not state then return end
-	if not state.entries[entry_index] then return end
-	table.remove(state.entries, entry_index)
-	inspector.update_layout(player_index)
+---@param entry Cybersyn.Manager.InspectorEntry[]
+function _G.mgr.inspector.add_entries(player_index, entry)
+	local root = inspector.get(player_index)
+	if not root then return end
+	relm.msg_broadcast(
+		relm.root_handle(root),
+		{ key = "add_entries", entries = entry }
+	)
 end
 
----@param player_index uint
 ---@param entity LuaEntity
-local function add_entity_queries(player_index, entity)
+---@return Cybersyn.Manager.InspectorEntry[]?
+local function entity_to_entries(entity)
 	if entity.name == "train-stop" then
-		mgr.inspector.add_entry(player_index, {
-			query = {
-				type = "stops",
-				unit_numbers = { entity.unit_number },
+		return {
+			{
+				key = "stop" .. entity.unit_number,
+				type = "InspectorItem.Generic",
+				query = {
+					type = "stops",
+					unit_numbers = { entity.unit_number },
+				},
+				caption = "TrainStop " .. entity.unit_number,
 			},
-			caption = "TrainStop " .. entity.unit_number,
-		})
+		}
 	elseif entity.name == "cybersyn2-combinator" then
-		mgr.inspector.add_entry(player_index, {
-			query = {
-				type = "combinators",
-				ids = { entity.unit_number },
+		return {
+			{
+				key = "comb" .. entity.unit_number,
+				type = "InspectorItem.Generic",
+				query = {
+					type = "combinators",
+					ids = { entity.unit_number },
+				},
+				caption = "Combinator " .. entity.unit_number,
 			},
-			caption = "Combinator " .. entity.unit_number,
-		})
+		}
 	end
 end
 
 mgr.on_inspector_selected(function(event)
-	if not inspector.get_window(event.player_index) then
+	if not inspector.get(event.player_index) then
 		inspector.open(event.player_index)
 	end
-	for i = 1, #event.entities do
-		local entity = event.entities[i]
-		add_entity_queries(event.player_index, entity)
-	end
+	local entries = tlib.flat_map(event.entities, entity_to_entries)
+	inspector.add_entries(event.player_index, entries)
 end)
+
+--------------------------------------------------------------------------------
+-- Components
+--------------------------------------------------------------------------------
+
+relm.define_element({
+	name = "InspectorItem.Generic",
+	render = function(props)
+		relm_helpers.use_timer(120, "update")
+		local result = remote.call("cybersyn2", "query", props.query)
+		return ultros.RtMultilineLabel(log.stringify(result))
+	end,
+	message = function(me, payload)
+		if payload.key == "update" then
+			relm.paint(me)
+			return true
+		end
+		return false
+	end,
+})
+
+local Entry = relm.define_element({
+	name = "Cybersyn.Inspector.Entry",
+	render = function(props, state)
+		local entry = props.entry
+		if not entry then return nil end
+		-- Update logic is delegated to the type widget, as some might be
+		-- able to smartly bind to events.
+		return ultros.WellSection({
+			caption = entry.caption,
+			decorate = function() return ultros.CloseButton() end,
+		}, {
+			relm.element(entry.type, entry),
+		})
+	end,
+	message = function(me, payload, props)
+		-- Close logic here
+		if payload.key == "close" then
+			relm.msg_bubble(
+				me,
+				{ key = "remove_entries", entries = { props.key } },
+				true
+			)
+			return true
+		end
+		return false
+	end,
+})
+
+local Entries = relm.define_element({
+	name = "Cybersyn.Inspector.Entries",
+	---@param state table
+	render = function(props, state)
+		local children = tlib.t_map_a(
+			state or {},
+			function(v) return Entry({ key = v.key, entry = v }) end
+		)
+		log.trace("entries", children)
+		return children
+	end,
+	state = function() return {} end,
+	message = function(me, payload, _, state)
+		if payload.key == "add_entries" then
+			local next_state = tlib.assign({}, state)
+			for _, v in pairs(payload.entries) do
+				next_state[v.key] = v
+			end
+			relm.set_state(me, next_state)
+			return true
+		elseif payload.key == "remove_entries" then
+			local next_state = tlib.assign({}, state)
+			for _, v in pairs(payload.entries) do
+				next_state[v] = nil
+			end
+			relm.set_state(me, next_state)
+			return true
+		end
+		return false
+	end,
+})
+
+relm.define_element({
+	name = "Cybersyn.Inspector",
+	render = function(props)
+		return ultros.WindowFrame({
+			caption = "Cybersyn Inspector",
+		}, {
+			Pr({
+				type = "frame",
+				style = "inside_shallow_frame",
+				direction = "vertical",
+				vertically_stretchable = true,
+				width = 400,
+				minimal_height = 300,
+				maximal_height = 600,
+			}, {
+				Pr({
+					type = "scroll-pane",
+					direction = "vertical",
+					horizontally_stretchable = true,
+					vertically_stretchable = true,
+					vertical_scroll_policy = "always",
+					horizontal_scroll_policy = "never",
+					extra_top_padding_when_activated = 0,
+					extra_left_padding_when_activated = 0,
+					extra_right_padding_when_activated = 0,
+					extra_bottom_padding_when_activated = 0,
+				}, {
+					Entries(),
+				}),
+			}),
+		})
+	end,
+	message = function(me, payload, props)
+		if payload.key == "close" then
+			inspector.close(props.player_index)
+			return true
+		end
+		return false
+	end,
+})

@@ -4,7 +4,6 @@
 
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
-local log = require("__cybersyn2__.lib.logging")
 local cs2 = _G.cs2
 local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings

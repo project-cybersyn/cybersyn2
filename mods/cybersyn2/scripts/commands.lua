@@ -2,12 +2,14 @@
 -- Console commands
 --------------------------------------------------------------------------------
 
-local function loop_debugger(player_index)
-	_G.cs2.debug.open_loop_debugger(player_index)
-end
+local cs2 = _G.cs2
 
 commands.add_command("cybersyn2", nil, function(command)
-	if command.parameter == "loop_debugger" then
-		loop_debugger(command.player_index)
+	local arg = command.parameter
+	if command.parameter == "debugger" then
+		cs2.debug.open_debugger(command.player_index)
+		return
+	elseif arg == "log_all" then
+		cs2.debug.set_strace(0, 0, nil)
 	end
 end)

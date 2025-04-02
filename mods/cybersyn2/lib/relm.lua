@@ -243,6 +243,7 @@ local registry = {}
 ---@field public vtree_root Relm.Internal.VNode The root of the virtual tree.
 ---@field public root_element_type string Relm element type used to render the root
 ---@field public root_props Relm.Props The properties used to render the root
+---@field public index_to_vnode table<int, Relm.Internal.VNode> Map from elem indices to the vnodes that own them.
 
 ---Internal representation of a vtree node. This is stored in state.
 ---@class (exact) Relm.Internal.VNode
@@ -258,16 +259,9 @@ local registry = {}
 ---@class (exact) Relm.Internal.PaintContext
 ---@field index uint Current real child being examined
 ---@field elem LuaGuiElement Gui element we're rendering into
----@field root_id Relm.RootId? Set to the id of the root if rendering a root.
+---@field root_id Relm.RootId
 ---@field root_name string? Set to the name of the root in its container if we are rendering a root.
 ---@field structure_changed boolean? `true` if something was create or destroyed in this context during the paint op.
-
----Map from `"<player_index>:<element_index>"` to vnodes
----(We can't use weak `LuaGuiElement` keys here)
----TODO: NOT MP SAFE. Either populate by hydration or move to storage.
----XXX: NOT MP SAFE.
----@type table<string, Relm.Internal.VNode>
-local evcache = setmetatable({}, { __mode = "v" })
 
 ---Map from vnodes to last rendered props
 ---MP SAFETY: repopulated `on_load` by full hydration
@@ -350,11 +344,6 @@ end
 ---@param elt? LuaGuiElement
 local function get_vnode(elt)
 	if not elt or not elt.valid then return nil end
-	local cache_key = elt.player_index .. ":" .. elt.index
-	---@type Relm.Internal.VNode?
-	local vnode = evcache[cache_key]
-	if vnode then return vnode end
-
 	local root_id = elt.tags["__relm_root"]
 	if not root_id then
 		if strace then
@@ -383,8 +372,20 @@ local function get_vnode(elt)
 		end
 		return nil
 	end
+	---@type Relm.Internal.VNode?
+	local vnode = root.index_to_vnode[elt.index]
+	if vnode then return vnode end
+	if strace then
+		strace(
+			WARN,
+			"relm",
+			"vnode",
+			"message",
+			"cache miss in get_vnode, shouldnt happen anymore..."
+		)
+	end
 	vnode = find_vnode(root.vtree_root, elt)
-	evcache[cache_key] = vnode
+	root.index_to_vnode[elt.index] = vnode
 	return vnode
 end
 
@@ -395,6 +396,7 @@ local function is_primitive(node) return node and node.type == "Primitive" end
 -- VTREE RENDERING
 --------------------------------------------------------------------------------
 
+-- RENDER STATE
 -- Hook renderstate implementation vars.
 -- MP SAFETY: these are all reset in `normalized_render` and are restricted
 -- to the context of a Lua callstack.
@@ -407,7 +409,18 @@ local hook_num = 0
 local render_is_hydrating = false
 ---Removed keys on primitive nodes. We must set these to `nil` when
 ---painting if we reuse the node.
+---TODO: remove
 local removed_keys = setmetatable({}, { __mode = "k" })
+---Vnodes of primitives that should be pessimized due to having
+---another vnode swapped over them, or another radical vtree change.
+local pessimized_primitives = setmetatable({}, { __mode = "k" })
+-- Stats
+-- MP SAFETY: These are all reset and recounted on a paint cycle, which should
+-- be one frame.
+local optimae = 0
+local pessimae = 0
+local root_touched = 0
+local elements = 0
 
 ---Normalize calls and results of `element.render`
 ---@param def? Relm.ElementDefinition
@@ -433,7 +446,7 @@ local function normalized_render(
 	hook_node = hook_node_
 	render_is_hydrating = not not is_hydrating_
 	-- TODO: support rendering parameter packs ...
-	-- trick: we have to clear render state at the call site...
+	-- trick: we have to clear render state with a tailcall...
 	local rendered_children = def.render(props or {}, state)
 	hook_node = nil
 	render_is_hydrating = false
@@ -692,13 +705,16 @@ end
 -- PAINTING
 --------------------------------------------------------------------------------
 
--- Stats
--- MP SAFETY: These are all reset and recounted on a paint cycle, which should
--- be one frame.
-local optimae = 0
-local pessimae = 0
-local root_touched = 0
-local elements = 0
+---Destroy target element in this context (not necessarily the
+---current element.)
+---@param context Relm.Internal.PaintContext
+---@param elem LuaGuiElement
+local function vpaint_element_destroy(context, elem)
+	local root = storage._relm.roots[context.root_id] --[[@as Relm.Internal.Root]]
+	root.index_to_vnode[elem.index] = nil
+	elem.destroy()
+	context.structure_changed = true
+end
 
 ---@param context Relm.Internal.PaintContext
 local function vpaint_context_destroy(context)
@@ -707,16 +723,10 @@ local function vpaint_context_destroy(context)
 		if context.root_name then
 			root_touched = root_touched + 1
 			local child = elem[context.root_name]
-			if child then
-				child.destroy()
-				context.structure_changed = true
-			end
+			if child then return vpaint_element_destroy(context, child) end
 		else
 			local child = elem.children[context.index]
-			if child then
-				child.destroy()
-				context.structure_changed = true
-			end
+			if child then return vpaint_element_destroy(context, child) end
 		end
 	end
 end
@@ -768,7 +778,7 @@ local function vpaint_context_create(context, props)
 		new_elem = elem.add(addable_props)
 		-- Inherit __relm_root
 		local tags = new_elem.tags
-		tags["__relm_root"] = context.root_id or elem.tags["__relm_root"]
+		tags["__relm_root"] = context.root_id
 		new_elem.tags = tags
 
 		context.structure_changed = true
@@ -971,8 +981,13 @@ local function vpaint(vnode, context, same)
 	local tags = elem.tags
 	if props.listen then
 		tags[LISTEN_KEY] = true
-	else
+		-- TODO: this is a bit ugly...
+		local root = storage._relm.roots[context.root_id] --[[@as Relm.Internal.Root]]
+		root.index_to_vnode[elem.index] = vnode
+	elseif tags[LISTEN_KEY] then
 		tags[LISTEN_KEY] = nil
+		local root = storage._relm.roots[context.root_id] --[[@as Relm.Internal.Root]]
+		root.index_to_vnode[elem.index] = nil
 	end
 	elem.tags = tags
 
@@ -984,9 +999,11 @@ local function vpaint(vnode, context, same)
 	-- Handle children
 	local vchildren = vnode.children or {}
 	if #vchildren > 0 then
+		---@type Relm.Internal.PaintContext
 		local child_context = {
 			elem = elem,
 			index = 1,
+			root_id = context.root_id,
 		}
 		for i = 1, #vchildren do
 			vpaint(vchildren[i], child_context)
@@ -994,7 +1011,7 @@ local function vpaint(vnode, context, same)
 		-- Prune children beyond those rendered.
 		local echildren = elem.children
 		for i = child_context.index, #echildren do
-			echildren[i].destroy()
+			vpaint_element_destroy(context, echildren[i])
 		end
 		if
 			elem.type == "tabbed-pane"
@@ -1006,7 +1023,7 @@ local function vpaint(vnode, context, same)
 	else
 		local echildren = elem.children
 		for i = 1, #echildren do
-			echildren[i].destroy()
+			vpaint_element_destroy(context, echildren[i])
 		end
 		if elem.type == "tabbed-pane" then elem.remove_tab() end
 	end
@@ -1122,7 +1139,11 @@ local function vrepaint(vnode)
 				index = 1,
 			})
 		elseif elem then
-			vpaint_stats(vnode, { elem = elem, index = 1 }, true)
+			vpaint_stats(vnode, {
+				elem = elem,
+				index = 1,
+				root_id = elem.tags["__relm_root"] --[[@as integer]],
+			}, true)
 		elseif strace then
 			strace(
 				ERROR,
@@ -1198,20 +1219,19 @@ local function vstate(vnode, state)
 	return barrier_wrap(vstate_impl, vnode, state)
 end
 
----@param vnode Relm.Internal.VNode
----@param payload any
-local function vmsg_impl(vnode, payload)
+local function vimpl_msg_or_query(vnode, payload, base_key, prop_key)
 	if not vnode then return end
 	local ty = vnode.type
 	if not ty then return end
 	local target_def = registry[ty]
-	local base_handler = target_def and target_def.message
-	local wrapper = vprops[vnode] and vprops[vnode].message_handler
+	local base_handler = target_def and target_def[base_key]
+	local props = vprops[vnode]
+	local wrapper = props and props[prop_key]
 	if wrapper then
 		return wrapper(
 			vnode --[[@as Relm.Handle]],
 			payload,
-			vprops[vnode],
+			props,
 			vnode.state,
 			base_handler
 		)
@@ -1219,10 +1239,17 @@ local function vmsg_impl(vnode, payload)
 		return base_handler(
 			vnode --[[@as Relm.Handle]],
 			payload,
-			vprops[vnode],
+			props,
 			vnode.state
 		)
 	end
+	return false
+end
+
+---@param vnode Relm.Internal.VNode
+---@param payload any
+local function vmsg_impl(vnode, payload)
+	return vimpl_msg_or_query(vnode, payload, "message", "message_handler")
 end
 
 ---@param vnode Relm.Internal.VNode
@@ -1309,18 +1336,8 @@ end
 -- QUERIES
 --------------------------------------------------------------------------------
 
-local function vquery(node, payload)
-	if not node or not node.type then return false, nil end
-	local target_def = registry[node.type]
-	if target_def and target_def.query then
-		return target_def.query(
-			node --[[@as Relm.Handle]],
-			payload,
-			vprops[node],
-			node.state
-		)
-	end
-	return false, nil
+local function vquery(vnode, payload)
+	return vimpl_msg_or_query(vnode, payload, "query", "query_handler")
 end
 
 local function vquery_bubble(node, payload)
@@ -1332,6 +1349,7 @@ local function vquery_bubble(node, payload)
 	return false, nil
 end
 
+---@param node Relm.Internal.VNode
 local function vquery_broadcast(node, payload)
 	local handled, result = vquery(node, payload)
 	if handled then return handled, result end
@@ -1342,14 +1360,17 @@ local function vquery_broadcast(node, payload)
 	else
 		-- Scatter/gather over children
 		---@type table<int|string, Relm.QueryResponse>
-		local results = { [WAS_GATHERED] = true }
+		local results = {}
+		local was_tagged = false
 		local overall_handled = false
 		for i = 1, #children do
 			local child = children[i]
 			handled, result = vquery_broadcast(child, payload)
 			overall_handled = overall_handled or handled
 			if handled then
-				if result and type(result) == "table" and result.query_tag then
+				local child_props = vprops[child]
+				if child_props and child_props.query_tag then
+					was_tagged = true
 					results[result.query_tag] = result
 				else
 					results[i] = result
@@ -1358,7 +1379,18 @@ local function vquery_broadcast(node, payload)
 				results[i] = nil
 			end
 		end
-		return overall_handled, results
+		local nresults = table_size(results)
+		if nresults == 0 then
+			return overall_handled, nil
+		elseif nresults == 1 then
+			if was_tagged then
+				return overall_handled, results
+			else
+				return overall_handled, results[next(results)]
+			end
+		else
+			return overall_handled, results
+		end
 	end
 end
 
@@ -1481,6 +1513,7 @@ function lib.root_create(container_element, name, element_type, props)
 		},
 		root_element_type = element_type,
 		root_props = props,
+		index_to_vnode = {},
 	}
 	local vtree_root = relm_state.roots[id].vtree_root
 
@@ -1520,6 +1553,7 @@ end
 function lib.root_destroy(id)
 	if not id then return end
 	local relm_state = storage._relm
+	---@type Relm.Internal.Root?
 	local root = relm_state.roots[id]
 	if not root then return end
 	enter_side_effect_barrier()

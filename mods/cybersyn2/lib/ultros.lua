@@ -4,7 +4,6 @@ end
 
 local lib = {}
 
-local log = require("__cybersyn2__.lib.logging")
 local relm = require("__cybersyn2__.lib.relm")
 
 local noop = function() end
@@ -371,45 +370,6 @@ lib.Labeled = relm.define_element({
 	end,
 })
 
-lib.Fold = relm.define_element({
-	name = "Fold",
-	render = function(props, state)
-		local opened = state and state.opened
-		local button_caption = opened and "Close" or "Expand"
-		local children = {
-			HF({
-				vertical_align = "center",
-				horizontally_stretchable = true,
-			}, {
-				Pr({
-					type = "label",
-					caption = props.caption,
-					style = "heading_2_label",
-				}),
-				HF({ horizontally_stretchable = true }, {}),
-				lib.Button({ caption = button_caption, on_click = "open_fold" }),
-			}),
-		}
-		if opened then
-			table.insert(children, Pr({ type = "line", direction = "horizontal" }))
-			for _, child in ipairs(props.children) do
-				table.insert(children, child)
-			end
-		end
-		return VF(props, children)
-	end,
-	message = function(me, payload)
-		if payload.key == "open_fold" then
-			relm.set_state(
-				me,
-				function(prev) return { opened = not (prev or {}).opened } end
-			)
-			return true
-		end
-	end,
-	state = function(props) return { opened = props.default_opened } end,
-})
-
 lib.SignalPicker = lib.customize_primitive({
 	type = "choose-elem-button",
 	elem_type = "signal",
@@ -444,6 +404,8 @@ lib.Checkbox = lib.customize_primitive({
 	if props.value == true or props.value == false then
 		props.state = props.value
 		props.value = nil
+	else
+		props.state = false
 	end
 
 	if props.on_change then
@@ -455,6 +417,11 @@ lib.Checkbox = lib.customize_primitive({
 				run_event_handler(props2.on_change, me, my_elt.state, my_elt, gui_event)
 			end
 		)
+	end
+
+	props.query_handler = function(me, payload)
+		if payload.key == "value" and me.elem then return true, me.elem.state end
+		return false
 	end
 end)
 
@@ -582,6 +549,10 @@ lib.Input = lib.customize_primitive({
 				)
 			end
 		)
+	end
+	props.query_handler = function(me, payload)
+		if payload.key == "value" and me.elem then return true, me.elem.text end
+		return false
 	end
 end)
 

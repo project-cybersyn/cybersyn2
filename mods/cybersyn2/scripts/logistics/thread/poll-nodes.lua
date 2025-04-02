@@ -154,9 +154,7 @@ function _G.cs2.logistics_thread.goto_poll_nodes(data)
 end
 
 ---@param data Cybersyn.Internal.LogisticsThreadData
-local function cleanup_poll_nodes(data)
-	logistics_thread.set_state(data, "next_t")
-end
+local function cleanup_poll_nodes(data) logistics_thread.goto_next_t(data) end
 
 ---@param data Cybersyn.Internal.LogisticsThreadData
 function _G.cs2.logistics_thread.poll_nodes(data)

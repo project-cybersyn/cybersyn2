@@ -7,7 +7,6 @@ require("scripts.storage")
 require("scripts.settings")
 
 require("scripts.inspector.base")
-require("scripts.inspector.frames")
 
 require("scripts.main")
 

@@ -8,19 +8,31 @@
 local counters = require("__cybersyn2__.lib.counters")
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local relm = require("__cybersyn2__.lib.relm")
+local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
 local log = require("__cybersyn2__.lib.logging")
-
 local mgr = _G.mgr
+
+local db_dispatch = dynamic_binding.dispatch
 
 --------------------------------------------------------------------------------
 -- Library init
 --------------------------------------------------------------------------------
 
 mgr.on_init(counters.init, true)
+
 mgr.on_init(scheduler.init, true)
+
 mgr.on_init(relm.init, true)
 mgr.on_load(relm.on_load, true)
 relm.install_event_handlers()
+
+mgr.on_init(dynamic_binding.init, true)
+mgr.on_load(dynamic_binding.on_load)
+dynamic_binding.on_event_bound(function(event_name)
+	if _G.mgr[event_name] and string.sub(event_name, 1, 3) == "on_" then
+		_G.mgr[event_name](function(...) return db_dispatch(event_name, ...) end)
+	end
+end)
 
 --------------------------------------------------------------------------------
 -- Core Factorio control phase
