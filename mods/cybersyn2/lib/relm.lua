@@ -1331,8 +1331,9 @@ local function vquery(vnode, payload)
 	return vimpl_msg_or_query(vnode, payload, "query", "query_handler")
 end
 
-local function vquery_bubble(node, payload)
+local function vquery_bubble(node, payload, resent)
 	payload.propagation_mode = "bubble"
+	if resent then node = node.parent end
 	while node and node.type do
 		local handled, result, tag =
 			vimpl_msg_or_query(node, payload, "query", "query_handler")
@@ -1343,11 +1344,14 @@ local function vquery_bubble(node, payload)
 end
 
 ---@param node Relm.Internal.VNode
-local function vquery_broadcast(node, payload)
+local function vquery_broadcast(node, payload, resent)
 	payload.propagation_mode = "broadcast"
-	local handled, result, tag =
-		vimpl_msg_or_query(node, payload, "query", "query_handler")
-	if handled then return true, result, tag end
+	local handled, result, tag
+	if not resent then
+		handled, result, tag =
+			vimpl_msg_or_query(node, payload, "query", "query_handler")
+		if handled then return true, result, tag end
+	end
 	local children = node.children
 	if not children or #children == 0 then return false end
 	for i = 1, #children do
@@ -1752,10 +1756,11 @@ end
 ---propagate upward to parents if not handled.
 ---@param handle Relm.Handle
 ---@param payload Relm.MessagePayload
+---@param resent boolean?
 ---@return boolean handled Whether the query was handled.
 ---@return Relm.QueryResponse? result The result of the query, if handled.
-function lib.query_bubble(handle, payload)
-	return vquery_bubble(handle --[[@as Relm.Internal.VNode]], payload)
+function lib.query_bubble(handle, payload, resent)
+	return vquery_bubble(handle --[[@as Relm.Internal.VNode]], payload, resent)
 end
 
 ---Send a query to the Relm element with the given `handle`, which will
@@ -1765,10 +1770,11 @@ end
 ---child reached by the propagation reported that it handled the query.
 ---@param handle Relm.Handle
 ---@param payload Relm.MessagePayload
+---@param resent boolean?
 ---@return boolean handled Whether the query was handled.
 ---@return Relm.QueryResponse? result The result of the query, if handled.
-function lib.query_broadcast(handle, payload)
-	return vquery_broadcast(handle --[[@as Relm.Internal.VNode]], payload)
+function lib.query_broadcast(handle, payload, resent)
+	return vquery_broadcast(handle --[[@as Relm.Internal.VNode]], payload, resent)
 end
 
 ---This element gathers query results from all of its children into a single
