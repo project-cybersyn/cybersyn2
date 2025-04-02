@@ -2,8 +2,6 @@ if ... ~= "__cybersyn2__.lib.relm" then
 	return require("__cybersyn2__.lib.relm")
 end
 
-local log = require("__cybersyn2__.lib.logging")
-
 local tremove = _G.table.remove
 local type = _G.type
 local min = _G.math.min
@@ -217,9 +215,9 @@ local STYLE_KEYS = {
 
 ---@alias Relm.Element.RenderDefinition fun(props: Relm.Props, state?: Relm.State): Relm.Children
 
----@alias Relm.Element.MessageHandlerDefinition fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State): boolean|nil
+---@alias Relm.Element.MessageHandlerDefinition fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State): boolean
 
----@alias Relm.Element.MessageHandlerWrapper fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State, base_handler: Relm.Element.MessageHandlerDefinition): boolean|nil
+---@alias Relm.Element.MessageHandlerWrapper fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State, base_handler: Relm.Element.MessageHandlerDefinition): boolean
 
 ---@alias Relm.Element.StateDefinition fun(initial_props: Relm.Props): Relm.State
 
@@ -232,10 +230,11 @@ local STYLE_KEYS = {
 --------------------------------------------------------------------------------
 
 ---Registry of all elt types defined in this Relm instance.
+---MP SAFETY: safe if populated before on_load (no cond. registration)
 ---@type table<string, Relm.ElementDefinition>
 local registry = {}
 
----@class Relm.Internal.Root
+---@class (exact) Relm.Internal.Root
 ---@field public id uint The id of the root.
 ---@field public container_element LuaGuiElement The element the root was rendered into.
 ---@field public name_in_container string `root_element` name within the `container_element` children set.
@@ -265,19 +264,34 @@ local registry = {}
 
 ---Map from `"<player_index>:<element_index>"` to vnodes
 ---(We can't use weak `LuaGuiElement` keys here)
+---TODO: NOT MP SAFE. Either populate by hydration or move to storage.
+---XXX: NOT MP SAFE.
 ---@type table<string, Relm.Internal.VNode>
 local evcache = setmetatable({}, { __mode = "v" })
 
 ---Map from vnodes to last rendered props
+---MP SAFETY: repopulated `on_load` by full hydration
 ---@type table<Relm.Internal.VNode, Relm.Props>
 local vprops = setmetatable({}, { __mode = "k" })
 
 ---Map from vnodes to hook transient data
+---MP SAFETY: repopulated `on_load` by full hydration
 ---@type table<Relm.Internal.VNode, table<uint, table>>
 local vhooks_transient = setmetatable({}, { __mode = "k" })
 
 local function noop() end
 local immutable_mt = { __newindex = noop }
+
+---Structured tracing handler
+---MP SAFETY: created on_load, changed only by synced events
+---@type fun(level: int, ...)|nil
+local strace = nil
+local TRACE = 10
+local DEBUG = 20
+local INFO = 30
+local STATS = 40
+local WARN = 50
+local ERROR = 60
 
 ---Unique key for tables resulting from query gather ops.
 local WAS_GATHERED = setmetatable({}, immutable_mt)
@@ -343,15 +357,30 @@ local function get_vnode(elt)
 
 	local root_id = elt.tags["__relm_root"]
 	if not root_id then
-		log.error(
-			"get_vnode: ive got no roots (but my home was never on the ground)"
-		)
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"nonfatal_error",
+				"message",
+				"get_vnode: ive got no roots (but my home was never on the ground)"
+			)
+		end
 		return nil
 	end
 	---@type Relm.Internal.Root?
 	local root = storage._relm.roots[root_id]
 	if not root then
-		log.error("get_vnode: bad root id", root_id)
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"nonfatal_error",
+				"message",
+				"get_vnode: bad root id",
+				root_id
+			)
+		end
 		return nil
 	end
 	vnode = find_vnode(root.vtree_root, elt)
@@ -367,6 +396,8 @@ local function is_primitive(node) return node and node.type == "Primitive" end
 --------------------------------------------------------------------------------
 
 -- Hook renderstate implementation vars.
+-- MP SAFETY: these are all reset in `normalized_render` and are restricted
+-- to the context of a Lua callstack.
 ---Currently hooking node.
 ---@type Relm.Internal.VNode?
 local hook_node = nil
@@ -489,10 +520,16 @@ vapply = function(vnode, node)
 	-- If type changing, prune the old node.
 	if (not target_def) or target_type ~= vnode.type then vprune(vnode) end
 	if not target_def then
-		log.warn(
-			"vapply: pruning subtree because no def for element type",
-			target_type
-		)
+		if strace then
+			strace(
+				WARN,
+				"relm",
+				"vtree",
+				"message",
+				"vapply: undefined element type, pruned subtree",
+				target_type
+			)
+		end
 		return
 	end
 	local is_creating = not vnode.type
@@ -503,6 +540,8 @@ vapply = function(vnode, node)
 	local next_props = node.props
 	-- Special handling for primitives
 	if prev_props and is_primitive(vnode) then
+		-- TODO: fix this, we don't need the list of removed keys, just a flag
+		-- when we know a node needs to be pessimized.
 		local rk = removed_keys[vnode]
 		-- We need to know what fields were set to `nil` since last render so
 		-- we can poke the factorio fields as well.
@@ -554,7 +593,19 @@ end
 ---@param vnode Relm.Internal.VNode
 local function vrender(vnode)
 	local props = vprops[vnode]
-	if not props then log.error("vrender: no props cached for vnode", vnode) end
+	if not props then
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"vtree",
+				"vnode",
+				vnode,
+				"message",
+				"vrender: no props cached, fallback render with no props (this will almost certainly break things)"
+			)
+		end
+	end
 	local target_def = registry[vnode.type]
 
 	return vapply_children(
@@ -568,12 +619,18 @@ local function vhydrate_children(vnode, render_children)
 	local vchildren = vnode.children --[[@as Relm.Internal.VNode[] ]]
 	local nrchildren = #render_children
 	if #vchildren ~= nrchildren then
-		log.error(
-			"vhydrate: child count mismatch",
-			vnode.type,
-			#vchildren,
-			nrchildren
-		)
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"hydrate",
+				"message",
+				"vhydrate: child count mismatch",
+				vnode.type,
+				#vchildren,
+				nrchildren
+			)
+		end
 	end
 	local vindex = 1
 	for i = 1, nrchildren do
@@ -592,21 +649,35 @@ end
 vhydrate = function(vnode, node)
 	-- TODO: any of these conditions will break all relm guis after a save/rl
 	-- how to best notify user?
-	if not node or not vnode then
-		log.error("vhydrate: existence mismatch", node, vnode)
-		return
-	end
-	if node.type ~= vnode.type then
-		log.error("vhydrate: type mismatch", node.type, vnode.type)
+	if not node or not vnode or not node.props or node.type ~= vnode.type then
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"hydrate",
+				"vnode",
+				vnode,
+				"node",
+				node,
+				"message",
+				"mismatch between vnode and node while hydrating"
+			)
+		end
 		return
 	end
 	local def = registry[vnode.type]
 	if not def then
-		log.error("vhydrate: no definition for type", node.type)
-		return
-	end
-	if not node.props then
-		log.error("vhydrate: no props in node", node)
+		if strace then
+			strace(
+				WARN,
+				"relm",
+				"hydrate",
+				"vnode",
+				vnode,
+				"undefined node type, probably an uninstalled mod, skipping hydration",
+				node.type
+			)
+		end
 		return
 	end
 	-- Restore props
@@ -622,6 +693,8 @@ end
 --------------------------------------------------------------------------------
 
 -- Stats
+-- MP SAFETY: These are all reset and recounted on a paint cycle, which should
+-- be one frame.
 local optimae = 0
 local pessimae = 0
 local root_touched = 0
@@ -632,7 +705,6 @@ local function vpaint_context_destroy(context)
 	local elem = context.elem
 	if elem and elem.valid then
 		if context.root_name then
-			log.trace("relm: destruction of root was requested...")
 			root_touched = root_touched + 1
 			local child = elem[context.root_name]
 			if child then
@@ -655,7 +727,16 @@ local function vpaint_context_create(context, props)
 	local elem = context.elem
 	if elem and elem.valid then
 		if context.root_name and context.index > 1 then
-			log.error("ERROR: Attempted to add multiple elements to the root.")
+			-- TODO: should we crash factorio here?
+			if strace then
+				strace(
+					ERROR,
+					"relm",
+					"paint",
+					"message",
+					"illegal attempt to render multiple primitives at root level"
+				)
+			end
 			return nil
 		end
 
@@ -797,29 +878,39 @@ local function vpaint(vnode, context, same)
 	end
 	-- If we haven't reached a primitive node, don't paint.
 	if not is_primitive(vnode) then return end
+	---@cast vnode Relm.Internal.VNode
 
-	local props
+	local props = vprops[vnode]
+	if not props then
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"paint",
+				"vnode",
+				vnode,
+				"message",
+				"primitive has no props, skipping paint"
+			)
+		end
+		return
+	end
 	local elem_changed = false
 
 	if not same then
-		if (not vnode) or not vnode.type then
-			-- No renderable nodes in this branch of vtree.
-			return
-		end
-		props = vprops[vnode]
-		if not props then
-			log.error("vpaint: no props cached for vnode", vnode)
-			return
-		end
 		vnode.elem, elem_changed = vpaint_context_diff(context, props, vnode)
 	else
-		if not vnode then
-			log.error("vpaint: repainting a missing node")
-			return
-		end
-		props = vprops[vnode]
 		if not vnode.elem then
-			log.error("vpaint: repainting an unpainted vnode", vnode.type, props.type)
+			if strace then
+				strace(
+					ERROR,
+					"relm",
+					"paint",
+					"message",
+					"vpaint: repainting a vnode that was never painted",
+					props.type
+				)
+			end
 			return
 		end
 	end
@@ -838,12 +929,19 @@ local function vpaint(vnode, context, same)
 		return
 	end
 	if not elem.valid then
-		log.error(
-			"found invalid elem for vnode",
-			vnode.type,
-			props and props.type,
-			same
-		)
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"paint",
+				"vnode",
+				vnode,
+				"props",
+				props,
+				"message",
+				"vnode.elem was invalid, perhaps destroyed by external forces"
+			)
+		end
 		vnode.elem = nil
 		return
 	end
@@ -921,19 +1019,22 @@ local function vpaint_stats(vnode, context, same)
 	optimae = 0
 	pessimae = 0
 	elements = 0
+	-- TODO: remove root_touched
 	root_touched = 0
 	vpaint(vnode, context, same)
-	log.trace(
-		"relm.vpaint: complete: ",
-		elements,
-		"elements",
-		optimae,
-		"optimae",
-		pessimae,
-		"pessimae",
-		root_touched,
-		"root_touched"
-	)
+	if strace then
+		strace(
+			STATS,
+			"relm",
+			"paint_stats",
+			"elements",
+			elements,
+			"reused",
+			optimae,
+			"rebuilt",
+			pessimae
+		)
+	end
 end
 
 ---Determine if a node is part of a tree with a valid rendered root.
@@ -945,30 +1046,50 @@ local function vcheckroot(vnode)
 		vnode = vnode.parent
 	end
 	if (not vnode) or not vnode.root_id then
-		log.error(
-			"vcheckroot: vnode",
-			(vnode or {}).type,
-			"isn't a child of a proper root vnode"
-		)
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"vtree",
+				"vnode",
+				vnode,
+				"message",
+				"vnode was traced to an improper root"
+			)
+		end
 		return nil
 	end
 	local root = storage._relm.roots[vnode.root_id] --[[@as Relm.Internal.Root]]
 	if (not root) or (root.vtree_root ~= vnode) then
-		log.error(
-			"vcheckroot: vnode",
-			vnode.type,
-			"doesn't match a root in storage"
-		)
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"vtree",
+				"vnode",
+				vnode,
+				"stored_root",
+				root,
+				"message",
+				"root vnode does not match equivalent root in storage"
+			)
+		end
 		return nil
 	end
 	if root.root_element and root.root_element.valid then
 		return root
 	else
-		log.error(
-			"vcheckroot: vnode",
-			vnode.type,
-			"root doesn't have a rendered element and is being aggressively pruned."
-		)
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"vtree",
+				"vnode",
+				vnode,
+				"message",
+				"root vnode doesn't have a rendered element and is being aggressively pruned"
+			)
+		end
 		lib.root_destroy(vnode.root_id)
 		return nil
 	end
@@ -990,7 +1111,6 @@ local function vrepaint(vnode)
 		local is_root = not vnode.parent
 		local root = nil
 		if not elem or is_root then
-			log.info("relm.vrepaint: vcheckroot on", vnode.type)
 			root = vcheckroot(vnode)
 			if not root then return end
 		end
@@ -1003,11 +1123,27 @@ local function vrepaint(vnode)
 			})
 		elseif elem then
 			vpaint_stats(vnode, { elem = elem, index = 1 }, true)
-		else
-			log.error("ran out of options for painting", vnode.type)
+		elseif strace then
+			strace(
+				ERROR,
+				"relm",
+				"paint",
+				"vnode",
+				vnode,
+				"message",
+				"request to repaint a node that was never painted"
+			)
 		end
 	else
-		log.error("relm.vrepaint: no vnode to paint")
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"paint",
+				"message",
+				"repaint found no repaintable parent"
+			)
+		end
 	end
 end
 
@@ -1017,6 +1153,8 @@ end
 
 -- TODO: consider a more efficient deque for barrier_queue
 
+-- MULTIPLAYER SAFETY: `enter_barrier` and `exit_barrier` must ALWAYS be
+-- called on the same frame, otherwise there will be desyncs.
 local barrier_count = 0
 local barrier_queue = {}
 
@@ -1361,7 +1499,15 @@ function lib.root_create(container_element, name, element_type, props)
 	if created_elt then
 		relm_state.roots[id].root_element = created_elt
 	else
-		log.error("root_create: rendered nothing")
+		if strace then
+			strace(
+				ERROR,
+				"relm",
+				"paint",
+				"message",
+				"attempt to paint created root resulted in no rendered elements, destroying the root"
+			)
+		end
 		lib.root_destroy(id)
 		return nil
 	end
@@ -1453,28 +1599,34 @@ end
 
 ---Send a message directly to the Relm element with the given `handle`.
 ---If the target element does not handle the message, it will not propagate.
----@param handle Relm.Handle
+---@param handle Relm.Handle?
 ---@param msg Relm.SendMessagePayload
 function lib.msg(handle, msg)
-	return vmsg(handle --[[@as Relm.Internal.VNode]], msg)
+	if handle then
+		return vmsg(handle --[[@as Relm.Internal.VNode]], msg)
+	end
 end
 
 ---Send a message to the Relm element with the given `handle`, which if not
 ---handled will bubble up the vtree to the root.
----@param handle Relm.Handle
+---@param handle Relm.Handle?
 ---@param msg Relm.SendMessagePayload
 ---@param resent boolean? If `true`, resends ignoring the current node. Useful for nodes that transform messages going through them.
 function lib.msg_bubble(handle, msg, resent)
-	return vmsg_bubble(handle --[[@as Relm.Internal.VNode]], msg, resent)
+	if handle then
+		return vmsg_bubble(handle --[[@as Relm.Internal.VNode]], msg, resent)
+	end
 end
 
 ---Send a message to the Relm element with the given `handle`, which if not
 ---handled will be broadcast to all children.
----@param handle Relm.Handle
+---@param handle Relm.Handle?
 ---@param msg Relm.SendMessagePayload
 ---@param resent boolean? If `true`, resends ignoring the current node. Useful for nodes that transform messages going through them.
 function lib.msg_broadcast(handle, msg, resent)
-	return vmsg_broadcast(handle --[[@as Relm.Internal.VNode]], msg, resent)
+	if handle then
+		return vmsg_broadcast(handle --[[@as Relm.Internal.VNode]], msg, resent)
+	end
 end
 
 ---Isolate a side effect from the rendering algorithm. Similar to React's
@@ -1567,7 +1719,7 @@ function lib.query_was_gathered(result)
 	end
 end
 
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- API: ELEMENTS
 --------------------------------------------------------------------------------
 
@@ -1632,6 +1784,27 @@ lib.Primitive = lib.define_element({
 	render = function(props) return props.children end,
 })
 
-return lib
+--------------------------------------------------------------------------------
+-- API: MISC
+--------------------------------------------------------------------------------
 
--- TODO: replace `log` with custom debug api
+function lib.configure(options)
+	if type(options) ~= "table" then return end
+	if options.strace ~= nil then
+		if type(options.strace) == "function" then
+			strace = options.strace
+		else
+			strace = nil
+		end
+	end
+end
+
+---Piggyback on Relm's strace handler. For use only by mods like component
+---libraries that would appropriately log into Relm's context.
+---@param level int
+---@param ... any #An strace message.
+function lib.strace(level, ...)
+	if strace then return strace(level, ...) end
+end
+
+return lib
