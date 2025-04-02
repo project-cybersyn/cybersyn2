@@ -207,6 +207,8 @@ local STYLE_KEYS = {
 
 ---@alias Relm.QueryResponse string|number|int|boolean|table|nil
 
+---@alias Relm.QueryTag string|number|nil
+
 ---@alias Relm.EffectKey Relm.Value|table<int|string, Relm.EffectKey>
 
 ---@alias Relm.SendMessagePayload {key: string, [any]:any}
@@ -223,7 +225,7 @@ local STYLE_KEYS = {
 
 ---@alias Relm.NodeFactory fun(props?: Relm.Props, children?: Relm.Node[]): Relm.Children
 
----@alias Relm.Element.QueryHandlerDefinition fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State): boolean, Relm.QueryResponse?
+---@alias Relm.Element.QueryHandlerDefinition fun(me: Relm.Handle, payload: Relm.MessagePayload, props: Relm.Props, state?: Relm.State): boolean, Relm.QueryResponse?, Relm.QueryTag?
 
 --------------------------------------------------------------------------------
 -- INTERNAL TYPES AND GLOBALS
@@ -274,7 +276,6 @@ local vprops = setmetatable({}, { __mode = "k" })
 local vhooks_transient = setmetatable({}, { __mode = "k" })
 
 local function noop() end
-local immutable_mt = { __newindex = noop }
 
 ---Structured tracing handler
 ---MP SAFETY: created on_load, changed only by synced events
@@ -286,9 +287,6 @@ local INFO = 30
 local STATS = 40
 local WARN = 50
 local ERROR = 60
-
----Unique key for tables resulting from query gather ops.
-local WAS_GATHERED = setmetatable({}, immutable_mt)
 
 ---Unique per-mod key for event listening
 local LISTEN_KEY = "__relm_listen_" .. script.mod_name
@@ -409,11 +407,8 @@ local hook_num = 0
 local render_is_hydrating = false
 ---Removed keys on primitive nodes. We must set these to `nil` when
 ---painting if we reuse the node.
----TODO: remove
+---TODO: this must be reset with render state or it will become MP-unsafe
 local removed_keys = setmetatable({}, { __mode = "k" })
----Vnodes of primitives that should be pessimized due to having
----another vnode swapped over them, or another radical vtree change.
-local pessimized_primitives = setmetatable({}, { __mode = "k" })
 -- Stats
 -- MP SAFETY: These are all reset and recounted on a paint cycle, which should
 -- be one frame.
@@ -553,8 +548,6 @@ vapply = function(vnode, node)
 	local next_props = node.props
 	-- Special handling for primitives
 	if prev_props and is_primitive(vnode) then
-		-- TODO: fix this, we don't need the list of removed keys, just a flag
-		-- when we know a node needs to be pessimized.
 		local rk = removed_keys[vnode]
 		-- We need to know what fields were set to `nil` since last render so
 		-- we can poke the factorio fields as well.
@@ -817,16 +810,13 @@ local function vpaint_context_diff(context, props, vnode)
 		-- selene: allow(if_same_then_else)
 		needs_rebuild = true
 	elseif rk then
-		-- TODO: optimize here, we don't need the list of removed keys, just have
-		-- vdom rendering throw a flag if it hits a removed style key. figuring
-		-- that out will be faster up there.
-
 		-- Factorio doesn't support deleting style keys; if any style key
 		-- was deleted, just rebuild
 		for i = 1, #rk do
 			local key = rk[i]
 			if (key == "style") or STYLE_KEYS[key] then
 				needs_rebuild = true
+				removed_keys[vnode] = nil
 				break
 			end
 		end
@@ -1337,61 +1327,35 @@ end
 --------------------------------------------------------------------------------
 
 local function vquery(vnode, payload)
+	payload.propagation_mode = "unicast"
 	return vimpl_msg_or_query(vnode, payload, "query", "query_handler")
 end
 
 local function vquery_bubble(node, payload)
+	payload.propagation_mode = "bubble"
 	while node and node.type do
-		local handled, result = vquery(node, payload)
-		if handled then return handled, result end
+		local handled, result, tag =
+			vimpl_msg_or_query(node, payload, "query", "query_handler")
+		if handled then return handled, result, tag end
 		node = node.parent
 	end
-	return false, nil
+	return false
 end
 
 ---@param node Relm.Internal.VNode
 local function vquery_broadcast(node, payload)
-	local handled, result = vquery(node, payload)
-	if handled then return handled, result end
+	payload.propagation_mode = "broadcast"
+	local handled, result, tag =
+		vimpl_msg_or_query(node, payload, "query", "query_handler")
+	if handled then return true, result, tag end
 	local children = node.children
-	if not children or #children == 0 then return false, nil end
-	if #children == 1 then
-		return vquery_broadcast(children[1], payload)
-	else
-		-- Scatter/gather over children
-		---@type table<int|string, Relm.QueryResponse>
-		local results = {}
-		local was_tagged = false
-		local overall_handled = false
-		for i = 1, #children do
-			local child = children[i]
-			handled, result = vquery_broadcast(child, payload)
-			overall_handled = overall_handled or handled
-			if handled then
-				local child_props = vprops[child]
-				if child_props and child_props.query_tag then
-					was_tagged = true
-					results[result.query_tag] = result
-				else
-					results[i] = result
-				end
-			else
-				results[i] = nil
-			end
-		end
-		local nresults = table_size(results)
-		if nresults == 0 then
-			return overall_handled, nil
-		elseif nresults == 1 then
-			if was_tagged then
-				return overall_handled, results
-			else
-				return overall_handled, results[next(results)]
-			end
-		else
-			return overall_handled, results
-		end
+	if not children or #children == 0 then return false end
+	for i = 1, #children do
+		local child = children[i]
+		handled, result, tag = vquery_broadcast(child, payload)
+		if handled then return true, result, tag end
 	end
+	return false
 end
 
 --------------------------------------------------------------------------------
@@ -1609,6 +1573,71 @@ function lib.root_foreach(handler)
 end
 
 --------------------------------------------------------------------------------
+-- API: ELEMENTS
+--------------------------------------------------------------------------------
+
+---Determine if a `Relm.Handle` refers to a valid element of the vtree.
+---@param handle Relm.Handle?
+function lib.is_valid(handle)
+	if type(handle) ~= "table" then
+		return false
+	else
+		return not not (handle --[[@as Relm.Internal.VNode]]).type
+	end
+end
+
+---Define a new re-usable Relm element type.
+---@param definition Relm.ElementDefinition
+---@return Relm.NodeFactory #A factory function that creates a node of this type.
+function lib.define_element(definition)
+	if not definition.name then error("Element definition must have a name.") end
+	if registry[definition.name] then
+		error("Element " .. definition.name .. " already defined.")
+	end
+	if not definition.render then
+		error("Element " .. definition.name .. " must have a render function.")
+	end
+
+	registry[definition.name] = definition
+	local name = definition.name
+	if definition.factory then
+		-- If a factory is provided, use it.
+		return definition.factory
+	else
+		return function(props, children)
+			props = props or {}
+			props.children = children
+			return {
+				type = name,
+				props = props,
+			}
+		end
+	end
+end
+
+---Generate a node for an element of the given named type with the given
+---props. Returns `nil` if the type was invalid.
+---@param element_type string The type of element to create.
+---@param props Relm.Props The properties to pass to the element.
+---@return Relm.Node? node The generated node, or `nil` if the type was invalid.
+function lib.element(element_type, props)
+	if not element_type or not registry[element_type] then return nil end
+	props = props or {}
+	return {
+		type = element_type,
+		props = props,
+	}
+end
+
+---A primitive element whose props are passed directly to Factorio GUI
+---for rendering.
+---@type fun(props: Relm.PrimitiveDefinition, children?: Relm.Node[]): Relm.Node
+lib.Primitive = lib.define_element({
+	name = "Primitive",
+	render = function(props) return props.children end,
+})
+
+--------------------------------------------------------------------------------
 -- API: SIDE EFFECTS
 --------------------------------------------------------------------------------
 
@@ -1742,80 +1771,31 @@ function lib.query_broadcast(handle, payload)
 	return vquery_broadcast(handle --[[@as Relm.Internal.VNode]], payload)
 end
 
----Distinguish between a query result that was gathered from children and one ---that is a single `table`-valued result.
----@param result? Relm.QueryResponse
----@return boolean
-function lib.query_was_gathered(result)
-	if result and type(result) == "table" then
-		return result[WAS_GATHERED]
-	else
-		return false
-	end
-end
-
---------------------------------------------------------------------------------
--- API: ELEMENTS
---------------------------------------------------------------------------------
-
----Determine if a `Relm.Handle` refers to a valid element of the vtree.
----@param handle Relm.Handle?
-function lib.is_valid(handle)
-	if type(handle) ~= "table" then
-		return false
-	else
-		return not not (handle --[[@as Relm.Internal.VNode]]).type
-	end
-end
-
----Define a new re-usable Relm element type.
----@param definition Relm.ElementDefinition
----@return Relm.NodeFactory #A factory function that creates a node of this type.
-function lib.define_element(definition)
-	if not definition.name then error("Element definition must have a name.") end
-	if registry[definition.name] then
-		error("Element " .. definition.name .. " already defined.")
-	end
-	if not definition.render then
-		error("Element " .. definition.name .. " must have a render function.")
-	end
-
-	registry[definition.name] = definition
-	local name = definition.name
-	if definition.factory then
-		-- If a factory is provided, use it.
-		return definition.factory
-	else
-		return function(props, children)
-			props = props or {}
-			props.children = children
-			return {
-				type = name,
-				props = props,
-			}
-		end
-	end
-end
-
----Generate a node for an element of the given named type with the given
----props. Returns `nil` if the type was invalid.
----@param element_type string The type of element to create.
----@param props Relm.Props The properties to pass to the element.
----@return Relm.Node? node The generated node, or `nil` if the type was invalid.
-function lib.element(element_type, props)
-	if not element_type or not registry[element_type] then return nil end
-	props = props or {}
-	return {
-		type = element_type,
-		props = props,
-	}
-end
-
----A primitive element whose props are passed directly to Factorio GUI
----for rendering.
----@type fun(props: Relm.PrimitiveDefinition, children?: Relm.Node[]): Relm.Node
-lib.Primitive = lib.define_element({
-	name = "Primitive",
+---This element gathers query results from all of its children into a single
+---table keyed by either the query tag or the child's numerical index.
+lib.Gather = lib.define_element({
+	name = "relm.Gather",
 	render = function(props) return props.children end,
+	---@param me Relm.Internal.VNode
+	query = function(me, payload, props)
+		if payload.propagation_mode == "broadcast" then
+			local children = me.children
+			if not children then return true, {}, props.query_tag end
+			local nchildren = #children
+			if nchildren > 0 then
+				local gathered = {}
+				for i = 1, nchildren do
+					local handled, res, tag = vquery_broadcast(children[i], payload)
+					if handled then gathered[tag or i] = res end
+				end
+				if table_size(gathered) > 0 then
+					return true, gathered, props.query_tag
+				end
+			end
+			return true, {}, props.query_tag
+		end
+		return false
+	end,
 })
 
 --------------------------------------------------------------------------------
