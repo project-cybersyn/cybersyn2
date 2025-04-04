@@ -1,6 +1,7 @@
 --------------------------------------------------------------------------------
 -- Train layout and capacity.
 --------------------------------------------------------------------------------
+
 local log = require("__cybersyn2__.lib.logging")
 local tlib = require("__cybersyn2__.lib.table")
 local counters = require("__cybersyn2__.lib.counters")
@@ -18,13 +19,9 @@ local type_map = {
 local empty = {}
 
 local function array_eq(a1, a2)
-	if #a1 ~= #a2 then
-		return false
-	end
+	if #a1 ~= #a2 then return false end
 	for i = 1, #a1 do
-		if a1[i] ~= a2[i] then
-			return false
-		end
+		if a1[i] ~= a2[i] then return false end
 	end
 	return true
 end
@@ -45,13 +42,9 @@ local function get_layout_id(train)
 
 	-- Check if layout exists
 	local _, layout_id = tlib.find(storage.train_layouts, function(layout)
-		if array_eq(layout.carriage_names, names) then
-			return true
-		end
+		if array_eq(layout.carriage_names, names) then return true end
 	end)
-	if layout_id then
-		return layout_id
-	end
+	if layout_id then return layout_id end
 
 	local layout = {
 		id = counters.next("train_layout"),
@@ -82,6 +75,7 @@ function _G.cs2.train_api.evaluate_capacity(train)
 			local inventory = carriage.get_inventory(defines.inventory.cargo_wagon)
 			item_slot_capacity = item_slot_capacity + #inventory
 		elseif carriage.type == "fluid-wagon" then
+			-- TODO: quality fluid wagon capacities
 			fluid_capacity = fluid_capacity + carriage.prototype.fluid_capacity
 		end
 	end

@@ -8,6 +8,7 @@ local log = require("__cybersyn2__.lib.logging")
 local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
+local inventory_api = _G.cs2.inventory_api
 
 --------------------------------------------------------------------------------
 -- Loop state lifecycle
@@ -19,6 +20,15 @@ local function cleanup_next_t(data)
 	data.current_topology = nil
 	data.active_topologies = nil
 	data.nodes = nil
+	-- XXX: temp debugging
+	-- clear allocations (dispatch phase should do this)
+	if data.allocations then
+		for _, alloc in pairs(data.allocations) do
+			inventory_api.add_flow(alloc.from_inv, { [alloc.item] = alloc.qty }, 1)
+			inventory_api.add_flow(alloc.to_inv, { [alloc.item] = alloc.qty }, -1)
+		end
+		data.allocations = nil
+	end
 	cs2.logistics_thread.goto_init(data)
 end
 

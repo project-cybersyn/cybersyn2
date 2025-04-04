@@ -1,10 +1,12 @@
 local log = require("__cybersyn2__.lib.logging")
+local strace_lib = require("__cybersyn2__.lib.strace")
 local relm = require("__cybersyn2__.lib.relm")
 local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
 local ultros = require("__cybersyn2__.lib.ultros")
 local tlib = require("__cybersyn2__.lib.table")
 local mgr = _G.mgr
 
+local strace = strace_lib.strace
 local Pr = relm.Primitive
 
 ---@class Cybersyn2.Manager.InspectorFrameType
@@ -74,17 +76,30 @@ end
 ---@return Cybersyn.Manager.InspectorEntry[]?
 local function entity_to_entries(entity)
 	if entity.name == "train-stop" then
-		return {
+		local stop_query = { type = "stops", unit_numbers = { entity.unit_number } }
+		local entries = {
 			{
 				key = "stop" .. entity.unit_number,
 				type = "InspectorItem.Generic",
-				query = {
-					type = "stops",
-					unit_numbers = { entity.unit_number },
-				},
+				query = stop_query,
 				caption = "TrainStop " .. entity.unit_number,
 			},
 		}
+		local res = remote.call("cybersyn2", "query", stop_query)
+		strace(strace_lib.INFO, "cs2-manager", "inspector", "message", res)
+		if res.data and #res.data == 1 then
+			local stop = res.data[1]
+
+			if stop.inventory_id then
+				entries[#entries + 1] = {
+					key = "inv" .. stop.inventory_id,
+					type = "InspectorItem.Generic",
+					query = { type = "inventories", ids = { stop.inventory_id } },
+					caption = "Inventory " .. stop.inventory_id,
+				}
+			end
+		end
+		return entries
 	elseif entity.name == "cybersyn2-combinator" then
 		return {
 			{
@@ -198,10 +213,8 @@ relm.define_element({
 				type = "frame",
 				style = "inside_shallow_frame",
 				direction = "vertical",
-				vertically_stretchable = true,
 				width = 400,
-				minimal_height = 300,
-				maximal_height = 600,
+				height = 800,
 			}, {
 				Pr({
 					type = "scroll-pane",

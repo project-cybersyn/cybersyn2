@@ -64,4 +64,13 @@ lib.QueryType = QueryType
 ---@class Cybersyn.Query.Stops.Result: Cybersyn.QueryResult
 ---@field public data Cybersyn.TrainStop[]
 
+----------- "inventories"
+
+---@class Cybersyn.Query.Inventories.Input: Cybersyn.QueryInput
+---@field public type "inventories"
+---@field public ids Id[]? List of IDs to query.
+
+---@class Cybersyn.Query.Inventories.Result: Cybersyn.QueryResult
+---@field public data Cybersyn.Inventory[]
+
 return lib

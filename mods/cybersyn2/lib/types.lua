@@ -32,6 +32,7 @@ local lib = {}
 ---A vehicle managed by Cybersyn.
 ---@class Cybersyn.Vehicle
 ---@field public id int Unique id of the vehicle.
+---@field public topology_id int Topology this vehicle can service
 ---@field public type string The type of the vehicle.
 ---@field public is_being_destroyed true? `true` if the vehicle is in the process of being removed from game state.
 ---@field public delivery_id Id? The current delivery this vehicle is processing.
@@ -86,7 +87,8 @@ lib.NodeNetworkOperation = {
 ---@field public combinator_set UnitNumberSet Set of combinators associated to this node, by unit number.
 ---@field public created_tick uint Tick number when this node was created.
 ---@field public is_being_destroyed true? `true` if the node is in the process of being removed from game state.
----@field public inventory_id Id? Inventory of this node.
+---@field public inventory_id Id? Inventory of this node. This is what the logistics algorithm uses to determine node contents.
+---@field public created_inventory_id Id? The id of the inventory automatically created for this node if any.
 ---@field public is_producer boolean? `true` if the node can send deliveries
 ---@field public is_consumer boolean? `true` if the node can receive deliveries
 ---@field public networks? SignalCounts The network masks of the node. Updated only when the node is polled.
@@ -95,6 +97,12 @@ lib.NodeNetworkOperation = {
 ---@field public priorities SignalCounts? Per-item priorities.
 ---@field public channel int? Default channel of the node.
 ---@field public channels SignalCounts? Per-item channels.
+---@field public threshold_item_in uint? General inbound item threshold
+---@field public threshold_fluid_in uint? General inbound fluid threshold
+---@field public threshold_item_out uint? General outbound item threshold
+---@field public threshold_fluid_out uint? General outbound fluid threshold
+---@field public thresholds_in SignalCounts? Per-item inbound thresholds
+---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
@@ -103,12 +111,6 @@ lib.NodeNetworkOperation = {
 ---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
 ---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
----@field public threshold_item_in uint? General inbound item threshold
----@field public threshold_fluid_in uint? General inbound fluid threshold
----@field public threshold_item_out uint? General outbound item threshold
----@field public threshold_fluid_out uint? General outbound fluid threshold
----@field public thresholds_in SignalCounts? Per-item inbound thresholds
----@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public dropoffs IdSet Deliveries scheduled to be dropped off at this node.
 ---@field public pickups IdSet Deliveries scheduled to be picked up from this node.
 
@@ -131,8 +133,7 @@ lib.NodeNetworkOperation = {
 ---@class Cybersyn.Inventory
 ---@field public id Id
 ---@field public surface_index Id? The index of the surface this inventory should be associated with if any.
----@field public combinator_id UnitNumber? The unit number of the combinator associated with this inventory, if any.
----@field public node_ids IdSet? The nodes that reference this inventory, if any
+---@field public created_for_node_id Id? If this inventory was created implicitly for a node, that node's id.
 ---@field public produce SignalCounts Positive contents of inventory at last poll.
 ---@field public consume SignalCounts Negative contents of inventory at last poll.
 ---@field public flow SignalCounts? The net of all future incoming and outgoing deliveries to this inventory. Positive values represent inflows, negative outflows.
@@ -193,6 +194,7 @@ local PrimitiveType = {
 	"EnumValues",
 	"Cybersyn.QueryDef",
 	"Nil",
+	"Cybersyn.Inventory",
 	["boolean"] = 1,
 	["int"] = 2,
 	["number"] = 3,
@@ -212,6 +214,7 @@ local PrimitiveType = {
 	["EnumValues"] = 17,
 	["Cybersyn.QueryDef"] = 18,
 	["Nil"] = 19,
+	["Cybersyn.Inventory"] = 20,
 }
 lib.PrimitiveType = PrimitiveType
 

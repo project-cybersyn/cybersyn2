@@ -33,34 +33,19 @@ local Failed = DeliveryState.Failed
 -- - Poll stations when trains leave.
 -- - Allow logistics algorithm to access live polling data.
 
----Create a new inventory with the given initial parameters.
----@param owning_entity LuaEntity? If given, a *valid* entity that owns the inventory.
----@param surface_index int?
----@param node_ids IdSet? If given, the ID of the node that owns the inventory.
-function _G.cs2.inventory_api.create_inventory(
-	owning_entity,
-	surface_index,
-	node_ids
-)
-	local id
-	if owning_entity then
-		id = owning_entity.unit_number
-	else
-		id = -counters.next("inventory")
-	end
+---Create a new inventory.
+---@return Cybersyn.Inventory
+function _G.cs2.inventory_api.create_inventory()
+	local id = counters.next("inventory")
 
-	storage.inventories[
-		id --[[@as Id]]
-	] = {
+	storage.inventories[id] = {
 		id = id --[[@as Id]],
-		entity = owning_entity,
-		surface_index = surface_index,
-		node_ids = node_ids,
 		produce = {},
 		consume = {},
 	}
-
-	cs2.raise_inventory_created(storage.inventories[id])
+	local inv = storage.inventories[id]
+	cs2.raise_inventory_created(inv)
+	return inv
 end
 
 ---Get an inventory by ID.
@@ -74,7 +59,7 @@ local get_inventory = inventory_api.get_inventory
 
 ---@param id Id
 function _G.cs2.inventory_api.destroy_inventory(id)
-	local inventory = storage.inventories[id]
+	local inventory = storage.inventories[id or ""]
 	if not inventory then return end
 	cs2.raise_inventory_destroyed(inventory)
 	storage.inventories[id] = nil
@@ -165,38 +150,23 @@ function _G.cs2.inventory_api.add_flow(inventory, added_flow, sign)
 			flow[key] = new_flow
 		end
 		-- Update net produce and consume entries.
-		-- This is highly unrolled for performance reasons.
-		if new_flow < 0 then
-			local p_count = produce[key]
-			if p_count then
-				local net = p_count + new_flow
-				if net > 0 then
-					if not net_produce then
-						net_produce = {}
-						inventory.net_produce = net_produce
-					end
-					net_produce[key] = net
-				else
-					if net_produce then net_produce[key] = nil end
-				end
+		local p_count = produce[key]
+		if p_count then
+			if not net_produce then
+				net_produce = {}
+				inventory.net_produce = net_produce
 			end
-		elseif new_flow > 0 then
-			local r_count = consume[key]
-			if r_count then
-				local net = r_count + new_flow
-				if net < 0 then
-					if not net_consume then
-						net_consume = {}
-						inventory.net_consume = net_consume
-					end
-					net_consume[key] = net
-				else
-					if net_consume then net_consume[key] = nil end
-				end
+			local net = p_count + new_flow
+			net_produce[key] = max(net, 0)
+		end
+		local r_count = consume[key]
+		if r_count then
+			if not net_consume then
+				net_consume = {}
+				inventory.net_consume = net_consume
 			end
-		else -- new_flow == 0
-			if net_produce then net_produce[key] = produce[key] end
-			if net_consume then net_consume[key] = consume[key] end
+			local net = r_count + new_flow
+			net_consume[key] = min(net, 0)
 		end
 	end
 
@@ -225,50 +195,45 @@ function _G.cs2.inventory_api.get_net_consume(inventory)
 	return inventory.net_consume or inventory.consume
 end
 
+---@param inventory_id Id
+---@return Cybersyn.Inventory? inv
+---@return SignalCounts produce
+---@return SignalCounts consume
+---@return SignalCounts? flow
+function _G.cs2.inventory_api.get_inventory_info_by_id(inventory_id)
+	local inv = storage.inventories[inventory_id or ""]
+	---@diagnostic disable-next-line: missing-return-value
+	if not inv then return nil end
+	return inv,
+		inv.net_produce or inv.produce,
+		inv.net_consume or inv.consume,
+		inv.flow
+end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
 
--- TODO: reexamine this in light of reservation systems.
+-- Automatically create inventories for train stops.
+-- TODO: shared inventory handling
+cs2.on_node_created(function(node)
+	if node.type == "stop" then
+		---@cast node Cybersyn.TrainStop
+		local inv = inventory_api.create_inventory()
+		node.inventory_id = inv.id
+		node.created_inventory_id = inv.id
+		inv.created_for_node_id = node.id
+		inv.surface_index = node.entity.surface_index
+	end
+end, true)
+
+cs2.on_node_destroyed(function(node)
+	if node.type == "stop" then
+		---@cast node Cybersyn.TrainStop
+		inventory_api.destroy_inventory(node.created_inventory_id)
+	end
+end)
+
 cs2.on_delivery_state_changed(function(delivery, new_state, old_state)
-	local source_inv = get_inventory(delivery.source_inventory_id)
-	local dest_inv = get_inventory(delivery.destination_inventory_id)
-	if not source_inv then
-		log.error(
-			"inventory.on_delivery_state_changed: Delivery",
-			delivery.id,
-			"has no source inventory"
-		)
-		return
-	end
-	if not dest_inv then
-		log.error(
-			"inventory.on_delivery_state_changed: Delivery",
-			delivery.id,
-			"has no destination inventory"
-		)
-		return
-	end
-	if new_state == ToSource then
-		-- When the delivery begins its journey, charge the source and
-		-- credit the destination with the manifest.
-		inventory_api.add_flow(source_inv, delivery.manifest, -1)
-		inventory_api.add_flow(dest_inv, delivery.manifest, 1)
-	elseif new_state == ToDestination then
-		-- When the delivery leaves the source, no longer need to charge the
-		-- manifest against the source's inventory
-		inventory_api.add_flow(source_inv, delivery.manifest, 1)
-	elseif new_state == Completed then
-		-- No longer need to add the manifest to the destination's inventory
-		inventory_api.add_flow(dest_inv, delivery.manifest, -1)
-	elseif new_state == Failed then
-		if old_state == ToSource or old_state == Loading then
-			-- Failed at source, add back both charges
-			inventory_api.add_flow(source_inv, delivery.manifest, 1)
-			inventory_api.add_flow(dest_inv, delivery.manifest, -1)
-		elseif old_state == ToDestination or old_state == Unloading then
-			-- Failed at destination, add back only the charge to the destination
-			inventory_api.add_flow(dest_inv, delivery.manifest, -1)
-		end
-	end
+	-- TODO: charge inventories based on delivery states
 end)

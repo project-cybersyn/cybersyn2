@@ -20,33 +20,46 @@ local get_net_produce = inventory_api.get_net_produce
 local get_net_consume = inventory_api.get_net_consume
 local get_inbound_threshold = stop_api.get_inbound_threshold
 local get_outbound_threshold = stop_api.get_outbound_threshold
+local get_delivery_thresholds = node_api.get_delivery_thresholds
+local read_setting = combinator_api.read_setting
 
-local function add_node(data, class, key, node)
-	local nodes = data[class][key]
+---@param node Cybersyn.Node
+---@param data Cybersyn.Internal.LogisticsThreadData
+---@param item SignalKey
+local function add_to_logisics_set(data, logistics_type, node, item)
+	local nodes = data[logistics_type][item]
 	if not nodes then
 		nodes = {}
-		data[class][key] = nodes
+		data[logistics_type][item] = nodes
 	end
-	nodes[#node + 1] = node
+	nodes[node.id] = true
 end
 
 ---@param stop Cybersyn.TrainStop
 ---@param data Cybersyn.Internal.LogisticsThreadData
 local function classify_inventory(stop, data)
 	local inventory = inventory_api.get_inventory(stop.inventory_id)
+	-- TODO: this is ugly, apis to get at this inventory stuff should be
+	-- more centralized and less spaghetti
 	log.trace("classify_inventory", stop.entity, inventory)
 	if not inventory then return end
 	if stop.is_producer then
-		for k, v in get_net_produce(inventory) do
-			local out_t = get_outbound_threshold(stop, k)
-			if v >= out_t then add_node(data, "providers", k, stop) end
+		for item, qty in pairs(get_net_produce(inventory)) do
+			local out_t = get_outbound_threshold(stop, item)
+			if qty >= out_t then
+				add_to_logisics_set(data, "providers", stop, item)
+				data.seen_cargo[item] = true
+			end
 			-- TODO: push
 		end
 	end
 	if stop.is_consumer then
-		for k, v in get_net_consume(inventory) do
-			local in_t = get_inbound_threshold(stop, k)
-			if v <= -in_t then add_node(data, "pullers", k, stop) end
+		for item, qty in pairs(get_net_consume(inventory)) do
+			local in_t = get_inbound_threshold(stop, item)
+			if qty <= -in_t then
+				add_to_logisics_set(data, "pullers", stop, item)
+				data.seen_cargo[item] = true
+			end
 			-- TODO: sink
 		end
 	end
@@ -83,11 +96,24 @@ local function poll_train_stop_station_comb(stop, data)
 	stop.threshold_item_in = 1
 	stop.threshold_item_out = 1
 
-	-- Read configuration vsignals
-	local network_signal =
-		combinator_api.read_setting(comb, combinator_settings.network_signal)
+	-- Read configuration values
+	local pr = read_setting(comb, combinator_settings.pr) or 0
+	if pr == 0 then
+		stop.is_consumer = true
+		stop.is_producer = true
+	elseif pr == 1 then
+		stop.is_consumer = false
+		stop.is_producer = true
+	elseif pr == 2 then
+		stop.is_consumer = true
+		stop.is_producer = false
+	end
+	local network_signal = read_setting(comb, combinator_settings.network_signal)
 	local is_each = network_signal == "signal-each"
 	local networks = {}
+	if not is_each then
+		networks[network_signal] = 1 -- TODO: default global network mask setting
+	end
 	for k, v in pairs(inputs) do
 		if slib.key_is_virtual(k) then
 			if k == "cybersyn2-priority" then stop.priority = v end
@@ -147,14 +173,14 @@ function _G.cs2.logistics_thread.goto_poll_nodes(data)
 	data.dumps = {}
 	data.seen_cargo = {}
 	data.stride =
-		math.ceil(mod_settings.work_factor * cs2.PERF_COMB_POLL_WORKLOAD)
+		math.ceil(mod_settings.work_factor * cs2.PERF_NODE_POLL_WORKLOAD)
 	data.index = 1
 	data.iteration = 1
 	data.state = "poll_nodes"
 end
 
 ---@param data Cybersyn.Internal.LogisticsThreadData
-local function cleanup_poll_nodes(data) logistics_thread.goto_next_t(data) end
+local function cleanup_poll_nodes(data) logistics_thread.goto_alloc(data) end
 
 ---@param data Cybersyn.Internal.LogisticsThreadData
 function _G.cs2.logistics_thread.poll_nodes(data)

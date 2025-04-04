@@ -22,7 +22,8 @@ local If = ultros.If
 combinator_api.register_setting(
 	combinator_api.make_raw_setting("network_signal", "network")
 )
--- Whether the station should provide, request, or both. Encoded as an integer 0, 1, or 2.
+-- Whether the station should provide, request, or both.
+-- 0 = p/r, 1 = p, 2 = r
 combinator_api.register_setting(combinator_api.make_raw_setting("pr", "pr"))
 combinator_api.register_setting(
 	combinator_api.make_raw_setting(

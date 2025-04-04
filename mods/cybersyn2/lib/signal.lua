@@ -10,6 +10,7 @@ end
 
 local strsub = string.sub
 local strfind = string.find
+local strformat = string.format
 local type = _G.type
 
 ---@alias SignalKey string A string identifying a particular SignalID.
@@ -91,6 +92,7 @@ local function signal_to_key(signal)
 		key = signal.name .. "|" .. quality_name
 	end
 	if stype == "item" or stype == "fluid" then
+		signal.quality = quality_name -- don't cache signal qualities as prototypes
 		key_to_sig[key] = signal
 		key_v[key] = false
 	elseif stype == "virtual" then
@@ -170,5 +172,23 @@ local function key_is_fluid(key)
 	if s then return s.type == "fluid" end
 end
 lib.key_is_fluid = key_is_fluid
+
+---@param key SignalKey
+local function key_to_richtext(key)
+	local sig = key_to_signal(key)
+	if not sig then return "(INVALID SIGNAL KEY '" .. key .. "')" end
+	if sig.type == "item" then
+		if sig.quality then
+			return strformat("[item=%s,quality=%s]", sig.name, sig.quality)
+		else
+			return strformat("[item=%s]", sig.name)
+		end
+	elseif sig.type == "fluid" then
+		return strformat("[fluid=%s]", sig.name)
+	elseif sig.type == "virtual" then
+		return strformat("[virtual-signal=%s]", sig.name)
+	end
+end
+lib.key_to_richtext = key_to_richtext
 
 return lib

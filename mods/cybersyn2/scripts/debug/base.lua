@@ -46,6 +46,7 @@ local print_opts = {
 }
 
 local function print_strace(level, ...)
+	if not game then return end
 	local str
 	local n = select("#", ...)
 	if n == 1 then
@@ -87,6 +88,7 @@ local function setup_strace(state)
 	else
 		if filter and next(filter) then
 			strace_lib.set_handler(function(level, ...)
+				if level < base_level then return end
 				if
 					level >= always_level or strace_filter(whitelist, filter, level, ...)
 				then
@@ -100,6 +102,8 @@ local function setup_strace(state)
 		end
 	end
 end
+
+cs2.on_load(function() setup_strace(storage.debug_state) end)
 
 ---Set parameters for strace messages to be printed to console.
 ---@param level int?

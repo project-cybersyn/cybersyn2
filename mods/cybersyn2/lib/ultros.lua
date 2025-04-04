@@ -556,4 +556,26 @@ lib.Input = lib.customize_primitive({
 	end
 end)
 
+lib.Tag = relm.define_element({
+	name = "ultros.Tag",
+	render = function(props) return props.children end,
+	query = function(me, payload, props)
+		if payload.propagation_mode == "broadcast" then
+			local handled, res = relm.query_broadcast(me, payload, true)
+			if handled then return handled, res, props.query_tag end
+		end
+		return false
+	end,
+})
+
+function lib.tag(tag, elt) return lib.Tag({ query_tag = tag }, { elt }) end
+
+function lib.gather(tag_or_children, children)
+	if type(tag_or_children) == "string" then
+		return relm.Gather({ query_tag = tag_or_children }, children)
+	else
+		return relm.Gather({}, tag_or_children)
+	end
+end
+
 return lib

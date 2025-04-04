@@ -63,6 +63,8 @@ require("scripts.logistics.thread.base")
 require("scripts.logistics.thread.poll-combinators")
 require("scripts.logistics.thread.next-t")
 require("scripts.logistics.thread.poll-nodes")
+require("scripts.logistics.thread.alloc")
+require("scripts.logistics.thread.find-vehicles")
 
 require("scripts.debug.base")
 require("scripts.debug.overlay")

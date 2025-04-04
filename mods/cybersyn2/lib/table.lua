@@ -6,9 +6,13 @@ end
 
 local lib = {}
 
-local empty = setmetatable({}, { __newindex = function() end })
+local type = _G.type
+local pairs = _G.pairs
+local select = _G.select
+local random = math.random
 
 ---An empty table enforced via metamethod.
+local empty = setmetatable({}, { __newindex = function() end })
 lib.empty = empty
 
 ---Shallowly compare two arrays using `==`
@@ -55,13 +59,19 @@ end
 ---@param dest table<K, V>
 ---@param src table<K, V>?
 ---@return table<K, V>
-function lib.assign(dest, src)
+local function assign(dest, src)
 	if not src then return dest end
 	for k, v in pairs(src) do
 		dest[k] = v
 	end
 	return dest
 end
+lib.assign = assign
+
+---@generic T
+---@param t T
+---@return T
+function lib.shallow_copy(t) return assign({}, t) end
 
 ---Concatenate all input arrays into a single new result array
 ---@generic T
@@ -96,19 +106,20 @@ end
 ---@param A T[]
 ---@param f fun(value: T, index: integer): boolean
 ---@return T[] #A new array containing all elements of `A` for which the predicate returned true.
-function lib.filter(A, f)
+local function filter(A, f)
 	local B = {}
 	for i = 1, #A do
 		if f(A[i], i) then B[#B + 1] = A[i] end
 	end
 	return B
 end
+lib.filter = filter
 
 ---Map an array to an array. Non-nil results of the mapping function
 ---will be collected into a new result array.
 ---@generic I, O
 ---@param A I[]
----@param f fun(value: I, index: integer): O
+---@param f fun(value: I, index: integer): O?
 ---@return O[]
 function lib.map(A, f)
 	local B = {}
@@ -188,6 +199,83 @@ function lib.flat_map(A, f)
 		end
 	end
 	return B
+end
+
+---Return an array containing the keys of the given table.
+---@generic K
+---@param T table<K, any>
+---@return K[]
+function lib.keys(T)
+	local A = {}
+	for k in pairs(T) do
+		A[#A + 1] = k
+	end
+	return A
+end
+
+---Fisher-Yates shuffle an array in place.
+---@generic T
+---@param A T[]
+function lib.shuffle(A)
+	for i = #A, 2, -1 do
+		local j = random(i)
+		A[i], A[j] = A[j], A[i]
+	end
+end
+
+---Generates a stateless iterator for use with `for` that iterates over
+---groups of items in an array. The array is assumed to consist of items
+---pre-sorted on a particular key. The iterator returns subranges of the
+---array with equal keys.
+function lib.groups(A, key)
+	return function(k, i)
+		if i > #A then return nil end
+		local start = i
+		local current = A[i][k]
+		while i <= #A and A[i][k] == current do
+			i = i + 1
+		end
+		return i, start, i - 1
+	end,
+		key,
+		1
+end
+
+---Given an array of objects pre-sorted on a given key, return an array
+---of arrays of those objects grouped by the given key.
+---@generic T, K
+---@param A T[] The array of objects.
+---@param key K The key to group by.
+---@return T[][] #An array of arrays, where each sub-array contains objects with the same key.
+function lib.group_by(A, key)
+	local result = {}
+	local i = 1
+	while i <= #A do
+		local group = {}
+		local current = A[i][key]
+		while i <= #A and A[i][key] == current do
+			group[#group + 1] = A[i]
+			i = i + 1
+		end
+		result[#result + 1] = group
+	end
+	return result
+end
+
+---Given an array of arrays, return a new array of arrays whose members are
+---the original arrays, filtered by the given filter function, with empty
+---inner arrays dropped.
+---@generic T
+---@param A T[][] The array of arrays.
+---@param f fun(value: T, index: integer): boolean The filter function.
+---@return T[][] #A new array of arrays, filtered by the given function.
+function lib.filter_groups(A, f)
+	local result = {}
+	for i = 1, #A do
+		local group = filter(A[i], f)
+		if #group > 0 then result[#result + 1] = group end
+	end
+	return result
 end
 
 return lib

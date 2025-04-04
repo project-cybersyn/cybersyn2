@@ -63,8 +63,7 @@
 		> - Add `qty` of `item` to the consumer's predicted inventory
 		1. **Pull**
 			- For each group `Pullers<I,p>` in `descending_prio_groups(T.Pullers[I])`:
-				- For each node `Puller<I>` in `random_shuffle(Pullers<I,p>)`
-					> QUESTION: is random_shuffle right?
+				- For each node `Puller<I>` in `sort_by_last_serviced(Pullers<I,p>)`
 					1. **Pull from Pushers**
 						- For each group `Pushers<I,p>` in `descending_prio_groups(T.Pushers[I])`
 							- For each node `Pusher<I>` in `distance_and_busy_sort(Pushers<I,p>)`
@@ -76,3 +75,4 @@
 			1. **Push to Sinks**
 			1. **Push to Dumps**
 	1. **Delivery Phase**
+		1. Enumerate available trains

@@ -24,6 +24,10 @@ _G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 10
 _G.cs2.PERF_COMB_POLL_WORKLOAD = 1
 -- Base number of nodes to examine per `poll_nodes` iteration
 _G.cs2.PERF_NODE_POLL_WORKLOAD = 1
+-- Base number of items to examine per `alloc` iteration.
+_G.cs2.PERF_ALLOC_ITEM_WORKLOAD = 1
+-- Base number of vehs to check per `find_vehicles` iteration.
+_G.cs2.PERF_FIND_VEHICLES_WORKLOAD = 1
 
 -- Set of virtual signals considered configuration signals; these can't
 -- be used as network names.

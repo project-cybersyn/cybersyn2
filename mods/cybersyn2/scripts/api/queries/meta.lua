@@ -62,6 +62,21 @@ local query_defs = {
 			PrimitiveType["Cybersyn.TrainStop"],
 		},
 	},
+	["inventories"] = {
+		name = "inventories",
+		args = {
+			ids = {
+				false,
+				ContainerType.list,
+				PrimitiveType.Id,
+			},
+		},
+		result_type = {
+			true,
+			ContainerType.list,
+			PrimitiveType["Cybersyn.Inventory"],
+		},
+	},
 }
 
 ---Machine-readable definitions of enums used in Cybersyn queries. If a
@@ -82,6 +97,4 @@ local query_query_result = {
 
 ---@param arg Cybersyn.Query.Queries.Input
 ---@return Cybersyn.Query.Queries.Result
-function _G.cs2.query_handlers.queries(arg)
-	return query_query_result
-end
+function _G.cs2.query_handlers.queries(arg) return query_query_result end

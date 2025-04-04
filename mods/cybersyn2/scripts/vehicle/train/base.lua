@@ -8,9 +8,7 @@ function _G.cs2.train_api.get_train_group(group_name)
 end
 
 ---@return {[string]: Cybersyn.TrainGroup}
-function _G.cs2.train_api.get_train_groups()
-	return storage.train_groups
-end
+function _G.cs2.train_api.get_train_groups() return storage.train_groups end
 
 ---Determine if a vehicle is a fully valid train, including its associated `LuaTrain`.
 ---@param vehicle Cybersyn.Vehicle?
@@ -61,9 +59,7 @@ end
 function _G.cs2.train_api.get_all_train_ids()
 	local train_ids = {}
 	for id, vehicle in pairs(storage.vehicles) do
-		if vehicle.type == "train" then
-			train_ids[#train_ids + 1] = id
-		end
+		if vehicle.type == "train" then train_ids[#train_ids + 1] = id end
 	end
 	return train_ids
 end
@@ -72,13 +68,9 @@ end
 ---@param luatrain LuaTrain A *valid* `LuaTrain`.
 ---@return Cybersyn.Train?
 function _G.cs2.train_api.get_train_from_luatrain(luatrain)
-	if (not luatrain) or not luatrain.valid then
-		return nil
-	end
+	if (not luatrain) or not luatrain.valid then return nil end
 	local vid = storage.luatrain_id_to_vehicle_id[luatrain.id]
-	if not vid then
-		return nil
-	end
+	if not vid then return nil end
 	return storage.vehicles[vid] --[[@as Cybersyn.Train]]
 end
 
@@ -86,7 +78,7 @@ end
 ---@param name string?
 ---@return boolean
 local function is_cybersyn_train_group_name(name)
-	return strsub(name or "", 1, #cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX)
-		== cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX
+	local prefix = cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX
+	return strsub(name or "", 1, #prefix) == prefix
 end
 _G.cs2.train_api.is_cybersyn_train_group_name = is_cybersyn_train_group_name

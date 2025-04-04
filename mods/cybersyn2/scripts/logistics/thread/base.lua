@@ -10,7 +10,7 @@ local threads_api = _G.cs2.threads_api
 _G.cs2.logistics_thread = {}
 local dispatch_table = _G.cs2.logistics_thread
 
----@alias Cybersyn.Internal.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"
+---@alias Cybersyn.Internal.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"find_vehicles"
 
 ---@class (exact) Cybersyn.Internal.LogisticsThreadData
 ---@field state Cybersyn.Internal.LogisticsThreadState State of the task.
@@ -24,12 +24,20 @@ local dispatch_table = _G.cs2.logistics_thread
 ---@field combinators UnitNumber[]? Combinators to iterate
 ---@field active_topologies table<Id, true> Topologies seen while iterating combinators.
 ---@field nodes Cybersyn.Node[]? Nodes to iterate within topology.
----@field providers table<SignalKey, Cybersyn.Node[]>? Ids of nodes providing the given product
----@field pushers table<SignalKey, Cybersyn.Node[]>? Ids of nodes pushing the given product
----@field pullers table<SignalKey, Cybersyn.Node[]>? Ids of nodes pulling the given product
----@field sinks table<SignalKey, Cybersyn.Node[]>? Ids of nodes that are sinks for the given product
+---@field providers table<SignalKey, IdSet>? Idset of nodes providing the given product
+---@field providers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped providers
+---@field pushers table<SignalKey, IdSet>? Ids of nodes pushing the given product
+---@field pullers table<SignalKey, IdSet>? Ids of nodes pulling the given product
+---@field pullers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped pullers
+---@field sinks table<SignalKey, IdSet>? Ids of nodes that are sinks for the given product
 ---@field dumps Cybersyn.Node[]? Nodes that are dumps
 ---@field seen_cargo table<SignalKey, true>? Items we've seen and need to iterate over.
+---@field allocations Cybersyn.Internal.LogisticsAllocation[]?
+---@field cargo SignalKey[]? List of cargo.
+---@field all_vehicles Id[]? All vehicles in the topology
+---@field avail_trains table<Id, Cybersyn.Train>? Available trains
+---@field trains_by_icap Cybersyn.Train[]? Trains by increasing item capacity
+---@field trains_by_fcap Cybersyn.Train[]? Trains by increasing fluid capacity
 
 ---@class Cybersyn.Internal.LogisticsThread: Scheduler.RecurringTask
 ---@field public data Cybersyn.Internal.LogisticsThreadData
