@@ -16,13 +16,15 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
-cs2.register_setting(
+cs2.register_combinator_setting(
 	cs2.lib.make_raw_setting("allow_mode", "allow_mode", "auto")
 )
-cs2.register_setting(
+cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("allow_strict", "allow_flags", 0)
 )
-cs2.register_setting(cs2.lib.make_flag_setting("allow_bidi", "allow_flags", 1))
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("allow_bidi", "allow_flags", 1)
+)
 
 --------------------------------------------------------------------------------
 -- GUI

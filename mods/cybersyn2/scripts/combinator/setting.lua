@@ -52,7 +52,7 @@ function _G.cs2.lib.make_raw_setting(setting_name, key, default)
 		name = setting_name,
 		reader = function(_, comb) return comb:get_raw_setting(key) or default end,
 		writer = function(_, comb, new_value)
-			return comb:set_raw_value(key, new_value)
+			return comb:set_raw_setting(key, new_value)
 		end,
 	}
 end

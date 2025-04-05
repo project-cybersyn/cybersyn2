@@ -144,7 +144,8 @@ local Pr = relm.Primitive
 local ModePicker = relm.define_element({
 	name = "CombinatorGui.ModePicker",
 	render = function(props)
-		local desired_mode_name = props.combinator.mode
+		local desired_mode_name =
+			props.combinator:read_setting(combinator_settings.mode)
 		local options = tlib.t_map_a(
 			combinator_modes,
 			function(mode, name)
@@ -180,7 +181,8 @@ local ModePicker = relm.define_element({
 local ModeSettings = relm.define_element({
 	name = "CombinatorGui.ModeSettings",
 	render = function(props)
-		local desired_mode_name = props.combinator.mode
+		local desired_mode_name =
+			props.combinator:read_setting(combinator_settings.mode)
 		local mode = combinator_modes[desired_mode_name]
 		if mode and mode.settings_element then
 			return relm.element(mode.settings_element, {
@@ -242,7 +244,8 @@ local Status = relm.define_element({
 local Help = relm.define_element({
 	name = "CombinatorGui.Help",
 	render = function(props)
-		local desired_mode_name = props.combinator.mode
+		local desired_mode_name =
+			props.combinator:read_setting(combinator_settings.mode)
 		local mode = combinator_modes[desired_mode_name]
 		if mode and mode.help_element then
 			return relm.element(mode.help_element, {
