@@ -14,6 +14,7 @@ local QueryType = {
 	["enums"] = "enums",
 	["combinators"] = "combinators",
 	["stops"] = "stops",
+	["vehicles"] = "vehicles",
 }
 lib.QueryType = QueryType
 
@@ -72,5 +73,15 @@ lib.QueryType = QueryType
 
 ---@class Cybersyn.Query.Inventories.Result: Cybersyn.QueryResult
 ---@field public data Cybersyn.Inventory[]
+
+----------- "vehicles"
+
+---@class Cybersyn.Query.Vehicles.Input: Cybersyn.QueryInput
+---@field public type "vehicles"
+---@field public ids Id[]? List of veh IDs to query.
+---@field public luatrain_ids Id[]? List of luatrain IDs to query
+
+---@class Cybersyn.Query.Vehicles.Result: Cybersyn.QueryResult
+---@field public data Cybersyn.Vehicle[]
 
 return lib

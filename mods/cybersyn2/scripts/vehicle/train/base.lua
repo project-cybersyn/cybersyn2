@@ -130,11 +130,10 @@ function Train.new(lua_train)
 end
 
 ---Get a `Cybersyn.Train` from a Factorio `LuaTrain` object.
----@param luatrain LuaTrain A *valid* `LuaTrain`.
+---@param luatrain_id Id?
 ---@return Cybersyn.Train?
-function Train.get_from_luatrain(luatrain)
-	if (not luatrain) or not luatrain.valid then return nil end
-	local vid = storage.luatrain_id_to_vehicle_id[luatrain.id]
+function Train.get_from_luatrain_id(luatrain_id)
+	local vid = storage.luatrain_id_to_vehicle_id[luatrain_id or ""]
 	if not vid then return nil end
 	return storage.vehicles[vid] --[[@as Cybersyn.Train]]
 end

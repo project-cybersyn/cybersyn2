@@ -51,7 +51,7 @@ end
 local function monitor_enum_luatrain(luatrain, data)
 	if (not luatrain) or not luatrain.valid then return end
 	local group_name = luatrain.group
-	local vehicle = Train.get_from_luatrain(luatrain)
+	local vehicle = Train.get_from_luatrain_id(luatrain.id)
 
 	-- If train has no group, remove it if we know about it
 	if not group_name then

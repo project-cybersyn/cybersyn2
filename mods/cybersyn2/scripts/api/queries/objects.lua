@@ -7,6 +7,8 @@ local inventory_api = _G.cs2.inventory_api
 
 local map = tlib.map
 local Combinator = _G.cs2.Combinator
+local Vehicle = _G.cs2.Vehicle
+local Train = _G.cs2.Train
 
 local comb_list_datatype = {
 	true,
@@ -61,6 +63,28 @@ function _G.cs2.query_handlers.inventories(arg)
 	local res = nil
 	if arg.ids then
 		res = map(arg.ids, function(id) return inventory_api.get_inventory(id) end)
+	end
+	return { data = res or {}, type = inv_list_datatype }
+end
+
+---@param arg Cybersyn.Query.Vehicles.Input
+---@return Cybersyn.Query.Vehicles.Result
+function _G.cs2.query_handlers.vehicles(arg)
+	---@type Cybersyn.Vehicle[]
+	local res = {}
+	if arg.ids then
+		local ids = arg.ids --[[@as Id[] ]]
+		for i = 1, #ids do
+			local veh = Vehicle.get(ids[i])
+			if veh then res[#res + 1] = veh end
+		end
+	end
+	if arg.luatrain_ids then
+		local ids = arg.luatrain_ids --[[@as Id[] ]]
+		for i = 1, #ids do
+			local veh = Train.get_from_luatrain_id(ids[i])
+			if veh then res[#res + 1] = veh end
+		end
 	end
 	return { data = res or {}, type = inv_list_datatype }
 end

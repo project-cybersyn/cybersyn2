@@ -77,6 +77,26 @@ local query_defs = {
 			PrimitiveType["Cybersyn.Inventory"],
 		},
 	},
+	["vehicles"] = {
+		name = "vehicles",
+		args = {
+			ids = {
+				false,
+				ContainerType.list,
+				PrimitiveType.Id,
+			},
+			luatrain_ids = {
+				false,
+				ContainerType.list,
+				PrimitiveType.Id,
+			},
+		},
+		result_type = {
+			true,
+			ContainerType.list,
+			PrimitiveType["Cybersyn.Vehicle"],
+		},
+	},
 }
 
 ---Machine-readable definitions of enums used in Cybersyn queries. If a
