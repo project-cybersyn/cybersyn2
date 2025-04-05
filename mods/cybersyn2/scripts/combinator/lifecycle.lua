@@ -5,134 +5,20 @@
 -- numerous cross-cutting concerns with lifecycle.
 --------------------------------------------------------------------------------
 
+local stlib = require("__cybersyn2__.lib.strace")
 local log = require("__cybersyn2__.lib.logging")
 local tlib = require("__cybersyn2__.lib.table")
 local bplib = require("__cybersyn2__.lib.blueprint")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
+local Combinator = _G.cs2.Combinator
+local EphemeralCombinator = _G.cs2.EphemeralCombinator
 
-local is_combinator_or_ghost_entity =
-	combinator_api.is_combinator_or_ghost_entity
-
----@param combinator_entity LuaEntity A *valid* reference to a non-ghost combinator.
----@return Cybersyn.Combinator.Internal
-local function create_combinator_state(combinator_entity)
-	local combinator_id = combinator_entity.unit_number
-	if not combinator_id then
-		-- Should be impossible. Have to crash here as this function cant return nil.
-		error("Combinator entity has no unit number.")
-	end
-	storage.combinators[combinator_id] = {
-		id = combinator_id,
-		entity = combinator_entity,
-	} --[[@as Cybersyn.Combinator.Internal]]
-
-	return storage.combinators[combinator_id]
-end
-
----@param combinator_id UnitNumber
----@return boolean `true` if the combinator was removed, `false` if it was not found.
-local function destroy_combinator_state(combinator_id)
-	if storage.combinators[combinator_id] then
-		storage.combinators[combinator_id] = nil
-		return true
-	end
-	return false
-end
-
---------------------------------------------------------------------------------
--- Settings storage.
---------------------------------------------------------------------------------
-
--- Test scenarios:
--- TODO: build from hand
--- TODO: build from shift ghost
--- TODO: build from blueprint in inventory
--- TODO: build from book in inventory
--- TODO: build from BP in library
--- TODO: build from book in library
--- TODO: build by pipette from ghost
-
----@param combinator_entity LuaEntity A *valid* combinator or combinator ghost entity.
----@return Tags
-local function get_raw_values(combinator_entity)
-	-- If real combinator, should be in the cache.
-	local id = combinator_entity.unit_number
-	if storage.combinator_settings_cache[id] then
-		return storage.combinator_settings_cache[id]
-	end
-
-	return combinator_entity.tags or {}
-end
-
----@param combinator_entity LuaEntity
----@param values Tags
-local function set_raw_values(combinator_entity, values)
-	-- Defensive copy to avoid possible storage cross-references
-	values = tlib.deep_copy(values, true)
-	-- If ghost, store in tags.
-	if combinator_entity.name == "entity-ghost" then
-		combinator_entity.tags = values
-		return true
-	end
-	-- If not ghost, update cache and re-encode cache to hidden entity.
-	local id = combinator_entity.unit_number --[[@as UnitNumber]]
-	local combinator = combinator_api.get_combinator(id, true)
-	if not combinator then
-		log.warn("Real combinator has no state", combinator_entity)
-		return false
-	end
-	if not storage.combinator_settings_cache[id] then
-		log.warn("Real combinator has no settings cache", combinator_entity)
-		return false
-	end
-	storage.combinator_settings_cache[id] = values
-	return true
-end
-
---------------------------------------------------------------------------------
--- Raw storage API. This should only be used by the higher level combinator
--- settings API.
---------------------------------------------------------------------------------
-
----Obtain the raw value of a storage key in physical combinator settings
----storage.
----@param combinator_entity LuaEntity A *valid* combinator or ghost entity
----@param key string
----@return boolean|string|number|Tags|nil
-function _G.cs2.combinator_api.get_raw_value(combinator_entity, key)
-	return get_raw_values(combinator_entity)[key]
-end
-
----Store a raw value into the key of physical combinator settings storage.
----DO NOT use this to change combinator settings; instead use the
----combinator settings API.
----@param combinator_entity LuaEntity A *valid* combinator or ghost entity
----@param key string
----@param value boolean|string|number|Tags|nil
----@return boolean #`true` if the value was stored, `false` if not.
-function _G.cs2.combinator_api.set_raw_value(combinator_entity, key, value)
-	-- If ghost, store in tags.
-	if combinator_entity.name == "entity-ghost" then
-		local tags = combinator_entity.tags or {}
-		tags[key] = value
-		combinator_entity.tags = tags
-		return true
-	end
-	-- If not ghost, update cache
-	local id = combinator_entity.unit_number
-	local combinator = combinator_api.get_combinator(id, true)
-	if not combinator then
-		log.warn("Real combinator has no state", combinator_entity)
-		return false
-	end
-	if not storage.combinator_settings_cache[id] then
-		log.warn("Real combinator has no settings cache", combinator_entity)
-		return false
-	end
-	storage.combinator_settings_cache[id][key] = value
-	return true
-end
+local strace = stlib.strace
+local ERROR = stlib.ERROR
+local TRACE = stlib.TRACE
+local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
+local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
+local get_raw_settings = _G.cs2.get_raw_settings
 
 --------------------------------------------------------------------------------
 -- Combinator lifecycle events.
@@ -140,16 +26,17 @@ end
 
 cs2.on_built_combinator(function(combinator_entity, tags)
 	local comb_id = combinator_entity.unit_number --[[@as UnitNumber]]
-	local comb = combinator_api.get_combinator(comb_id, true)
+	local comb = Combinator.get(comb_id, true)
 	if comb then
 		-- Should be impossible
-		log.error(
+		return strace(
+			ERROR,
+			"message",
 			"Duplicate combinator unit number, should be impossible.",
 			comb_id
 		)
-		return
 	end
-	comb = create_combinator_state(combinator_entity)
+	comb = Combinator.new(combinator_entity)
 
 	-- Store settings in cache
 	storage.combinator_settings_cache[comb.id] = tags or {}
@@ -186,11 +73,8 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 end)
 
 cs2.on_broken_combinator(function(combinator_entity)
-	local comb =
-		combinator_api.get_combinator(combinator_entity.unit_number, true)
-	if not comb then
-		return
-	end
+	local comb = Combinator.get(combinator_entity.unit_number, true)
+	if not comb then return end
 	comb.is_being_destroyed = true
 
 	cs2.raise_combinator_destroyed(comb)
@@ -203,22 +87,21 @@ cs2.on_broken_combinator(function(combinator_entity)
 	-- Clear settings cache
 	storage.combinator_settings_cache[comb.id] = nil
 
-	destroy_combinator_state(comb.id)
+	comb:destroy_state()
 end)
 
 cs2.on_entity_settings_pasted(function(event)
-	local source = combinator_api.entity_to_ephemeral(event.source)
-	local dest = combinator_api.entity_to_ephemeral(event.destination)
+	local source = EphemeralCombinator.new(event.source)
+	local dest = EphemeralCombinator.new(event.destination)
 	if source and dest then
-		local vals = get_raw_values(source.entity)
-		set_raw_values(dest.entity, vals)
+		local vals = source:get_raw_settings()
+		dest:set_raw_settings(vals)
 		cs2.raise_combinator_or_ghost_setting_changed(dest, nil, nil, nil)
 	end
 end)
 
 --------------------------------------------------------------------------------
--- Handle when user pastes a blueprint, which may disrupt the settings
--- of multiple combinators.
+-- Blueprinting combinators
 --------------------------------------------------------------------------------
 
 -- TODO: update for tags
@@ -226,7 +109,7 @@ end)
 ---@param bp_entity BlueprintEntity
 ---@return boolean
 local function bp_combinator_filter(bp_entity)
-	return bp_entity.name == "cybersyn2-combinator"
+	return bp_entity.name == COMBINATOR_NAME
 end
 
 cs2.on_built_blueprint(function(player, event)
@@ -237,9 +120,7 @@ cs2.on_built_blueprint(function(player, event)
 	)
 	if blueprintish then
 		local bp_entities = blueprintish.get_blueprint_entities()
-		if not bp_entities then
-			return
-		end
+		if not bp_entities then return end
 		local overlap_map = bplib.get_overlapping_entities(
 			bp_entities,
 			player.surface,
@@ -250,28 +131,27 @@ cs2.on_built_blueprint(function(player, event)
 			bp_combinator_filter
 		)
 		for i, entity in pairs(overlap_map) do
-			local comb = combinator_api.get_combinator(entity.unit_number, true)
+			local comb = Combinator.get(entity.unit_number, true)
 			local tags = bp_entities[i].tags or {}
 			if comb then
-				log.trace(
+				strace(
+					TRACE,
+					"message",
 					"Combinator lifecycle: combinator settings pasted via blueprint",
 					entity
 				)
-				set_raw_values(entity, tags)
+				comb:set_raw_settings(tags)
 				cs2.raise_combinator_or_ghost_setting_changed(comb, nil, nil, nil)
 			end
 		end
 	end
 end)
 
---------------------------------------------------------------------------------
 -- Extract settings tags on blueprint setup.
---------------------------------------------------------------------------------
-
 cs2.on_blueprint_setup(function(event)
 	bplib.save_tags(event, function(entity)
-		if is_combinator_or_ghost_entity(entity) then
-			return get_raw_values(entity)
+		if entity_is_combinator_or_ghost(entity) then
+			return get_raw_settings(entity)
 		end
 	end)
 end)

@@ -7,10 +7,13 @@ local mlib = require("__cybersyn2__.lib.math")
 local trains_lib = require("__cybersyn2__.lib.trains")
 local flib_direction = require("__flib__.direction")
 local flib_bbox = require("__flib__.bounding-box")
-local log = require("__cybersyn2__.lib.logging")
+local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
 local stop_api = _G.cs2.stop_api
-local combinator_api = _G.cs2.combinator_api
+
+local Combinator = _G.cs2.Combinator
+local strace = stlib.strace
+local ERROR = stlib.ERROR
 
 local FRONT = defines.rail_direction.front
 local BACK = defines.rail_direction.back
@@ -39,9 +42,7 @@ end
 ---@param node_id Id
 local function get_or_create_layout(node_id)
 	local layout = storage.stop_layouts[node_id]
-	if layout then
-		return layout
-	end
+	if layout then return layout end
 	storage.stop_layouts[node_id] = {
 		node_id = node_id,
 		bbox = nil,
@@ -81,9 +82,10 @@ local function clear_layout(layout)
 	local stop = stop_api.get_stop(layout.node_id, true)
 	if stop then
 		cs2.raise_train_stop_layout_changed(stop, layout)
-		local combs = tlib.t_map_a(stop.combinator_set, function(_, combinator_id)
-			return combinator_api.get_combinator(combinator_id, true)
-		end)
+		local combs = tlib.t_map_a(
+			stop.combinator_set,
+			function(_, combinator_id) return Combinator.get(combinator_id, true) end
+		)
 		stop_api.reassociate_combinators(combs)
 	end
 end
@@ -103,18 +105,10 @@ end
 ---@param other_stop LuaEntity?
 ---@param ignore_set UnitNumberSet?
 local function did_hit_other_stop(this_stop, rail, other_stop, ignore_set)
-	if (not other_stop) or not rail then
-		return false
-	end
-	if other_stop == this_stop then
-		return false
-	end
-	if rail ~= other_stop.connected_rail then
-		return false
-	end
-	if ignore_set and ignore_set[other_stop.unit_number] then
-		return false
-	end
+	if (not other_stop) or not rail then return false end
+	if other_stop == this_stop then return false end
+	if rail ~= other_stop.connected_rail then return false end
+	if ignore_set and ignore_set[other_stop.unit_number] then return false end
 	return true
 end
 
@@ -256,12 +250,8 @@ function _G.cs2.stop_api.compute_layout(stop_state, ignored_entity_set)
 
 		if curve_left or curve_right then
 			mlib.bbox_extend_ortho(bbox, direction_from_stop, 3)
-			if curve_left then
-				rail_set[curve_left.unit_number] = true
-			end
-			if curve_right then
-				rail_set[curve_right.unit_number] = true
-			end
+			if curve_left then rail_set[curve_left.unit_number] = true end
+			if curve_right then rail_set[curve_right.unit_number] = true end
 		end
 	end
 
@@ -291,11 +281,9 @@ function _G.cs2.stop_api.compute_layout(stop_state, ignored_entity_set)
 	-- Reassociate combinators. Combinators in the bbox as well as combinators
 	-- that were associated but may be outside the new bbox must all be checked.
 	local comb_entities =
-		combinator_api.find_combinator_entities(stop_entity.surface, bbox)
+		cs2.lib.find_combinator_entities(stop_entity.surface, bbox)
 	local comb_set = tlib.t_map_t(comb_entities, function(_, entity)
-		if
-			not ignored_entity_set or not ignored_entity_set[entity.unit_number]
-		then
+		if not ignored_entity_set or not ignored_entity_set[entity.unit_number] then
 			return entity.unit_number, true
 		else
 			return nil, nil
@@ -304,18 +292,18 @@ function _G.cs2.stop_api.compute_layout(stop_state, ignored_entity_set)
 	for comb_id in pairs(stop_state.combinator_set) do
 		comb_set[comb_id] = true
 	end
-	local reassociable_combs = tlib.t_map_a(comb_set, function(_, comb_id)
-		local comb = combinator_api.get_combinator(comb_id)
-		if comb then
-			return comb
-		end
-	end)
+	local reassociable_combs = tlib.t_map_a(
+		comb_set,
+		function(_, comb_id) return Combinator.get(comb_id) end
+	)
 	stop_api.reassociate_combinators(reassociable_combs)
 
 	-- Since `reassociate_combinators` can cause significant state
 	-- changes, check for safety, although this shouldn't ever happen.
 	if stop_state.is_being_destroyed or (not stop_api.is_valid(stop_state)) then
-		log.error(
+		strace(
+			ERROR,
+			"message",
 			"Stop was removed by reassociate_combinators during layout computation. This shouldn't happen."
 		)
 		return
@@ -339,9 +327,7 @@ end)
 cs2.on_node_destroyed(function(node)
 	if node.type == "stop" then
 		local layout = storage.stop_layouts[node.id]
-		if not layout then
-			return
-		end
+		if not layout then return end
 		clear_rail_set_from_storage(layout.rail_set)
 		storage.stop_layouts[node.id] = nil
 	end
@@ -457,9 +443,7 @@ cs2.on_broken_rail(function(rail)
 	-- causing a stop that was not associated with that rail to be enlarged. That case requires a more complex
 	-- algorithm and isn't handled right now.
 	local stop = find_stop_from_rail(rail)
-	if stop then
-		stop_api.compute_layout(stop, { [rail.unit_number] = true })
-	end
+	if stop then stop_api.compute_layout(stop, { [rail.unit_number] = true }) end
 end)
 
 -- When a train stop is built/broken check its attached rail, as well as the rails
@@ -469,13 +453,9 @@ end)
 ---@param is_being_destroyed boolean?
 local function recompute_nearby_stop_layouts(stop_entity, is_being_destroyed)
 	local r1 = stop_entity.connected_rail
-	if not r1 then
-		return
-	end
+	if not r1 then return end
 	local ies = nil
-	if is_being_destroyed then
-		ies = { [stop_entity.unit_number] = true }
-	end
+	if is_being_destroyed then ies = { [stop_entity.unit_number] = true } end
 	local s0 = get_stop_from_unit_number(stop_entity.unit_number, true)
 	local r2, _, _, r3 = get_all_connected_rails(r1)
 	local s1, s2, s3 =
@@ -483,9 +463,7 @@ local function recompute_nearby_stop_layouts(stop_entity, is_being_destroyed)
 		r2 and find_stop_from_rail(r2),
 		r3 and find_stop_from_rail(r3)
 	-- Avoid rechecking the same stop multiple times.
-	if s1 and ((not s0) or (s1 ~= s0)) then
-		stop_api.compute_layout(s1, ies)
-	end
+	if s1 and ((not s0) or (s1 ~= s0)) then stop_api.compute_layout(s1, ies) end
 	if s2 and ((not s1) or (s2 ~= s1)) and ((not s0) or (s2 ~= s0)) then
 		stop_api.compute_layout(s2, ies)
 	end
@@ -499,10 +477,10 @@ local function recompute_nearby_stop_layouts(stop_entity, is_being_destroyed)
 	end
 end
 
-cs2.on_built_train_stop(function(stop)
-	recompute_nearby_stop_layouts(stop, false)
-end)
+cs2.on_built_train_stop(
+	function(stop) recompute_nearby_stop_layouts(stop, false) end
+)
 
-cs2.on_broken_train_stop(function(stop)
-	recompute_nearby_stop_layouts(stop, true)
-end)
+cs2.on_broken_train_stop(
+	function(stop) recompute_nearby_stop_layouts(stop, true) end
+)

@@ -2,9 +2,8 @@
 -- Implementation of allow lists
 --------------------------------------------------------------------------------
 
-local log = require("__cybersyn2__.lib.logging")
+local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local node_api = _G.cs2.node_api
 local stop_api = _G.cs2.stop_api
 local combinator_settings = _G.cs2.combinator_settings
@@ -13,6 +12,9 @@ local CarriageType = require("__cybersyn2__.lib.types").CarriageType
 local Locomotive = CarriageType.Locomotive
 local CargoWagon = CarriageType.CargoWagon
 local FluidWagon = CarriageType.FluidWagon
+local strace = stlib.strace
+local WARN = stlib.WARN
+local TRACE = stlib.TRACE
 
 ---@param carriage_type Cybersyn.CarriageType?
 ---@param pattern (0|1|2|3)?
@@ -84,7 +86,7 @@ end
 local function make_auto_allow_list(stop, is_strict, is_bidi, changed_layout_id)
 	local layout = stop_api.get_layout(stop.id)
 	if not layout then
-		log.warn("make_auto_allow_list: stop has no layout", stop)
+		strace(WARN, "message", "make_auto_allow_list: stop has no layout", stop)
 		return
 	end
 	if not stop.allowed_layouts then stop.allowed_layouts = {} end
@@ -123,21 +125,13 @@ local function make_custom_allow_list(
 	allowlist_combinator,
 	changed_layout_id
 )
-	local allow_mode = combinator_api.read_setting(
-		allowlist_combinator,
-		combinator_settings.allow_mode
-	)
+	local allow_mode =
+		allowlist_combinator:read_setting(combinator_settings.allow_mode)
 	if allow_mode == "auto" then
 		make_auto_allow_list(
 			stop,
-			combinator_api.read_setting(
-				allowlist_combinator,
-				combinator_settings.allow_strict
-			),
-			combinator_api.read_setting(
-				allowlist_combinator,
-				combinator_settings.allow_bidi
-			),
+			allowlist_combinator:read_setting(combinator_settings.allow_strict),
+			allowlist_combinator:read_setting(combinator_settings.allow_bidi),
 			changed_layout_id
 		)
 	elseif allow_mode == "all" then
@@ -154,7 +148,7 @@ end
 ---@param stop Cybersyn.TrainStop
 ---@param changed_layout_id Id?
 local function evaluate_stop(stop, changed_layout_id)
-	log.trace("Re-evaluating allow list for stop", stop.id)
+	strace(TRACE, "message", "Re-evaluating allow list for stop", stop.id)
 	local allowlist_combs = node_api.get_associated_combinators(
 		stop,
 		function(comb) return comb.mode == "allow" end
@@ -178,7 +172,7 @@ cs2.on_train_stop_pattern_changed(function(stop) evaluate_stop(stop) end)
 
 -- When an allowlist combinator is associated with a stop, update its stop.
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
-	if combinator_api.read_mode(combinator) == "allow" then
+	if combinator.mode == "allow" then
 		if old_node and old_node.type == "stop" then evaluate_stop(old_node) end
 		if new_node and new_node.type == "stop" then evaluate_stop(new_node) end
 	end
@@ -188,10 +182,10 @@ end)
 cs2.on_combinator_setting_changed(
 	function(combinator, setting_name, _, old_value)
 		if
-			combinator_api.read_mode(combinator) == "allow"
+			combinator.mode == "allow"
 			or (setting_name == "mode" and old_value == "allow")
 		then
-			local node = combinator_api.get_associated_node(combinator, "stop") --[[@as Cybersyn.TrainStop?]]
+			local node = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
 			if node then evaluate_stop(node) end
 		end
 	end

@@ -1,6 +1,4 @@
 -- Unique global table to avoid polluting `_G`.
--- Root level global tables should be declared in `control.lua` to avoid
--- include order dependencies.
 --
 -- Whenever setting a global, always use `_G.cs2.x.y = ...`
 -- as sumneko code completion gets confused otherwise.
@@ -9,7 +7,6 @@ _G.cs2 = {
 	threads_api = {},
 	node_api = {},
 	stop_api = {},
-	combinator_api = {},
 	delivery_api = {},
 	inventory_api = {},
 	train_api = {},

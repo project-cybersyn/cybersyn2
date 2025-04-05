@@ -194,18 +194,12 @@ _G.cs2.on_train_layout_created, _G.cs2.raise_train_layout_created = event(
 -- Cybersyn combinator object events
 --------------------------------------------------------------------------------
 
-_G.cs2.on_combinator_created, _G.cs2.raise_combinator_created = event(
-	"combinator_created",
-	"Cybersyn.Combinator.Internal",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
+_G.cs2.on_combinator_created, _G.cs2.raise_combinator_created =
+	event("combinator_created", "Cybersyn.Combinator", "nil", "nil", "nil", "nil")
 
 _G.cs2.on_combinator_destroyed, _G.cs2.raise_combinator_destroyed = event(
 	"combinator_destroyed",
-	"Cybersyn.Combinator.Internal",
+	"Cybersyn.Combinator",
 	"nil",
 	"nil",
 	"nil",
@@ -215,13 +209,13 @@ _G.cs2.on_combinator_destroyed, _G.cs2.raise_combinator_destroyed = event(
 ---@alias CybersynNodeOrNil Cybersyn.Node|nil
 
 ---Event raised when a combinator is associated or disassociated with a node.
---- * Arg 1 - `Cybersyn.Combinator.Internal` - The combinator.
+--- * Arg 1 - `Cybersyn.Combinator` - The combinator.
 --- * Arg 2 - `Cybersyn.Node|nil` - The node, if any, that the combinator is now associated with.
 --- * Arg 3 - `Cybersyn.Node|nil` - The node, if any, that the combinator was previously associated with.
 _G.cs2.on_combinator_node_associated, _G.cs2.raise_combinator_node_associated =
 	event(
 		"combinator_node_associated",
-		"Cybersyn.Combinator.Internal",
+		"Cybersyn.Combinator",
 		"CybersynNodeOrNil",
 		"CybersynNodeOrNil",
 		"nil",
@@ -245,19 +239,29 @@ _G.cs2.on_combinator_or_ghost_setting_changed, _G.cs2.raise_combinator_or_ghost_
 
 ---Event raised when a real combinator's settings change, including when it
 ---is first built.
---- * Arg 1 - `Cybersyn.Combinator.Internal` - The combinator.
+--- * Arg 1 - `Cybersyn.Combinator` - The combinator.
 --- * Arg 2 - `string|nil` - The name of the setting that changed. If `nil`, you must assume that any or all of the settings have changed.
 --- * Arg 3 - `any` - The new value of the setting, if known.
 --- * Arg 4 - `any` - The old value of the setting, if known.
 _G.cs2.on_combinator_setting_changed, _G.cs2.raise_combinator_setting_changed =
 	event(
 		"combinator_setting_changed",
-		"Cybersyn.Combinator.Internal",
+		"Cybersyn.Combinator",
 		"StringOrNil",
 		"any",
 		"any",
 		"nil"
 	)
+
+---Event raised when a combinator's signal inputs are read into cache.
+_G.cs2.on_combinator_inputs_read, _G.cs2.raise_combinator_inputs_read = event(
+	"combinator_inputs_read",
+	"Cybersyn.Combinator",
+	"nil",
+	"nil",
+	"nil",
+	"nil"
+)
 
 --------------------------------------------------------------------------------
 -- Cybersyn node object events

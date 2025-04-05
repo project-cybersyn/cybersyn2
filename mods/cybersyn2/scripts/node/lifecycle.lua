@@ -6,8 +6,9 @@ local tlib = require("__cybersyn2__.lib.table")
 local NodeNetworkOperation =
 	require("__cybersyn2__.lib.types").NodeNetworkOperation
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local node_api = _G.cs2.node_api
+
+local Combinator = _G.cs2.Combinator
 
 ---Create a new node. This should be used internally by providers of specific
 ---kinds of node, such as train stops.
@@ -41,7 +42,7 @@ function _G.cs2.node_api.destroy_node(node_id)
 	-- combinator set, we must do so here.
 	if next(node.combinator_set) then
 		tlib.for_each(node.combinator_set, function(_, combinator_id)
-			local combinator = combinator_api.get_combinator(combinator_id, true)
+			local combinator = Combinator.get(combinator_id, true)
 			node_api.disassociate_combinator(combinator, true)
 		end)
 		cs2.raise_node_combinator_set_changed(node)

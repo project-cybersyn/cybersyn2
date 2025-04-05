@@ -6,7 +6,6 @@ local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
 
@@ -62,7 +61,7 @@ relm.define_element({
 -- Mode registration.
 --------------------------------------------------------------------------------
 
-combinator_api.register_combinator_mode({
+cs2.register_combinator_mode({
 	name = "channels",
 	localized_string = "cybersyn2-combinator-modes.channels",
 	settings_element = "CombinatorGui.Mode.Channels",

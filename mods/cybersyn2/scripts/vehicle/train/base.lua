@@ -82,3 +82,15 @@ local function is_cybersyn_train_group_name(name)
 	return strsub(name or "", 1, #prefix) == prefix
 end
 _G.cs2.train_api.is_cybersyn_train_group_name = is_cybersyn_train_group_name
+
+---@param train Cybersyn.Train
+function _G.cs2.train_api.get_stock(train)
+	local lua_train = train.lua_train
+	return lua_train
+		and lua_train.valid
+		and (
+			lua_train.front_stock
+			or lua_train.back_stock
+			or lua_train.carriages[1]
+		)
+end

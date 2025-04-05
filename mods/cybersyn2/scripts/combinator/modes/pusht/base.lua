@@ -6,7 +6,6 @@ local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
 
@@ -19,9 +18,7 @@ local VF = ultros.VFlow
 
 relm.define_element({
 	name = "CombinatorGui.Mode.PushT",
-	render = function(props)
-		return nil
-	end,
+	render = function(props) return nil end,
 })
 
 relm.define_element({
@@ -48,14 +45,6 @@ relm.define_element({
 				ultros.RtMultilineLabel(
 					"Set push thresholds for individual items at this station. Each item's threshold will be set to its signal value."
 				),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
-				ultros.RtMultilineLabel(
-					"Set push thresholds for all items at this station."
-				),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
-				ultros.RtMultilineLabel(
-					"Set push thresholds for all fluids at this station."
-				),
 			}),
 		})
 	end,
@@ -65,7 +54,7 @@ relm.define_element({
 -- Mode registration
 --------------------------------------------------------------------------------
 
-combinator_api.register_combinator_mode({
+cs2.register_combinator_mode({
 	name = "pusht",
 	localized_string = "cybersyn2-combinator-modes.pusht",
 	settings_element = "CombinatorGui.Mode.PushT",

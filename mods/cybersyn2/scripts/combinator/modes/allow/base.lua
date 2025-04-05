@@ -6,7 +6,6 @@ local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
 
@@ -17,15 +16,13 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
-combinator_api.register_setting(
-	combinator_api.make_raw_setting("allow_mode", "allow_mode", "auto")
+cs2.register_setting(
+	cs2.lib.make_raw_setting("allow_mode", "allow_mode", "auto")
 )
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("allow_strict", "allow_flags", 0)
+cs2.register_setting(
+	cs2.lib.make_flag_setting("allow_strict", "allow_flags", 0)
 )
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("allow_bidi", "allow_flags", 1)
-)
+cs2.register_setting(cs2.lib.make_flag_setting("allow_bidi", "allow_flags", 1))
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -40,16 +37,12 @@ local mode_dropdown_items = {
 
 local GroupSettings = relm.define_element({
 	name = "CombinatorGui.Mode.Allow.GroupSettings",
-	render = function(props)
-		return {}
-	end,
+	render = function(props) return {} end,
 })
 
 local LayoutSettings = relm.define_element({
 	name = "CombinatorGui.Mode.Allow.LayoutSettings",
-	render = function(props)
-		return {}
-	end,
+	render = function(props) return {} end,
 })
 
 local AutoSettings = relm.define_element({
@@ -76,10 +69,7 @@ local AutoSettings = relm.define_element({
 relm.define_element({
 	name = "CombinatorGui.Mode.Allow",
 	render = function(props)
-		local mode = combinator_api.read_setting(
-			props.combinator,
-			combinator_settings.allow_mode
-		)
+		local mode = props.combinator:read_setting(combinator_settings.allow_mode)
 		return VF({
 			ultros.WellSection({ caption = "Settings" }, {
 				ultros.Labeled({ caption = "Allowlist mode", top_margin = 6 }, {
@@ -122,7 +112,7 @@ relm.define_element({
 -- Station combinator mode registration.
 --------------------------------------------------------------------------------
 
-combinator_api.register_combinator_mode({
+cs2.register_combinator_mode({
 	name = "allow",
 	localized_string = "cybersyn2-gui.allow-list",
 	settings_element = "CombinatorGui.Mode.Allow",

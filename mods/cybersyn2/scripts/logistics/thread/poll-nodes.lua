@@ -5,10 +5,10 @@
 --------------------------------------------------------------------------------
 
 local log = require("__cybersyn2__.lib.logging")
+local stlib = require("__cybersyn2__.lib.strace")
 local tlib = require("__cybersyn2__.lib.table")
 local slib = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local node_api = _G.cs2.node_api
 local stop_api = _G.cs2.stop_api
 local inventory_api = _G.cs2.inventory_api
@@ -16,12 +16,14 @@ local mod_settings = _G.cs2.mod_settings
 local combinator_settings = _G.cs2.combinator_settings
 local logistics_thread = _G.cs2.logistics_thread
 
+local strace = stlib.strace
+local TRACE = stlib.TRACE
+local WARN = stlib.WARN
 local get_net_produce = inventory_api.get_net_produce
 local get_net_consume = inventory_api.get_net_consume
 local get_inbound_threshold = stop_api.get_inbound_threshold
 local get_outbound_threshold = stop_api.get_outbound_threshold
 local get_delivery_thresholds = node_api.get_delivery_thresholds
-local read_setting = combinator_api.read_setting
 
 ---@param node Cybersyn.Node
 ---@param data Cybersyn.Internal.LogisticsThreadData
@@ -41,7 +43,7 @@ local function classify_inventory(stop, data)
 	local inventory = inventory_api.get_inventory(stop.inventory_id)
 	-- TODO: this is ugly, apis to get at this inventory stuff should be
 	-- more centralized and less spaghetti
-	log.trace("classify_inventory", stop.entity, inventory)
+	strace(TRACE, "message", "classify_inventory", stop.entity, inventory)
 	if not inventory then return end
 	if stop.is_producer then
 		for item, qty in pairs(get_net_produce(inventory)) do
@@ -73,19 +75,26 @@ local function poll_train_stop_station_comb(stop, data)
 	)
 	if #combs == 0 then
 		-- TODO: warning to station via api
-		log.warn(
+		strace(
+			WARN,
+			"message",
 			"Station ain't got no station comb, disabled for logistics",
 			stop.entity
 		)
 		return false
 	elseif #combs > 1 then
-		log.warn("Station has too many station combs", stop.entity)
+		strace(WARN, "message", "Station has too many station combs", stop.entity)
 		return false
 	end
 	local comb = combs[1]
 	local inputs = comb.inputs
 	if not inputs then
-		log.info("Station hasn't been polled for inputs", stop.entity)
+		strace(
+			TRACE,
+			"message",
+			"Station hasn't been polled for inputs",
+			stop.entity
+		)
 		return false
 	end
 
@@ -97,7 +106,7 @@ local function poll_train_stop_station_comb(stop, data)
 	stop.threshold_item_out = 1
 
 	-- Read configuration values
-	local pr = read_setting(comb, combinator_settings.pr) or 0
+	local pr = comb:read_setting(combinator_settings.pr) or 0
 	if pr == 0 then
 		stop.is_consumer = true
 		stop.is_producer = true
@@ -108,7 +117,7 @@ local function poll_train_stop_station_comb(stop, data)
 		stop.is_consumer = true
 		stop.is_producer = false
 	end
-	local network_signal = read_setting(comb, combinator_settings.network_signal)
+	local network_signal = comb:read_setting(combinator_settings.network_signal)
 	local is_each = network_signal == "signal-each"
 	local networks = {}
 	if not is_each then

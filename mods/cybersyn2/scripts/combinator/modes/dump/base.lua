@@ -6,7 +6,6 @@ local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
 
@@ -19,9 +18,7 @@ local VF = ultros.VFlow
 
 relm.define_element({
 	name = "CombinatorGui.Mode.Dump",
-	render = function(props)
-		return nil
-	end,
+	render = function(props) return nil end,
 })
 
 relm.define_element({
@@ -61,7 +58,7 @@ relm.define_element({
 -- Mode registration
 --------------------------------------------------------------------------------
 
-combinator_api.register_combinator_mode({
+cs2.register_combinator_mode({
 	name = "dump",
 	localized_string = "cybersyn2-combinator-modes.dump",
 	settings_element = "CombinatorGui.Mode.Dump",

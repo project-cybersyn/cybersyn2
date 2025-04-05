@@ -6,7 +6,6 @@ local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
 
@@ -17,11 +16,11 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("dt_inbound", "dt_flags", 0)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("dt_inbound", "dt_flags", 0)
 )
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("dt_outbound", "dt_flags", 1)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("dt_outbound", "dt_flags", 1)
 )
 
 --------------------------------------------------------------------------------
@@ -31,10 +30,6 @@ combinator_api.register_setting(
 relm.define_element({
 	name = "CombinatorGui.Mode.DT",
 	render = function(props)
-		local mode = combinator_api.read_setting(
-			props.combinator,
-			combinator_settings.allow_mode
-		)
 		return VF({
 			ultros.WellSection({ caption = "Settings" }, {
 
@@ -97,7 +92,7 @@ relm.define_element({
 -- Mode registration
 --------------------------------------------------------------------------------
 
-combinator_api.register_combinator_mode({
+cs2.register_combinator_mode({
 	name = "dt",
 	localized_string = "cybersyn2-combinator-modes.dt",
 	settings_element = "CombinatorGui.Mode.DT",

@@ -10,10 +10,8 @@ local scheduler = require("__cybersyn2__.lib.scheduler")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
-local log = require("__cybersyn2__.lib.logging")
 local cs2 = _G.cs2
 local stop_api = _G.cs2.stop_api
-local combinator_api = _G.cs2.combinator_api
 
 local db_dispatch = dynamic_binding.dispatch
 
@@ -242,12 +240,13 @@ script.on_event(
 --------------------------------------------------------------------------------
 
 script.on_event(defines.events.on_gui_opened, function(event)
-	local comb = combinator_api.entity_to_ephemeral(event.entity)
+	local comb = cs2.EphemeralCombinator.new(event.entity)
 	if not comb then return end
-	combinator_api.open_gui(event.player_index, comb)
+	cs2.lib.open_combinator_gui(event.player_index, comb)
 end)
+
 script.on_event(defines.events.on_gui_closed, function(event)
 	local element = event.element
 	if not element or element.name ~= cs2.WINDOW_NAME then return end
-	combinator_api.close_gui(event.player_index)
+	cs2.lib.close_combinator_gui(event.player_index)
 end)

@@ -2,7 +2,6 @@ local flib_position = require("__flib__.position")
 local mlib = require("__cybersyn2__.lib.math")
 local slib = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local node_api = _G.cs2.node_api
 local stop_api = _G.cs2.stop_api
 
@@ -41,7 +40,7 @@ end
 function _G.cs2.stop_api.find_associable_combinators(stop_entity)
 	local pos_x = stop_entity.position.x
 	local pos_y = stop_entity.position.y
-	return combinator_api.find_combinator_entities(stop_entity.surface, {
+	return cs2.lib.find_combinator_entities(stop_entity.surface, {
 		{ pos_x - 2, pos_y - 2 },
 		{ pos_x + 2, pos_y + 2 },
 	})

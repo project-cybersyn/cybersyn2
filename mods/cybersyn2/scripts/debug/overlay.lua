@@ -6,8 +6,9 @@ local mlib = require("__cybersyn2__.lib.math")
 local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
-local combinator_api = _G.cs2.combinator_api
 local stop_api = _G.cs2.stop_api
+
+local Combinator = _G.cs2.Combinator
 
 ---@class Cybersyn.Internal.DebugOverlayState
 ---@field public comb_overlays {[UnitNumber]: LuaRenderObject}
@@ -27,9 +28,7 @@ local stop_api = _G.cs2.stop_api
 
 ---@param objs LuaRenderObject[]?
 local function destroy_render_objects(objs)
-	if not objs then
-		return
-	end
+	if not objs then return end
 	for _, obj in pairs(objs) do
 		obj.destroy()
 	end
@@ -37,9 +36,7 @@ end
 
 ---@param state Cybersyn.Internal.MultiLineTextOverlay
 local function clear_text_overlay(state)
-	if state.backdrop then
-		state.backdrop.destroy()
-	end
+	if state.backdrop then state.backdrop.destroy() end
 	destroy_render_objects(state.text_lines)
 end
 
@@ -118,17 +115,13 @@ end
 local function clear_stop_overlay(state)
 	clear_text_overlay(state.text)
 	destroy_render_objects(state.associations)
-	if state.bbox then
-		state.bbox.destroy()
-	end
+	if state.bbox then state.bbox.destroy() end
 end
 
 ---@param combinator Cybersyn.Combinator
 local function destroy_combinator_overlay(combinator)
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then
-		return
-	end
+	if not ovl_data then return end
 	local overlay = ovl_data.comb_overlays[combinator.id]
 	if overlay then
 		overlay.destroy()
@@ -140,14 +133,10 @@ end
 ---@return Cybersyn.Internal.StopDebugOverlayState?
 local function get_or_create_stop_overlay(stop)
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then
-		return
-	end
+	if not ovl_data then return end
 	local overlay = ovl_data.stop_overlays[stop.id]
 	if not overlay then
-		if not stop_api.is_valid(stop) then
-			return
-		end
+		if not stop_api.is_valid(stop) then return end
 		stop = stop --[[@as Cybersyn.TrainStop]]
 		overlay = {
 			text = create_text_overlay(
@@ -166,9 +155,7 @@ end
 ---@param stop Cybersyn.Node
 local function destroy_stop_overlay(stop)
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then
-		return
-	end
+	if not ovl_data then return end
 	local overlay = ovl_data.stop_overlays[stop.id]
 	if overlay then
 		clear_stop_overlay(overlay)
@@ -178,18 +165,12 @@ end
 
 ---@param stop Cybersyn.Node
 local function update_stop_overlay(stop)
-	if not stop_api.is_valid(stop) then
-		return
-	end
+	if not stop_api.is_valid(stop) then return end
 	stop = stop --[[@as Cybersyn.TrainStop]]
 	local overlay = get_or_create_stop_overlay(stop)
-	if not overlay then
-		return
-	end
+	if not overlay then return end
 	local layout = stop_api.get_layout(stop.id)
-	if not layout then
-		return
-	end
+	if not layout then return end
 
 	-- Text
 	local lines = { table.concat({ "[item=train-stop]", stop.id }) }
@@ -202,9 +183,12 @@ local function update_stop_overlay(stop)
 			if tlayout then
 				table.insert(
 					lines,
-					table.concat(tlib.map((tlayout.carriage_names or {}), function(name)
-						return "[item=" .. name .. "]"
-					end))
+					table.concat(
+						tlib.map(
+							(tlayout.carriage_names or {}),
+							function(name) return "[item=" .. name .. "]" end
+						)
+					)
 				)
 			end
 		end
@@ -216,7 +200,7 @@ local function update_stop_overlay(stop)
 	-- Lines indicating assiated combinators
 	local n_assoc = 0
 	for comb_id in pairs(stop.combinator_set) do
-		local comb = combinator_api.get_combinator(comb_id)
+		local comb = Combinator.get(comb_id)
 		if comb then
 			n_assoc = n_assoc + 1
 			local assoc = overlay.associations[n_assoc]
@@ -256,40 +240,30 @@ local function update_stop_overlay(stop)
 			overlay.bbox.right_bottom = { r, b }
 		end
 	else
-		if overlay.bbox then
-			overlay.bbox.destroy()
-		end
+		if overlay.bbox then overlay.bbox.destroy() end
 	end
 end
 
 local function create_stop_overlays()
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then
-		return
-	end
+	if not ovl_data then return end
 	for _, stop in pairs(storage.nodes) do
 		update_stop_overlay(stop)
 	end
 end
 
-local function create_all_overlays()
-	create_stop_overlays()
-end
+local function create_all_overlays() create_stop_overlays() end
 
 local function clear_all_overlays()
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then
-		return
-	end
+	if not ovl_data then return end
 	for _, ovl in pairs(ovl_data.comb_overlays or {}) do
 		ovl.destroy()
 	end
 	for _, ovl in pairs(ovl_data.stop_overlays or {}) do
 		clear_stop_overlay(ovl)
 	end
-	if ovl_data.bbox_overlay then
-		ovl_data.bbox_overlay.destroy()
-	end
+	if ovl_data.bbox_overlay then ovl_data.bbox_overlay.destroy() end
 	storage.debug_state.overlay = nil
 end
 
@@ -333,7 +307,5 @@ cs2.on_node_combinator_set_changed(update_stop_overlay)
 cs2.on_train_stop_layout_changed(update_stop_overlay)
 cs2.on_train_stop_pattern_changed(update_stop_overlay)
 cs2.on_node_data_changed(function(node)
-	if node.type == "stop" then
-		update_stop_overlay(node)
-	end
+	if node.type == "stop" then update_stop_overlay(node) end
 end)

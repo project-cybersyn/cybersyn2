@@ -7,7 +7,8 @@ local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
 local stop_api = _G.cs2.stop_api
 local node_api = _G.cs2.node_api
-local combinator_api = _G.cs2.combinator_api
+
+local Combinator = _G.cs2.Combinator
 
 ---@param stop_entity LuaEntity A *valid* train stop entity.
 ---@return Cybersyn.TrainStop
@@ -56,7 +57,7 @@ end, true)
 local reassociate_recursive
 local create_recursive
 
----@param combinators Cybersyn.Combinator.Internal[] A list of *valid* combinator states.
+---@param combinators Cybersyn.Combinator[] A list of *valid* combinator states.
 ---@param depth number The current depth of the recursion.
 function reassociate_recursive(combinators, depth)
 	if depth > 100 then
@@ -93,9 +94,7 @@ function reassociate_recursive(combinators, depth)
 			end
 		elseif target_rail_entity then
 			local stop = stop_api.find_stop_from_rail(target_rail_entity)
-			if stop then
-				target_stop = stop
-			end
+			if stop then target_stop = stop end
 		end
 
 		if target_stop and not target_stop.is_being_destroyed then
@@ -105,26 +104,20 @@ function reassociate_recursive(combinators, depth)
 					node_api.associate_combinator(target_stop, combinator, true)
 				if success then
 					affected_stop_set[target_stop.id] = true
-					if old_stop then
-						affected_stop_set[old_stop.id] = true
-					end
+					if old_stop then affected_stop_set[old_stop.id] = true end
 				end
 			end
 		else
 			-- No or invalid target, comb is now unassociated
 			local old_node = node_api.disassociate_combinator(combinator, true)
-			if old_node then
-				affected_stop_set[old_node.id] = true
-			end
+			if old_node then affected_stop_set[old_node.id] = true end
 		end
 	end
 
 	-- Fire batch set-change events for all affected stops
 	for stop_id in pairs(affected_stop_set) do
 		local stop = stop_api.get_stop(stop_id)
-		if stop then
-			cs2.raise_node_combinator_set_changed(stop)
-		end
+		if stop then cs2.raise_node_combinator_set_changed(stop) end
 	end
 
 	-- Create new stops as needed, recursively reassociating combinators near
@@ -152,9 +145,10 @@ function create_recursive(stop_entities, depth)
 			-- Recursively reassociate combinators near the new stop.
 			local combs = stop_api.find_associable_combinators(stop_entity)
 			if #combs > 0 then
-				local comb_states = tlib.map(combs, function(comb)
-					return combinator_api.get_combinator(comb.unit_number)
-				end)
+				local comb_states = tlib.map(
+					combs,
+					function(comb) return Combinator.get(comb.unit_number) end
+				)
 				if #comb_states > 0 then
 					reassociate_recursive(comb_states, depth + 1)
 				end
@@ -165,7 +159,7 @@ end
 
 ---Re-evaluate the preferred associations of all the given combinators and
 ---reassociate them en masse as necessary.
----@param combinators Cybersyn.Combinator.Internal[] A list of *valid* combinator states.
+---@param combinators Cybersyn.Combinator[] A list of *valid* combinator states.
 function _G.cs2.stop_api.reassociate_combinators(combinators)
 	return reassociate_recursive(combinators, 1)
 end
@@ -177,9 +171,10 @@ end
 cs2.on_built_train_stop(function(stop_entity)
 	local combs = stop_api.find_associable_combinators(stop_entity)
 	if #combs > 0 then
-		local comb_states = tlib.map(combs, function(comb)
-			return combinator_api.get_combinator(comb.unit_number)
-		end)
+		local comb_states = tlib.map(
+			combs,
+			function(comb) return Combinator.get(comb.unit_number) end
+		)
 		stop_api.reassociate_combinators(comb_states)
 	end
 end)
@@ -187,24 +182,21 @@ end)
 -- When a stop is broken, destroy its node.
 cs2.on_broken_train_stop(function(stop_entity)
 	local stop = stop_api.get_stop_from_unit_number(stop_entity.unit_number, true)
-	if not stop then
-		return
-	end
+	if not stop then return end
 	node_api.destroy_node(stop.id)
 end)
 
 -- When a combinator is created, try to associate it to train stops
-cs2.on_combinator_created(function(combinator)
-	stop_api.reassociate_combinators({ combinator })
-end)
+cs2.on_combinator_created(
+	function(combinator) stop_api.reassociate_combinators({ combinator }) end
+)
 
 -- Reassociate a combinator if it's repositioned.
+-- TODO: this should not be needed for 1x1 combs anymore
 cs2.on_entity_repositioned(function(what, entity)
 	if what == "combinator" then
-		local combinator = combinator_api.get_combinator(entity.unit_number)
-		if combinator then
-			stop_api.reassociate_combinators({ combinator })
-		end
+		local combinator = Combinator.get(entity.unit_number)
+		if combinator then stop_api.reassociate_combinators({ combinator }) end
 	end
 end)
 

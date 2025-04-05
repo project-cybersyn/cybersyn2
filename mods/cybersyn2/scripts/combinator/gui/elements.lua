@@ -5,26 +5,21 @@
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local Pr = relm.Primitive
 local HF = ultros.HFlow
 
 ---An `ultros.Checkbox` that reads from and writes to a combinator
 ---setting automatically.
 function _G.cs2.gui.Checkbox(caption, combinator, setting, inverse)
-	local value = combinator_api.read_setting(combinator, setting)
-	if inverse then
-		value = not value
-	end
+	local value = combinator:read_setting(setting)
+	if inverse then value = not value end
 	return ultros.Checkbox({
 		caption = caption,
 		value = value,
 		on_change = function(_, state)
 			local new_state = state
-			if inverse then
-				new_state = not state
-			end
-			combinator_api.write_setting(combinator, setting, new_state)
+			if inverse then new_state = not state end
+			combinator:write_setting(setting, new_state)
 		end,
 	})
 end
@@ -33,12 +28,10 @@ end
 ---combinator setting.
 function _G.cs2.gui.AnySignalPicker(combinator, setting)
 	return ultros.SignalPicker({
-		value = combinator_api.read_setting(combinator, setting),
+		value = combinator:read_setting(setting),
 		on_change = function(_, signal)
-			if signal and signal.type == nil then
-				signal.type = "item"
-			end
-			combinator_api.write_setting(combinator, setting, signal)
+			if signal and signal.type == nil then signal.type = "item" end
+			combinator:write_setting(setting, signal)
 		end,
 	})
 end
@@ -47,11 +40,9 @@ end
 ---combinator setting. Only allows valid network signals.
 function _G.cs2.gui.NetworkSignalPicker(combinator, setting)
 	return ultros.SignalPicker({
-		virtual_signal = combinator_api.read_setting(combinator, setting),
+		virtual_signal = combinator:read_setting(setting),
 		on_change = function(_, signal, elem)
-			if not signal then
-				return combinator_api.write_setting(combinator, setting, nil)
-			end
+			if not signal then return combinator:write_setting(setting, nil) end
 			if
 				signal.type == "virtual"
 				and not cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name]
@@ -65,7 +56,7 @@ function _G.cs2.gui.NetworkSignalPicker(combinator, setting)
 					stored = "signal-each"
 				end
 
-				combinator_api.write_setting(combinator, setting, stored)
+				combinator:write_setting(setting, stored)
 			else
 				game.print(
 					"Invalid signal type. Please select a non-configuration virtual signal.",
@@ -82,12 +73,12 @@ function _G.cs2.gui.NetworkSignalPicker(combinator, setting)
 end
 
 function _G.cs2.gui.Dropdown(user_props, combinator, setting, options)
-	local value = combinator_api.read_setting(combinator, setting)
+	local value = combinator:read_setting(setting)
 	local props = ultros.assign({
 		value = value,
 		options = options,
 		on_change = function(_, selected)
-			combinator_api.write_setting(combinator, setting, selected)
+			combinator:write_setting(setting, selected)
 		end,
 	}, user_props)
 	return ultros.Dropdown(props)
@@ -105,10 +96,8 @@ function _G.cs2.gui.Switch(is_tristate, L, R, combinator, setting)
 		left_label_caption = L,
 		right_label_caption = R,
 		allow_none_state = is_tristate,
-		value = combinator_api.read_setting(combinator, setting),
-		on_change = function(_, state)
-			combinator_api.write_setting(combinator, setting, state)
-		end,
+		value = combinator:read_setting(setting),
+		on_change = function(_, state) combinator:write_setting(setting, state) end,
 	})
 end
 
@@ -116,7 +105,7 @@ _G.cs2.gui.Input = relm.define_element({
 	name = "CombinatorGui.Input",
 	render = function(props, state)
 		local dirty = not not (state and state.dirty)
-		local value = combinator_api.read_setting(props.combinator, props.setting)
+		local value = props.combinator:read_setting(props.setting)
 		local tf_props = ultros.assign({
 			value = value,
 			on_change = "on_change",
@@ -134,13 +123,11 @@ _G.cs2.gui.Input = relm.define_element({
 			return true
 		elseif message.key == "on_confirm" then
 			-- Handle on_confirm to save the value and clear dirty state
-			combinator_api.write_setting(
-				props.combinator,
-				props.setting,
-				message.value
-			)
+			props.combinator:write_setting(props.setting, message.value)
 			relm.set_state(me, { dirty = false })
 			return true
+		else
+			return false
 		end
 	end,
 })

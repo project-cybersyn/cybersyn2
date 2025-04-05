@@ -4,17 +4,14 @@
 -- settings/blueprints.
 --------------------------------------------------------------------------------
 
-local signal_lib = require("__cybersyn2__.lib.signal")
-local log = require("__cybersyn2__.lib.logging")
+local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local stop_api = _G.cs2.stop_api
-local combinator_modes = _G.cs2.combinator_modes
 local inventory_api = _G.cs2.inventory_api
 
-local signal_to_key = signal_lib.signal_to_key
-local RED_INPUTS = defines.wire_connector_id.circuit_red
-local GREEN_INPUTS = defines.wire_connector_id.circuit_green
+local strace = stlib.strace
+local TRACE = stlib.TRACE
+local WARN = stlib.WARN
 
 ---@param combinator Cybersyn.Combinator
 local function read_inventory(combinator)
@@ -31,49 +28,26 @@ local function read_inventory(combinator)
 	if not stop then return end
 	if stop.entity.get_stopped_train() then
 		-- Volatile
-		log.trace("skipped inventory read due to train present", stop.entity)
+		strace(
+			TRACE,
+			"message",
+			"skipped inventory read due to train present",
+			stop.entity
+		)
+		return
 	end
 	local inventory = inventory_api.get_inventory(stop.inventory_id)
 	if not inventory then
-		log.warn("stop without an inventory", stop.entity)
+		strace(WARN, "message", "stop without an inventory", stop.entity)
 		return
 	end
 	inventory_api.set_base_inventory(
 		inventory,
-		combinator.inputs,
+		combinator.inputs or {},
 		stop.is_consumer,
 		stop.is_producer
 	)
 end
 
----If the given combinator is in a mode that supports inputs, read and cache
----its current input signals.
----@param combinator Cybersyn.Combinator
-function _G.cs2.combinator_api.read_inputs(combinator)
-	-- Sanity check
-	local mode = combinator.mode or ""
-	local mdef = combinator_modes[mode]
-	if not mdef or not mdef.is_input then
-		combinator.inputs = nil
-		return
-	end
-	local combinator_entity = combinator.entity
-	if not combinator_entity or not combinator_entity.valid then return end
-
-	-- Read input sigs
-	local signals = combinator_entity.get_signals(RED_INPUTS, GREEN_INPUTS)
-	if signals then
-		---@type SignalCounts
-		local inputs = {}
-		for i = 1, #signals do
-			local signal = signals[i]
-			inputs[signal_to_key(signal.signal)] = signal.count
-		end
-		combinator.inputs = inputs
-	else
-		combinator.inputs = nil
-	end
-
-	-- Opportunistic inventory reading
-	read_inventory(combinator)
-end
+-- Read inventory of inventory combinators when their inputs are read.
+cs2.on_combinator_inputs_read(read_inventory)

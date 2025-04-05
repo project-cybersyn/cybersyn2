@@ -7,12 +7,12 @@ local log = require("__cybersyn2__.lib.logging")
 local signal = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 local node_api = _G.cs2.node_api
-local combinator_api = _G.cs2.combinator_api
 local inventory_api = _G.cs2.inventory_api
 
 local band = bit32.band
 local pairs = _G.pairs
 local key_is_fluid = signal.key_is_fluid
+local Combinator = _G.cs2.Combinator
 
 ---@param node_id Id?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
@@ -24,7 +24,7 @@ end
 
 ---Associate the given combinator with the given node.
 ---@param node Cybersyn.Node? Reference to a *valid* node.
----@param combinator Cybersyn.Combinator.Internal Reference to a *valid* combinator.
+---@param combinator Cybersyn.Combinator Reference to a *valid* combinator.
 ---@param suppress_set_changed boolean? If `true`, does not raise the `node_combinator_set_changed` event. You must do so yourself if performing a batch of updates.
 ---@return boolean success `true` if the combinator was successfully associated, `false` if not.
 ---@return Cybersyn.Node? old_node The node that the combinator was previously associated with, if any.
@@ -55,7 +55,7 @@ function _G.cs2.node_api.associate_combinator(
 end
 
 ---Disassociate the given combinator from its associated node if any.
----@param combinator Cybersyn.Combinator.Internal? Reference to a *valid* combinator.
+---@param combinator Cybersyn.Combinator? Reference to a *valid* combinator.
 ---@param suppress_set_changed boolean? If `true`, does not raise the `node_combinator_set_changed` event. You must do so yourself if performing a batch of updates.
 ---@return Cybersyn.Node? old_node If the combinator was disassociated, the node that it was disassociated from, otherwise `nil`.
 function _G.cs2.node_api.disassociate_combinator(
@@ -82,11 +82,11 @@ end
 
 ---Get all combinators associated with this node.
 ---@param node Cybersyn.Node Reference to a *valid* node.
----@param filter? fun(combinator: Cybersyn.Combinator.Internal): boolean? A filter function that returns `true` to include the combinator in the result.
----@return Cybersyn.Combinator.Internal[] #The combinators associated to the node, if any.
+---@param filter? fun(combinator: Cybersyn.Combinator): boolean? A filter function that returns `true` to include the combinator in the result.
+---@return Cybersyn.Combinator[] #The combinators associated to the node, if any.
 function _G.cs2.node_api.get_associated_combinators(node, filter)
 	return tlib.t_map_a(node.combinator_set, function(_, combinator_id)
-		local comb = combinator_api.get_combinator(combinator_id, true)
+		local comb = Combinator.get(combinator_id, true)
 		if comb and ((not filter) or filter(comb)) then return comb end
 	end)
 end

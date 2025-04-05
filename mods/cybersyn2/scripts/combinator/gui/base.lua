@@ -1,10 +1,13 @@
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
 local tlib = require("__cybersyn2__.lib.table")
-local log = require("__cybersyn2__.lib.logging")
+local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
+local combinator_modes = _G.cs2.combinator_modes
+
+local strace = stlib.strace
+local ERROR = stlib.ERROR
 
 ---@param player_index PlayerIndex
 local function destroy_gui_state(player_index)
@@ -46,8 +49,8 @@ end
 local function close_guis_with_invalid_combinators()
 	for_each_open_combinator_gui(function(state)
 		local comb = state.open_combinator
-		if not comb or not combinator_api.is_valid(comb) then
-			combinator_api.close_gui(state.player_index)
+		if not comb or not comb:is_valid() then
+			cs2.lib.close_combinator_gui(state.player_index)
 		end
 	end)
 end
@@ -65,24 +68,10 @@ local function update_guis_referencing_combinator(combinator)
 	end)
 end
 
----Determine if a player has the combinator GUI open.
----@param player_index PlayerIndex
----@return boolean
-function _G.cs2.combinator_api.is_gui_open(player_index)
-	local player = game.get_player(player_index)
-	if not player then return false end
-	local state = storage.players[player_index]
-	if state and state.combinator_gui_root then
-		return true
-	else
-		return false
-	end
-end
-
 ---Close the combinator gui for the given player.
 ---@param player_index PlayerIndex
 ---@param silent boolean?
-function _G.cs2.combinator_api.close_gui(player_index, silent)
+function _G.cs2.lib.close_combinator_gui(player_index, silent)
 	local player = game.get_player(player_index)
 	if not player then return end
 
@@ -99,7 +88,9 @@ function _G.cs2.combinator_api.close_gui(player_index, silent)
 	-- Hard way
 	local gui_root = player.gui.screen
 	if gui_root[cs2.WINDOW_NAME] then
-		log.error(
+		strace(
+			ERROR,
+			"message",
 			"couldn't destroy associated gui root, probably invalid relm state now",
 			player_index
 		)
@@ -108,15 +99,16 @@ function _G.cs2.combinator_api.close_gui(player_index, silent)
 	destroy_gui_state(player_index)
 end
 
+---Open the combinator gui for a player.
 ---@param player_index PlayerIndex
 ---@param combinator Cybersyn.Combinator.Ephemeral
-function _G.cs2.combinator_api.open_gui(player_index, combinator)
-	if not combinator_api.is_valid(combinator) then return end
+function _G.cs2.lib.open_combinator_gui(player_index, combinator)
+	if not combinator:is_valid() then return end
 	local player = game.get_player(player_index)
 	if not player then return end
 
 	-- Close any existing gui
-	combinator_api.close_gui(player_index, true)
+	cs2.lib.close_combinator_gui(player_index, true)
 	-- Create new gui state
 	local state = create_gui_state(player_index, combinator)
 
@@ -131,7 +123,13 @@ function _G.cs2.combinator_api.open_gui(player_index, combinator)
 		player.opened = main_window
 		state.combinator_gui_root = root_id
 	else
-		log.error("Could not open Combinator GUI", player_index, combinator)
+		strace(
+			ERROR,
+			"message",
+			"Could not open Combinator GUI",
+			player_index,
+			combinator
+		)
 	end
 end
 
@@ -146,14 +144,13 @@ local Pr = relm.Primitive
 local ModePicker = relm.define_element({
 	name = "CombinatorGui.ModePicker",
 	render = function(props)
-		local desired_mode_name =
-			combinator_api.read_setting(props.combinator, combinator_settings.mode)
-		local options = tlib.map(
-			combinator_api.get_combinator_mode_list(),
-			function(x)
+		local desired_mode_name = props.combinator.mode
+		local options = tlib.t_map_a(
+			combinator_modes,
+			function(mode, name)
 				return {
-					key = x,
-					caption = { combinator_api.get_combinator_mode(x).localized_string },
+					key = name,
+					caption = { mode.localized_string },
 				}
 			end
 		)
@@ -171,13 +168,11 @@ local ModePicker = relm.define_element({
 		elseif payload.key == "set_combinator_mode" then
 			local new_mode = payload.value
 			if new_mode then
-				combinator_api.write_setting(
-					props.combinator,
-					combinator_settings.mode,
-					new_mode
-				)
+				props.combinator:write_setting(combinator_settings.mode, new_mode)
 			end
 			return true
+		else
+			return false
 		end
 	end,
 })
@@ -185,9 +180,8 @@ local ModePicker = relm.define_element({
 local ModeSettings = relm.define_element({
 	name = "CombinatorGui.ModeSettings",
 	render = function(props)
-		local desired_mode_name =
-			combinator_api.read_setting(props.combinator, combinator_settings.mode)
-		local mode = combinator_api.get_combinator_mode(desired_mode_name)
+		local desired_mode_name = props.combinator.mode
+		local mode = combinator_modes[desired_mode_name]
 		if mode and mode.settings_element then
 			return relm.element(mode.settings_element, {
 				combinator = props.combinator,
@@ -203,6 +197,8 @@ local ModeSettings = relm.define_element({
 		if payload.key == "combinator_settings_updated" then
 			relm.paint(me)
 			return true
+		else
+			return false
 		end
 	end,
 })
@@ -246,9 +242,8 @@ local Status = relm.define_element({
 local Help = relm.define_element({
 	name = "CombinatorGui.Help",
 	render = function(props)
-		local desired_mode_name =
-			combinator_api.read_setting(props.combinator, combinator_settings.mode)
-		local mode = combinator_api.get_combinator_mode(desired_mode_name)
+		local desired_mode_name = props.combinator.mode
+		local mode = combinator_modes[desired_mode_name]
 		if mode and mode.help_element then
 			return relm.element(mode.help_element, {
 				combinator = props.combinator,
@@ -264,6 +259,8 @@ local Help = relm.define_element({
 		if payload.key == "combinator_settings_updated" then
 			relm.paint(me)
 			return true
+		else
+			return false
 		end
 	end,
 })
@@ -333,7 +330,7 @@ relm.define_element({
 	end,
 	message = function(me, payload, props)
 		if payload.key == "close" then
-			combinator_api.close_gui(props.player_index)
+			cs2.lib.close_combinator_gui(props.player_index)
 			return true
 		elseif payload.key == "toggle_info" then
 			relm.set_state(
@@ -341,6 +338,8 @@ relm.define_element({
 				function(prev) return { show_info = not (prev or {}).show_info } end
 			)
 			return true
+		else
+			return false
 		end
 	end,
 	state = function() return { show_info = false } end,

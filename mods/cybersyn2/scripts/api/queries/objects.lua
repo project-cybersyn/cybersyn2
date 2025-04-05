@@ -2,10 +2,11 @@ local tlib = require("__cybersyn2__.lib.table")
 local types = require("__cybersyn2__.lib.types")
 local ContainerType = types.ContainerType
 local PrimitiveType = types.PrimitiveType
-local combinator_api = _G.cs2.combinator_api
 local stop_api = _G.cs2.stop_api
 local inventory_api = _G.cs2.inventory_api
+
 local map = tlib.map
+local Combinator = _G.cs2.Combinator
 
 local comb_list_datatype = {
 	true,
@@ -19,10 +20,7 @@ function _G.cs2.query_handlers.combinators(arg)
 	---@type Cybersyn.Combinator[]
 	local res = nil
 	if arg.ids then
-		res = map(
-			arg.ids,
-			function(id) return combinator_api.get_combinator(id) end
-		)
+		res = map(arg.ids, function(id) return Combinator.get(id) end)
 	end
 	return { data = res or {}, type = comb_list_datatype }
 end

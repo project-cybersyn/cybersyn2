@@ -6,7 +6,7 @@
 ---@class (exact) Cybersyn.Storage
 ---@field public players table<PlayerIndex, Cybersyn.PlayerState> Per-player state
 ---@field public vehicles table<Id, Cybersyn.Vehicle> All Cybersyn vehicles indexed by id
----@field public combinators table<UnitNumber, Cybersyn.Combinator.Internal> All Cybersyn combinators indexed by unit number
+---@field public combinators table<UnitNumber, Cybersyn.Combinator> All Cybersyn combinators indexed by unit number
 ---@field public topologies table<Id, Cybersyn.Topology> All Cybersyn topologies indexed by id
 ---@field public nodes table<Id, Cybersyn.Node> All Cybersyn nodes indexed by id
 ---@field public inventories table<Id, Cybersyn.Inventory> All Cybersyn inventories indexed by id

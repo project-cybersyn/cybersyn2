@@ -7,22 +7,28 @@ local log = require("__cybersyn2__.lib.logging")
 local stlib = require("__cybersyn2__.lib.strace")
 local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local node_api = _G.cs2.node_api
 local mod_settings = _G.cs2.mod_settings
 
+local Combinator = _G.cs2.Combinator
 local strace = stlib.strace
 local DEBUG = stlib.DEBUG
+local TRACE = stlib.TRACE
 
 ---@param combinator_id UnitNumber
 ---@param data Cybersyn.Internal.LogisticsThreadData
 local function poll_combinator(combinator_id, data)
-	local combinator = combinator_api.get_combinator(combinator_id)
+	local combinator = Combinator.get(combinator_id)
 	if not combinator then
-		log.trace("poll_combinator: skipping invalid comb", combinator_id)
+		strace(
+			TRACE,
+			"message",
+			"poll_combinator: skipping invalid comb",
+			combinator_id
+		)
 		return
 	end
-	combinator_api.read_inputs(combinator)
+	combinator:read_inputs()
 	strace(
 		DEBUG,
 		"poll_combinators",

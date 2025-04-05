@@ -5,7 +5,6 @@
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
 
@@ -19,40 +18,30 @@ local If = ultros.If
 --------------------------------------------------------------------------------
 
 -- Name of the network virtual signal.
-combinator_api.register_setting(
-	combinator_api.make_raw_setting("network_signal", "network")
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("network_signal", "network")
 )
 -- Whether the station should provide, request, or both.
 -- 0 = p/r, 1 = p, 2 = r
-combinator_api.register_setting(combinator_api.make_raw_setting("pr", "pr"))
-combinator_api.register_setting(
-	combinator_api.make_raw_setting(
-		"allow_departure_signal",
-		"allow_departure_signal"
-	)
+cs2.register_combinator_setting(cs2.lib.make_raw_setting("pr", "pr"))
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("allow_departure_signal", "allow_departure_signal")
 )
-combinator_api.register_setting(
-	combinator_api.make_raw_setting(
-		"force_departure_signal",
-		"force_departure_signal"
-	)
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("force_departure_signal", "force_departure_signal")
 )
-combinator_api.register_setting(
-	combinator_api.make_raw_setting("inactivity_mode", "inactivity_mode")
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("inactivity_mode", "inactivity_mode")
 )
-combinator_api.register_setting(
-	combinator_api.make_raw_setting("inactivity_timeout", "inactivity_timeout")
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("inactivity_timeout", "inactivity_timeout")
 )
 
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("use_stack_thresholds", "station_flags", 0)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("use_stack_thresholds", "station_flags", 0)
 )
-combinator_api.register_setting(
-	combinator_api.make_flag_setting(
-		"disable_cargo_condition",
-		"station_flags",
-		1
-	)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("disable_cargo_condition", "station_flags", 1)
 )
 
 --------------------------------------------------------------------------------
@@ -83,10 +72,8 @@ relm.define_element({
 					}
 				),
 				If(
-					combinator_api.read_setting(
-						props.combinator,
-						combinator_settings.network_signal
-					) == nil,
+					props.combinator:read_setting(combinator_settings.network_signal)
+						== nil,
 					ultros.RtLabel(
 						"[font=default-bold]Warning:[/font] No network signal selected."
 					)
@@ -197,7 +184,7 @@ relm.define_element({
 -- Station combinator mode registration.
 --------------------------------------------------------------------------------
 
-combinator_api.register_combinator_mode({
+cs2.register_combinator_mode({
 	name = "station",
 	localized_string = "cybersyn2-gui.station",
 	settings_element = "CombinatorGui.Mode.Station",
