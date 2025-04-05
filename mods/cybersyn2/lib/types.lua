@@ -28,6 +28,7 @@ local lib = {}
 ---@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
 ---@field public inputs? SignalCounts The most recent signals read from the combinator. This will be `nil` if the combinator has not been polled yet or if it is being destroyed. This is a cached value.
 ---@field public inputs_volatile? boolean `true` if a vehicle was at the station making a delivery when inputs were being read, therefore making them suspect.
+---@field public output_entity LuaEntity? The hidden output entity for this combinator, if any.
 
 ---A vehicle managed by Cybersyn.
 ---@class Cybersyn.Vehicle

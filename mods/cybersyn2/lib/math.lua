@@ -43,6 +43,18 @@ local function pos_set(pos, x, y)
 end
 lib.pos_set = pos_set
 
+---Get the distance-squared between two positions.
+---@param pos1 MapPosition
+---@param pos2 MapPosition
+---@return number
+local function pos_distsq(pos1, pos2)
+	local x1, y1 = pos_get(pos1)
+	local x2, y2 = pos_get(pos2)
+	local dx, dy = x2 - x1, y2 - y1
+	return dx * dx + dy * dy
+end
+lib.pos_distsq = pos_distsq
+
 ---Create a new position, optionally cloning an existing one.
 ---@param pos MapPosition?
 ---@return MapPosition #The new position.

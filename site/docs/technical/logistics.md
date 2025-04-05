@@ -76,3 +76,4 @@
 			1. **Push to Dumps**
 	1. **Delivery Phase**
 		1. Enumerate available trains
+		2. Sort by ascending capacity

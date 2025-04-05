@@ -69,6 +69,10 @@ local key_to_sig = {}
 ---@type table<SignalKey, boolean>
 local key_v = {}
 
+---Cache mapping item signal keys to stack sizes
+---@type table<SignalKey, uint>
+local key_stack_size = {}
+
 ---Convert a signal to a key.
 ---@param signal SignalID
 ---@return SignalKey
@@ -190,5 +194,21 @@ local function key_to_richtext(key)
 	end
 end
 lib.key_to_richtext = key_to_richtext
+
+---@param key SignalKey
+local function key_to_stacksize(key)
+	if not key then return nil end
+	local sz = key_stack_size[key]
+	if sz then return sz end
+	local sig = key_to_signal(key)
+	if sig and sig.type == "item" then
+		sz = prototypes.item[sig.name].stack_size
+		key_stack_size[key] = sz
+		return sz
+	else
+		return nil
+	end
+end
+lib.key_to_stacksize = key_to_stacksize
 
 return lib

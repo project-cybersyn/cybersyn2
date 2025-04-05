@@ -14,6 +14,7 @@ _G.cs2 = {
 	inventory_api = {},
 	train_api = {},
 	gui = {},
+	lib = {},
 	---Debug APIs, do not use.
 	debug = {},
 }
@@ -23,6 +24,7 @@ require("scripts.constants")
 require("scripts.events")
 require("scripts.storage")
 require("scripts.settings")
+require("scripts.lib")
 require("scripts.threads")
 
 require("scripts.combinator.base")

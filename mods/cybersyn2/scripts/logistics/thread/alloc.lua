@@ -31,8 +31,10 @@ local add_flow = inventory_api.add_flow
 ---@class Cybersyn.Internal.LogisticsAllocation
 ---@field public from Cybersyn.Node
 ---@field public from_inv Cybersyn.Inventory
+---@field public from_thresh uint
 ---@field public to Cybersyn.Node
 ---@field public to_inv Cybersyn.Inventory
+---@field public to_thresh uint
 ---@field public item SignalKey
 ---@field public qty int
 ---@field public prio int
@@ -58,8 +60,10 @@ end
 ---@param data Cybersyn.Internal.LogisticsThreadData
 ---@param from_node Cybersyn.Node
 ---@param from_inv Cybersyn.Inventory
+---@param from_thresh uint
 ---@param to_node Cybersyn.Node
 ---@param to_inv Cybersyn.Inventory
+---@param to_thresh uint
 ---@param item SignalKey
 ---@param qty integer
 ---@param prio integer
@@ -67,8 +71,10 @@ local function alloc(
 	data,
 	from_node,
 	from_inv,
+	from_thresh,
 	to_node,
 	to_inv,
+	to_thresh,
 	item,
 	qty,
 	prio
@@ -79,8 +85,10 @@ local function alloc(
 	local allocation = {
 		from = from_node,
 		from_inv = from_inv,
+		from_thresh = from_thresh,
 		to = to_node,
 		to_inv = to_inv,
+		to_thresh = to_thresh,
 		item = item,
 		qty = qty,
 		prio = prio,
@@ -125,8 +133,10 @@ local function alloc_item_pull_provider(
 			data,
 			provider_i,
 			provider_inv,
+			provider_out_t,
 			puller_i,
 			puller_inv,
+			puller_in_t,
 			item,
 			min(avail, wanted),
 			pull_prio

@@ -41,9 +41,7 @@ end
 ---@param is_strict boolean
 ---@param is_bidi boolean
 local function stop_accepts_train(stop_layout, train_layout, is_strict, is_bidi)
-	if is_bidi and not train_layout.bidirectional then
-		return false
-	end
+	if is_bidi and not train_layout.bidirectional then return false end
 	local n = math.max(
 		#train_layout.carriage_types,
 		#stop_layout.carriage_loading_pattern
@@ -89,14 +87,10 @@ local function make_auto_allow_list(stop, is_strict, is_bidi, changed_layout_id)
 		log.warn("make_auto_allow_list: stop has no layout", stop)
 		return
 	end
-	if not stop.allowed_layouts then
-		stop.allowed_layouts = {}
-	end
+	if not stop.allowed_layouts then stop.allowed_layouts = {} end
 	if changed_layout_id then
 		local tl = storage.train_layouts[changed_layout_id]
-		if not tl then
-			return
-		end
+		if not tl then return end
 		if stop_accepts_train(layout, tl, is_strict, is_bidi) then
 			stop.allowed_layouts[tl.id] = true
 		else
@@ -163,9 +157,7 @@ local function evaluate_stop(stop, changed_layout_id)
 	log.trace("Re-evaluating allow list for stop", stop.id)
 	local allowlist_combs = node_api.get_associated_combinators(
 		stop,
-		function(comb)
-			return combinator_api.read_mode(comb) == "allow"
-		end
+		function(comb) return comb.mode == "allow" end
 	)
 	if #allowlist_combs > 1 then
 		make_default_allow_list(stop, changed_layout_id)
@@ -182,19 +174,13 @@ end
 --------------------------------------------------------------------------------
 
 -- Update on stop layout change
-cs2.on_train_stop_pattern_changed(function(stop)
-	evaluate_stop(stop)
-end)
+cs2.on_train_stop_pattern_changed(function(stop) evaluate_stop(stop) end)
 
 -- When an allowlist combinator is associated with a stop, update its stop.
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
 	if combinator_api.read_mode(combinator) == "allow" then
-		if old_node and old_node.type == "stop" then
-			evaluate_stop(old_node)
-		end
-		if new_node and new_node.type == "stop" then
-			evaluate_stop(new_node)
-		end
+		if old_node and old_node.type == "stop" then evaluate_stop(old_node) end
+		if new_node and new_node.type == "stop" then evaluate_stop(new_node) end
 	end
 end)
 
@@ -206,9 +192,7 @@ cs2.on_combinator_setting_changed(
 			or (setting_name == "mode" and old_value == "allow")
 		then
 			local node = combinator_api.get_associated_node(combinator, "stop") --[[@as Cybersyn.TrainStop?]]
-			if node then
-				evaluate_stop(node)
-			end
+			if node then evaluate_stop(node) end
 		end
 	end
 )

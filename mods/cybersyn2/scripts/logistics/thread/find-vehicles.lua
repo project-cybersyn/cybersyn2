@@ -50,7 +50,17 @@ function _G.cs2.logistics_thread.goto_find_vehicles(data)
 end
 
 ---@param data Cybersyn.Internal.LogisticsThreadData
-local function cleanup_find_vehicles(data) logistics_thread.goto_next_t(data) end
+local function cleanup_find_vehicles(data)
+	table.sort(
+		data.trains_by_fcap,
+		function(a, b) return a.fluid_capacity < b.fluid_capacity end
+	)
+	table.sort(
+		data.trains_by_icap,
+		function(a, b) return a.item_slot_capacity < b.item_slot_capacity end
+	)
+	logistics_thread.goto_route(data)
+end
 
 ---@param data Cybersyn.Internal.LogisticsThreadData
 function _G.cs2.logistics_thread.find_vehicles(data)

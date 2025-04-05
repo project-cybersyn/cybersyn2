@@ -59,7 +59,7 @@ local function is_valid(stop)
 		and (stop --[[@as Cybersyn.TrainStop]]).entity
 		and (stop --[[@as Cybersyn.TrainStop]]).entity.valid
 end
-stop_api.is_valid = is_valid
+_G.cs2.stop_api.is_valid = is_valid
 
 ---Given the node id of a train stop, get the stop.
 ---@param node_id Id?
@@ -162,4 +162,11 @@ function _G.cs2.stop_api.get_inbound_threshold(stop, key)
 	else
 		return stop.threshold_item_in or 1
 	end
+end
+
+---@param stop Cybersyn.TrainStop
+---@param layout_id uint?
+function _G.cs2.stop_api.accepts_layout(stop, layout_id)
+	if not layout_id then return false end
+	return stop.allowed_layouts and stop.allowed_layouts[layout_id]
 end

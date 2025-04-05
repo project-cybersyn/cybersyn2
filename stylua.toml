@@ -1,4 +1,4 @@
-syntax = "Lua51"
+syntax = "Lua52"
 column_width = 80
 line_endings = "Windows"
 indent_type = "Tabs"

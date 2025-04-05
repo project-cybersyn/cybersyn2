@@ -10,7 +10,7 @@ local threads_api = _G.cs2.threads_api
 _G.cs2.logistics_thread = {}
 local dispatch_table = _G.cs2.logistics_thread
 
----@alias Cybersyn.Internal.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"find_vehicles"
+---@alias Cybersyn.Internal.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"find_vehicles"|"route"
 
 ---@class (exact) Cybersyn.Internal.LogisticsThreadData
 ---@field state Cybersyn.Internal.LogisticsThreadState State of the task.
@@ -106,7 +106,7 @@ end
 ---Execute `stride` iterations of a general loop over state data.
 ---@param data Cybersyn.Internal.LogisticsThreadData
 ---@param list any[]
----@param item_handler fun(item: any, data: Cybersyn.Internal.LogisticsThreadData)
+---@param item_handler fun(item: any, data: Cybersyn.Internal.LogisticsThreadData, index: integer)
 ---@param finish_handler fun(data: Cybersyn.Internal.LogisticsThreadData)
 function _G.cs2.logistics_thread.stride_loop(
 	data,
@@ -118,7 +118,7 @@ function _G.cs2.logistics_thread.stride_loop(
 	-- Handle `stride` number of items
 	local max_index = math.min(data.index + data.stride, n)
 	for i = data.index, max_index do
-		item_handler(list[i], data)
+		item_handler(list[i], data, i)
 	end
 	-- If this finished, exec the finish handler
 	if max_index >= n then
