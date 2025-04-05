@@ -112,6 +112,21 @@ local function entity_to_entries(entity)
 				caption = "Combinator " .. entity.unit_number,
 			},
 		}
+	elseif entity.type == "locomotive" then
+		local train = entity.train
+		if train then
+			return {
+				{
+					key = "train" .. train.id,
+					caption = "Train " .. train.id,
+					type = "InspectorItem.Generic",
+					query = {
+						type = "vehicles",
+						luatrain_ids = { train.id },
+					},
+				},
+			}
+		end
 	end
 end
 
@@ -179,7 +194,6 @@ local Entries = relm.define_element({
 			state or {},
 			function(v) return Entry({ key = v.key, entry = v }) end
 		)
-		log.trace("entries", children)
 		return children
 	end,
 	state = function() return {} end,
