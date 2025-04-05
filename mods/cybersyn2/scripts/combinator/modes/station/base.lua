@@ -43,6 +43,10 @@ cs2.register_combinator_setting(
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("disable_cargo_condition", "station_flags", 1)
 )
+-- TODO: impl
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("provide_single_item", "station_flags", 2)
+)
 
 --------------------------------------------------------------------------------
 -- Relm gui for station combinator
@@ -135,6 +139,12 @@ relm.define_element({
 					"Enable cargo condition",
 					props.combinator,
 					combinator_settings.disable_cargo_condition,
+					true
+				),
+				gui.Checkbox(
+					"Single item per train when providing",
+					props.combinator,
+					combinator_settings.provide_single_item,
 					true
 				),
 			}),

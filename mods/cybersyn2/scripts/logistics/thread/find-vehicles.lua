@@ -8,12 +8,11 @@ local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local logistics_thread = _G.cs2.logistics_thread
-local train_api = _G.cs2.train_api
 
 ---@param train Cybersyn.Train
 ---@param data Cybersyn.Internal.LogisticsThreadData
 local function check_train(train, data)
-	if train_api.is_free(train) then
+	if train:is_available() then
 		if train.item_slot_capacity > 0 then
 			data.avail_trains[train.id] = train
 			data.trains_by_icap[#data.trains_by_icap + 1] = train

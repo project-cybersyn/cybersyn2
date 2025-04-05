@@ -33,7 +33,7 @@ local lib = {}
 ---A vehicle managed by Cybersyn.
 ---@class Cybersyn.Vehicle
 ---@field public id int Unique id of the vehicle.
----@field public topology_id int Topology this vehicle can service
+---@field public topology_id int? Topology this vehicle can service
 ---@field public type string The type of the vehicle.
 ---@field public is_being_destroyed true? `true` if the vehicle is in the process of being removed from game state.
 ---@field public delivery_id Id? The current delivery this vehicle is processing.
@@ -43,6 +43,7 @@ local lib = {}
 ---@field public type "train"
 ---@field public lua_train LuaTrain? The most recent LuaTrain object representing this train. Note that this is a cached value and must ALWAYS be checked for validity before use.
 ---@field public lua_train_id Id? The id of the last known good LuaTrain object. Note that this is a cached value and persists even if the lua_train is expired/invalid.
+---@field public stock LuaEntity? A rolling-stock entity for this train.
 ---@field public group string? Last known group assigned by the train sweep task.
 ---@field public volatile boolean? `true` if the `LuaTrain` associated to this train is unstable and may be invalidated at any time, eg for a train passing through a space elevator.
 ---@field public item_slot_capacity uint Number of item slots available across all wagons if known.

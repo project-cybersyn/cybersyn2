@@ -9,7 +9,6 @@ _G.cs2 = {
 	stop_api = {},
 	delivery_api = {},
 	inventory_api = {},
-	train_api = {},
 	gui = {},
 	lib = {},
 	---Debug APIs, do not use.
@@ -32,6 +31,7 @@ require("scripts.combinator.state")
 require("scripts.combinator.gui.base")
 require("scripts.combinator.gui.elements")
 
+require("scripts.vehicle.base")
 require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")
 require("scripts.vehicle.train.layout")

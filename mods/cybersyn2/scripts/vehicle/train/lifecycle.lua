@@ -4,122 +4,17 @@
 
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local log = require("__cybersyn2__.lib.logging")
+local stlib = require("__cybersyn2__.lib.strace")
 local counters = require("__cybersyn2__.lib.counters")
+local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
-local train_api = _G.cs2.train_api
 local mod_settings = _G.cs2.mod_settings
-local node_api = _G.cs2.node_api
+local Train = _G.cs2.Train
+local Vehicle = _G.cs2.Vehicle
 
 local ALL_TRAINS_FILTER = {}
-
----@param lua_train LuaTrain A *valid* `LuaTrain`.
----@return Cybersyn.Train? #The created train object if it was possible to create it.
-local function create_train(lua_train)
-	local preexisting_id = storage.luatrain_id_to_vehicle_id[lua_train.id]
-	if preexisting_id then
-		local preexisting = storage.vehicles[preexisting_id]
-		if preexisting and preexisting.type == "train" then
-			return preexisting --[[@as Cybersyn.Train]]
-		else
-			return nil
-		end
-	end
-
-	local stock = lua_train.valid
-		and (
-			lua_train.front_stock
-			or lua_train.back_stock
-			or lua_train.carriages[1]
-		)
-	if not stock then return nil end
-
-	local topology = node_api.get_train_topology(stock.surface_index)
-	if not topology then return nil end
-
-	local vehicle = {
-		id = counters.next("vehicle"),
-		type = "train",
-		lua_train = lua_train,
-		lua_train_id = lua_train.id,
-		topology_id = topology.id,
-		item_slot_capacity = 0,
-		fluid_capacity = 0,
-	}
-	storage.vehicles[vehicle.id] = vehicle
-	storage.luatrain_id_to_vehicle_id[lua_train.id] = vehicle.id
-
-	cs2.raise_vehicle_created(vehicle)
-	return vehicle
-end
-
----@param name string
-local function create_train_group(name)
-	storage.train_groups[name] = {
-		name = name,
-		trains = {},
-	}
-	cs2.raise_train_group_created(name)
-end
-
----@param name string
-local function destroy_train_group(name)
-	local group = storage.train_groups[name]
-	if not group then return end
-	for vehicle_id in pairs(group.trains) do
-		group.trains[vehicle_id] = nil
-		local vehicle = storage.vehicles[vehicle_id] --[[@as Cybersyn.Train]]
-		if vehicle and vehicle.group == name then
-			vehicle.group = nil
-			cs2.raise_train_group_train_removed(vehicle, name)
-		end
-	end
-	storage.train_groups[name] = nil
-	cs2.raise_train_group_destroyed(name)
-end
-
----@param vehicle Cybersyn.Train
----@param group_name string
-local function add_train_to_group(vehicle, group_name)
-	if (not vehicle) or not group_name then return end
-	local group = storage.train_groups[group_name]
-	vehicle.group = group_name
-	if group and not group.trains[vehicle.id] then
-		group.trains[vehicle.id] = true
-		cs2.raise_train_group_train_added(vehicle)
-	end
-end
-
-local function remove_train_from_group(vehicle, group_name)
-	if (not vehicle) or not group_name then return end
-	local group = storage.train_groups[group_name]
-	vehicle.group = nil
-	if not group then return end
-	if group.trains[vehicle.id] then
-		group.trains[vehicle.id] = nil
-		cs2.raise_train_group_train_removed(vehicle, group_name)
-	end
-	if not next(group.trains) then
-		-- Group is now empty, destroy it
-		destroy_train_group(group_name)
-	end
-end
-
----@param vehicle_id Id?
-local function destroy_train(vehicle_id)
-	if not vehicle_id then return end
-	local vehicle = storage.vehicles[vehicle_id] --[[@as Cybersyn.Train]]
-	if not vehicle then return end
-	vehicle.is_being_destroyed = true
-	if vehicle.group then remove_train_from_group(vehicle, vehicle.group) end
-	if vehicle.lua_train_id then
-		storage.luatrain_id_to_vehicle_id[vehicle.lua_train_id] = nil
-	end
-	if vehicle.lua_train and vehicle.lua_train.valid then
-		storage.luatrain_id_to_vehicle_id[vehicle.lua_train.id] = nil
-	end
-	cs2.raise_vehicle_destroyed(vehicle)
-	storage.vehicles[vehicle.id] = nil
-end
+local strace = stlib.strace
+local WARN = stlib.WARN
 
 --------------------------------------------------------------------------------
 -- Train group monitor background thread
@@ -144,7 +39,9 @@ local function monitor_init(data)
 	data.seen_groups = {}
 	if game and game.train_manager then
 		data.trains = game.train_manager.get_trains(ALL_TRAINS_FILTER)
-		data.train_ids = train_api.get_all_train_ids()
+		data.train_ids = tlib.t_map_a(Vehicle.all(), function(veh)
+			if veh.type == "train" then return veh.id end
+		end)
 		data.state = "enum_luatrains"
 	end
 end
@@ -154,16 +51,16 @@ end
 local function monitor_enum_luatrain(luatrain, data)
 	if (not luatrain) or not luatrain.valid then return end
 	local group_name = luatrain.group
-	local vehicle = train_api.get_train_from_luatrain(luatrain)
+	local vehicle = Train.get_from_luatrain(luatrain)
 
 	-- If train has no group, remove it if we know about it
 	if not group_name then
-		destroy_train(vehicle and vehicle.id)
+		if vehicle then vehicle:destroy() end
 		return
 	end
 
 	data.seen_groups[group_name] = true
-	local group = train_api.get_train_group(group_name)
+	local group = cs2.get_train_group(group_name)
 	if group then
 		if vehicle then
 			if vehicle.group == group_name then
@@ -171,32 +68,34 @@ local function monitor_enum_luatrain(luatrain, data)
 				return
 			else
 				-- Train is in a group, but not the one we expect. Remove it from the old group
-				remove_train_from_group(vehicle, vehicle.group)
+				cs2.remove_train_from_group(vehicle, vehicle.group)
 			end
 		end
 	else
 		-- Group is not a known cybersyn group...
-		if train_api.is_cybersyn_train_group_name(group_name) then
-			create_train_group(group_name)
+		if cs2.is_cybersyn_train_group_name(group_name) then
+			cs2.create_train_group(group_name)
 		else
 			-- Train is in a non-cybersyn group. If we know about it, remove it.
-			destroy_train(vehicle and vehicle.id)
+			if vehicle then vehicle:destroy() end
 			return
 		end
 	end
 
 	-- If we reach here, we need to add the train to the game if it doesnt
 	-- exist, then add it to the designated group.
-	if not vehicle then vehicle = create_train(luatrain) end
+	if not vehicle then vehicle = Train.new(luatrain) end
 	if not vehicle then
 		-- Strange situation; vehicle already exists?
-		log.debug(
+		strace(
+			WARN,
+			"message",
 			"Encountered supposedly impossible condition while create_train()",
 			luatrain
 		)
 		return
 	end
-	add_train_to_group(vehicle, group_name)
+	cs2.add_train_to_group(vehicle, group_name)
 end
 
 ---@param data Cybersyn.Internal.TrainMonitorTaskData
@@ -216,9 +115,8 @@ end
 
 local function monitor_enum_cstrain(vehicle_id, data)
 	if not vehicle_id then return end
-	local train = train_api.get_train(vehicle_id)
-	-- `nil` here means train couldn't be validated, destroy it
-	if not train then destroy_train(vehicle_id) end
+	local train = Vehicle.get(vehicle_id, true)
+	if train and (not train:is_valid()) then train:destroy() end
 end
 
 local function monitor_enum_cstrains(data)
@@ -244,8 +142,6 @@ local function train_group_monitor(task)
 		monitor_enum_luatrains(data)
 	elseif data.state == "enum_cstrains" then
 		monitor_enum_cstrains(data)
-	else
-		log.error("Invalid train group monitor task state:", data.state)
 	end
 end
 

@@ -8,7 +8,6 @@ local signal = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 local logistics_thread = _G.cs2.logistics_thread
 local stop_api = _G.cs2.stop_api
-local train_api = _G.cs2.train_api
 
 local max = math.max
 local min = math.min
@@ -31,10 +30,11 @@ local function route_train(data, train, allocation, is_fluid, stack_size)
 	-- TODO: spillover
 end
 
+---@param train Cybersyn.Train
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 local function train_score(train, allocation, train_capacity)
 	local cap_ratio = min(allocation.qty / train_capacity, 1.0)
-	local train_stock = train_api.get_stock(train)
+	local train_stock = train:get_stock()
 	local stop = (allocation.from --[[@as Cybersyn.TrainStop]]).entity
 	local dist = distsq(stop, train_stock)
 	return 100 * cap_ratio - dist
@@ -56,7 +56,7 @@ local function route_train_allocation(allocation, data)
 	local best_score = -INF
 	for _, train in pairs(data.avail_trains) do
 		-- Check if still available
-		if not train_api.is_free(train) then goto continue end
+		if not train:is_available() then goto continue end
 		-- Check if capacity exceeds both thresholds
 		local train_capacity = is_fluid and train.fluid_capacity
 			or (train.item_slot_capacity * stack_size)

@@ -7,7 +7,9 @@ local tlib = require("__cybersyn2__.lib.table")
 local counters = require("__cybersyn2__.lib.counters")
 local CarriageType = require("__cybersyn2__.lib.types").CarriageType
 local cs2 = _G.cs2
-local train_api = _G.cs2.train_api
+
+---@class Cybersyn.Train
+local Train = _G.cs2.Train
 
 local type_map = {
 	["locomotive"] = CarriageType.Locomotive,
@@ -17,14 +19,6 @@ local type_map = {
 	["infinity-cargo-wagon"] = CarriageType.CargoWagon,
 }
 local empty = {}
-
-local function array_eq(a1, a2)
-	if #a1 ~= #a2 then return false end
-	for i = 1, #a1 do
-		if a1[i] ~= a2[i] then return false end
-	end
-	return true
-end
 
 ---Get a layout id for the train, creating a new layout if needed.
 ---@param train Cybersyn.Train A *valid* train.
@@ -42,7 +36,7 @@ local function get_layout_id(train)
 
 	-- Check if layout exists
 	local _, layout_id = tlib.find(storage.train_layouts, function(layout)
-		if array_eq(layout.carriage_names, names) then return true end
+		if tlib.a_eqeq(layout.carriage_names, names) then return true end
 	end)
 	if layout_id then return layout_id end
 
@@ -61,9 +55,9 @@ end
 
 ---Examine the rolling stock of the train and re-compute the item and
 ---fluid capacity.
----@param train Cybersyn.Train A *valid* train.
-function _G.cs2.train_api.evaluate_capacity(train)
-	local carriages = train.lua_train.carriages
+---@param self Cybersyn.Train A *valid* train.
+function Train:evaluate_capacity()
+	local carriages = self.lua_train.carriages
 	local item_slot_capacity = 0
 	local fluid_capacity = 0
 	for i = 1, #carriages do
@@ -79,16 +73,13 @@ function _G.cs2.train_api.evaluate_capacity(train)
 			fluid_capacity = fluid_capacity + carriage.prototype.fluid_capacity
 		end
 	end
-	train.item_slot_capacity = item_slot_capacity
-	train.fluid_capacity = fluid_capacity
+	self.item_slot_capacity = item_slot_capacity
+	self.fluid_capacity = fluid_capacity
 end
 
 cs2.on_vehicle_created(function(vehicle)
-	local train = vehicle --[[@as Cybersyn.Train]]
-	if not train_api.is_valid(train) then
-		log.warn("Train %d is not valid, ignoring.", vehicle.id)
-		return
-	end
-	train_api.evaluate_capacity(train)
-	train.layout_id = get_layout_id(train)
+	if vehicle.type ~= "train" or (not vehicle:is_valid()) then return end
+	---@cast vehicle Cybersyn.Train
+	vehicle:evaluate_capacity()
+	vehicle.layout_id = get_layout_id(vehicle)
 end, true)
