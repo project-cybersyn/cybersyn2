@@ -21,7 +21,6 @@
 ---@field public train_layouts table<Id, Cybersyn.TrainLayout> Layouts of trains, indexed by layout id
 ---@field public debug_state Cybersyn.Internal.DebugState Debug state, should remain empty unless debug mode is enabled for the save
 ---@field public surface_index_to_train_topology table<uint,Id> Map from planetary surfaces to associated train topologies
----@field public dynamic_handlers table<string, Cybersyn.Internal.DynamicBindings> Safe dynamic event handler table
 storage = {}
 
 ---Per-player global state.
@@ -49,5 +48,4 @@ _G.cs2.on_init(function()
 	storage.train_layouts = {}
 	storage.debug_state = {}
 	storage.surface_index_to_train_topology = {}
-	storage.dynamic_handlers = {}
 end, true)
