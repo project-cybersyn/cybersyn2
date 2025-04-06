@@ -7,9 +7,9 @@ local log = require("__cybersyn2__.lib.logging")
 local stlib = require("__cybersyn2__.lib.strace")
 local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
-local node_api = _G.cs2.node_api
 local mod_settings = _G.cs2.mod_settings
 
+local Node = _G.cs2.Node
 local Combinator = _G.cs2.Combinator
 local strace = stlib.strace
 local DEBUG = stlib.DEBUG
@@ -40,7 +40,7 @@ local function poll_combinator(combinator_id, data)
 
 	-- Mark a topology as active if the owning node of a combinator is in that
 	-- topology.
-	local node = node_api.get_node(combinator.node_id)
+	local node = Node.get(combinator.node_id)
 	if node and node.topology_id then
 		data.active_topologies[node.topology_id] = true
 	end

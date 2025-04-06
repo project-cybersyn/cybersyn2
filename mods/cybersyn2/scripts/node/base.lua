@@ -2,51 +2,103 @@
 -- Base API for Cybersyn `Node` objects.
 --------------------------------------------------------------------------------
 
+local counters = require("__cybersyn2__.lib.counters")
+local class = require("__cybersyn2__.lib.class").class
 local tlib = require("__cybersyn2__.lib.table")
-local log = require("__cybersyn2__.lib.logging")
+local stlib = require("__cybersyn2__.lib.strace")
 local signal = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
-local node_api = _G.cs2.node_api
 local inventory_api = _G.cs2.inventory_api
 
+local strace = stlib.strace
+local ERROR = stlib.ERROR
 local band = bit32.band
 local pairs = _G.pairs
 local key_is_fluid = signal.key_is_fluid
 local Combinator = _G.cs2.Combinator
 
----@param node_id Id?
----@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
----@return Cybersyn.Node?
-function _G.cs2.node_api.get_node(node_id, skip_validation)
-	if not node_id then return nil end
-	return storage.nodes[node_id]
+---@class Cybersyn.Node
+local Node = class("Node")
+_G.cs2.Node = Node
+
+---Create a new node state. No creation events are fired; that is delegated to
+---the specific node type's lifecycle management.
+function Node.new(type)
+	local id = counters.next("node")
+	local node = setmetatable({
+		id = id,
+		type = type or "generic", -- default type
+		combinator_set = {},
+		created_tick = game.tick,
+	}, Node)
+
+	storage.nodes[id] = node
+	return storage.nodes[id]
 end
 
+---Destroy node and state.
+function Node:destroy()
+	if self.is_being_destroyed then
+		strace(
+			stlib.WARN,
+			"message",
+			"Node:destroy() called on already-destroyed node",
+			self
+		)
+		return
+	end
+	self.is_being_destroyed = true
+	cs2.raise_node_destroyed(self)
+	-- If type-specific destructors bound to the event failed to clear the
+	-- combinator set, we must do so here.
+	if next(self.combinator_set) then
+		tlib.for_each(self.combinator_set, function(_, combinator_id)
+			local combinator = Combinator.get(combinator_id, true)
+			Node.disassociate_combinator(combinator, true)
+		end)
+		cs2.raise_node_combinator_set_changed(self)
+	end
+	storage.nodes[self.id] = nil
+end
+
+---Get a node from storage by id.
+---@param id Id?
+---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
+---@return Cybersyn.Node?
+function Node.get(id, skip_validation)
+	if not id then return nil end
+	local node = storage.nodes[id]
+	if skip_validation then
+		return node
+	else
+		return node:is_valid() and node or nil
+	end
+end
+
+---Determine if a node is valid.
+---@return boolean
+function Node:is_valid() return false end
+
 ---Associate the given combinator with the given node.
----@param node Cybersyn.Node? Reference to a *valid* node.
 ---@param combinator Cybersyn.Combinator Reference to a *valid* combinator.
 ---@param suppress_set_changed boolean? If `true`, does not raise the `node_combinator_set_changed` event. You must do so yourself if performing a batch of updates.
 ---@return boolean success `true` if the combinator was successfully associated, `false` if not.
 ---@return Cybersyn.Node? old_node The node that the combinator was previously associated with, if any.
-function _G.cs2.node_api.associate_combinator(
-	node,
-	combinator,
-	suppress_set_changed
-)
-	if not node then return false end
+function Node:associate_combinator(combinator, suppress_set_changed)
+	if not self then return false end
 	local old_node
-	if combinator.node_id and combinator.node_id ~= node.id then
+	if combinator.node_id and combinator.node_id ~= self.id then
 		-- Combinator is already associated with a different node.
-		old_node = node_api.get_node(combinator.node_id, true)
-		node_api.disassociate_combinator(combinator, suppress_set_changed)
+		old_node = Node.get(combinator.node_id, true)
+		Node.disassociate_combinator(combinator, suppress_set_changed)
 	end
 
-	if not node.combinator_set[combinator.id] then
-		node.combinator_set[combinator.id] = true
-		combinator.node_id = node.id
-		cs2.raise_combinator_node_associated(combinator, node, nil)
+	if not self.combinator_set[combinator.id] then
+		self.combinator_set[combinator.id] = true
+		combinator.node_id = self.id
+		cs2.raise_combinator_node_associated(combinator, self, nil)
 		if not suppress_set_changed then
-			cs2.raise_node_combinator_set_changed(node)
+			cs2.raise_node_combinator_set_changed(self)
 		end
 		return true, old_node
 	end
@@ -58,16 +110,15 @@ end
 ---@param combinator Cybersyn.Combinator? Reference to a *valid* combinator.
 ---@param suppress_set_changed boolean? If `true`, does not raise the `node_combinator_set_changed` event. You must do so yourself if performing a batch of updates.
 ---@return Cybersyn.Node? old_node If the combinator was disassociated, the node that it was disassociated from, otherwise `nil`.
-function _G.cs2.node_api.disassociate_combinator(
-	combinator,
-	suppress_set_changed
-)
+function Node.disassociate_combinator(combinator, suppress_set_changed)
 	if not combinator then return nil end
-	local node = node_api.get_node(combinator.node_id, true)
+	local node = Node.get(combinator.node_id, true)
 	combinator.node_id = nil
 	if not node then return nil end
 	if not node.combinator_set[combinator.id] then
-		log.error(
+		strace(
+			ERROR,
+			"message",
 			"referential inconsistency between associated combinator and node combinator set"
 		)
 		return nil
@@ -80,12 +131,17 @@ function _G.cs2.node_api.disassociate_combinator(
 	return node
 end
 
+-- When a combinator is destroyed, disassociate it from its node.
+cs2.on_combinator_destroyed(function(combinator)
+	if combinator.node_id then Node.disassociate_combinator(combinator) end
+end)
+
 ---Get all combinators associated with this node.
----@param node Cybersyn.Node Reference to a *valid* node.
+---@param self Cybersyn.Node Reference to a *valid* node.
 ---@param filter? fun(combinator: Cybersyn.Combinator): boolean? A filter function that returns `true` to include the combinator in the result.
 ---@return Cybersyn.Combinator[] #The combinators associated to the node, if any.
-function _G.cs2.node_api.get_associated_combinators(node, filter)
-	return tlib.t_map_a(node.combinator_set, function(_, combinator_id)
+function Node:get_associated_combinators(filter)
+	return tlib.t_map_a(self.combinator_set, function(_, combinator_id)
 		local comb = Combinator.get(combinator_id, true)
 		if comb and ((not filter) or filter(comb)) then return comb end
 	end)
@@ -93,30 +149,26 @@ end
 
 ---Get the per-item priority of the given item for this node, defaulting
 ---to the node's general priority or 0.
----TODO: determine whether to hardcode default priority to 0 (yes)
----@param node Cybersyn.Node
 ---@param item SignalKey
-local function get_item_priority(node, item)
-	local prios = node.priorities
-	local prio = node.priority or 0
+---@return int
+function Node:get_item_priority(item)
+	local prios = self.priorities
+	local prio = self.priority or 0
 	return prios and (prios[item] or prio) or prio
 end
-_G.cs2.node_api.get_item_priority = get_item_priority
 
----@param node Cybersyn.Node
+---Get this node's channel mask for an item
 ---@param item SignalKey
-local function get_channel_mask(node, item)
-	local channels = node.channels
-	local channel = node.channel or 1 -- TODO: setting for global default chan
+function Node:get_channel_mask(item)
+	local channels = self.channels
+	local channel = self.channel or 1 -- TODO: setting for global default chan
 	return channels and (channels[item] or channel) or channel
 end
-_G.cs2.node_api.get_channel_mask = get_channel_mask
 
----Determine if two nodes share a network.
----@param n1 Cybersyn.Node
+---Determine if this node shares a network with the other.
 ---@param n2 Cybersyn.Node
-local function is_network_match(n1, n2, mode)
-	local nets_1 = n1.networks or {}
+function Node:is_network_match(n2, mode)
+	local nets_1 = self.networks or {}
 	local nets_2 = n2.networks or {}
 	for k, v in pairs(nets_1) do
 		-- TODO: setting for default global netmask
@@ -124,60 +176,55 @@ local function is_network_match(n1, n2, mode)
 	end
 	return false
 end
-_G.cs2.node_api.is_network_match = is_network_match
 
----Determine if two nodes share a channel for an item
----@param n1 Cybersyn.Node
+---Determine if this node shares an item's channel with the other.
+---@param self Cybersyn.Node
 ---@param n2 Cybersyn.Node
 ---@param item SignalKey
-local function is_channel_match(n1, n2, item)
-	return band(get_channel_mask(n1, item), get_channel_mask(n2, item)) ~= 0
+function Node:is_channel_match(n2, item)
+	return band(self:get_channel_mask(item), n2:get_channel_mask(item)) ~= 0
 end
-_G.cs2.node_api.is_channel_match = is_channel_match
 
 ---Determine if two nodes can exchange a given item.
----@param n1 Cybersyn.Node
 ---@param n2 Cybersyn.Node
 ---@param item SignalKey
-local function is_item_match(n1, n2, item)
-	return is_channel_match(n1, n2, item) and is_network_match(n1, n2)
+function Node:is_item_match(n2, item)
+	return self:is_channel_match(n2, item) and self:is_network_match(n2)
 end
-_G.cs2.node_api.is_item_match = is_item_match
 
 ---Get the inbound and outbound thresholds for the given item.
----@param node Cybersyn.Node
 ---@param item SignalKey
-local function get_delivery_thresholds(node, item)
-	local ins = node.thresholds_in
-	local outs = node.thresholds_out
+---@return uint t_in Inbound threshold for the item
+---@return uint t_out Outbound threshold for the item
+function Node:get_delivery_thresholds(item)
+	local ins = self.thresholds_in
+	local outs = self.thresholds_out
 	local is_fluid = key_is_fluid(item)
 	if is_fluid then
-		local tin = node.threshold_fluid_in or 1
-		local tout = node.threshold_fluid_out or 1
+		local tin = self.threshold_fluid_in or 1
+		local tout = self.threshold_fluid_out or 1
 		return ins and (ins[item] or tin) or tin,
 			outs and (outs[item] or tout) or tout
 	else
-		local tin = node.threshold_item_in or 1
-		local tout = node.threshold_item_out or 1
+		local tin = self.threshold_item_in or 1
+		local tout = self.threshold_item_out or 1
 		return ins and (ins[item] or tin) or tin,
 			outs and (outs[item] or tout) or tout
 	end
 end
-_G.cs2.node_api.get_delivery_thresholds = get_delivery_thresholds
 
 ---Determine how many of the given item the node can provide, accounting
 ---for thresholds and net inventory.
----@param node Cybersyn.Node
 ---@param item SignalKey
 ---@return integer #Providable quantity
 ---@return integer #Outbound DT, valid only if qty>0.
 ---@return Cybersyn.Inventory #Node inventory
-function _G.cs2.node_api.get_provide(node, item)
-	local inv, produce = inventory_api.get_inventory_info_by_id(node.inventory_id)
+function Node:get_provide(item)
+	local inv, produce = inventory_api.get_inventory_info_by_id(self.inventory_id)
 	if not inv then return 0, 0, inv end
 	local has = produce[item] or 0
 	if has == 0 then return 0, 0, inv end
-	local _, out_t = get_delivery_thresholds(node, item)
+	local _, out_t = self:get_delivery_thresholds(item)
 	if has < out_t then return 0, out_t, inv end
 	return has, out_t, inv
 end
@@ -187,14 +234,14 @@ end
 ---@return integer #Pullable quantity
 ---@return integer #Inbound DT, valid only if qty>0.
 ---@return Cybersyn.Inventory #Node inventory
-function _G.cs2.node_api.get_pull(node, item)
+function Node:get_pull(item)
 	local inv, _, consume =
-		inventory_api.get_inventory_info_by_id(node.inventory_id)
+		inventory_api.get_inventory_info_by_id(self.inventory_id)
 	if not inv then return 0, 0, nil end
 	local has = consume[item] or 0
 	if has == 0 then return 0, 0, inv end
 	has = -has
-	local in_t = get_delivery_thresholds(node, item)
+	local in_t = self:get_delivery_thresholds(item)
 	if has < in_t then return 0, in_t, inv end
 	return has, in_t, inv
 end

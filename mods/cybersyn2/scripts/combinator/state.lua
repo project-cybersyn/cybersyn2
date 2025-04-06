@@ -6,8 +6,8 @@
 
 local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
-local stop_api = _G.cs2.stop_api
 local inventory_api = _G.cs2.inventory_api
+local Node = _G.cs2.Node
 
 local strace = stlib.strace
 local TRACE = stlib.TRACE
@@ -15,19 +15,15 @@ local WARN = stlib.WARN
 
 ---@param combinator Cybersyn.Combinator
 local function read_inventory(combinator)
-	-- TODO: if a train is at a stop while reading an inventory combinator,
-	-- the inventory is volatile and the read is unreliable.
-	-- If we get a non-volatile read on inventory input for a combinator
-	-- implementing an inventory, we should immediately update the inventory while
-	-- the reading is as accurate as possible.
-
 	-- TODO: shared inventory etc.
 
 	if combinator.mode ~= "station" then return end
-	local stop = stop_api.get_stop(combinator.node_id)
-	if not stop then return end
+	local stop = Node.get(combinator.node_id)
+	if not stop or (not stop.type == "stop") then return end
+	---@cast stop Cybersyn.TrainStop
 	if stop.entity.get_stopped_train() then
-		-- Volatile
+		-- If a train is at a stop while reading its inventory combinator, read
+		-- must be treated as unreliable.
 		strace(
 			TRACE,
 			"message",

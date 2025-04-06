@@ -2,13 +2,13 @@ local tlib = require("__cybersyn2__.lib.table")
 local types = require("__cybersyn2__.lib.types")
 local ContainerType = types.ContainerType
 local PrimitiveType = types.PrimitiveType
-local stop_api = _G.cs2.stop_api
 local inventory_api = _G.cs2.inventory_api
 
 local map = tlib.map
 local Combinator = _G.cs2.Combinator
 local Vehicle = _G.cs2.Vehicle
 local Train = _G.cs2.Train
+local TrainStop = _G.cs2.TrainStop
 
 local comb_list_datatype = {
 	true,
@@ -38,12 +38,12 @@ local stop_list_datatype = {
 function _G.cs2.query_handlers.stops(arg)
 	local res = nil
 	if arg.ids then
-		res = map(arg.ids, function(id) return stop_api.get_stop(id) end)
+		res = map(arg.ids, function(id) return TrainStop.get(id) end)
 	elseif arg.unit_numbers then
 		res = map(
 			arg.unit_numbers,
 			function(unit_number)
-				return stop_api.get_stop_from_unit_number(unit_number)
+				return TrainStop.get_stop_from_unit_number(unit_number)
 			end
 		)
 	end

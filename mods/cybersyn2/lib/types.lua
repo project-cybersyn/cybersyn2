@@ -84,7 +84,7 @@ lib.NodeNetworkOperation = {
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
 ---@class Cybersyn.Node
 ---@field public id Id Unique id of the node.
----@field public topology_id Id Id of the topology this node belongs to.
+---@field public topology_id Id? Id of the topology this node belongs to.
 ---@field public type string The type of the node.
 ---@field public combinator_set UnitNumberSet Set of combinators associated to this node, by unit number.
 ---@field public created_tick uint Tick number when this node was created.
@@ -118,7 +118,7 @@ lib.NodeNetworkOperation = {
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
----@class (exact) Cybersyn.TrainStopLayout
+---@class Cybersyn.TrainStopLayout
 ---@field public node_id Id The id of the node this layout is for.
 ---@field public cargo_loader_map {[UnitNumber]: uint} Map of equipment that can load cargo to tile indices relative to the train stop.
 ---@field public fluid_loader_map {[UnitNumber]: uint} Map of equipment that can load fluid to tile indices relative to the train stop.

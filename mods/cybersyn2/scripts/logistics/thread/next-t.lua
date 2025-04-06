@@ -4,11 +4,11 @@
 -- mainloop if we run out of topologies.
 --------------------------------------------------------------------------------
 
-local log = require("__cybersyn2__.lib.logging")
 local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local inventory_api = _G.cs2.inventory_api
+local Topology = _G.cs2.Topology
 
 --------------------------------------------------------------------------------
 -- Loop state lifecycle
@@ -38,11 +38,10 @@ function _G.cs2.logistics_thread.goto_next_t(data)
 		if data.active_topologies then
 			data.topologies = tlib.t_map_a(
 				data.active_topologies,
-				function(_, k) return cs2.node_api.get_topology(k) end
+				function(_, k) return Topology.get(k) end
 			)
 			data.current_topology = 1
 		else
-			log.warn("logistics_thread.goto_next_t: invalid state")
 			return cleanup_next_t(data)
 		end
 	else

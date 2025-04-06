@@ -8,8 +8,8 @@ local cs2 = _G.cs2
 local threads_api = _G.cs2.threads_api
 local logistics_thread = _G.cs2.logistics_thread
 local mod_settings = _G.cs2.mod_settings
-local node_api = _G.cs2.node_api
 local inventory_api = _G.cs2.inventory_api
+local Node = _G.cs2.Node
 
 local strace = stlib.strace
 local TRACE = stlib.TRACE
@@ -20,11 +20,6 @@ local map = tlib.map
 local t_map_a = tlib.t_map_a
 local filter = tlib.filter
 local min = math.min
-local get_item_priority = _G.cs2.node_api.get_item_priority
-local is_item_match = _G.cs2.node_api.is_item_match
-local get_provide = _G.cs2.node_api.get_provide
-local get_pull = _G.cs2.node_api.get_pull
-local get_node = node_api.get_node
 local add_flow = inventory_api.add_flow
 
 ---A logistics allocation.
@@ -41,6 +36,9 @@ local add_flow = inventory_api.add_flow
 
 ---Get and cache descending prio groups for a given item/logistic_type
 ---@param data Cybersyn.Internal.LogisticsThreadData
+---@param item string
+---@param base_key string
+---@param p_key string
 ---@return [Cybersyn.Node,int][][]
 local function get_descending_prio_groups(data, item, base_key, p_key)
 	if data[p_key][item] then return data[p_key][item] end
@@ -48,8 +46,8 @@ local function get_descending_prio_groups(data, item, base_key, p_key)
 	local x_i = xs[item]
 	if not x_i or table_size(x_i) == 0 then return {} end
 	local g_i = t_map_a(x_i, function(_, id)
-		local node = get_node(id)
-		if node then return { node, get_item_priority(node, item) } end
+		local node = Node.get(id)
+		if node then return { node, node:get_item_priority(item) } end
 	end)
 	tsort(g_i, function(a, b) return a[2] > b[2] end)
 	local g = tlib.group_by(g_i, 2)
@@ -111,6 +109,8 @@ end
 -- Puller <- Provider
 --------------------------------------------------------------------------------
 
+---@param puller_i Cybersyn.Node
+---@param provider_i Cybersyn.Node
 local function alloc_item_pull_provider(
 	data,
 	item,
@@ -118,12 +118,12 @@ local function alloc_item_pull_provider(
 	puller_i,
 	pull_prio
 )
-	local wanted, puller_in_t, puller_inv = get_pull(puller_i, item)
+	local wanted, puller_in_t, puller_inv = puller_i:get_pull(item)
 	if wanted == 0 then
 		-- Puller no longer wants anything
 		return remove_from_logistics_set(data, "pullers", puller_i.id, item)
 	end
-	local avail, provider_out_t, provider_inv = get_provide(provider_i, item)
+	local avail, provider_out_t, provider_inv = provider_i:get_provide(item)
 	if avail == 0 then
 		-- Provider is no longer providing
 		return remove_from_logistics_set(data, "providers", provider_i.id, item)
@@ -151,7 +151,7 @@ local function provider_match(data, node, item)
 	---@param np [Cybersyn.Node, integer]
 	return function(np)
 		return in_logistics_set(data, "providers", np[1].id, item)
-			and is_item_match(np[1], node, item)
+			and node:is_item_match(np[1], item)
 	end
 end
 

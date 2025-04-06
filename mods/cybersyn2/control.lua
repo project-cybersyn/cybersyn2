@@ -5,8 +5,6 @@
 _G.cs2 = {
 	remote_api = {},
 	threads_api = {},
-	node_api = {},
-	stop_api = {},
 	delivery_api = {},
 	inventory_api = {},
 	gui = {},
@@ -38,7 +36,6 @@ require("scripts.vehicle.train.layout")
 
 require("scripts.node.base")
 require("scripts.node.topology")
-require("scripts.node.lifecycle")
 require("scripts.node.stop.base")
 require("scripts.node.stop.lifecycle")
 require("scripts.node.stop.layout.base")

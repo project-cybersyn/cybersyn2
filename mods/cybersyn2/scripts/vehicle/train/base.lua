@@ -4,8 +4,8 @@
 
 local class = require("__cybersyn2__.lib.class").class
 local cs2 = _G.cs2
-local node_api = _G.cs2.node_api
 local Vehicle = _G.cs2.Vehicle
+local Topology = _G.cs2.Topology
 
 local strsub = string.sub
 
@@ -113,7 +113,7 @@ function Train.new(lua_train)
 		)
 	if not stock then return nil end
 
-	local topology = node_api.get_train_topology(stock.surface_index)
+	local topology = Topology.get_train_topology(stock.surface_index)
 	if not topology then return nil end
 
 	local train = Vehicle.new("train") --[[@as Cybersyn.Train]]

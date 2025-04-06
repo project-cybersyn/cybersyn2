@@ -7,7 +7,6 @@ local stlib = require("__cybersyn2__.lib.strace")
 local signal = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 local logistics_thread = _G.cs2.logistics_thread
-local stop_api = _G.cs2.stop_api
 
 local max = math.max
 local min = math.min
@@ -43,14 +42,12 @@ end
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 ---@param data Cybersyn.Internal.LogisticsThreadData
 local function route_train_allocation(allocation, data)
-	if
-		(not stop_api.is_valid(allocation.from))
-		or (not stop_api.is_valid(allocation.to))
-	then
-		return
-	end
+	local from = allocation.from --[[@as Cybersyn.TrainStop]]
+	local to = allocation.to --[[@as Cybersyn.TrainStop]]
+	if (not from:is_valid()) or (not to:is_valid()) then return end
 	local is_fluid = signal.key_is_fluid(allocation.item)
-	local stack_size = is_fluid and 1 or signal.key_to_stacksize(allocation.item)
+	local stack_size = is_fluid and 1
+		or (signal.key_to_stacksize(allocation.item) or 1)
 
 	local best_train = nil
 	local best_score = -INF
@@ -68,12 +65,7 @@ local function route_train_allocation(allocation, data)
 			goto continue
 		end
 		-- Check if allowlisted at both ends
-		if
-			not (
-				stop_api.accepts_layout(allocation.from, train.layout_id)
-				and stop_api.accepts_layout(allocation.to, train.layout_id)
-			)
-		then
+		if not (from:allows_train(train) and to:allows_train(train)) then
 			goto continue
 		end
 		-- Check if better than the previous train.

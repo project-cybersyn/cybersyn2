@@ -4,8 +4,6 @@
 
 local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
-local node_api = _G.cs2.node_api
-local stop_api = _G.cs2.stop_api
 local combinator_settings = _G.cs2.combinator_settings
 local CarriageType = require("__cybersyn2__.lib.types").CarriageType
 
@@ -84,7 +82,7 @@ end
 ---@param is_bidi boolean
 ---@param changed_layout_id Id?
 local function make_auto_allow_list(stop, is_strict, is_bidi, changed_layout_id)
-	local layout = stop_api.get_layout(stop.id)
+	local layout = stop:get_layout()
 	if not layout then
 		strace(WARN, "message", "make_auto_allow_list: stop has no layout", stop)
 		return
@@ -149,8 +147,7 @@ end
 ---@param changed_layout_id Id?
 local function evaluate_stop(stop, changed_layout_id)
 	strace(TRACE, "message", "Re-evaluating allow list for stop", stop.id)
-	local allowlist_combs = node_api.get_associated_combinators(
-		stop,
+	local allowlist_combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "allow" end
 	)
 	if #allowlist_combs > 1 then

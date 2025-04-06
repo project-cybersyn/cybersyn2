@@ -4,13 +4,10 @@
 -- inputs and adding their items to the logistics arrays.
 --------------------------------------------------------------------------------
 
-local log = require("__cybersyn2__.lib.logging")
 local stlib = require("__cybersyn2__.lib.strace")
 local tlib = require("__cybersyn2__.lib.table")
 local slib = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
-local node_api = _G.cs2.node_api
-local stop_api = _G.cs2.stop_api
 local inventory_api = _G.cs2.inventory_api
 local mod_settings = _G.cs2.mod_settings
 local combinator_settings = _G.cs2.combinator_settings
@@ -21,9 +18,6 @@ local TRACE = stlib.TRACE
 local WARN = stlib.WARN
 local get_net_produce = inventory_api.get_net_produce
 local get_net_consume = inventory_api.get_net_consume
-local get_inbound_threshold = stop_api.get_inbound_threshold
-local get_outbound_threshold = stop_api.get_outbound_threshold
-local get_delivery_thresholds = node_api.get_delivery_thresholds
 
 ---@param node Cybersyn.Node
 ---@param data Cybersyn.Internal.LogisticsThreadData
@@ -47,7 +41,7 @@ local function classify_inventory(stop, data)
 	if not inventory then return end
 	if stop.is_producer then
 		for item, qty in pairs(get_net_produce(inventory)) do
-			local out_t = get_outbound_threshold(stop, item)
+			local _, out_t = stop:get_delivery_thresholds(item)
 			if qty >= out_t then
 				add_to_logisics_set(data, "providers", stop, item)
 				data.seen_cargo[item] = true
@@ -57,7 +51,7 @@ local function classify_inventory(stop, data)
 	end
 	if stop.is_consumer then
 		for item, qty in pairs(get_net_consume(inventory)) do
-			local in_t = get_inbound_threshold(stop, item)
+			local in_t = stop:get_delivery_thresholds(item)
 			if qty <= -in_t then
 				add_to_logisics_set(data, "pullers", stop, item)
 				data.seen_cargo[item] = true
@@ -69,8 +63,7 @@ end
 
 ---@param stop Cybersyn.TrainStop
 local function poll_train_stop_station_comb(stop, data)
-	local combs = node_api.get_associated_combinators(
-		stop,
+	local combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "station" end
 	)
 	if #combs == 0 then

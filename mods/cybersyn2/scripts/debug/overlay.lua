@@ -6,7 +6,6 @@ local mlib = require("__cybersyn2__.lib.math")
 local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
-local stop_api = _G.cs2.stop_api
 
 local Combinator = _G.cs2.Combinator
 
@@ -129,14 +128,14 @@ local function destroy_combinator_overlay(combinator)
 	end
 end
 
----@param stop Cybersyn.Node
+---@param stop Cybersyn.TrainStop
 ---@return Cybersyn.Internal.StopDebugOverlayState?
 local function get_or_create_stop_overlay(stop)
 	local ovl_data = storage.debug_state.overlay
 	if not ovl_data then return end
 	local overlay = ovl_data.stop_overlays[stop.id]
 	if not overlay then
-		if not stop_api.is_valid(stop) then return end
+		if not stop:is_valid() then return end
 		stop = stop --[[@as Cybersyn.TrainStop]]
 		overlay = {
 			text = create_text_overlay(
@@ -163,13 +162,13 @@ local function destroy_stop_overlay(stop)
 	end
 end
 
----@param stop Cybersyn.Node
+---@param stop Cybersyn.TrainStop
 local function update_stop_overlay(stop)
-	if not stop_api.is_valid(stop) then return end
+	if not stop:is_valid() then return end
 	stop = stop --[[@as Cybersyn.TrainStop]]
 	local overlay = get_or_create_stop_overlay(stop)
 	if not overlay then return end
-	local layout = stop_api.get_layout(stop.id)
+	local layout = stop:get_layout()
 	if not layout then return end
 
 	-- Text
@@ -248,7 +247,9 @@ local function create_stop_overlays()
 	local ovl_data = storage.debug_state.overlay
 	if not ovl_data then return end
 	for _, stop in pairs(storage.nodes) do
-		update_stop_overlay(stop)
+		if stop.type == "stop" then
+			update_stop_overlay(stop --[[@as Cybersyn.TrainStop]])
+		end
 	end
 end
 
@@ -307,5 +308,7 @@ cs2.on_node_combinator_set_changed(update_stop_overlay)
 cs2.on_train_stop_layout_changed(update_stop_overlay)
 cs2.on_train_stop_pattern_changed(update_stop_overlay)
 cs2.on_node_data_changed(function(node)
-	if node.type == "stop" then update_stop_overlay(node) end
+	if node.type == "stop" then
+		update_stop_overlay(node --[[@as Cybersyn.TrainStop]])
+	end
 end)

@@ -11,7 +11,6 @@ local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
 local cs2 = _G.cs2
-local stop_api = _G.cs2.stop_api
 
 local db_dispatch = dynamic_binding.dispatch
 
@@ -86,8 +85,8 @@ local function on_built(event)
 	elseif entity.name == "cybersyn2-combinator" then
 		cs2.raise_built_combinator(entity, event.tags)
 	elseif
-		stop_api.is_equipment_type(entity.type)
-		or stop_api.is_equipment_name(entity.name)
+		cs2.lib.is_equipment_type(entity.type)
+		or cs2.lib.is_equipment_name(entity.name)
 	then
 		cs2.raise_built_equipment(entity)
 	end
@@ -102,10 +101,10 @@ local filter_built = {
 	{ filter = "ghost_name", name = "cybersyn2-combinator" },
 	{ filter = "ghost_name", name = "cybersyn2-combinator-settings" },
 }
-for _, type in ipairs(stop_api.get_equipment_types()) do
+for _, type in ipairs(cs2.lib.get_equipment_types()) do
 	table.insert(filter_built, { filter = "type", type = type })
 end
-for _, name in ipairs(stop_api.get_equipment_names()) do
+for _, name in ipairs(cs2.lib.get_equipment_names()) do
 	table.insert(filter_built, { filter = "name", name = name })
 end
 
@@ -191,8 +190,8 @@ local function on_destroyed(event)
 	elseif entity.name == "cybersyn2-combinator" then
 		cs2.raise_broken_combinator(entity)
 	elseif
-		stop_api.is_equipment_type(entity.type)
-		or stop_api.is_equipment_name(entity.name)
+		cs2.lib.is_equipment_type(entity.type)
+		or cs2.lib.is_equipment_name(entity.name)
 	then
 		cs2.raise_broken_equipment(entity)
 	elseif entity.train then
