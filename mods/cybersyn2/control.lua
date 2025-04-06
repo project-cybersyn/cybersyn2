@@ -29,11 +29,6 @@ require("scripts.combinator.state")
 require("scripts.combinator.gui.base")
 require("scripts.combinator.gui.elements")
 
-require("scripts.vehicle.base")
-require("scripts.vehicle.train.base")
-require("scripts.vehicle.train.lifecycle")
-require("scripts.vehicle.train.layout")
-
 require("scripts.node.base")
 require("scripts.node.topology")
 require("scripts.node.stop.base")
@@ -41,6 +36,11 @@ require("scripts.node.stop.lifecycle")
 require("scripts.node.stop.layout.base")
 require("scripts.node.stop.layout.equipment")
 require("scripts.node.stop.layout.pattern")
+
+require("scripts.vehicle.base")
+require("scripts.vehicle.train.base")
+require("scripts.vehicle.train.lifecycle")
+require("scripts.vehicle.train.layout")
 
 require("scripts.logistics.inventory.base")
 require("scripts.logistics.delivery.base")
