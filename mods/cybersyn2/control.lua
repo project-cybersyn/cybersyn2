@@ -60,6 +60,7 @@ require("scripts.logistics.thread.next-t")
 require("scripts.logistics.thread.poll-nodes")
 require("scripts.logistics.thread.alloc")
 require("scripts.logistics.thread.find-vehicles")
+require("scripts.logistics.thread.route")
 
 require("scripts.debug.base")
 require("scripts.debug.overlay")

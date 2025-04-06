@@ -5,7 +5,6 @@
 local class = require("__cybersyn2__.lib.class").class
 local counters = require("__cybersyn2__.lib.counters")
 local signal_keys = require("__cybersyn2__.lib.signal")
-local DeliveryState = require("__cybersyn2__.lib.types").DeliveryState
 local cs2 = _G.cs2
 
 -- This code is called in high performance dispatch loops. We will take some
@@ -18,13 +17,6 @@ local signal_to_key = signal_keys.signal_to_key
 local key_is_cargo = signal_keys.key_is_cargo
 local min = math.min
 local max = math.max
-
-local ToSource = DeliveryState.ToSource
-local Loading = DeliveryState.Loading
-local ToDestination = DeliveryState.ToDestination
-local Unloading = DeliveryState.Unloading
-local Completed = DeliveryState.Completed
-local Failed = DeliveryState.Failed
 
 -- Inventory notes:
 -- - Don't poll a station while a train is there, because result will be

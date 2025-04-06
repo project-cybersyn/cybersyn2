@@ -322,7 +322,7 @@ function Combinator:read_inputs()
 		end
 		self.inputs = inputs
 	else
-		self.inputs = nil
+		self.inputs = {}
 	end
 
 	cs2.raise_combinator_inputs_read(self)

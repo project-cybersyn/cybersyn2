@@ -3,7 +3,6 @@
 --------------------------------------------------------------------------------
 
 local class = require("__cybersyn2__.lib.class").class
-local log = require("__cybersyn2__.lib.logging")
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local cs2 = _G.cs2
 
@@ -36,6 +35,8 @@ _G.cs2.LogisticsThread = LogisticsThread
 
 function LogisticsThread.new()
 	local thread = setmetatable({}, LogisticsThread) --[[@as Cybersyn.LogisticsThread]]
+	-- TODO: start paused for debugging. remove for release
+	thread.paused = true
 	thread:set_state("init")
 	return thread
 end
@@ -66,18 +67,18 @@ function _G.cs2.debug.get_logistics_thread()
 end
 
 function LogisticsThread:enter_init()
-	data.topologies = nil
-	data.current_topology = nil
-	data.active_topologies = nil
-	data.nodes = nil
+	self.topologies = nil
+	self.current_topology = nil
+	self.active_topologies = nil
+	self.nodes = nil
 	-- XXX: temp debugging
 	-- clear allocations (dispatch phase should do this)
-	if data.allocations then
-		for _, alloc in pairs(data.allocations) do
+	if self.allocations then
+		for _, alloc in pairs(self.allocations) do
 			alloc.from_inv:add_flow({ [alloc.item] = alloc.qty }, 1)
 			alloc.to_inv:add_flow({ [alloc.item] = alloc.qty }, -1)
 		end
-		data.allocations = nil
+		self.allocations = nil
 	end
 end
 

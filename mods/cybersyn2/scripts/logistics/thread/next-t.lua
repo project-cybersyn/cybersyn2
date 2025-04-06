@@ -27,11 +27,11 @@ function LogisticsThread:enter_next_t()
 	end
 end
 
-function LogisticsThread:next_t(data)
-	local topology = data.topologies[data.current_topology]
+function LogisticsThread:next_t()
+	local topology = self.topologies[self.current_topology]
 	if not topology then return self:set_state("init") end
 	local id = topology.id
-	data.nodes = tlib.t_map_a(storage.nodes, function(node)
+	self.nodes = tlib.t_map_a(storage.nodes, function(node)
 		if node.topology_id == id then return node end
 	end)
 	self:set_state("poll_nodes")

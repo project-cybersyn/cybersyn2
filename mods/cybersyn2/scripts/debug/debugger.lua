@@ -128,7 +128,7 @@ local LoopState = relm.define_element({
 	name = "LogisticsLoopDebugger.State",
 	render = function(props, state)
 		relm_helpers.use_event("on_debug_loop")
-		local data = cs2.debug.get_logistics_thread_data()
+		local data = cs2.debug.get_logistics_thread()
 		if not data then return nil end
 		local tstate = data.state
 		local children = {
@@ -136,7 +136,12 @@ local LoopState = relm.define_element({
 			ultros.Label(tstate),
 		}
 		for k, v in pairs(data) do
-			if k ~= "state" and k ~= "paused" and k ~= "stepped" then
+			if
+				k ~= "state"
+				and k ~= "paused"
+				and k ~= "stepped"
+				and type(v) ~= "function"
+			then
 				local renderer = renderers[k] or default_renderer
 				tlib.append(children, renderer(k, v))
 			end
@@ -175,7 +180,7 @@ local LoopDebugger = relm.define_element({
 		})
 	end,
 	message = function(me, payload, props)
-		local data = cs2.debug.get_logistics_thread_data() or {}
+		local data = cs2.debug.get_logistics_thread() or {}
 		if payload.key == "pause" then
 			data.paused = not data.paused
 			return true

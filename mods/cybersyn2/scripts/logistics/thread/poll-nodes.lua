@@ -102,7 +102,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	local inputs = comb.inputs
 	if not inputs then
 		strace(
-			TRACE,
+			WARN,
 			"message",
 			"Station hasn't been polled for inputs",
 			stop.entity
@@ -132,7 +132,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	local network_signal = comb:read_setting(combinator_settings.network_signal)
 	local is_each = network_signal == "signal-each"
 	local networks = {}
-	if not is_each then
+	if network_signal and not is_each then
 		networks[network_signal] = 1 -- TODO: default global network mask setting
 	end
 	for k, v in pairs(inputs) do
