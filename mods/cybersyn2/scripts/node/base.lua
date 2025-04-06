@@ -8,7 +8,7 @@ local tlib = require("__cybersyn2__.lib.table")
 local stlib = require("__cybersyn2__.lib.strace")
 local signal = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
-local inventory_api = _G.cs2.inventory_api
+local Inventory = _G.cs2.Inventory
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
@@ -218,10 +218,11 @@ end
 ---@param item SignalKey
 ---@return integer #Providable quantity
 ---@return integer #Outbound DT, valid only if qty>0.
----@return Cybersyn.Inventory #Node inventory
+---@return Cybersyn.Inventory? #Node inventory
 function Node:get_provide(item)
-	local inv, produce = inventory_api.get_inventory_info_by_id(self.inventory_id)
+	local inv = Inventory.get(self.inventory_id)
 	if not inv then return 0, 0, inv end
+	local produce = inv:get_net_produce()
 	local has = produce[item] or 0
 	if has == 0 then return 0, 0, inv end
 	local _, out_t = self:get_delivery_thresholds(item)
@@ -230,14 +231,14 @@ function Node:get_provide(item)
 end
 
 ---Determine how many of the given item the node can pull, accounting
----for thresholds and net inventory.
+---for thresholds and net inventory. Sign is flipped to positive.
 ---@return integer #Pullable quantity
 ---@return integer #Inbound DT, valid only if qty>0.
----@return Cybersyn.Inventory #Node inventory
+---@return Cybersyn.Inventory? #Node inventory
 function Node:get_pull(item)
-	local inv, _, consume =
-		inventory_api.get_inventory_info_by_id(self.inventory_id)
+	local inv = Inventory.get(self.inventory_id)
 	if not inv then return 0, 0, nil end
+	local consume = inv:get_net_consume()
 	local has = consume[item] or 0
 	if has == 0 then return 0, 0, inv end
 	has = -has
@@ -245,3 +246,6 @@ function Node:get_pull(item)
 	if has < in_t then return 0, in_t, inv end
 	return has, in_t, inv
 end
+
+---@return Cybersyn.Inventory?
+function Node:get_inventory() return Inventory.get(self.inventory_id) end

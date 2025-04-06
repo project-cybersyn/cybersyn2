@@ -360,8 +360,8 @@ _G.cs2.on_delivery_destroyed, _G.cs2.raise_delivery_destroyed =
 _G.cs2.on_delivery_state_changed, _G.cs2.raise_delivery_state_changed = event(
 	"delivery_state_changed",
 	"Cybersyn.Delivery",
-	"Cybersyn.Delivery.State",
-	"Cybersyn.Delivery.State",
+	"string",
+	"string",
 	"nil",
 	"nil"
 )

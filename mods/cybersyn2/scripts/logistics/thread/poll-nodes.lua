@@ -8,7 +8,6 @@ local stlib = require("__cybersyn2__.lib.strace")
 local tlib = require("__cybersyn2__.lib.table")
 local slib = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
-local inventory_api = _G.cs2.inventory_api
 local mod_settings = _G.cs2.mod_settings
 local combinator_settings = _G.cs2.combinator_settings
 local logistics_thread = _G.cs2.logistics_thread
@@ -16,8 +15,6 @@ local logistics_thread = _G.cs2.logistics_thread
 local strace = stlib.strace
 local TRACE = stlib.TRACE
 local WARN = stlib.WARN
-local get_net_produce = inventory_api.get_net_produce
-local get_net_consume = inventory_api.get_net_consume
 
 ---@param node Cybersyn.Node
 ---@param data Cybersyn.Internal.LogisticsThreadData
@@ -34,13 +31,13 @@ end
 ---@param stop Cybersyn.TrainStop
 ---@param data Cybersyn.Internal.LogisticsThreadData
 local function classify_inventory(stop, data)
-	local inventory = inventory_api.get_inventory(stop.inventory_id)
+	local inventory = stop:get_inventory()
 	-- TODO: this is ugly, apis to get at this inventory stuff should be
 	-- more centralized and less spaghetti
 	strace(TRACE, "message", "classify_inventory", stop.entity, inventory)
 	if not inventory then return end
 	if stop.is_producer then
-		for item, qty in pairs(get_net_produce(inventory)) do
+		for item, qty in pairs(inventory:get_net_produce()) do
 			local _, out_t = stop:get_delivery_thresholds(item)
 			if qty >= out_t then
 				add_to_logisics_set(data, "providers", stop, item)
@@ -50,7 +47,7 @@ local function classify_inventory(stop, data)
 		end
 	end
 	if stop.is_consumer then
-		for item, qty in pairs(get_net_consume(inventory)) do
+		for item, qty in pairs(inventory:get_net_consume()) do
 			local in_t = stop:get_delivery_thresholds(item)
 			if qty <= -in_t then
 				add_to_logisics_set(data, "pullers", stop, item)

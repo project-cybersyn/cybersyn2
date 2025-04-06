@@ -2,12 +2,11 @@
 -- Inventory abstraction
 --------------------------------------------------------------------------------
 
+local class = require("__cybersyn2__.lib.class").class
 local counters = require("__cybersyn2__.lib.counters")
 local signal_keys = require("__cybersyn2__.lib.signal")
 local DeliveryState = require("__cybersyn2__.lib.types").DeliveryState
-local log = require("__cybersyn2__.lib.logging")
 local cs2 = _G.cs2
-local inventory_api = _G.cs2.inventory_api
 
 -- This code is called in high performance dispatch loops. We will take some
 -- care to microoptimize here by using upvalues rather than globals. We will
@@ -33,16 +32,20 @@ local Failed = DeliveryState.Failed
 -- - Poll stations when trains leave.
 -- - Allow logistics algorithm to access live polling data.
 
+---@class Cybersyn.Inventory
+local Inventory = class("Inventory")
+_G.cs2.Inventory = Inventory
+
 ---Create a new inventory.
 ---@return Cybersyn.Inventory
-function _G.cs2.inventory_api.create_inventory()
+function Inventory.new()
 	local id = counters.next("inventory")
 
-	storage.inventories[id] = {
+	storage.inventories[id] = setmetatable({
 		id = id --[[@as Id]],
 		produce = {},
 		consume = {},
-	}
+	}, Inventory)
 	local inv = storage.inventories[id]
 	cs2.raise_inventory_created(inv)
 	return inv
@@ -51,33 +54,28 @@ end
 ---Get an inventory by ID.
 ---@param inventory_id Id?
 ---@return Cybersyn.Inventory?
-function _G.cs2.inventory_api.get_inventory(inventory_id)
-	if not inventory_id then return nil end
-	return storage.inventories[inventory_id]
-end
-local get_inventory = inventory_api.get_inventory
-
----@param id Id
-function _G.cs2.inventory_api.destroy_inventory(id)
-	local inventory = storage.inventories[id or ""]
-	if not inventory then return end
-	cs2.raise_inventory_destroyed(inventory)
-	storage.inventories[id] = nil
+function Inventory.get(inventory_id)
+	return storage.inventories[inventory_id or ""]
 end
 
----@param inventory Cybersyn.Inventory
-local function recompute_net(inventory)
+function Inventory:destroy()
+	cs2.raise_inventory_destroyed(self)
+	storage.inventories[self.id] = nil
+end
+
+---Recompute net inventory by adding flows to base.
+function Inventory:recompute_net()
 	-- If no flow, net = base.
-	if (not inventory.flow) or (not next(inventory.flow)) then
-		inventory.flow = nil
-		inventory.net_produce = nil
-		inventory.net_consume = nil
+	if (not self.flow) or (not next(self.flow)) then
+		self.flow = nil
+		self.net_produce = nil
+		self.net_consume = nil
 		return
 	end
-	local flow = inventory.flow --[[@as SignalCounts]]
+	local flow = self.flow --[[@as SignalCounts]]
 
 	-- Compute net produce
-	local produce = inventory.produce
+	local produce = self.produce
 	local net_produce = nil
 	if next(produce) then
 		net_produce = {}
@@ -86,10 +84,10 @@ local function recompute_net(inventory)
 			if net > 0 then net_produce[key] = net end
 		end
 	end
-	inventory.net_produce = net_produce
+	self.net_produce = net_produce
 
 	-- Compute net consume
-	local consume = inventory.consume
+	local consume = self.consume
 	local net_consume = nil
 	if next(consume) then
 		net_consume = {}
@@ -98,21 +96,15 @@ local function recompute_net(inventory)
 			if net < 0 then net_consume[key] = net end
 		end
 	end
-	inventory.net_consume = net_consume
+	self.net_consume = net_consume
 end
 
 ---Set the core produce/consume data of this inventory from signal values obtained
 ---by polling live Factorio data.
----@param inventory Cybersyn.Inventory
 ---@param signals SignalCounts
 ---@param is_consumer boolean Process consumes (negative inventory)
 ---@param is_producer boolean Process produces (positive inventory)
-function _G.cs2.inventory_api.set_base_inventory(
-	inventory,
-	signals,
-	is_consumer,
-	is_producer
-)
+function Inventory:set_base_inventory(signals, is_consumer, is_producer)
 	local produce = {}
 	local consume = {}
 
@@ -126,21 +118,20 @@ function _G.cs2.inventory_api.set_base_inventory(
 		end
 	end
 
-	inventory.produce = produce
-	inventory.consume = consume
-	recompute_net(inventory)
+	self.produce = produce
+	self.consume = consume
+	self:recompute_net()
 end
 
 ---Add the given counts to the current flow of this inventory.
----@param inventory Cybersyn.Inventory
 ---@param added_flow SignalCounts
 ---@param sign int 1 to add the flow, -1 to subtract it.
-function _G.cs2.inventory_api.add_flow(inventory, added_flow, sign)
-	local flow = inventory.flow or {}
-	local produce = inventory.produce
-	local consume = inventory.consume
-	local net_produce = inventory.net_produce
-	local net_consume = inventory.net_consume
+function Inventory:add_flow(added_flow, sign)
+	local flow = self.flow or {}
+	local produce = self.produce
+	local consume = self.consume
+	local net_produce = self.net_produce
+	local net_consume = self.net_consume
 
 	for key, count in pairs(added_flow) do
 		local new_flow = (flow[key] or 0) + sign * count
@@ -154,7 +145,7 @@ function _G.cs2.inventory_api.add_flow(inventory, added_flow, sign)
 		if p_count then
 			if not net_produce then
 				net_produce = {}
-				inventory.net_produce = net_produce
+				self.net_produce = net_produce
 			end
 			local net = p_count + new_flow
 			net_produce[key] = max(net, 0)
@@ -163,7 +154,7 @@ function _G.cs2.inventory_api.add_flow(inventory, added_flow, sign)
 		if r_count then
 			if not net_consume then
 				net_consume = {}
-				inventory.net_consume = net_consume
+				self.net_consume = net_consume
 			end
 			local net = r_count + new_flow
 			net_consume[key] = min(net, 0)
@@ -171,43 +162,31 @@ function _G.cs2.inventory_api.add_flow(inventory, added_flow, sign)
 	end
 
 	if next(flow) then
-		inventory.flow = flow
+		self.flow = flow
 	else
-		inventory.flow = nil
-		inventory.net_produce = nil
-		inventory.net_consume = nil
+		self.flow = nil
+		self.net_produce = nil
+		self.net_consume = nil
 	end
 end
 
 ---Get the net produces of this inventory. This is a READ-ONLY cached table
 ---that should not be retained beyond the current tick.
----@param inventory Cybersyn.Inventory
 ---@return SignalCounts
-function _G.cs2.inventory_api.get_net_produce(inventory)
-	return inventory.net_produce or inventory.produce
-end
+function Inventory:get_net_produce() return self.net_produce or self.produce end
 
 ---Get the net consumes of this inventory. This is a READ-ONLY cached table
 ---that should not be retained beyond the current tick.
----@param inventory Cybersyn.Inventory
 ---@return SignalCounts
-function _G.cs2.inventory_api.get_net_consume(inventory)
-	return inventory.net_consume or inventory.consume
-end
+function Inventory:get_net_consume() return self.net_consume or self.consume end
 
----@param inventory_id Id
----@return Cybersyn.Inventory? inv
 ---@return SignalCounts produce
 ---@return SignalCounts consume
 ---@return SignalCounts? flow
-function _G.cs2.inventory_api.get_inventory_info_by_id(inventory_id)
-	local inv = storage.inventories[inventory_id or ""]
-	---@diagnostic disable-next-line: missing-return-value
-	if not inv then return nil end
-	return inv,
-		inv.net_produce or inv.produce,
-		inv.net_consume or inv.consume,
-		inv.flow
+function Inventory:get_inventory_info()
+	return self.net_produce or self.produce,
+		self.net_consume or self.consume,
+		self.flow
 end
 
 --------------------------------------------------------------------------------
@@ -219,7 +198,7 @@ end
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
 		---@cast node Cybersyn.TrainStop
-		local inv = inventory_api.create_inventory()
+		local inv = Inventory.new()
 		node.inventory_id = inv.id
 		node.created_inventory_id = inv.id
 		inv.created_for_node_id = node.id
@@ -228,10 +207,8 @@ cs2.on_node_created(function(node)
 end, true)
 
 cs2.on_node_destroyed(function(node)
-	if node.type == "stop" then
-		---@cast node Cybersyn.TrainStop
-		inventory_api.destroy_inventory(node.created_inventory_id)
-	end
+	local inv = Inventory.get(node.created_inventory_id)
+	if inv then inv:destroy() end
 end)
 
 cs2.on_delivery_state_changed(function(delivery, new_state, old_state)

@@ -16,6 +16,11 @@ local lib = {}
 
 ---@alias PlayerIndex uint A Factorio `player_index` associated uniquely with a particular `LuaPlayer`.
 
+---@class StateMachine
+---@field public state string
+---@field public is_changing_state boolean? `true` if a state change is ongoing
+---@field public queued_state_changes string[]? A queue of state changes to be applied
+
 ---An opaque reference to EITHER a live combinator OR its ghost.
 ---@class Cybersyn.Combinator.Ephemeral
 ---@field public entity? LuaEntity The primary entity of the combinator OR its ghost.
@@ -143,24 +148,11 @@ lib.NodeNetworkOperation = {
 ---@field public net_consume SignalCounts? Request net of infflow, cached.
 ---@field public deliveries IdSet? The set of future deliveries targeting this inventory.
 
----@enum Cybersyn.Delivery.State
-lib.DeliveryState = {
-	Initializing = 1,
-	ToSource = 2,
-	Loading = 3,
-	ToDestination = 4,
-	Unloading = 5,
-	Completed = 100,
-	Failed = 200,
-}
-
----@class Cybersyn.Delivery
+---@class Cybersyn.Delivery: StateMachine
 ---@field public id Id
+---@field public type string
 ---@field public created_tick uint The tick this delivery was created.
 ---@field public state_tick uint The tick this delivery entered its current state.
----@field public state Cybersyn.Delivery.State The current state of the delivery.
----@field public is_changing_state boolean? `true` if the delivery is in the process of changing state.
----@field public queued_state_changes Cybersyn.Delivery.State[]? Reentrant state changes are not allowed; queue them here.
 ---@field public vehicle_id Id The id of the vehicle this delivery is assigned to.
 ---@field public source_id Id The id of the node this delivery is from.
 ---@field public destination_id Id The id of the node this delivery is to.

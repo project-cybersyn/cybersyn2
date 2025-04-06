@@ -7,7 +7,6 @@
 local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
-local inventory_api = _G.cs2.inventory_api
 local Topology = _G.cs2.Topology
 
 --------------------------------------------------------------------------------
@@ -24,8 +23,8 @@ local function cleanup_next_t(data)
 	-- clear allocations (dispatch phase should do this)
 	if data.allocations then
 		for _, alloc in pairs(data.allocations) do
-			inventory_api.add_flow(alloc.from_inv, { [alloc.item] = alloc.qty }, 1)
-			inventory_api.add_flow(alloc.to_inv, { [alloc.item] = alloc.qty }, -1)
+			alloc.from_inv:add_flow({ [alloc.item] = alloc.qty }, 1)
+			alloc.to_inv:add_flow({ [alloc.item] = alloc.qty }, -1)
 		end
 		data.allocations = nil
 	end

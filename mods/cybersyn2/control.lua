@@ -5,8 +5,6 @@
 _G.cs2 = {
 	remote_api = {},
 	threads_api = {},
-	delivery_api = {},
-	inventory_api = {},
 	gui = {},
 	lib = {},
 	---Debug APIs, do not use.
@@ -21,15 +19,16 @@ require("scripts.settings")
 require("scripts.lib")
 require("scripts.threads")
 
+require("scripts.logistics.inventory.base")
+
 require("scripts.combinator.base")
 require("scripts.combinator.setting")
 require("scripts.combinator.lifecycle")
 require("scripts.combinator.mode")
-require("scripts.combinator.state")
 require("scripts.combinator.gui.base")
 require("scripts.combinator.gui.elements")
 
-require("scripts.node.base")
+require("scripts.node.base") -- needs inventory
 require("scripts.node.topology")
 require("scripts.node.stop.base")
 require("scripts.node.stop.lifecycle")
@@ -37,12 +36,13 @@ require("scripts.node.stop.layout.base")
 require("scripts.node.stop.layout.equipment")
 require("scripts.node.stop.layout.pattern")
 
+require("scripts.combinator.state") -- needs inventory, node
+
 require("scripts.vehicle.base")
 require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")
 require("scripts.vehicle.train.layout")
 
-require("scripts.logistics.inventory.base")
 require("scripts.logistics.delivery.base")
 
 require("scripts.combinator.modes.station.base")

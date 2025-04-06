@@ -6,8 +6,8 @@
 
 local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
-local inventory_api = _G.cs2.inventory_api
 local Node = _G.cs2.Node
+local Inventory = _G.cs2.Inventory
 
 local strace = stlib.strace
 local TRACE = stlib.TRACE
@@ -32,13 +32,12 @@ local function read_inventory(combinator)
 		)
 		return
 	end
-	local inventory = inventory_api.get_inventory(stop.inventory_id)
+	local inventory = Inventory.get(stop.inventory_id)
 	if not inventory then
 		strace(WARN, "message", "stop without an inventory", stop.entity)
 		return
 	end
-	inventory_api.set_base_inventory(
-		inventory,
+	inventory:set_base_inventory(
 		combinator.inputs or {},
 		stop.is_consumer,
 		stop.is_producer

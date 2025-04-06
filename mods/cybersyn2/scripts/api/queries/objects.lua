@@ -2,7 +2,7 @@ local tlib = require("__cybersyn2__.lib.table")
 local types = require("__cybersyn2__.lib.types")
 local ContainerType = types.ContainerType
 local PrimitiveType = types.PrimitiveType
-local inventory_api = _G.cs2.inventory_api
+local Inventory = _G.cs2.Inventory
 
 local map = tlib.map
 local Combinator = _G.cs2.Combinator
@@ -62,7 +62,7 @@ function _G.cs2.query_handlers.inventories(arg)
 	---@type Cybersyn.Inventory[]
 	local res = nil
 	if arg.ids then
-		res = map(arg.ids, function(id) return inventory_api.get_inventory(id) end)
+		res = map(arg.ids, function(id) return Inventory.get(id) end)
 	end
 	return { data = res or {}, type = inv_list_datatype }
 end

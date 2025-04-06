@@ -5,10 +5,8 @@
 local tlib = require("__cybersyn2__.lib.table")
 local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
-local threads_api = _G.cs2.threads_api
 local logistics_thread = _G.cs2.logistics_thread
 local mod_settings = _G.cs2.mod_settings
-local inventory_api = _G.cs2.inventory_api
 local Node = _G.cs2.Node
 
 local strace = stlib.strace
@@ -20,7 +18,6 @@ local map = tlib.map
 local t_map_a = tlib.t_map_a
 local filter = tlib.filter
 local min = math.min
-local add_flow = inventory_api.add_flow
 
 ---A logistics allocation.
 ---@class Cybersyn.Internal.LogisticsAllocation
@@ -78,8 +75,8 @@ local function alloc(
 	prio
 )
 	local flow = { [item] = qty }
-	add_flow(from_inv, flow, -1)
-	add_flow(to_inv, flow, 1)
+	from_inv:add_flow(flow, -1)
+	to_inv:add_flow(flow, 1)
 	local allocation = {
 		from = from_node,
 		from_inv = from_inv,
@@ -119,12 +116,12 @@ local function alloc_item_pull_provider(
 	pull_prio
 )
 	local wanted, puller_in_t, puller_inv = puller_i:get_pull(item)
-	if wanted == 0 then
+	if wanted == 0 or not puller_inv then
 		-- Puller no longer wants anything
 		return remove_from_logistics_set(data, "pullers", puller_i.id, item)
 	end
 	local avail, provider_out_t, provider_inv = provider_i:get_provide(item)
-	if avail == 0 then
+	if avail == 0 or not provider_inv then
 		-- Provider is no longer providing
 		return remove_from_logistics_set(data, "providers", provider_i.id, item)
 	end
