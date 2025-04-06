@@ -117,6 +117,7 @@ function Train.new(lua_train)
 	if not topology then return nil end
 
 	local train = Vehicle.new("train") --[[@as Cybersyn.Train]]
+	setmetatable(train, Train)
 	train.lua_train = lua_train
 	train.stock = stock
 	train.lua_train_id = lua_train.id

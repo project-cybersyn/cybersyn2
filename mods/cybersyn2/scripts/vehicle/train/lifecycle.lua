@@ -55,7 +55,14 @@ local function monitor_enum_luatrain(luatrain, data)
 
 	-- If train has no group, remove it if we know about it
 	if not group_name then
-		if vehicle then vehicle:destroy() end
+		if vehicle then
+			strace(
+				stlib.DEBUG,
+				"Destroying vehicle for not being in a train group",
+				vehicle
+			)
+			vehicle:destroy()
+		end
 		return
 	end
 
@@ -77,7 +84,14 @@ local function monitor_enum_luatrain(luatrain, data)
 			cs2.create_train_group(group_name)
 		else
 			-- Train is in a non-cybersyn group. If we know about it, remove it.
-			if vehicle then vehicle:destroy() end
+			if vehicle then
+				strace(
+					stlib.DEBUG,
+					"Destroying vehicle for not being in a CS group",
+					vehicle
+				)
+				vehicle:destroy()
+			end
 			return
 		end
 	end
@@ -87,12 +101,7 @@ local function monitor_enum_luatrain(luatrain, data)
 	if not vehicle then vehicle = Train.new(luatrain) end
 	if not vehicle then
 		-- Strange situation; vehicle already exists?
-		strace(
-			WARN,
-			"message",
-			"Encountered supposedly impossible condition while create_train()",
-			luatrain
-		)
+		-- strace(WARN, "message", "couldn't create train for luatrain", luatrain)
 		return
 	end
 	cs2.add_train_to_group(vehicle, group_name)
@@ -116,7 +125,15 @@ end
 local function monitor_enum_cstrain(vehicle_id, data)
 	if not vehicle_id then return end
 	local train = Vehicle.get(vehicle_id, true)
-	if train and (not train:is_valid()) then train:destroy() end
+	if train and (not train:is_valid()) then
+		strace(
+			stlib.INFO,
+			"message",
+			"enum_cstrain: destroying train for being invalid",
+			train
+		)
+		train:destroy()
+	end
 end
 
 local function monitor_enum_cstrains(data)

@@ -8,6 +8,7 @@ local lib = {}
 
 function lib.class(name, extends)
 	local mt = {}
+	mt.classname = name
 	if extends then tlib.assign(mt, extends) end
 	mt.__index = mt
 	if script then script.register_metatable(name, mt) end
