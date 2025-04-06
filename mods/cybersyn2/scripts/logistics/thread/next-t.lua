@@ -6,56 +6,33 @@
 
 local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
-local mod_settings = _G.cs2.mod_settings
 local Topology = _G.cs2.Topology
 
---------------------------------------------------------------------------------
--- Loop state lifecycle
---------------------------------------------------------------------------------
+---@class Cybersyn.LogisticsThread
+local LogisticsThread = _G.cs2.LogisticsThread
 
----@param data Cybersyn.Internal.LogisticsThreadData
-local function cleanup_next_t(data)
-	data.topologies = nil
-	data.current_topology = nil
-	data.active_topologies = nil
-	data.nodes = nil
-	-- XXX: temp debugging
-	-- clear allocations (dispatch phase should do this)
-	if data.allocations then
-		for _, alloc in pairs(data.allocations) do
-			alloc.from_inv:add_flow({ [alloc.item] = alloc.qty }, 1)
-			alloc.to_inv:add_flow({ [alloc.item] = alloc.qty }, -1)
-		end
-		data.allocations = nil
-	end
-	cs2.logistics_thread.goto_init(data)
-end
-
----@param data Cybersyn.Internal.LogisticsThreadData
-function _G.cs2.logistics_thread.goto_next_t(data)
-	if not data.topologies then
-		if data.active_topologies then
-			data.topologies = tlib.t_map_a(
-				data.active_topologies,
+function LogisticsThread:enter_next_t()
+	if not self.topologies then
+		if self.active_topologies then
+			self.topologies = tlib.t_map_a(
+				self.active_topologies,
 				function(_, k) return Topology.get(k) end
 			)
-			data.current_topology = 1
+			self.current_topology = 1
 		else
-			return cleanup_next_t(data)
+			return self:set_state("init")
 		end
 	else
-		data.current_topology = data.current_topology + 1
+		self.current_topology = self.current_topology + 1
 	end
-	cs2.logistics_thread.set_state(data, "next_t")
 end
 
----@param data Cybersyn.Internal.LogisticsThreadData
-function _G.cs2.logistics_thread.next_t(data)
+function LogisticsThread:next_t(data)
 	local topology = data.topologies[data.current_topology]
-	if not topology then return cleanup_next_t(data) end
+	if not topology then return self:set_state("init") end
 	local id = topology.id
 	data.nodes = tlib.t_map_a(storage.nodes, function(node)
 		if node.topology_id == id then return node end
 	end)
-	_G.cs2.logistics_thread.goto_poll_nodes(data)
+	self:set_state("poll_nodes")
 end

@@ -6,6 +6,8 @@ local tlib = require("__cybersyn2__.lib.table")
 
 local lib = {}
 
+local registered_metatables = {}
+
 ---Create a class metatable. If `name` is given, registers it with Factorio
 ---for serialization.
 ---@param name? string
@@ -22,7 +24,10 @@ function lib.class(name, ...)
 	end
 	mt.classname = name
 	mt.__index = mt
-	if script and name then script.register_metatable(name, mt) end
+	if script and name then
+		script.register_metatable(name, mt)
+		registered_metatables[name] = mt
+	end
 	return mt
 end
 

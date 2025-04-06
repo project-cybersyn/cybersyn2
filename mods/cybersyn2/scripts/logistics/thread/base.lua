@@ -2,23 +2,18 @@
 -- Logistics thread
 --------------------------------------------------------------------------------
 
+local class = require("__cybersyn2__.lib.class").class
 local log = require("__cybersyn2__.lib.logging")
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local cs2 = _G.cs2
-local threads_api = _G.cs2.threads_api
 
-_G.cs2.logistics_thread = {}
-local dispatch_table = _G.cs2.logistics_thread
+---@alias Cybersyn.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"find_vehicles"|"route"
 
----@alias Cybersyn.Internal.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"find_vehicles"|"route"
-
----@class (exact) Cybersyn.Internal.LogisticsThreadData
----@field state Cybersyn.Internal.LogisticsThreadState State of the task.
+---@class Cybersyn.LogisticsThread: StatefulThread
+---@field state Cybersyn.LogisticsThreadState State of the task.
 ---@field paused boolean? `true` if loop is paused
 ---@field stepped boolean? `true` if user wants to execute one step
 ---@field iteration int The current number of iterations in this state.
----@field stride int The number of items to process per iteration
----@field index int The current index in the enumeration.
 ---@field topologies Cybersyn.Topology[]? Topologies to iterate
 ---@field current_topology int Current topology being iterated.
 ---@field combinators UnitNumber[]? Combinators to iterate
@@ -36,94 +31,54 @@ local dispatch_table = _G.cs2.logistics_thread
 ---@field cargo SignalKey[]? List of cargo.
 ---@field all_vehicles Id[]? All vehicles in the topology
 ---@field avail_trains table<Id, Cybersyn.Train>? Available trains
----@field trains_by_icap Cybersyn.Train[]? Trains by increasing item capacity
----@field trains_by_fcap Cybersyn.Train[]? Trains by increasing fluid capacity
+local LogisticsThread = class("LogisticsThread", cs2.StatefulThread)
+_G.cs2.LogisticsThread = LogisticsThread
 
----@class Cybersyn.Internal.LogisticsThread: Scheduler.RecurringTask
----@field public data Cybersyn.Internal.LogisticsThreadData
+function LogisticsThread.new()
+	local thread = setmetatable({}, LogisticsThread) --[[@as Cybersyn.LogisticsThread]]
+	thread:set_state("init")
+	return thread
+end
 
----@param task Cybersyn.Internal.LogisticsThread
-local function main_loop(task)
-	local data = task.data
-	-- TODO: pause/resume/step
-	if data.paused and not data.stepped then return end
-	local state = data.state
-	if not state then
-		log.error("Invalid thread state:", state)
-		return
+function LogisticsThread:main()
+	if self.paused and not self.stepped then return end
+	local state = self.state
+	if not state then return end
+	local handler = self[state]
+	if not handler then return end
+	handler(self)
+	if self.stepped and self.paused then
+		self.stepped = false
+		cs2.raise_debug_loop("step", self)
 	end
-
-	local func = dispatch_table[state]
-	if not func then
-		log.error("Invalid thread state:", state)
-		return
-	end
-
-	func(data)
-	data.stepped = false
-	if data.paused then cs2.raise_debug_loop("step", data) end
 end
 
 -- TODO: logistics start pauised for debugging, change for beta.
-threads_api.schedule_thread(
-	"logistics",
-	main_loop,
-	0,
-	{ state = "init", paused = true }
-)
+cs2.schedule_thread("logistics", 0, function() return LogisticsThread.new() end)
 
----@param data Cybersyn.Internal.LogisticsThreadData
----@param state Cybersyn.Internal.LogisticsThreadState
-function _G.cs2.logistics_thread.set_state(data, state)
-	if state ~= data.state then
-		data.state = state
-		cs2.raise_debug_loop("state", data)
-	end
-end
-
-function _G.cs2.logistics_thread.goto_init(data)
-	cs2.logistics_thread.set_state(data, "init")
-end
-
----@param data Cybersyn.Internal.LogisticsThreadData
-function _G.cs2.logistics_thread.init(data)
-	_G.cs2.logistics_thread.goto_poll_combinators(data)
-end
-
----@return Cybersyn.Internal.LogisticsThreadData?
-function _G.cs2.debug.get_logistics_thread_data()
+---@return Cybersyn.LogisticsThread?
+function _G.cs2.debug.get_logistics_thread()
 	local id = storage.task_ids["logistics"]
 	if id then
-		local t = scheduler.get(id) --[[@as Cybersyn.Internal.LogisticsThread]]
+		local t = scheduler.get(id)
 		if t then return t.data end
 	end
 end
 
---------------------------------------------------------------------------------
--- Helper fns
---------------------------------------------------------------------------------
-
----Execute `stride` iterations of a general loop over state data.
----@param data Cybersyn.Internal.LogisticsThreadData
----@param list any[]
----@param item_handler fun(item: any, data: Cybersyn.Internal.LogisticsThreadData, index: integer)
----@param finish_handler fun(data: Cybersyn.Internal.LogisticsThreadData)
-function _G.cs2.logistics_thread.stride_loop(
-	data,
-	list,
-	item_handler,
-	finish_handler
-)
-	local n = #list
-	-- Handle `stride` number of items
-	local max_index = math.min(data.index + data.stride, n)
-	for i = data.index, max_index do
-		item_handler(list[i], data, i)
-	end
-	-- If this finished, exec the finish handler
-	if max_index >= n then
-		finish_handler(data)
-	else
-		data.index = max_index + 1
+function LogisticsThread:enter_init()
+	data.topologies = nil
+	data.current_topology = nil
+	data.active_topologies = nil
+	data.nodes = nil
+	-- XXX: temp debugging
+	-- clear allocations (dispatch phase should do this)
+	if data.allocations then
+		for _, alloc in pairs(data.allocations) do
+			alloc.from_inv:add_flow({ [alloc.item] = alloc.qty }, 1)
+			alloc.to_inv:add_flow({ [alloc.item] = alloc.qty }, -1)
+		end
+		data.allocations = nil
 	end
 end
+
+function LogisticsThread:init() self:set_state("poll_combinators") end

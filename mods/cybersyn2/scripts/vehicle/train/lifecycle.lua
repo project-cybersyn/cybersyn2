@@ -2,10 +2,8 @@
 -- Train lifecycle.
 --------------------------------------------------------------------------------
 
-local scheduler = require("__cybersyn2__.lib.scheduler")
-local log = require("__cybersyn2__.lib.logging")
+local class = require("__cybersyn2__.lib.class").class
 local stlib = require("__cybersyn2__.lib.strace")
-local counters = require("__cybersyn2__.lib.counters")
 local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
@@ -20,35 +18,35 @@ local WARN = stlib.WARN
 -- Train group monitor background thread
 --------------------------------------------------------------------------------
 
----@class (exact) Cybersyn.Internal.TrainMonitorTaskData
+---@class Cybersyn.Internal.TrainMonitor: StatefulThread
 ---@field state "init"|"enum_luatrains"|"enum_cstrains" State of the task.
----@field stride int The number of trains to process per iteration
----@field index int The current index in the enumeration.
 ---@field trains LuaTrain[] Extant luatrains at beginning of sweep.
 ---@field seen_groups table<string, true> Cybersyn groups seen by sweep.
 ---@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
+local TrainMonitor = class("TrainMonitor", cs2.StatefulThread)
 
----@class Cybersyn.Internal.TrainMonitorTask: Scheduler.RecurringTask
----@field public data Cybersyn.Internal.TrainMonitorTaskData
+function TrainMonitor.new()
+	local thread = setmetatable({}, TrainMonitor) --[[@as Cybersyn.Internal.TrainMonitor]]
+	thread:set_state("init")
+	return thread
+end
 
----@param data Cybersyn.Internal.TrainMonitorTaskData
-local function monitor_init(data)
-	data.stride =
+function TrainMonitor:init()
+	if game and game.train_manager then self:set_state("enum_luatrains") end
+end
+
+function TrainMonitor:enter_enum_luatrains()
+	self.stride =
 		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
-	data.index = 1
-	data.seen_groups = {}
-	if game and game.train_manager then
-		data.trains = game.train_manager.get_trains(ALL_TRAINS_FILTER)
-		data.train_ids = tlib.t_map_a(Vehicle.all(), function(veh)
-			if veh.type == "train" then return veh.id end
-		end)
-		data.state = "enum_luatrains"
-	end
+	self.index = 1
+	self.seen_groups = {}
+	self.trains = game.train_manager.get_trains(ALL_TRAINS_FILTER)
+
+	self:set_state("enum_luatrains")
 end
 
 ---@param luatrain LuaTrain
----@param data Cybersyn.Internal.TrainMonitorTaskData
-local function monitor_enum_luatrain(luatrain, data)
+function TrainMonitor:enum_luatrain(luatrain)
 	if (not luatrain) or not luatrain.valid then return end
 	local group_name = luatrain.group
 	local vehicle = Train.get_from_luatrain_id(luatrain.id)
@@ -66,7 +64,7 @@ local function monitor_enum_luatrain(luatrain, data)
 		return
 	end
 
-	data.seen_groups[group_name] = true
+	self.seen_groups[group_name] = true
 	local group = cs2.get_train_group(group_name)
 	if group then
 		if vehicle then
@@ -107,22 +105,23 @@ local function monitor_enum_luatrain(luatrain, data)
 	cs2.add_train_to_group(vehicle, group_name)
 end
 
----@param data Cybersyn.Internal.TrainMonitorTaskData
-local function monitor_enum_luatrains(data)
-	local max_index = math.min(data.index + data.stride, #data.trains)
-	for i = data.index, max_index do
-		monitor_enum_luatrain(data.trains[i], data)
-	end
-	if max_index >= #data.trains then
-		data.state = "enum_cstrains"
-		data.index = 1
-		data.trains = nil
-	else
-		data.index = max_index + 1
-	end
+function TrainMonitor:enum_luatrains()
+	self:async_loop(
+		self.trains,
+		self.enum_luatrain,
+		function(thr) thr:set_state("enum_cstrains") end
+	)
 end
 
-local function monitor_enum_cstrain(vehicle_id, data)
+function TrainMonitor:enter_enum_cstrains()
+	self.index = 1
+	self.trains = nil
+	self.train_ids = tlib.t_map_a(Vehicle.all(), function(veh)
+		if veh.type == "train" then return veh.id end
+	end)
+end
+
+function TrainMonitor:enum_cstrain(vehicle_id)
 	if not vehicle_id then return end
 	local train = Vehicle.get(vehicle_id, true)
 	if train and (not train:is_valid()) then
@@ -136,32 +135,18 @@ local function monitor_enum_cstrain(vehicle_id, data)
 	end
 end
 
-local function monitor_enum_cstrains(data)
-	local max_index = math.min(data.index + data.stride, #data.train_ids)
-	for i = data.index, max_index do
-		monitor_enum_cstrain(data.train_ids[i], data)
-	end
-	if max_index >= #data.train_ids then
-		data.state = "init"
-		data.index = nil
-		data.train_ids = nil
-	else
-		data.index = max_index + 1
-	end
+function TrainMonitor:enum_cstrains()
+	self:async_loop(
+		self.train_ids,
+		self.enum_cstrain,
+		function(thr) thr:set_state("init") end
+	)
 end
 
----@param task Cybersyn.Internal.TrainMonitorTask
-local function train_group_monitor(task)
-	local data = task.data
-	if data.state == "init" then
-		monitor_init(data)
-	elseif data.state == "enum_luatrains" then
-		monitor_enum_luatrains(data)
-	elseif data.state == "enum_cstrains" then
-		monitor_enum_cstrains(data)
-	end
-end
+function TrainMonitor:exit_enum_cstrains() self.train_ids = nil end
 
--- TODO: use threads api better here
-
-cs2.threads_api.schedule_thread("train_group_monitor", train_group_monitor, 1)
+cs2.schedule_thread(
+	"train_group_monitor",
+	1,
+	function() return TrainMonitor.new() end
+)

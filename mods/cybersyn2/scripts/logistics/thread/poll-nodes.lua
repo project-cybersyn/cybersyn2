@@ -16,21 +16,43 @@ local strace = stlib.strace
 local TRACE = stlib.TRACE
 local WARN = stlib.WARN
 
+---@class Cybersyn.LogisticsThread
+local LogisticsThread = _G.cs2.LogisticsThread
+
+---@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
 ---@param node Cybersyn.Node
----@param data Cybersyn.Internal.LogisticsThreadData
 ---@param item SignalKey
-local function add_to_logisics_set(data, logistics_type, node, item)
-	local nodes = data[logistics_type][item]
+function LogisticsThread:add_to_logisics_set(logistics_type, node, item)
+	local nodes = self[logistics_type][item]
 	if not nodes then
 		nodes = {}
-		data[logistics_type][item] = nodes
+		self[logistics_type][item] = nodes
 	end
 	nodes[node.id] = true
 end
 
+---@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
+---@param node_id Id
+---@param item SignalKey
+function LogisticsThread:is_in_logistics_set(logistics_type, node_id, item)
+	local set = self[logistics_type][item]
+	return set and set[node_id]
+end
+
+---@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
+---@param node_id Id
+---@param item SignalKey
+function LogisticsThread:remove_from_logistics_set(
+	logistics_type,
+	node_id,
+	item
+)
+	local set = self[logistics_type][item]
+	if set then set[node_id] = nil end
+end
+
 ---@param stop Cybersyn.TrainStop
----@param data Cybersyn.Internal.LogisticsThreadData
-local function classify_inventory(stop, data)
+function LogisticsThread:classify_inventory(stop)
 	local inventory = stop:get_inventory()
 	-- TODO: this is ugly, apis to get at this inventory stuff should be
 	-- more centralized and less spaghetti
@@ -40,8 +62,8 @@ local function classify_inventory(stop, data)
 		for item, qty in pairs(inventory:get_net_produce()) do
 			local _, out_t = stop:get_delivery_thresholds(item)
 			if qty >= out_t then
-				add_to_logisics_set(data, "providers", stop, item)
-				data.seen_cargo[item] = true
+				self:add_to_logisics_set("providers", stop, item)
+				self.seen_cargo[item] = true
 			end
 			-- TODO: push
 		end
@@ -50,8 +72,8 @@ local function classify_inventory(stop, data)
 		for item, qty in pairs(inventory:get_net_consume()) do
 			local in_t = stop:get_delivery_thresholds(item)
 			if qty <= -in_t then
-				add_to_logisics_set(data, "pullers", stop, item)
-				data.seen_cargo[item] = true
+				self:add_to_logisics_set("pullers", stop, item)
+				self.seen_cargo[item] = true
 			end
 			-- TODO: sink
 		end
@@ -59,7 +81,7 @@ local function classify_inventory(stop, data)
 end
 
 ---@param stop Cybersyn.TrainStop
-local function poll_train_stop_station_comb(stop, data)
+function LogisticsThread:poll_train_stop_station_comb(stop)
 	local combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "station" end
 	)
@@ -136,57 +158,44 @@ local function poll_train_stop_station_comb(stop, data)
 end
 
 ---@param stop Cybersyn.TrainStop
----@param data Cybersyn.Internal.LogisticsThreadData
-local function poll_train_stop(stop, data)
+function LogisticsThread:poll_train_stop(stop)
 	-- Check warming-up state. Skip stops that are warming up.
 	-- TODO: this should be a mod_setting
 	if stop.created_tick + 1 > game.tick then return end
 	-- Get station comb info
-	if not poll_train_stop_station_comb(stop, data) then return end
+	if not self:poll_train_stop_station_comb(stop) then return end
 	-- Get delivery thresholds
 	-- Get push thresholds
 	-- Get sink thresholds
 	-- Get priorities
 	-- Classify inventory of stop
-	return classify_inventory(stop, data)
+	return self:classify_inventory(stop)
 end
 
 ---@param node Cybersyn.Node
----@param data Cybersyn.Internal.LogisticsThreadData
-local function poll_node(node, data)
+function LogisticsThread:poll_node(node)
 	if node.type == "stop" then
-		return poll_train_stop(node --[[@as Cybersyn.TrainStop]], data)
+		return self:poll_train_stop(node --[[@as Cybersyn.TrainStop]])
 	end
 end
 
---------------------------------------------------------------------------------
--- Loop state lifecycle
---------------------------------------------------------------------------------
-
----@param data Cybersyn.Internal.LogisticsThreadData
-function _G.cs2.logistics_thread.goto_poll_nodes(data)
-	data.providers = {}
-	data.pushers = {}
-	data.pullers = {}
-	data.sinks = {}
-	data.dumps = {}
-	data.seen_cargo = {}
-	data.stride =
+function LogisticsThread:enter_poll_nodes()
+	self.providers = {}
+	self.pushers = {}
+	self.pullers = {}
+	self.sinks = {}
+	self.dumps = {}
+	self.seen_cargo = {}
+	self.stride =
 		math.ceil(mod_settings.work_factor * cs2.PERF_NODE_POLL_WORKLOAD)
-	data.index = 1
-	data.iteration = 1
-	data.state = "poll_nodes"
+	self.index = 1
+	self.iteration = 1
 end
 
----@param data Cybersyn.Internal.LogisticsThreadData
-local function cleanup_poll_nodes(data) logistics_thread.goto_alloc(data) end
-
----@param data Cybersyn.Internal.LogisticsThreadData
-function _G.cs2.logistics_thread.poll_nodes(data)
-	cs2.logistics_thread.stride_loop(
-		data,
-		data.nodes,
-		poll_node,
-		function(data2) cleanup_poll_nodes(data2) end
+function LogisticsThread:poll_nodes()
+	self:async_loop(
+		self.nodes,
+		self.poll_node,
+		function(x) x:set_state("alloc") end
 	)
 end

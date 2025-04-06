@@ -19,6 +19,9 @@ local t_map_a = tlib.t_map_a
 local filter = tlib.filter
 local min = math.min
 
+---@class Cybersyn.LogisticsThread
+local LogisticsThread = _G.cs2.LogisticsThread
+
 ---A logistics allocation.
 ---@class Cybersyn.Internal.LogisticsAllocation
 ---@field public from Cybersyn.Node
@@ -32,14 +35,13 @@ local min = math.min
 ---@field public prio int
 
 ---Get and cache descending prio groups for a given item/logistic_type
----@param data Cybersyn.Internal.LogisticsThreadData
 ---@param item string
----@param base_key string
----@param p_key string
+---@param base_key "providers" | "pushers" | "pullers" | "sinks"
+---@param p_key "providers_p" | "pushers_p" | "pullers_p" | "sinks_p"
 ---@return [Cybersyn.Node,int][][]
-local function get_descending_prio_groups(data, item, base_key, p_key)
-	if data[p_key][item] then return data[p_key][item] end
-	local xs = data[base_key] --[[@as table<SignalKey, IdSet>]]
+function LogisticsThread:get_descending_prio_groups(item, base_key, p_key)
+	if self[p_key][item] then return self[p_key][item] end
+	local xs = self[base_key] --[[@as table<SignalKey, IdSet>]]
 	local x_i = xs[item]
 	if not x_i or table_size(x_i) == 0 then return {} end
 	local g_i = t_map_a(x_i, function(_, id)
@@ -48,11 +50,10 @@ local function get_descending_prio_groups(data, item, base_key, p_key)
 	end)
 	tsort(g_i, function(a, b) return a[2] > b[2] end)
 	local g = tlib.group_by(g_i, 2)
-	data[p_key][item] = g
+	self[p_key][item] = g
 	return g
 end
 
----@param data Cybersyn.Internal.LogisticsThreadData
 ---@param from_node Cybersyn.Node
 ---@param from_inv Cybersyn.Inventory
 ---@param from_thresh uint
@@ -62,8 +63,7 @@ end
 ---@param item SignalKey
 ---@param qty integer
 ---@param prio integer
-local function alloc(
-	data,
+function LogisticsThread:allocate(
 	from_node,
 	from_inv,
 	from_thresh,
@@ -89,17 +89,7 @@ local function alloc(
 		prio = prio,
 	}
 	strace(DEBUG, "alloc", item, "allocation", allocation)
-	data.allocations[#data.allocations + 1] = allocation
-end
-
-local function in_logistics_set(data, logistics_type, node_id, item)
-	local set = data[logistics_type][item]
-	return set and set[node_id]
-end
-
-local function remove_from_logistics_set(data, logistics_type, node_id, item)
-	local set = data[logistics_type][item]
-	if set then set[node_id] = nil end
+	self.allocations[#self.allocations + 1] = allocation
 end
 
 --------------------------------------------------------------------------------
@@ -108,8 +98,7 @@ end
 
 ---@param puller_i Cybersyn.Node
 ---@param provider_i Cybersyn.Node
-local function alloc_item_pull_provider(
-	data,
+function LogisticsThread:alloc_item_pull_provider(
 	item,
 	provider_i,
 	puller_i,
@@ -118,16 +107,15 @@ local function alloc_item_pull_provider(
 	local wanted, puller_in_t, puller_inv = puller_i:get_pull(item)
 	if wanted == 0 or not puller_inv then
 		-- Puller no longer wants anything
-		return remove_from_logistics_set(data, "pullers", puller_i.id, item)
+		return self:remove_from_logistics_set("pullers", puller_i.id, item)
 	end
 	local avail, provider_out_t, provider_inv = provider_i:get_provide(item)
 	if avail == 0 or not provider_inv then
 		-- Provider is no longer providing
-		return remove_from_logistics_set(data, "providers", provider_i.id, item)
+		return self:remove_from_logistics_set("providers", provider_i.id, item)
 	end
 	if wanted >= provider_out_t and avail >= puller_in_t then
-		return alloc(
-			data,
+		return self:allocate(
 			provider_i,
 			provider_inv,
 			provider_out_t,
@@ -141,42 +129,41 @@ local function alloc_item_pull_provider(
 	end
 end
 
----@param data Cybersyn.Internal.LogisticsThreadData
+---@param data Cybersyn.LogisticsThread
 ---@param node Cybersyn.Node
 ---@param item SignalKey
 local function provider_match(data, node, item)
 	---@param np [Cybersyn.Node, integer]
 	return function(np)
-		return in_logistics_set(data, "providers", np[1].id, item)
+		return data:is_in_logistics_set("providers", np[1].id, item)
 			and node:is_item_match(np[1], item)
 	end
 end
 
----@param data Cybersyn.Internal.LogisticsThreadData
 ---@param item SignalKey
 ---@param puller_i Cybersyn.Node
 ---@param pull_prio integer
-local function alloc_item_pull_providers(data, item, puller_i, pull_prio)
+function LogisticsThread:alloc_item_pull_providers(item, puller_i, pull_prio)
 	local groups =
-		get_descending_prio_groups(data, item, "providers", "providers_p")
+		self:get_descending_prio_groups(item, "providers", "providers_p")
 	for i = 1, #groups do
-		-- Filter nodes by channel match
-		local providers_ip = filter(groups[i], provider_match(data, puller_i, item))
+		-- Filter providers. This will check if the provider is still providing
+		-- as well as channel and network matches.
+		local providers_ip = filter(groups[i], provider_match(self, puller_i, item))
 		strace(DEBUG, "alloc", item, "providers_ip", providers_ip)
 		if #providers_ip > 0 then
 			-- TODO: distance-busy-sort remaining nodes
 			tlib.shuffle(providers_ip)
 			-- Round-robin pull over providers
 			for j = 1, #providers_ip do
-				alloc_item_pull_provider(
-					data,
+				self:alloc_item_pull_provider(
 					item,
 					providers_ip[j][1],
 					puller_i,
 					pull_prio
 				)
-				-- If puller is no longer pulling we can unwind the loop
-				if not in_logistics_set(data, "pullers", puller_i.id, item) then
+				-- Optimize: If puller is no longer pulling we can unwind the loop
+				if not self:is_in_logistics_set("pullers", puller_i.id, item) then
 					return
 				end
 			end
@@ -184,10 +171,9 @@ local function alloc_item_pull_providers(data, item, puller_i, pull_prio)
 	end
 end
 
----@param data Cybersyn.Internal.LogisticsThreadData
 ---@param item SignalKey
-local function alloc_item_pull(data, item)
-	local groups = get_descending_prio_groups(data, item, "pullers", "pullers_p")
+function LogisticsThread:alloc_item_pull(item)
+	local groups = self:get_descending_prio_groups(item, "pullers", "pullers_p")
 	for i = 1, #groups do
 		-- Generate `random_shuffle(Pullers<I,p>)`
 		-- TODO: this is incorrect, should be sort-by-last-serviced
@@ -196,44 +182,33 @@ local function alloc_item_pull(data, item)
 		strace(DEBUG, "alloc", item, "pullers_ip", pullers_ip)
 		for j = 1, #pullers_ip do
 			local puller_i = pullers_ip[j]
-			if in_logistics_set(data, "pullers", puller_i[1].id, item) then
-				alloc_item_pull_providers(data, item, puller_i[1], puller_i[2])
+			-- Optimize: puller may have been removed as a result of prior allocations
+			if self:is_in_logistics_set("pullers", puller_i[1].id, item) then
+				self:alloc_item_pull_providers(item, puller_i[1], puller_i[2])
 			end
 		end
 	end
 end
 
---------------------------------------------------------------------------------
--- State lifecycle
---------------------------------------------------------------------------------
-
 ---@param item SignalKey
----@param data Cybersyn.Internal.LogisticsThreadData
-local function alloc_item(item, data) alloc_item_pull(data, item) end
+function LogisticsThread:alloc_item(item) self:alloc_item_pull(item) end
 
----@param data Cybersyn.Internal.LogisticsThreadData
-function _G.cs2.logistics_thread.goto_alloc(data)
-	data.allocations = {}
-	data.providers_p = {}
-	data.pullers_p = {}
-	data.cargo = tlib.keys(data.seen_cargo)
-	tlib.shuffle(data.cargo)
-	data.stride =
+function LogisticsThread:enter_alloc()
+	self.allocations = {}
+	self.providers_p = {}
+	self.pullers_p = {}
+	self.cargo = tlib.keys(self.seen_cargo)
+	tlib.shuffle(self.cargo)
+	self.stride =
 		math.ceil(mod_settings.work_factor * cs2.PERF_ALLOC_ITEM_WORKLOAD)
-	data.index = 1
-	data.iteration = 1
-	data.state = "alloc"
+	self.index = 1
+	self.iteration = 1
 end
 
----@param data Cybersyn.Internal.LogisticsThreadData
-local function cleanup_alloc(data) logistics_thread.goto_find_vehicles(data) end
-
----@param data Cybersyn.Internal.LogisticsThreadData
-function _G.cs2.logistics_thread.alloc(data)
-	cs2.logistics_thread.stride_loop(
-		data,
-		data.cargo,
-		alloc_item,
-		function(data2) cleanup_alloc(data2) end
+function LogisticsThread:alloc()
+	self:async_loop(
+		self.cargo,
+		self.alloc_item,
+		function(x) x:set_state("find_vehicles") end
 	)
 end

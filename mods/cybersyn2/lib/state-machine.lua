@@ -13,6 +13,7 @@ function StateMachine.new(initial_state)
 end
 
 ---Change the current state of the state machine.
+---@param new_state string
 function StateMachine:set_state(new_state)
 	if self.is_changing_state then
 		if not self.queued_state_changes then
@@ -43,9 +44,13 @@ end
 
 ---Determine if the state machine can change to the new state.
 ---Override in subclasses.
+---@param new_state string
+---@param old_state string|nil
 function StateMachine:can_change_state(new_state, old_state) return true end
 
 ---Fire events for when state changes. Override in subclasses.
+---@param new_state string
+---@param old_state string|nil
 function StateMachine:on_changed_state(new_state, old_state) end
 
 return StateMachine

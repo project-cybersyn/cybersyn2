@@ -4,7 +4,6 @@
 -- as sumneko code completion gets confused otherwise.
 _G.cs2 = {
 	remote_api = {},
-	threads_api = {},
 	gui = {},
 	lib = {},
 	---Debug APIs, do not use.

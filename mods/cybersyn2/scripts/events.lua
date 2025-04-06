@@ -331,14 +331,8 @@ _G.cs2.on_train_stop_pattern_changed, _G.cs2.raise_train_stop_pattern_changed =
 
 ---Event raised only when the dispatch loop is paused and then stepped
 ---manually by the user.
-_G.cs2.on_debug_loop, _G.cs2.raise_debug_loop = event(
-	"debug_loop",
-	"string",
-	"Cybersyn.Internal.LogisticsThreadData",
-	"nil",
-	"nil",
-	"nil"
-)
+_G.cs2.on_debug_loop, _G.cs2.raise_debug_loop =
+	event("debug_loop", "string", "Cybersyn.LogisticsThread", "nil", "nil", "nil")
 
 _G.cs2.on_inventory_created, _G.cs2.raise_inventory_created =
 	event("inventory_created", "Cybersyn.Inventory", "nil", "nil", "nil", "nil")
@@ -361,7 +355,7 @@ _G.cs2.on_delivery_state_changed, _G.cs2.raise_delivery_state_changed = event(
 	"delivery_state_changed",
 	"Cybersyn.Delivery",
 	"string",
-	"string",
+	"StringOrNil",
 	"nil",
 	"nil"
 )
