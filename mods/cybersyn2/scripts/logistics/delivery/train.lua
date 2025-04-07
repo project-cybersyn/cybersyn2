@@ -86,7 +86,7 @@ function TrainDelivery:force_clear()
 	local to_stop = TrainStop.get(self.to_id)
 	if to_stop then to_stop:force_remove_delivery(self.id) end
 	local train = Train.get(self.vehicle_id)
-	if train then train:clear_delivery() end
+	if train then train:clear_delivery(self.id) end
 end
 
 function TrainDelivery:enter_failed() self:force_clear() end
@@ -198,7 +198,7 @@ function TrainDelivery:complete()
 	self:clear_to_charge()
 	self:set_state("completed")
 	local train = Train.get(self.vehicle_id)
-	if train then train:clear_delivery() end
+	if train then train:clear_delivery(self.id) end
 end
 
 ---Train stop invokes this to notify a train on this delivery left

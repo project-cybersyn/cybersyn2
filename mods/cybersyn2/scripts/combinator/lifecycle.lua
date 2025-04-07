@@ -31,6 +31,8 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 		-- Should be impossible
 		return strace(
 			ERROR,
+			"cs2",
+			"combinator",
 			"message",
 			"Duplicate combinator unit number, should be impossible.",
 			comb_id
@@ -103,8 +105,6 @@ end)
 --------------------------------------------------------------------------------
 -- Blueprinting combinators
 --------------------------------------------------------------------------------
-
--- TODO: update for tags
 
 ---@param bp_entity BlueprintEntity
 ---@return boolean

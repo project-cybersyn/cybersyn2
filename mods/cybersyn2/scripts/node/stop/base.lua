@@ -210,7 +210,7 @@ function TrainStop:reread_inventory()
 				"stop",
 				self,
 				"message",
-				"Opportunistically rereading inventory on train departure"
+				"Forcibly rereading inventory"
 			)
 			local comb = combs[1]
 			comb:read_inputs()

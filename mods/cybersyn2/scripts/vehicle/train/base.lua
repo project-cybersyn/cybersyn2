@@ -185,7 +185,10 @@ function Train:get_stock() return self.stock end
 ---@param delivery Cybersyn.TrainDelivery
 function Train:set_delivery(delivery) self.delivery_id = delivery.id end
 
-function Train:clear_delivery() self.delivery_id = nil end
+---@param id Id
+function Train:clear_delivery(id)
+	if self.delivery_id == id then self.delivery_id = nil end
+end
 
 ---@param schedule LuaSchedule
 ---@return boolean in_interrupt `true` if the schedule is currently interrupted
