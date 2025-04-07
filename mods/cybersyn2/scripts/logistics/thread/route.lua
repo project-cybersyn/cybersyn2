@@ -36,6 +36,8 @@ local function route_train(data, train, allocation, is_fluid, stack_size)
 	-- Refund and clear allocation
 	data:refund_allocation(allocation)
 	allocation.qty = 0
+	-- Remove from avail_trains
+	data.avail_trains[train.id] = nil
 	-- Create delivery
 	TrainDelivery.new(
 		train,
@@ -62,7 +64,11 @@ end
 function LogisticsThread:route_train_allocation(allocation)
 	local from = allocation.from --[[@as Cybersyn.TrainStop]]
 	local to = allocation.to --[[@as Cybersyn.TrainStop]]
-	if (not from:is_valid()) or (not to:is_valid()) then return end
+	if (not from:is_valid()) or (not to:is_valid()) then
+		self:refund_allocation(allocation)
+		allocation.qty = 0
+		return
+	end
 
 	-- TODO: make sure from station still has enough. spillover from
 	-- a previous delivery may have changed things.
@@ -103,6 +109,8 @@ function LogisticsThread:route_train_allocation(allocation)
 		return route_train(self, best_train, allocation, is_fluid, stack_size)
 	else
 		-- TODO: "No train" alert
+		self:refund_allocation(allocation)
+		allocation.qty = 0
 	end
 end
 
