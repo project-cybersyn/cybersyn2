@@ -5,7 +5,6 @@
 local tlib = require("__cybersyn2__.lib.table")
 local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
-local logistics_thread = _G.cs2.logistics_thread
 local mod_settings = _G.cs2.mod_settings
 local Node = _G.cs2.Node
 
@@ -90,6 +89,13 @@ function LogisticsThread:allocate(
 	}
 	strace(DEBUG, "alloc", item, "allocation", allocation)
 	self.allocations[#self.allocations + 1] = allocation
+end
+
+---@param alloc Cybersyn.Internal.LogisticsAllocation
+function LogisticsThread:refund_allocation(alloc)
+	local flow = { [alloc.item] = alloc.qty }
+	alloc.from_inv:add_flow(flow, 1)
+	alloc.to_inv:add_flow(flow, -1)
 end
 
 --------------------------------------------------------------------------------

@@ -202,7 +202,3 @@ cs2.on_node_destroyed(function(node)
 	local inv = Inventory.get(node.created_inventory_id)
 	if inv then inv:destroy() end
 end)
-
-cs2.on_delivery_state_changed(function(delivery, new_state, old_state)
-	-- TODO: charge inventories based on delivery states
-end)

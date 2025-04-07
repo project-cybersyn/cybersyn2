@@ -6,7 +6,7 @@ local tlib = require("__cybersyn2__.lib.table")
 local stlib = require("__cybersyn2__.lib.strace")
 local signal = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
-local logistics_thread = _G.cs2.logistics_thread
+local TrainDelivery = _G.cs2.TrainDelivery
 
 local max = math.max
 local min = math.min
@@ -27,9 +27,25 @@ local LogisticsThread = _G.cs2.LogisticsThread
 ---@param is_fluid boolean
 ---@param stack_size uint
 local function route_train(data, train, allocation, is_fluid, stack_size)
+	-- TODO: locked slots subtract from effective cap here
 	local train_capacity = is_fluid and train.fluid_capacity
 		or (train.item_slot_capacity * stack_size)
 	-- TODO: spillover
+	local manifest = { [allocation.item] = min(allocation.qty, train_capacity) }
+	-- TODO: Tackons
+	-- Refund and clear allocation
+	data:refund_allocation(allocation)
+	allocation.qty = 0
+	-- Create delivery
+	TrainDelivery.new(
+		train,
+		allocation.from --[[@as Cybersyn.TrainStop]],
+		allocation.from_inv,
+		allocation.to --[[@as Cybersyn.TrainStop]],
+		allocation.to_inv,
+		manifest,
+		manifest -- source charge
+	)
 end
 
 ---@param train Cybersyn.Train
@@ -47,6 +63,10 @@ function LogisticsThread:route_train_allocation(allocation)
 	local from = allocation.from --[[@as Cybersyn.TrainStop]]
 	local to = allocation.to --[[@as Cybersyn.TrainStop]]
 	if (not from:is_valid()) or (not to:is_valid()) then return end
+
+	-- TODO: make sure from station still has enough. spillover from
+	-- a previous delivery may have changed things.
+
 	local is_fluid = signal.key_is_fluid(allocation.item)
 	local stack_size = is_fluid and 1
 		or (signal.key_to_stacksize(allocation.item) or 1)

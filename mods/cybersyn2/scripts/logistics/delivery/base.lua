@@ -31,12 +31,48 @@ function Delivery.new(type)
 	return storage.deliveries[id]
 end
 
+---Retrieve a delivery state from storage
+---@param id Id?
+---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
+---@return Cybersyn.Delivery?
+function Delivery.get(id, skip_validation)
+	if not id then return nil end
+	local x = storage.deliveries[id]
+	if skip_validation then
+		return x
+	elseif x then
+		return x:is_valid() and x or nil
+	end
+end
+
 function Delivery:destroy()
 	local id = self.id
 	local delivery = storage.deliveries[id]
 	if not delivery then return end
+	delivery.is_being_destroyed = true
 	cs2.raise_delivery_destroyed(delivery)
 	storage.deliveries[id] = nil
+end
+
+function Delivery:fail()
+	if self.state == "completed" or self.state == "failed" then
+		strace(
+			WARN,
+			"delivery",
+			self,
+			"message",
+			"Attempt to fail a delivery that is already completed or failed"
+		)
+		return
+	else
+		self:set_state("failed")
+	end
+end
+
+function Delivery:is_valid()
+	-- TODO: stronger validity check here. if vehicle assigned, make sure
+	-- it's valid and still thinks it's on this delivery, etc.
+	return not self.is_being_destroyed
 end
 
 function Delivery:can_change_state(new_state, old_state)
@@ -63,5 +99,6 @@ end
 
 function Delivery:on_changed_state(new_state, old_state)
 	self.state_tick = game.tick
+	StateMachine.on_changed_state(self, new_state, old_state)
 	cs2.raise_delivery_state_changed(self, new_state, old_state)
 end

@@ -9,6 +9,7 @@ local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local Train = _G.cs2.Train
 local Vehicle = _G.cs2.Vehicle
+local TrainStop = _G.cs2.TrainStop
 
 local ALL_TRAINS_FILTER = {}
 local strace = stlib.strace
@@ -150,3 +151,47 @@ cs2.schedule_thread(
 	1,
 	function() return TrainMonitor.new() end
 )
+
+--------------------------------------------------------------------------------
+-- Handle trains arriving/leaving at stops
+--------------------------------------------------------------------------------
+
+local WAIT_STATION = defines.train_state.wait_station
+
+cs2.on_luatrain_changed_state(function(event)
+	local luatrain = event.train
+	local luatrain_state = luatrain.state
+	local old_state = event.old_state
+	if luatrain_state ~= WAIT_STATION and old_state ~= WAIT_STATION then
+		-- Not entering or leaving a station, nothing to do
+		return
+	end
+
+	-- Augment event with data about which Cybersyn objects are involved.
+	local cstrain = Train.get_from_luatrain_id(luatrain.id)
+
+	if luatrain_state == WAIT_STATION then
+		-- Train just arrived at station
+		local stop_entity = luatrain.station
+		local stop = (stop_entity and stop_entity.valid)
+				and TrainStop.get_stop_from_unit_number(stop_entity.unit_number)
+			or nil
+		if cstrain then cstrain.stopped_at = stop_entity end
+		cs2.raise_train_arrived(luatrain, cstrain, stop)
+	elseif old_state == WAIT_STATION then
+		-- Train just left station
+		local stop = nil
+		if cstrain then
+			if cstrain.stopped_at and cstrain.stopped_at.valid then
+				stop =
+					TrainStop.get_stop_from_unit_number(cstrain.stopped_at.unit_number)
+			end
+			cstrain.stopped_at = nil
+		end
+		cs2.raise_train_departed(luatrain, cstrain, stop)
+	end
+end)
+
+-- TODO: if a train arrives at a stop, and it's a stop given by a non
+-- temp schedule entry, assume it is the depot and wake the interrupted
+-- delivery.

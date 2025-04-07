@@ -9,27 +9,29 @@ local cs2 = _G.cs2
 local Node = _G.cs2.Node
 local Inventory = _G.cs2.Inventory
 
+---@class Cybersyn.Combinator
+local Combinator = _G.cs2.Combinator
+
 local strace = stlib.strace
 local TRACE = stlib.TRACE
 local WARN = stlib.WARN
 
----@param combinator Cybersyn.Combinator
-local function read_inventory(combinator)
+---Update the inventory associated with this combinator using the most recently
+---polled input values.
+---@param force boolean? Force inventory to update regardless of circumstances.
+function Combinator:update_inventory(force)
 	-- TODO: shared inventory etc.
 
-	if combinator.mode ~= "station" then return end
-	local stop = Node.get(combinator.node_id)
+	if self.mode ~= "station" then return end
+	local stop = Node.get(self.node_id)
 	if not stop or (not stop.type == "stop") then return end
 	---@cast stop Cybersyn.TrainStop
-	if stop.entity.get_stopped_train() then
+	if (not force) and stop.entity.get_stopped_train() then
 		-- If a train is at a stop while reading its inventory combinator, read
 		-- must be treated as unreliable.
-		strace(
-			TRACE,
-			"message",
-			"skipped inventory read due to train present",
-			stop.entity
-		)
+
+		-- TODO: timer here, after so much time force an inventory read even
+		-- if train.
 		return
 	end
 	local inventory = Inventory.get(stop.inventory_id)
@@ -38,11 +40,8 @@ local function read_inventory(combinator)
 		return
 	end
 	inventory:set_base_inventory(
-		combinator.inputs or {},
+		self.inputs or {},
 		stop.is_consumer,
 		stop.is_producer
 	)
 end
-
--- Read inventory of inventory combinators when their inputs are read.
-cs2.on_combinator_inputs_read(read_inventory)

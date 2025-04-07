@@ -54,6 +54,7 @@ local lib = {}
 ---@field public item_slot_capacity uint Number of item slots available across all wagons if known.
 ---@field public fluid_capacity uint Total fluid capacity of all wagons if known.
 ---@field public layout_id uint The layout ID of the train.
+---@field public stopped_at LuaEntity? Cache of last known train stop. Do not rely on this value.
 
 ---Numeric encoding of prototype types of carriages
 ---@enum Cybersyn.CarriageType
@@ -118,8 +119,8 @@ lib.NodeNetworkOperation = {
 ---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
 ---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
----@field public dropoffs IdSet Deliveries scheduled to be dropped off at this node.
----@field public pickups IdSet Deliveries scheduled to be picked up from this node.
+---@field public deliveries IdSet All deliveries currently inbound to this stop.
+---@field public delivery_queue Id[] Queue of deliveries waiting for station limit to clear.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
@@ -151,14 +152,19 @@ lib.NodeNetworkOperation = {
 ---@class Cybersyn.Delivery: StateMachine
 ---@field public id Id
 ---@field public type string
+---@field public is_being_destroyed true? `true` if the delivery is in the process of being removed from game state.
 ---@field public created_tick uint The tick this delivery was created.
 ---@field public state_tick uint The tick this delivery entered its current state.
 ---@field public vehicle_id Id The id of the vehicle this delivery is assigned to.
----@field public source_id Id The id of the node this delivery is from.
----@field public destination_id Id The id of the node this delivery is to.
----@field public source_inventory_id Id The id of the inventory this delivery is from, if any.
----@field public destination_inventory_id Id The id of the inventory this delivery is to, if any.
+---@field public from_id Id The id of the node this delivery is from.
+---@field public to_id Id The id of the node this delivery is to.
+---@field public from_inventory_id Id The id of the inventory this delivery is from, if any.
+---@field public to_inventory_id Id The id of the inventory this delivery is to, if any.
 ---@field public manifest SignalCounts The intended contents of the delivery.
+
+---@class Cybersyn.TrainDelivery: Cybersyn.Delivery
+---@field public from_charge SignalCounts? Amount charged against the source station's inventory, which may differ from the manifest by overspill.
+---@field public to_charge SignalCounts? Amount charged towards the destination station's inventory. Equal to the manifest, but `nil`ed when charge is cleared.
 
 --------------------------------------------------------------------------------
 -- Public type encodings for the query interface.

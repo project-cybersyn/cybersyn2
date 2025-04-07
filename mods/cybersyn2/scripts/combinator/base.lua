@@ -7,55 +7,9 @@ local tlib = require("__cybersyn2__.lib.table")
 local signal_lib = require("__cybersyn2__.lib.signal")
 
 local cs2 = _G.cs2
-local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
+local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
+
 local signal_to_key = signal_lib.signal_to_key
-
---------------------------------------------------------------------------------
--- Utility funcs
---------------------------------------------------------------------------------
-
-local function entity_is_combinator_or_ghost(entity)
-	if not entity or not entity.valid then return false end
-	local true_name = entity.name == "entity-ghost" and entity.ghost_name
-		or entity.name
-	return true_name == COMBINATOR_NAME
-end
-_G.cs2.lib.entity_is_combinator_or_ghost = entity_is_combinator_or_ghost
-
----Locate all `LuaEntity`s corresponding to combinators within the given area.
----@param surface LuaSurface
----@param area BoundingBox?
----@param position MapPosition?
----@param radius number?
----@return LuaEntity[]
-function _G.cs2.lib.find_combinator_entities(
-	surface,
-	area,
-	position,
-	radius
-)
-	return surface.find_entities_filtered({
-		area = area,
-		position = position,
-		radius = radius,
-		name = COMBINATOR_NAME,
-	})
-end
-
----Locate all `LuaEntity`s corresponding to combinator ghosts within the given area.
----@param surface LuaSurface
----@param area BoundingBox?
----@param position MapPosition?
----@param radius number?
----@return LuaEntity[]
-function _G.cs2.lib.find_combinator_ghosts(surface, area, position, radius)
-	return surface.find_entities_filtered({
-		area = area,
-		position = position,
-		radius = radius,
-		ghost_name = COMBINATOR_NAME,
-	})
-end
 
 --------------------------------------------------------------------------------
 -- Settings
@@ -324,6 +278,4 @@ function Combinator:read_inputs()
 	else
 		self.inputs = {}
 	end
-
-	cs2.raise_combinator_inputs_read(self)
 end

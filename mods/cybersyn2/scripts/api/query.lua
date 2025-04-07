@@ -5,8 +5,8 @@ local types = require("__cybersyn2__.lib.types")
 local ContainerType = types.ContainerType
 local PrimitiveType = types.PrimitiveType
 
-strace = strace_lib.strace
-TRACE = strace_lib.TRACE
+local strace = strace_lib.strace
+local TRACE = strace_lib.TRACE
 
 ---Execute a query against Cybersyn's public state.
 ---@param query Cybersyn.QueryInput Query type and arguments.

@@ -19,6 +19,7 @@ require("scripts.lib")
 require("scripts.threads")
 
 require("scripts.logistics.inventory.base")
+require("scripts.logistics.delivery.base")
 
 require("scripts.combinator.base")
 require("scripts.combinator.setting")
@@ -29,8 +30,8 @@ require("scripts.combinator.gui.elements")
 
 require("scripts.node.base") -- needs inventory
 require("scripts.node.topology")
-require("scripts.node.stop.base")
-require("scripts.node.stop.lifecycle")
+require("scripts.node.stop.base") -- needs delivery
+require("scripts.node.stop.lifecycle") -- needs delivery, combinator
 require("scripts.node.stop.layout.base")
 require("scripts.node.stop.layout.equipment")
 require("scripts.node.stop.layout.pattern")
@@ -42,7 +43,7 @@ require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")
 require("scripts.vehicle.train.layout")
 
-require("scripts.logistics.delivery.base")
+require("scripts.logistics.delivery.train") -- needs inventory, trainstop, train
 
 require("scripts.combinator.modes.station.base")
 require("scripts.combinator.modes.station.impl")

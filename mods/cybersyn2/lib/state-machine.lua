@@ -16,10 +16,11 @@ end
 ---@param new_state string
 function StateMachine:set_state(new_state)
 	if self.is_changing_state then
-		if not self.queued_state_changes then
+		local queue = self.queued_state_changes
+		if not queue then
 			self.queued_state_changes = { new_state }
 		else
-			table.insert(self.queued_state_changes, new_state)
+			queue[#queue + 1] = new_state
 		end
 		return
 	end
@@ -48,9 +49,16 @@ end
 ---@param old_state string|nil
 function StateMachine:can_change_state(new_state, old_state) return true end
 
----Fire events for when state changes. Override in subclasses.
+---Fire events for when state changes. By default, calls `enter_state` methods
+---when a state is entered and `exit_state` methods when a state is left.
+---Override in subclasses.
 ---@param new_state string
 ---@param old_state string|nil
-function StateMachine:on_changed_state(new_state, old_state) end
+function StateMachine:on_changed_state(new_state, old_state)
+	local fromh = self["exit_" .. (old_state or "NO_STATE")]
+	local toh = self["enter_" .. new_state]
+	if fromh then fromh(self, new_state, old_state) end
+	if toh then toh(self, new_state, old_state) end
+end
 
 return StateMachine

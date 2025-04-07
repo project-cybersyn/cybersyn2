@@ -8,6 +8,7 @@ local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
 local TrainStop = _G.cs2.TrainStop
+local Delivery = _G.cs2.Delivery
 
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
@@ -35,6 +36,7 @@ end, true)
 -- Recursive algorithm to correctly associate a set of combinators to the
 -- proper nearby rails and stops.
 --------------------------------------------------------------------------------
+
 local reassociate_recursive
 local create_recursive
 
@@ -150,6 +152,7 @@ end
 --------------------------------------------------------------------------------
 -- Event bindings
 --------------------------------------------------------------------------------
+
 -- When a stop is built, check for combinators nearby and associate them.
 cs2.on_built_train_stop(function(stop_entity)
 	local combs = cs2.lib.find_associable_combinators(stop_entity)
@@ -191,4 +194,14 @@ cs2.on_node_combinator_set_changed(function(node)
 	if node.type == "stop" and not next(node.combinator_set) then
 		node:destroy()
 	end
+end)
+
+-- When a stop is destroyed, fail all its deliveries.
+cs2.on_node_destroyed(function(node)
+	if node.type ~= "stop" then return end
+	---@cast node Cybersyn.TrainStop
+	tlib.for_each(node.deliveries, function(_, delivery_id)
+		local delivery = Delivery.get(delivery_id, true)
+		if delivery then delivery:fail() end
+	end)
 end)

@@ -53,13 +53,6 @@ function StatefulThread:main()
 	handler(self)
 end
 
-function StatefulThread:on_changed_state(new_state, old_state)
-	local fromh = self["exit_" .. (old_state or "")]
-	local toh = self["enter_" .. (new_state or "")]
-	if fromh then fromh(self, new_state, old_state) end
-	if toh then toh(self, new_state, old_state) end
-end
-
 ---Perform an asynchronous loop over an array, calling `step(self, element)`
 ---for each element in groups of `self.stride` per iteration.
 ---Calls `finish(self)` when the loop is complete.

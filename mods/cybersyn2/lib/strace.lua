@@ -199,7 +199,8 @@ end
 ---a filter, and a message passes that filter if:
 ---
 ---  1. the filtered value is `true` and the message has a value for that key or
----  2. the message has a value `==` the filtered value at that key.
+---  2. the filtered value is a set and the message value of that key is in the set or
+---  3. the message has a value `==` the filtered value at that key.
 ---
 ---In whitelist mode, returns `true` if the message passes at least one filter and
 ---fails none. In blacklist mode, returns `true` if the message fails all filters.
@@ -214,15 +215,17 @@ function lib.filter(is_whitelist, filters, ...)
 		local filter_value = filters[key]
 		if filter_value ~= nil then
 			if
-				filter_value == false
-				or (filter_value ~= true and filter_value ~= value)
+				(filter_value == true and value ~= nil)
+				or (filter_value == false and value == nil)
+				or (type(filter_value) == "table" and value ~= nil and filter_value[value] == true)
+				or (value == filter_value)
 			then
-				-- Failed filter
-				if is_whitelist then return false end
-			else
 				-- Passed filter
 				if not is_whitelist then return false end
 				matches = matches + 1
+			else
+				-- Failed filter
+				if is_whitelist then return false end
 			end
 		end
 	end

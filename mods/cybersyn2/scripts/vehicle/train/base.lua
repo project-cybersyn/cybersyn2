@@ -28,7 +28,7 @@ local function create_train_group(name)
 		name = name,
 		trains = {},
 	}
-	cs2.raise_train_group_created(name)
+	-- cs2.raise_train_group_created(name)
 end
 _G.cs2.create_train_group = create_train_group
 
@@ -41,11 +41,11 @@ local function destroy_train_group(name)
 		local vehicle = storage.vehicles[vehicle_id] --[[@as Cybersyn.Train]]
 		if vehicle and vehicle.group == name then
 			vehicle.group = nil
-			cs2.raise_train_group_train_removed(vehicle, name)
+			-- cs2.raise_train_group_train_removed(vehicle, name)
 		end
 	end
 	storage.train_groups[name] = nil
-	cs2.raise_train_group_destroyed(name)
+	-- cs2.raise_train_group_destroyed(name)
 end
 _G.cs2.destroy_train_group = destroy_train_group
 
@@ -57,7 +57,7 @@ local function add_train_to_group(vehicle, group_name)
 	vehicle.group = group_name
 	if group and not group.trains[vehicle.id] then
 		group.trains[vehicle.id] = true
-		cs2.raise_train_group_train_added(vehicle)
+		-- cs2.raise_train_group_train_added(vehicle)
 	end
 end
 _G.cs2.add_train_to_group = add_train_to_group
@@ -69,7 +69,7 @@ local function remove_train_from_group(vehicle, group_name)
 	if not group then return end
 	if group.trains[vehicle.id] then
 		group.trains[vehicle.id] = nil
-		cs2.raise_train_group_train_removed(vehicle, group_name)
+		-- cs2.raise_train_group_train_removed(vehicle, group_name)
 	end
 	if not next(group.trains) then
 		-- Group is now empty, destroy it
@@ -130,6 +130,15 @@ function Train.new(lua_train)
 	return train
 end
 
+function Train.get(id, skip_validation)
+	local train = Vehicle.get(id, skip_validation)
+	if train and train.type == "train" then
+		return train --[[@as Cybersyn.Train]]
+	else
+		return nil
+	end
+end
+
 ---Get a `Cybersyn.Train` from a Factorio `LuaTrain` object.
 ---@param luatrain_id Id?
 ---@return Cybersyn.Train?
@@ -172,3 +181,55 @@ function Train:is_volatile()
 end
 
 function Train:get_stock() return self.stock end
+
+---@param delivery Cybersyn.TrainDelivery
+function Train:set_delivery(delivery) self.delivery_id = delivery.id end
+
+function Train:clear_delivery() self.delivery_id = nil end
+
+---@param schedule LuaSchedule
+---@return boolean in_interrupt `true` if the schedule is currently interrupted
+---@return boolean in_depot `true` if the active schedule entry is the depot
+local function get_schedule_state(schedule)
+	local current_record =
+		schedule.get_record({ schedule_index = schedule.current })
+	if current_record then
+		if current_record.created_by_interrupt then
+			return true, false
+		elseif not current_record.temporary then
+			return false, true
+		end
+	end
+	return false, false
+end
+
+---@param schedule LuaSchedule
+---@param record AddRecordData
+local function add_temp_record(schedule, record)
+	local record_count = schedule.get_record_count()
+	local index = record_count > 0 and record_count or 1
+	record.index = { schedule_index = index }
+	record.temporary = true
+	schedule.add_record(record)
+end
+
+---Add temporary records to the train's schedule.
+---@return boolean
+function Train:schedule(...)
+	local schedule = self.lua_train.get_schedule()
+	local is_interrupted, is_depot = get_schedule_state(schedule)
+	if is_interrupted then return false end
+	for i = 1, select("#", ...) do
+		local record = select(i, ...)
+		add_temp_record(schedule, record)
+	end
+	if is_depot then schedule.go_to_station(1) end
+	return true
+end
+
+function Train:is_available()
+	if self.delivery_id or not self:is_valid() then return false end
+	local schedule = self.lua_train.get_schedule()
+	if get_schedule_state(schedule) then return false end
+	return true
+end

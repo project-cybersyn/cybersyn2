@@ -10,7 +10,6 @@ local slib = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local combinator_settings = _G.cs2.combinator_settings
-local logistics_thread = _G.cs2.logistics_thread
 
 local strace = stlib.strace
 local TRACE = stlib.TRACE
@@ -56,7 +55,6 @@ function LogisticsThread:classify_inventory(stop)
 	local inventory = stop:get_inventory()
 	-- TODO: this is ugly, apis to get at this inventory stuff should be
 	-- more centralized and less spaghetti
-	strace(TRACE, "message", "classify_inventory", stop.entity, inventory)
 	if not inventory then return end
 	if stop.is_producer then
 		for item, qty in pairs(inventory:get_net_produce()) do

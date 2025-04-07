@@ -127,8 +127,6 @@ _G.cs2.on_luatrain_changed_state, _G.cs2.raise_luatrain_changed_state = event(
 	"nil"
 )
 
----@alias BlueprintEntityArray BlueprintEntity[]
-
 ---Event raised when a blueprint is pasted into the world.
 _G.cs2.on_built_blueprint, _G.cs2.raise_built_blueprint = event(
 	"built_blueprint",
@@ -158,34 +156,34 @@ _G.cs2.on_vehicle_created, _G.cs2.raise_vehicle_created =
 _G.cs2.on_vehicle_destroyed, _G.cs2.raise_vehicle_destroyed =
 	event("vehicle_destroyed", "Cybersyn.Vehicle", "nil", "nil", "nil", "nil")
 
----Event raised when a new Cybersyn train group is created.
-_G.cs2.on_train_group_created, _G.cs2.raise_train_group_created =
-	event("train_group_created", "string", "nil", "nil", "nil", "nil")
-
----Event raised when a train is added to a Cybersyn group.
-_G.cs2.on_train_group_train_added, _G.cs2.raise_train_group_train_added =
-	event("train_group_train_added", "Cybersyn.Train", "nil", "nil", "nil", "nil")
-
----Event raised when a train is removed from a Cybersyn group.
-_G.cs2.on_train_group_train_removed, _G.cs2.raise_train_group_train_removed =
-	event(
-		"train_group_train_removed",
-		"Cybersyn.Train",
-		"string",
-		"nil",
-		"nil",
-		"nil"
-	)
-
----Event raised when a train group is destroyed.
-_G.cs2.on_train_group_destroyed, _G.cs2.raise_train_group_destroyed =
-	event("train_group_destroyed", "string", "nil", "nil", "nil", "nil")
-
 _G.cs2.on_train_layout_created, _G.cs2.raise_train_layout_created = event(
 	"train_layout_created",
 	"Cybersyn.TrainLayout",
 	"nil",
 	"nil",
+	"nil",
+	"nil"
+)
+
+---@alias Cybersyn.TrainOrNil Cybersyn.Train|nil
+---@alias Cybersyn.TrainStopOrNil Cybersyn.TrainStop|nil
+
+---Event raised when a train arrives at a stop.
+_G.cs2.on_train_arrived, _G.cs2.raise_train_arrived = event(
+	"train_arrived",
+	"LuaTrain",
+	"Cybersyn.Train",
+	"Cybersyn.TrainStop",
+	"nil",
+	"nil"
+)
+
+---Event raised when a train departs a stop.
+_G.cs2.on_train_departed, _G.cs2.raise_train_departed = event(
+	"train_departed",
+	"LuaTrain",
+	"Cybersyn.Train",
+	"Cybersyn.TrainStop",
 	"nil",
 	"nil"
 )
@@ -252,16 +250,6 @@ _G.cs2.on_combinator_setting_changed, _G.cs2.raise_combinator_setting_changed =
 		"any",
 		"nil"
 	)
-
----Event raised when a combinator's signal inputs are read into cache.
-_G.cs2.on_combinator_inputs_read, _G.cs2.raise_combinator_inputs_read = event(
-	"combinator_inputs_read",
-	"Cybersyn.Combinator",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
 
 --------------------------------------------------------------------------------
 -- Cybersyn node object events

@@ -1,13 +1,19 @@
 local class = require("__cybersyn2__.lib.class").class
 local mlib = require("__cybersyn2__.lib.math")
 local slib = require("__cybersyn2__.lib.signal")
+local tlib = require("__cybersyn2__.lib.table")
+local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
 local Node = _G.cs2.Node
 local Topology = _G.cs2.Topology
+local Delivery = _G.cs2.Delivery
+local Inventory = _G.cs2.Inventory
 
+local strace = stlib.strace
 local distance_squared = mlib.pos_distsq
 local pos_get = mlib.pos_get
 local INF = math.huge
+local tremove = table.remove
 
 ---@class Cybersyn.TrainStop
 local TrainStop = class("TrainStop", Node)
@@ -25,8 +31,20 @@ function TrainStop.new(stop_entity)
 	node.entity_id = stop_id
 	node.allowed_groups = {}
 	node.allowed_layouts = {}
+	node.deliveries = {}
+	node.delivery_queue = {}
 	cs2.raise_node_created(node)
 	return node
+end
+
+---@return Cybersyn.TrainStop?
+function TrainStop.get(id, skip_validation)
+	local stop = Node.get(id, skip_validation)
+	if stop and stop.type == "stop" then
+		return stop --[[@as Cybersyn.TrainStop]]
+	else
+		return nil
+	end
 end
 
 ---Find the stop associated to the given rail using the rail cache.
@@ -71,35 +89,9 @@ function TrainStop.get_stop_from_unit_number(unit_number, skip_validation)
 	) --[[@as Cybersyn.TrainStop?]]
 end
 
----Locate all `LuaEntity`s corresponding to train stops within the given area.
----@param surface LuaSurface
----@param area BoundingBox?
----@param position MapPosition?
----@param radius number?
----@return LuaEntity[]
-function _G.cs2.lib.find_stop_entities(surface, area, position, radius)
-	return surface.find_entities_filtered({
-		area = area,
-		position = position,
-		radius = radius,
-		name = "train-stop",
-	})
-end
-
----Locate all combinators that could potentially be associated to a stop.
----@param stop_entity LuaEntity A *valid* train stop entity.
----@return LuaEntity[]
-function _G.cs2.lib.find_associable_combinators(stop_entity)
-	local pos_x = stop_entity.position.x
-	local pos_y = stop_entity.position.y
-	return cs2.lib.find_combinator_entities(stop_entity.surface, {
-		{ pos_x - 2, pos_y - 2 },
-		{ pos_x + 2, pos_y + 2 },
-	})
-end
-
 ---Given a combinator, find the nearby rail or stop that may trigger an
 ---association.
+---TODO: other than the fact that it depends on TrainStop this code should be somewhere else...
 ---@param combinator_entity LuaEntity A *valid* combinator entity.
 ---@return LuaEntity? stop_entity The closest-to-front train stop within the combinator's association zone.
 ---@return LuaEntity? rail_entity The closest-to-front straight rail with a train stop within the combinator's association zone.
@@ -142,3 +134,98 @@ function _G.cs2.lib.find_associable_entities_for_combinator(combinator_entity)
 	end
 	return stop, rail
 end
+
+---Force remove a delivery from a train stop. Generally used when delivery
+---has failed.
+---@param delivery_id Id
+function TrainStop:force_remove_delivery(delivery_id)
+	self.deliveries[delivery_id] = nil
+	local queue = self.delivery_queue
+	if #queue > 0 then
+		self.delivery_queue = tlib.filter(
+			queue,
+			function(id) return id ~= delivery_id end
+		)
+	end
+	self:pop_queue()
+end
+
+---@param delivery_id Id
+function TrainStop:add_delivery(delivery_id) self.deliveries[delivery_id] = true end
+
+---@param train Cybersyn.Train
+function TrainStop:train_departed(train)
+	local delivery_id = train.delivery_id
+	-- When a train makes a delivery...
+	if delivery_id and self.deliveries[delivery_id] then
+		-- Clear the delivery...
+		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		self.deliveries[delivery_id] = nil
+		if delivery then delivery:notify_departed(self) end
+		-- Then try to opportunistically re-read the station's inventory.
+		self:reread_inventory()
+	end
+	self:pop_queue()
+end
+
+---Determine if net inbound trains equal or exceed limit.
+---@return boolean
+function TrainStop:is_full()
+	local limit = self.entity.trains_limit or 1000
+	if limit == 0 then
+		-- TODO: warn user about setting 0 limits on cs stations
+	end
+	return table_size(self.deliveries) >= limit
+end
+
+---If deliveries < limit, pop the queue.
+function TrainStop:pop_queue()
+	while not self:is_full() and #self.delivery_queue > 0 do
+		local delivery_id = tremove(self.delivery_queue, 1)
+		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		if delivery then delivery:notify_queue(self) end
+	end
+end
+
+---@param delivery_id Id
+function TrainStop:enqueue(delivery_id)
+	self.delivery_queue[#self.delivery_queue + 1] = delivery_id
+end
+
+---Reread the inventory from either the station or the shared inventory
+---combinator
+---TODO: shared inventory
+function TrainStop:reread_inventory()
+	local inventory = Inventory.get(self.inventory_id)
+	if self.inventory_id == self.created_inventory_id then
+		-- Reread station control combinator
+		local combs = self:get_associated_combinators(
+			function(comb) return comb.mode == "station" end
+		)
+		if #combs == 1 then
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"inventory",
+				"stop",
+				self,
+				"message",
+				"Opportunistically rereading inventory on train departure"
+			)
+			local comb = combs[1]
+			comb:read_inputs()
+			comb:update_inventory(true)
+		end
+	else
+		-- TODO: shared/external inventory
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Stop events
+--------------------------------------------------------------------------------
+
+-- Forward train_departed events to stops
+cs2.on_train_departed(function(train, cstrain, stop)
+	if cstrain and stop then stop:train_departed(cstrain) end
+end)

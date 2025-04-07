@@ -2,6 +2,7 @@ local mlib = require("__cybersyn2__.lib.math")
 
 local distsq = mlib.pos_distsq
 local INF = math.huge
+local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
 
 local DIFFERENT_SURFACE_DISTANCE = 1000000000
 
@@ -14,4 +15,74 @@ function _G.cs2.lib.distsq(e1, e2)
 		return DIFFERENT_SURFACE_DISTANCE
 	end
 	return distsq(e1.position, e2.position)
+end
+
+---Locate all `LuaEntity`s corresponding to train stops within the given area.
+---@param surface LuaSurface
+---@param area BoundingBox?
+---@param position MapPosition?
+---@param radius number?
+---@return LuaEntity[]
+function _G.cs2.lib.find_stop_entities(surface, area, position, radius)
+	return surface.find_entities_filtered({
+		area = area,
+		position = position,
+		radius = radius,
+		name = "train-stop",
+	})
+end
+
+---Locate all combinators that could potentially be associated to a stop.
+---@param stop_entity LuaEntity A *valid* train stop entity.
+---@return LuaEntity[]
+function _G.cs2.lib.find_associable_combinators(stop_entity)
+	local pos_x = stop_entity.position.x
+	local pos_y = stop_entity.position.y
+	return cs2.lib.find_combinator_entities(stop_entity.surface, {
+		{ pos_x - 2, pos_y - 2 },
+		{ pos_x + 2, pos_y + 2 },
+	})
+end
+
+---Locate all `LuaEntity`s corresponding to combinator ghosts within the given area.
+---@param surface LuaSurface
+---@param area BoundingBox?
+---@param position MapPosition?
+---@param radius number?
+---@return LuaEntity[]
+function _G.cs2.lib.find_combinator_ghosts(surface, area, position, radius)
+	return surface.find_entities_filtered({
+		area = area,
+		position = position,
+		radius = radius,
+		ghost_name = COMBINATOR_NAME,
+	})
+end
+
+---@param entity LuaEntity?
+function _G.cs2.lib.entity_is_combinator_or_ghost(entity)
+	if not entity or not entity.valid then return false end
+	local true_name = entity.name == "entity-ghost" and entity.ghost_name
+		or entity.name
+	return true_name == COMBINATOR_NAME
+end
+
+---Locate all `LuaEntity`s corresponding to combinators within the given area.
+---@param surface LuaSurface
+---@param area BoundingBox?
+---@param position MapPosition?
+---@param radius number?
+---@return LuaEntity[]
+function _G.cs2.lib.find_combinator_entities(
+	surface,
+	area,
+	position,
+	radius
+)
+	return surface.find_entities_filtered({
+		area = area,
+		position = position,
+		radius = radius,
+		name = COMBINATOR_NAME,
+	})
 end

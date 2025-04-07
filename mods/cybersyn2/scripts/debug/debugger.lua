@@ -196,19 +196,57 @@ local LoopDebugger = relm.define_element({
 -- Strace configurator
 --------------------------------------------------------------------------------
 
+local function decode_filter(filter)
+	local out = {}
+	for k, v in pairs(filter) do
+		if type(v) == "table" then
+			for sub_k, _ in pairs(v) do
+				out[#out + 1] = { k, sub_k }
+			end
+		elseif v == true or v == false then
+			out[#out + 1] = { k, tostring(v) }
+		else
+			out[#out + 1] = { k, tostring(v) }
+		end
+	end
+	return out
+end
+
+local function encode_filter(inputs)
+	if not inputs then return nil end
+	local out = {}
+	for _, pair in pairs(inputs) do
+		if pair[1] and pair[1] ~= "" and pair[2] ~= "" then
+			if pair[2] == "true" then
+				out[pair[1]] = true
+			elseif pair[2] == "false" then
+				out[pair[1]] = false
+			elseif out[pair[1]] then
+				out[pair[1]][pair[2]] = true
+			else
+				out[pair[1]] = { [pair[2]] = true }
+			end
+		end
+	end
+	if table_size(out) > 0 then
+		return out
+	else
+		return nil
+	end
+end
+
 local StraceFilters = relm.define_element({
 	name = "Cybersyn.StraceFilters",
 	render = function(props, state)
 		local filters = state.filters or {}
 		local children = {}
-		local key, value
+		local key, fpair
 		for i = 1, state.n do
-			key = next(filters, key)
-			if key then value = filters[key] end
+			key, fpair = next(filters, key)
 			children[i] = HF({
 				ultros.gather({
-					ultros.Input({ value = key }),
-					ultros.Input({ value = value }),
+					ultros.Input({ value = fpair and fpair[1] or "" }),
+					ultros.Input({ value = fpair and fpair[2] or "" }),
 				}),
 			})
 		end
@@ -219,7 +257,7 @@ local StraceFilters = relm.define_element({
 		return ultros.gather("filters", children)
 	end,
 	state = function()
-		local filt = tlib.assign({}, storage.debug_state.strace_filter)
+		local filt = decode_filter(storage.debug_state.strace_filter)
 		return { n = table_size(filt), filters = filt }
 	end,
 	message = function(me, payload)
@@ -237,27 +275,6 @@ local StraceFilters = relm.define_element({
 		end
 	end,
 })
-
-local function decode_filter(inputs)
-	if not inputs then return nil end
-	local out = {}
-	for _, pair in pairs(inputs) do
-		if pair[1] and pair[1] ~= "" and pair[2] ~= "" then
-			if pair[2] == "true" then
-				out[pair[1]] = true
-			elseif pair[2] == "false" then
-				out[pair[1]] = false
-			else
-				out[pair[1]] = pair[2]
-			end
-		end
-	end
-	if table_size(out) > 0 then
-		return out
-	else
-		return nil
-	end
-end
 
 local Strace = relm.define_element({
 	name = "Cybersyn.StraceSettings",
@@ -295,7 +312,7 @@ local Strace = relm.define_element({
 			local args = {
 				tonumber(result.level),
 				tonumber(result.always_level),
-				decode_filter(result.filters),
+				encode_filter(result.filters),
 				result.whitelist,
 			}
 			_G.cs2.debug.set_strace(table.unpack(args))
