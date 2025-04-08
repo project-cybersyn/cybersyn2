@@ -27,10 +27,90 @@ combinator_entity.input_connection_bounding_box =
 	{ { -0.5, -0.5 }, { 0.5, 0.0 } }
 combinator_entity.output_connection_bounding_box =
 	{ { -0.5, 0.0 }, { 0.5, 0.5 } }
-combinator_entity.input_connection_points =
-	data.raw["constant-combinator"]["constant-combinator"].circuit_wire_connection_points
-combinator_entity.output_connection_points =
-	combinator_entity.input_connection_points
+combinator_entity.input_connection_points = {
+	{
+		shadow = {
+			red = util.by_pixel(7, -6),
+			green = util.by_pixel(23, -6),
+		},
+		wire = {
+			red = util.by_pixel(-8.5, -17.5),
+			green = util.by_pixel(7, -17.5),
+		},
+	},
+	{
+		shadow = {
+			red = util.by_pixel(32, -5),
+			green = util.by_pixel(32, 8),
+		},
+		wire = {
+			red = util.by_pixel(16, -16.5),
+			green = util.by_pixel(16, -3.5),
+		},
+	},
+	{
+		shadow = {
+			red = util.by_pixel(25, 20),
+			green = util.by_pixel(9, 20),
+		},
+		wire = {
+			red = util.by_pixel(9, 7.5),
+			green = util.by_pixel(-6.5, 7.5),
+		},
+	},
+	{
+		shadow = {
+			red = util.by_pixel(1, 11),
+			green = util.by_pixel(1, -2),
+		},
+		wire = {
+			red = util.by_pixel(-15, -0.5),
+			green = util.by_pixel(-15, -13.5),
+		},
+	},
+}
+combinator_entity.output_connection_points = {
+	{
+		shadow = {
+			red = util.by_pixel(7, -6),
+			green = util.by_pixel(23, -6),
+		},
+		wire = {
+			red = util.by_pixel(-8.5, -17.5),
+			green = util.by_pixel(7, -17.5),
+		},
+	},
+	{
+		shadow = {
+			red = util.by_pixel(32, -5),
+			green = util.by_pixel(32, 8),
+		},
+		wire = {
+			red = util.by_pixel(16, -16.5),
+			green = util.by_pixel(16, -3.5),
+		},
+	},
+	{
+		shadow = {
+			red = util.by_pixel(25, 20),
+			green = util.by_pixel(9, 20),
+		},
+		wire = {
+			red = util.by_pixel(9, 7.5),
+			green = util.by_pixel(-6.5, 7.5),
+		},
+	},
+	{
+		shadow = {
+			red = util.by_pixel(1, 11),
+			green = util.by_pixel(1, -2),
+		},
+		wire = {
+			red = util.by_pixel(-15, -0.5),
+			green = util.by_pixel(-15, -13.5),
+		},
+	},
+}
 -- End tweak wiring stuff
 combinator_entity.energy_source = { type = "void" }
 combinator_entity.minable =
