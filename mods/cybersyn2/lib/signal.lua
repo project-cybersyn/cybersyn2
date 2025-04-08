@@ -61,6 +61,19 @@ local function get_signal_type_from_name(name)
 	end
 end
 
+local parameter_names = {
+	["parameter-0"] = true,
+	["parameter-1"] = true,
+	["parameter-2"] = true,
+	["parameter-3"] = true,
+	["parameter-4"] = true,
+	["parameter-5"] = true,
+	["parameter-6"] = true,
+	["parameter-7"] = true,
+	["parameter-8"] = true,
+	["parameter-9"] = true,
+}
+
 ---Cache mapping keys to signals
 ---@type table<SignalKey, SignalID>
 local key_to_sig = {}
@@ -98,7 +111,7 @@ local function signal_to_key(signal)
 	if stype == "item" or stype == "fluid" then
 		signal.quality = quality_name -- don't cache signal qualities as prototypes
 		key_to_sig[key] = signal
-		key_v[key] = false
+		if not parameter_names[key] then key_v[key] = false end
 	elseif stype == "virtual" then
 		key_to_sig[key] = signal
 		key_v[key] = true
@@ -140,7 +153,7 @@ local function key_to_signal(key)
 		signal = { name = name, type = ty, quality = quality }
 		if ty == "item" or ty == "fluid" then
 			key_to_sig[key] = signal
-			key_v[key] = false
+			if not parameter_names[key] then key_v[key] = false end
 		elseif ty == "virtual" then
 			key_to_sig[key] = signal
 			key_v[key] = true
@@ -165,6 +178,7 @@ lib.key_is_virtual = key_is_virtual
 local function key_is_cargo(key)
 	local verdict = key_v[key]
 	if verdict ~= nil then return not verdict end
+	if parameter_names[key] then return false end
 	local sig = key_to_signal(key)
 	return sig.type == "item" or sig.type == "fluid"
 end
