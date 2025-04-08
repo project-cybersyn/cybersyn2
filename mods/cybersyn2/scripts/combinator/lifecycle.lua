@@ -186,6 +186,7 @@ cs2.on_blueprint_setup(function(event)
 			if
 				entity.control_behavior and entity.control_behavior.decider_conditions
 			then
+				entity.control_behavior.decider_conditions.conditions = {}
 				entity.control_behavior.decider_conditions.outputs = {}
 				changed = true
 			end
