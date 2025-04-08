@@ -250,8 +250,8 @@ function Combinator:get_node(check_type)
 	if node and (not check_type or node.type == check_type) then return node end
 end
 
-local RED_INPUTS = defines.wire_connector_id.circuit_red
-local GREEN_INPUTS = defines.wire_connector_id.circuit_green
+local RED_INPUTS = defines.wire_connector_id.combinator_input_red
+local GREEN_INPUTS = defines.wire_connector_id.combinator_input_green
 
 ---If the combinator is in an input-supporting mode, read and cache its input
 ---signals.

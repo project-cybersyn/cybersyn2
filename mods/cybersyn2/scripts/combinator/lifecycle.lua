@@ -20,6 +20,30 @@ local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
 local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
 local get_raw_settings = _G.cs2.get_raw_settings
 
+-- fix missing Factorio API types
+-- this comes from Harag's original CS1 DC patch
+-- TODO: move this to a better place
+
+---@class DeciderCombinatorOutput -- The Factorio Lua API only defines this as 'table'
+---@field public copy_count_from_input boolean
+---@field public constant int32
+---@field public signal SignalFilter
+
+---@class DeciderCombinatorSignalNetworks
+---@field public green boolean?
+---@field public red boolean?
+
+---@class DeciderCombinatorCondition -- The Factorio Lua API only defines this as 'table'
+---@field public comparator "="|">"|"<"|"≥"|">="|"≤"|"<="|"≠"|"!="
+---@field public compare_type "and"|"or"|nil
+---@field public first_signal SignalFilter?
+---@field public first_signal_networks DeciderCombinatorSignalNetworks?
+---@field public constant int32?
+---@field public second_signal SignalFilter?
+---@field public second_signal_networks DeciderCombinatorSignalNetworks?
+
+local NO_NETWORKS = { red = false, green = false }
+
 --------------------------------------------------------------------------------
 -- Combinator lifecycle events.
 --------------------------------------------------------------------------------
@@ -43,33 +67,51 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 	-- Store settings in cache
 	storage.combinator_settings_cache[comb.id] = tags or {}
 
-	-- Create hidden output entity
-	local out = combinator_entity.surface.create_entity({
-		name = "cybersyn2-output",
-		position = combinator_entity.position,
-		force = combinator_entity.force,
-		create_build_effect_smoke = false,
-	})
-	if not out then
-		error("fatal error: could not create hidden output entity")
-	end
-	comb.output_entity = out
+	-- Add LHS conditions. First is so we can control what displays in the
+	-- combinator's window, second is generic "always-true"
+	local beh = combinator_entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
+	beh.parameters = {
+		conditions = {
+			{
+				comparator = "=",
+				first_signal = nil,
+				second_signal = nil,
+				compare_type = "or",
+				first_signal_networks = NO_NETWORKS,
+				second_signal_networks = NO_NETWORKS,
+			},
+			{
+				comparator = "=",
+				first_signal = nil,
+				second_signal = nil,
+				compare_type = "or",
+				first_signal_networks = NO_NETWORKS,
+				second_signal_networks = NO_NETWORKS,
+			},
+		},
+		outputs = {},
+	}
 
-	-- Wire hidden entity to combinator
-	local comb_red = combinator_entity.get_wire_connector(
-		defines.wire_connector_id.circuit_red,
+	-- Crosswire i/o
+	local i_red = combinator_entity.get_wire_connector(
+		defines.wire_connector_id.combinator_input_red,
 		true
 	)
-	local out_red =
-		out.get_wire_connector(defines.wire_connector_id.circuit_red, true)
-	out_red.connect_to(comb_red, false, defines.wire_origin.script)
-	local comb_green = combinator_entity.get_wire_connector(
-		defines.wire_connector_id.circuit_green,
+	local o_red = combinator_entity.get_wire_connector(
+		defines.wire_connector_id.combinator_output_red,
 		true
 	)
-	local out_green =
-		out.get_wire_connector(defines.wire_connector_id.circuit_green, true)
-	out_green.connect_to(comb_green, false, defines.wire_origin.script)
+	i_red.connect_to(o_red, false, defines.wire_origin.script)
+
+	local i_green = combinator_entity.get_wire_connector(
+		defines.wire_connector_id.combinator_input_green,
+		true
+	)
+	local o_green = combinator_entity.get_wire_connector(
+		defines.wire_connector_id.combinator_output_green,
+		true
+	)
+	i_green.connect_to(o_green, false, defines.wire_origin.script)
 
 	cs2.raise_combinator_created(comb)
 end)
@@ -81,10 +123,7 @@ cs2.on_broken_combinator(function(combinator_entity)
 
 	cs2.raise_combinator_destroyed(comb)
 
-	-- Destroy hidden settings entity
-	if comb.output_entity and comb.output_entity.valid then
-		comb.output_entity.destroy()
-	end
+	-- TODO: destroy associated entities
 
 	-- Clear settings cache
 	storage.combinator_settings_cache[comb.id] = nil

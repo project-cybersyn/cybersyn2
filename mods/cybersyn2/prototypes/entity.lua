@@ -4,11 +4,12 @@ local flib = require("__flib__.data-util")
 -- Combinator
 --------------------------------------------------------------------------------
 
----@type data.ConstantCombinatorPrototype
+---@type data.DeciderCombinatorPrototype
 local combinator_entity = flib.copy_prototype(
-	data.raw["constant-combinator"]["constant-combinator"],
+	data.raw["decider-combinator"]["decider-combinator"],
 	"cybersyn2-combinator"
 )
+combinator_entity.icon = "__cybersyn2__/graphics/icons/combinator.png"
 combinator_entity.radius_visualisation_specification = {
 	sprite = {
 		filename = "__cybersyn2__/graphics/white.png",
@@ -18,11 +19,26 @@ combinator_entity.radius_visualisation_specification = {
 	},
 	distance = 1.5,
 }
+-- Make combi 1x1
+combinator_entity.collision_box = { { -0.35, -0.35 }, { 0.35, 0.35 } }
+combinator_entity.selection_box = { { -0.5, -0.5 }, { 0.5, 0.5 } }
+-- Tweak wiring stuff
+combinator_entity.input_connection_bounding_box =
+	{ { -0.5, -0.5 }, { 0.5, 0.0 } }
+combinator_entity.output_connection_bounding_box =
+	{ { -0.5, 0.0 }, { 0.5, 0.5 } }
+combinator_entity.input_connection_points =
+	data.raw["constant-combinator"]["constant-combinator"].circuit_wire_connection_points
+combinator_entity.output_connection_points =
+	combinator_entity.input_connection_points
+-- End tweak wiring stuff
+combinator_entity.energy_source = { type = "void" }
 combinator_entity.minable =
 	{ mining_time = 0.1, result = "cybersyn2-combinator" }
 combinator_entity.fast_replaceable_group = "cybersyn2-combinator"
 local flags = combinator_entity.flags or {}
 table.insert(flags, "get-by-unit-number")
+table.insert(flags, "hide-alt-info")
 combinator_entity.flags = flags
 
 ---@diagnostic disable-next-line: undefined-global

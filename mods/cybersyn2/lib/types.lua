@@ -32,8 +32,7 @@ local lib = {}
 ---@field public is_being_destroyed true? `true` if the combinator is being removed from state at this time.
 ---@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
 ---@field public inputs? SignalCounts The most recent signals read from the combinator. This is a cached value and will be `nil` in various situations where the combinator hasn't been or can't be read.
----@field public inputs_volatile? boolean `true` if a vehicle was at the station making a delivery when inputs were being read, therefore making them suspect.
----@field public output_entity LuaEntity? The hidden output entity for this combinator, if any.
+---@field public associated_entities table<string,LuaEntity>? Hidden or related entities that must be created or destroyed along with the combinator.
 
 ---A vehicle managed by Cybersyn.
 ---@class Cybersyn.Vehicle
@@ -145,8 +144,8 @@ lib.NodeNetworkOperation = {
 ---@field public produce SignalCounts Positive contents of inventory at last poll.
 ---@field public consume SignalCounts Negative contents of inventory at last poll.
 ---@field public flow SignalCounts? The net of all future incoming and outgoing deliveries to this inventory. Positive values represent inflows, negative outflows.
----@field public net_produce SignalCounts? Provide net of outflow, cached. Pessimistically excludes inflows.
----@field public net_consume SignalCounts? Request net of infflow, cached.
+---@field public net_produce SignalCounts? Provide net of outflow, cached.
+---@field public net_consume SignalCounts? Request net of inflow, cached.
 ---@field public deliveries IdSet? The set of future deliveries targeting this inventory.
 
 ---@class Cybersyn.Delivery: StateMachine
