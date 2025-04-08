@@ -116,6 +116,8 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	stop.threshold_item_out = 1
 
 	-- Read configuration values
+	stop.stack_thresholds =
+		not not comb:read_setting(combinator_settings.use_stack_thresholds)
 	local pr = comb:read_setting(combinator_settings.pr) or 0
 	if pr == 0 then
 		stop.is_consumer = true
@@ -135,15 +137,17 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	end
 	for k, v in pairs(inputs) do
 		if slib.key_is_virtual(k) then
-			if k == "cybersyn2-priority" then stop.priority = v end
-		elseif k == "cybersyn2-all-items" then
-			stop.threshold_item_in = v
-			stop.threshold_item_out = v
-		elseif k == "cybersyn2-all-fluids" then
-			stop.threshold_fluid_in = v
-			stop.threshold_fluid_out = v
-		elseif is_each or k == network_signal then
-			networks[k] = v
+			if k == "cybersyn2-priority" then
+				stop.priority = v
+			elseif k == "cybersyn2-all-items" then
+				stop.threshold_item_in = v
+				stop.threshold_item_out = v
+			elseif k == "cybersyn2-all-fluids" then
+				stop.threshold_fluid_in = v
+				stop.threshold_fluid_out = v
+			elseif is_each or k == network_signal then
+				networks[k] = v
+			end
 		end
 	end
 	stop.networks = networks

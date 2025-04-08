@@ -110,6 +110,7 @@ lib.NodeNetworkOperation = {
 ---@field public threshold_fluid_out uint? General outbound fluid threshold
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
+---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node

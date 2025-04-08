@@ -15,6 +15,7 @@ local ERROR = stlib.ERROR
 local band = bit32.band
 local pairs = _G.pairs
 local key_is_fluid = signal.key_is_fluid
+local key_to_stacksize = signal.key_to_stacksize
 local Combinator = _G.cs2.Combinator
 
 ---@class Cybersyn.Node
@@ -206,10 +207,12 @@ function Node:get_delivery_thresholds(item)
 		return ins and (ins[item] or tin) or tin,
 			outs and (outs[item] or tout) or tout
 	else
-		local tin = self.threshold_item_in or 1
-		local tout = self.threshold_item_out or 1
-		return ins and (ins[item] or tin) or tin,
-			outs and (outs[item] or tout) or tout
+		local mul = 1
+		if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
+		local tin = (self.threshold_item_in * mul) or 1
+		local tout = (self.threshold_item_out * mul) or 1
+		return ins and ((ins[item] * mul) or tin) or tin,
+			outs and ((outs[item] * mul) or tout) or tout
 	end
 end
 
