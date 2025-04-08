@@ -53,6 +53,9 @@ end
 ---@param train Cybersyn.Train
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 local function train_score(train, allocation, train_capacity)
+	-- TODO: re-evaluate this, ideal cap ratio is 1.0, and above 1.0 should
+	-- be treated more harshly than below 1.0
+	-- note: route_train_allocation already assures train_capacity>0
 	local cap_ratio = min(allocation.qty / train_capacity, 1.0)
 	local train_stock = train:get_stock()
 	local stop = (allocation.from --[[@as Cybersyn.TrainStop]]).entity
@@ -79,9 +82,12 @@ function LogisticsThread:route_train_allocation(allocation)
 
 	local best_train = nil
 	local best_score = -INF
-	for _, train in pairs(self.avail_trains) do
+	for train_id, train in pairs(self.avail_trains) do
 		-- Check if still available
-		if not train:is_available() then goto continue end
+		if not train:is_available() then
+			self.avail_trains[train_id] = nil
+			goto continue
+		end
 		-- Check if capacity exceeds both thresholds
 		local train_capacity = is_fluid and train.fluid_capacity
 			or (train.item_slot_capacity * stack_size)
