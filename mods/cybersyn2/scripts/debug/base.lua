@@ -80,8 +80,6 @@ end
 ---@param state Cybersyn.Internal.DebugState
 local function setup_strace(state)
 	local base_level = state.strace_level
-	-- XXX: debug only, remove for release
-	if not base_level then base_level = strace_lib.DEBUG end
 	local always_level = state.strace_always_level or strace_lib.MAX_LEVEL
 	local filter = state.strace_filter
 	local whitelist = not not state.strace_whitelist
