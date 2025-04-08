@@ -30,6 +30,8 @@ cs2.register_combinator_setting(
 cs2.register_combinator_setting(
 	cs2.lib.make_raw_setting("force_departure_signal", "force_departure_signal")
 )
+-- How to apply inactivity timeouts
+-- 0 = disabled, 1 = after delivery, 2 = force out
 cs2.register_combinator_setting(
 	cs2.lib.make_raw_setting("inactivity_mode", "inactivity_mode")
 )
@@ -144,8 +146,7 @@ relm.define_element({
 				gui.Checkbox(
 					"Single item per train when providing",
 					props.combinator,
-					combinator_settings.provide_single_item,
-					true
+					combinator_settings.provide_single_item
 				),
 			}),
 		})

@@ -8,7 +8,7 @@ data:extend({
 
 	{
 		type = "virtual-signal",
-		name = "cybersyn2-group",
+		name = "cybersyn2",
 		icon = "__cybersyn2__/graphics/icons/group-signal.png",
 		icon_size = 64,
 		subgroup = "cybersyn2-signals",
