@@ -198,6 +198,7 @@ local LoopDebugger = relm.define_element({
 
 local function decode_filter(filter)
 	local out = {}
+	if not filter then return out end
 	for k, v in pairs(filter) do
 		if type(v) == "table" then
 			for sub_k, _ in pairs(v) do
