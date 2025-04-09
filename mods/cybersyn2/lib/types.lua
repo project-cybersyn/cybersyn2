@@ -127,6 +127,7 @@ lib.NodeNetworkOperation = {
 ---@field public inactivity_mode "deliver"|"forceout"|nil How to apply inactivity timeouts
 ---@field public disable_cargo_condition boolean? `true` if the cargo condition should be ignored
 ---@field public produce_single_item boolean? `true` if the station should only provide single items per delivery
+---@field public last_dropoff_tick uint? The tick of the last dropoff to this stop.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
