@@ -56,11 +56,13 @@ local AutoSettings = relm.define_element({
 			}),
 			gui.Checkbox(
 				"Strict allow list",
+				"Requires all equipment at the train stop to engage with a wagon.",
 				props.combinator,
 				combinator_settings.allow_strict
 			),
 			gui.Checkbox(
 				"Bidirectional trains only",
+				"Requires trains that can travel in both directions; both directions must also be compatible with the stop equipment",
 				props.combinator,
 				combinator_settings.allow_bidi
 			),

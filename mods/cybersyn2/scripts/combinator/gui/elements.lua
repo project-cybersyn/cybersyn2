@@ -10,11 +10,14 @@ local HF = ultros.HFlow
 
 ---An `ultros.Checkbox` that reads from and writes to a combinator
 ---setting automatically.
-function _G.cs2.gui.Checkbox(caption, combinator, setting, inverse)
+---@param caption LocalisedString
+---@param tooltip LocalisedString?
+function _G.cs2.gui.Checkbox(caption, tooltip, combinator, setting, inverse)
 	local value = combinator:read_setting(setting)
 	if inverse then value = not value end
 	return ultros.Checkbox({
 		caption = caption,
+		tooltip = tooltip,
 		value = value,
 		on_change = function(_, state)
 			local new_state = state
@@ -91,7 +94,8 @@ _G.cs2.gui.InnerHeading = ultros.customize_primitive({
 	font = "default-bold",
 })
 
-function _G.cs2.gui.Switch(is_tristate, L, R, combinator, setting)
+---@param tooltip LocalisedString?
+function _G.cs2.gui.Switch(tooltip, is_tristate, L, R, combinator, setting)
 	return ultros.Switch({
 		left_label_caption = L,
 		right_label_caption = R,

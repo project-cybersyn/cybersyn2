@@ -47,7 +47,7 @@ cs2.register_combinator_setting(
 )
 -- TODO: impl
 cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("provide_single_item", "station_flags", 2)
+	cs2.lib.make_flag_setting("produce_single_item", "station_flags", 2)
 )
 
 --------------------------------------------------------------------------------
@@ -61,6 +61,7 @@ relm.define_element({
 			ultros.WellSection({ caption = "Settings" }, {
 				ultros.Labeled({ caption = "Cargo", top_margin = 6 }, {
 					gui.Switch(
+						"Determines whether deliveries can pick up, drop off, or both.",
 						true,
 						"Outbound only",
 						"Inbound only",
@@ -89,6 +90,7 @@ relm.define_element({
 				}),
 				gui.Checkbox(
 					"Use stack thresholds",
+					"If checked, all item delivery thresholds will be interpreted as stacks of items. If unchecked, all item delivery thresholds will be interpreted as individual items.",
 					props.combinator,
 					combinator_settings.use_stack_thresholds
 				),
@@ -114,6 +116,7 @@ relm.define_element({
 				),
 				ultros.Labeled({ caption = "Inactivity mode", top_margin = 6 }, {
 					gui.Switch(
+						"Determines how the inactivity timer will apply. After delivery means the train will wait the appropriate number of seconds after emptying its cargo. Force out means the train will be forced out after the appropriate number of seconds, regardless of whether it has emptied its cargo. The center position disables inactivity timeouts.",
 						true,
 						"After delivery",
 						"Force out",
@@ -139,14 +142,16 @@ relm.define_element({
 				}),
 				gui.Checkbox(
 					"Enable cargo condition",
+					"If checked, trains will receive a wait condition requiring them to pick up or drop off their cargo. If unchecked, you must manually control the train's departure using custom logic.",
 					props.combinator,
 					combinator_settings.disable_cargo_condition,
 					true
 				),
 				gui.Checkbox(
-					"Single item per train when providing",
+					"Single item per outgoing train",
+					"If checked, this station will never load multiple items onto an outgoing train, instead loading only the first matching item.",
 					props.combinator,
-					combinator_settings.provide_single_item
+					combinator_settings.produce_single_item
 				),
 			}),
 		})

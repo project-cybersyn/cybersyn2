@@ -38,11 +38,13 @@ relm.define_element({
 				}),
 				gui.Checkbox(
 					"Set inbound delivery thresholds",
+					"If enabled, inbound thresholds will be set by the inputs to this combinator.",
 					props.combinator,
 					combinator_settings.dt_inbound
 				),
 				gui.Checkbox(
 					"Set outbound delivery thresholds",
+					"If enabled, outbound thresholds will be set by the inputs to this combinator.",
 					props.combinator,
 					combinator_settings.dt_outbound
 				),
