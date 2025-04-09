@@ -318,3 +318,33 @@ function Combinator:direct_write_outputs(outputs)
 	param.outputs = outputs
 	beh.parameters = param
 end
+
+local I_RED = defines.wire_connector_id.combinator_input_red
+local I_GREEN = defines.wire_connector_id.combinator_input_green
+local O_RED = defines.wire_connector_id.combinator_output_red
+local O_GREEN = defines.wire_connector_id.combinator_output_green
+local SCRIPT = defines.wire_origin.script
+
+---@param state boolean `true` if wires should be crossed, `false` if uncrossed.
+function Combinator:cross_wires(state)
+	local combinator_entity = self.entity
+	if not combinator_entity or not combinator_entity.valid then return end
+
+	local i_red = combinator_entity.get_wire_connector(I_RED, true)
+	local i_green = combinator_entity.get_wire_connector(I_GREEN, true)
+
+	if state then
+		local o_red = combinator_entity.get_wire_connector(O_RED, true)
+		if not i_red.is_connected_to(o_red, SCRIPT) then
+			i_red.connect_to(o_red, false, SCRIPT)
+		end
+
+		local o_green = combinator_entity.get_wire_connector(O_GREEN, true)
+		if not i_green.is_connected_to(o_green, SCRIPT) then
+			i_green.connect_to(o_green, false, SCRIPT)
+		end
+	else
+		i_red.disconnect_all(SCRIPT)
+		i_green.disconnect_all(SCRIPT)
+	end
+end

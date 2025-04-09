@@ -93,27 +93,6 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 		outputs = {},
 	}
 
-	-- Crosswire i/o
-	local i_red = combinator_entity.get_wire_connector(
-		defines.wire_connector_id.combinator_input_red,
-		true
-	)
-	local o_red = combinator_entity.get_wire_connector(
-		defines.wire_connector_id.combinator_output_red,
-		true
-	)
-	i_red.connect_to(o_red, false, defines.wire_origin.script)
-
-	local i_green = combinator_entity.get_wire_connector(
-		defines.wire_connector_id.combinator_input_green,
-		true
-	)
-	local o_green = combinator_entity.get_wire_connector(
-		defines.wire_connector_id.combinator_output_green,
-		true
-	)
-	i_green.connect_to(o_green, false, defines.wire_origin.script)
-
 	cs2.raise_combinator_created(comb)
 end)
 
@@ -215,4 +194,24 @@ cs2.on_blueprint_setup(function(event)
 		end
 	end
 	if changed then blueprintish.set_blueprint_entities(bp_entities) end
+end)
+
+--------------------------------------------------------------------------------
+-- Combinator hotwiring
+--------------------------------------------------------------------------------
+
+local function hotwire_combinator(combinator)
+	local mdef = cs2.combinator_modes[combinator.mode or ""]
+	if mdef then
+		if mdef.is_input then
+			combinator:cross_wires(true)
+		elseif mdef.is_output then
+			combinator:cross_wires(false)
+		end
+	end
+end
+
+cs2.on_combinator_created(hotwire_combinator)
+cs2.on_combinator_setting_changed(function(combinator, setting)
+	if setting == "mode" or setting == nil then hotwire_combinator(combinator) end
 end)
