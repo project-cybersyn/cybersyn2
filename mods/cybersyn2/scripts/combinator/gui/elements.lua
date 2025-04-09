@@ -99,6 +99,7 @@ function _G.cs2.gui.Switch(tooltip, is_tristate, L, R, combinator, setting)
 	return ultros.Switch({
 		left_label_caption = L,
 		right_label_caption = R,
+		tooltip = tooltip,
 		allow_none_state = is_tristate,
 		value = combinator:read_setting(setting),
 		on_change = function(_, state) combinator:write_setting(setting, state) end,

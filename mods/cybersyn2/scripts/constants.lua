@@ -45,7 +45,7 @@ _G.cs2.DEFAULT_COMBINATOR_SETTINGS = {
 	mode = "station",
 	network = "signal-A",
 	pr = 0,
-	inactivity_mode = 1,
-	inactivity_timeout = 5,
+	inactivity_mode = 0,
+	inactivity_timeout = 1,
 	station_flags = 1,
 }

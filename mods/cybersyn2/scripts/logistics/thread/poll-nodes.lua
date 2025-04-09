@@ -153,6 +153,28 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	stop.networks = networks
 	-- TODO: implement this
 	stop.network_operation = 1
+	stop.allow_departure_signal =
+		comb:read_setting(combinator_settings.allow_departure_signal)
+	stop.force_departure_signal =
+		comb:read_setting(combinator_settings.force_departure_signal)
+	local inact_sec = comb:read_setting(combinator_settings.inactivity_timeout)
+	if inact_sec then
+		stop.inactivity_timeout = inact_sec * 60 -- convert to ticks
+	else
+		stop.inactivity_timeout = nil
+	end
+	local im_setting = comb:read_setting(combinator_settings.inactivity_mode)
+	if im_setting == 0 then
+		stop.inactivity_mode = nil
+	elseif im_setting == 1 then
+		stop.inactivity_mode = "deliver"
+	elseif im_setting == 2 then
+		stop.inactivity_mode = "forceout"
+	end
+	stop.disable_cargo_condition =
+		comb:read_setting(combinator_settings.disable_cargo_condition)
+	stop.produce_single_item =
+		comb:read_setting(combinator_settings.produce_single_item)
 
 	-- Inventory has already been polled at this point so nothing left to do
 	-- at station comb.

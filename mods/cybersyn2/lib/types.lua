@@ -121,6 +121,12 @@ lib.NodeNetworkOperation = {
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
 ---@field public deliveries IdSet All deliveries currently inbound to this stop.
 ---@field public delivery_queue Id[] Queue of deliveries waiting for station limit to clear.
+---@field public allow_departure_signal SignalID? The signal key that will allow a train to depart this stop.
+---@field public force_departure_signal SignalID? The signal key that will force a train to depart this stop.
+---@field public inactivity_timeout uint? The number of ticks for the inactivity timeout
+---@field public inactivity_mode "deliver"|"forceout"|nil How to apply inactivity timeouts
+---@field public disable_cargo_condition boolean? `true` if the cargo condition should be ignored
+---@field public produce_single_item boolean? `true` if the station should only provide single items per delivery
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.

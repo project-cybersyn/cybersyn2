@@ -101,28 +101,85 @@ local function coordinate_entry(stop_entity)
 	return add
 end
 
+---@param conditions WaitCondition[]
+---@param stop Cybersyn.TrainStop
+local function add_controlled_out_conditions(conditions, stop)
+	if stop.inactivity_timeout > 0 and stop.inactivity_mode == "deliver" then
+		conditions[#conditions + 1] = {
+			type = "inactivity",
+			compare_type = "and",
+			ticks = stop.inactivity_timeout,
+		}
+	end
+	if stop.allow_departure_signal then
+		conditions[#conditions + 1] = {
+			type = "circuit",
+			compare_type = "and",
+			condition = {
+				comparator = ">",
+				constant = 0,
+				first_signal = stop.allow_departure_signal,
+			},
+		}
+	end
+end
+
+---@param conditions WaitCondition[]
+---@param stop Cybersyn.TrainStop
+local function add_forceout_conditions(conditions, stop)
+	if stop.force_departure_signal then
+		conditions[#conditions + 1] = {
+			type = "circuit",
+			compare_type = "or",
+			condition = {
+				comparator = ">",
+				constant = 0,
+				first_signal = stop.force_departure_signal,
+			},
+		}
+	end
+	if stop.inactivity_timeout > 0 and stop.inactivity_mode == "forceout" then
+		conditions[#conditions + 1] = {
+			type = "inactivity",
+			compare_type = "or",
+			ticks = stop.inactivity_timeout,
+		}
+	end
+end
+
+---@param conditions WaitCondition[]
+---@param stop Cybersyn.TrainStop
+local function forbid_empty_conditions(conditions, stop)
+	if #conditions == 0 then
+		conditions[#conditions + 1] = {
+			type = "inactivity",
+			ticks = 60,
+		}
+	end
+end
+
 ---@param stop Cybersyn.TrainStop
 ---@param manifest SignalCounts
 local function pickup_entry(stop, manifest)
 	---@type WaitCondition[]
 	local conditions = {}
-	-- TODO: honor enable/disable cargo condition
-	for key, qty in pairs(manifest) do
-		local cond_type = key_is_fluid(key) and "fluid_count" or "item_count"
-		conditions[#conditions + 1] = {
-			type = cond_type,
-			compare_type = "and",
-			condition = {
-				comparator = ">=",
-				first_signal = key_to_signal(key),
-				constant = qty,
-			},
-		}
+	if not stop.disable_cargo_condition then
+		for key, qty in pairs(manifest) do
+			local cond_type = key_is_fluid(key) and "fluid_count" or "item_count"
+			conditions[#conditions + 1] = {
+				type = cond_type,
+				compare_type = "and",
+				condition = {
+					comparator = ">=",
+					first_signal = key_to_signal(key),
+					constant = qty,
+				},
+			}
+		end
 	end
-	-- TODO: inactivity
-	-- TODO: circuit
-	-- TODO: circuit forceout
-	-- TODO: timer forceout
+	add_controlled_out_conditions(conditions, stop)
+	add_forceout_conditions(conditions, stop)
+	forbid_empty_conditions(conditions, stop)
 	---@type AddRecordData
 	local add = {
 		station = stop.entity.backer_name,
@@ -131,18 +188,19 @@ local function pickup_entry(stop, manifest)
 	return add
 end
 
+---@param stop Cybersyn.TrainStop
 local function dropoff_entry(stop)
 	---@type WaitCondition[]
 	local conditions = {}
-	-- TODO: honor enable/disable cargo condition
-	conditions[#conditions + 1] = {
-		type = "empty",
-		compare_type = "and",
-	}
-	-- TODO: inactivity
-	-- TODO: circuit
-	-- TODO: circuit forceout
-	-- TODO: timer forceout
+	if not stop.disable_cargo_condition then
+		conditions[#conditions + 1] = {
+			type = "empty",
+			compare_type = "and",
+		}
+	end
+	add_controlled_out_conditions(conditions, stop)
+	add_forceout_conditions(conditions, stop)
+	forbid_empty_conditions(conditions, stop)
 	---@type AddRecordData
 	local add = {
 		station = stop.entity.backer_name,
