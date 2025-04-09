@@ -48,10 +48,48 @@ function _G.cs2.lib.is_equipment_name(name)
 	return equipment_names_set[name or ""] or false
 end
 
+---Determine which TrainStop a loader-1x1 can load to, if any.
+---@return Cybersyn.TrainStop?
+local function get_loader1x1_loading_stop(loader)
+	local position = loader.position
+	local direction = loader.direction
+	local surface = loader.surface
+	-- Grow loader bbox in its facing direction by 1 tile...
+	-- TODO: use mlib instead of flib
+	local area = flib_bbox.ensure_explicit(flib_bbox.from_position(position))
+	if
+		direction == defines.direction.east
+		or direction == defines.direction.west
+	then
+		area.left_top.x = area.left_top.x - 1
+		area.right_bottom.x = area.right_bottom.x + 1
+	else
+		area.left_top.y = area.left_top.y - 1
+		area.right_bottom.y = area.right_bottom.y + 1
+	end
+	local rails = surface.find_entities_filtered({
+		type = rail_types,
+		area = area,
+	})
+	if rails[1] then return TrainStop.find_stop_from_rail(rails[1]) end
+	return nil
+end
+
+---Determine if the given 1x1 loader entity could load trains at `stop`.
+---@param loader LuaEntity
+---@param stop Cybersyn.TrainStop
+---@return boolean
+local function can_loader1x1_load(loader, stop)
+	local loading_stop = get_loader1x1_loading_stop(loader)
+	if loading_stop and loading_stop.id == stop.id then return true end
+	return false
+end
+
 --------------------------------------------------------------------------------
 -- Equipment registration.
 --------------------------------------------------------------------------------
 
+-- XXX: potential MP desync here, probably avoid doing this
 local scan_is_ongoing = false
 
 ---Register or unregister a piece of loading equipment for the given stop.
@@ -147,7 +185,7 @@ local function register_equipment_if_applicable(
 		-- Fallthrough: remove pump from stop equipment manifest
 		stop:register_loading_equipment(equipment, equipment.position, false, false)
 	elseif equipment.type == "loader-1x1" then
-		if bbox_contains(stop_bbox, equipment.position) then
+		if can_loader1x1_load(equipment, stop) then
 			stop:register_loading_equipment(
 				equipment,
 				equipment.position,
@@ -252,27 +290,22 @@ local function built_or_destroyed_equipment(equipment, is_being_destroyed)
 			end
 		end
 	elseif equipment.type == "loader-1x1" then
-		local position = equipment.position
-		local direction = equipment.direction
-		local area = flib_bbox.ensure_explicit(flib_bbox.from_position(position))
-		if
-			direction == defines.direction.east
-			or direction == defines.direction.west
-		then
-			area.left_top.x = area.left_top.x - 1
-			area.right_bottom.x = area.right_bottom.x + 1
-		else
-			area.left_top.y = area.left_top.y - 1
-			area.right_bottom.y = area.right_bottom.y + 1
-		end
-		local rails = surface.find_entities_filtered({
-			type = rail_types,
-			area = area,
-		})
-		if rails[1] then
-			local stop = TrainStop.find_stop_from_rail(rails[1])
-			if stop then
-				register_equipment_if_applicable(equipment, stop, is_being_destroyed)
+		local stop = get_loader1x1_loading_stop(equipment)
+		if stop then
+			if not is_being_destroyed then
+				stop:register_loading_equipment(
+					equipment,
+					equipment.position,
+					true,
+					false
+				)
+			else
+				stop:register_loading_equipment(
+					equipment,
+					equipment.position,
+					false,
+					false
+				)
 			end
 		end
 	elseif equipment.type == "loader" then
