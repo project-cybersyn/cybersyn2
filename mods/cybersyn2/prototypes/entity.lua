@@ -24,9 +24,9 @@ combinator_entity.collision_box = { { -0.35, -0.35 }, { 0.35, 0.35 } }
 combinator_entity.selection_box = { { -0.5, -0.5 }, { 0.5, 0.5 } }
 -- Tweak wiring stuff
 combinator_entity.input_connection_bounding_box =
-	{ { -0.5, -0.5 }, { 0.5, 0.0 } }
+	{ { -0.5, -0.49 }, { 0.5, 0.5 } }
 combinator_entity.output_connection_bounding_box =
-	{ { -0.5, 0.0 }, { 0.5, 0.5 } }
+	{ { 0.0, -0.01 }, { 0.0, -0.01 } }
 combinator_entity.input_connection_points = {
 	{
 		shadow = {
