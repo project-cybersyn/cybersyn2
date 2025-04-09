@@ -103,7 +103,11 @@ cs2.on_broken_combinator(function(combinator_entity)
 
 	cs2.raise_combinator_destroyed(comb)
 
-	-- TODO: destroy associated entities
+	if comb.associated_entities then
+		for _, entity in pairs(comb.associated_entities) do
+			if entity.valid then entity.destroy() end
+		end
+	end
 
 	-- Clear settings cache
 	storage.combinator_settings_cache[comb.id] = nil
