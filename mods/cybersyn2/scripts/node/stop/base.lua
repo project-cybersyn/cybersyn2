@@ -194,6 +194,14 @@ function TrainStop:enqueue(delivery_id)
 	self.delivery_queue[#self.delivery_queue + 1] = delivery_id
 end
 
+---Gets the total number of deliveries, present and queued, for this stop.
+---@return uint
+function TrainStop:get_occupancy()
+	return table_size(self.deliveries) + #self.delivery_queue
+end
+
+function TrainStop:get_num_deliveries() return table_size(self.deliveries) end
+
 ---Reread the inventory from either the station or the shared inventory
 ---combinator
 ---TODO: shared inventory

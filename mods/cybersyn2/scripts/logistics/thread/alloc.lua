@@ -4,6 +4,7 @@
 
 local tlib = require("__cybersyn2__.lib.table")
 local stlib = require("__cybersyn2__.lib.strace")
+local mlib = require("__cybersyn2__.lib.math")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local Node = _G.cs2.Node
@@ -17,6 +18,8 @@ local map = tlib.map
 local t_map_a = tlib.t_map_a
 local filter = tlib.filter
 local min = math.min
+local pos_get = mlib.pos_get
+local sqrt = math.sqrt
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -146,21 +149,41 @@ local function provider_match(data, node, item)
 	end
 end
 
+---@param to Cybersyn.TrainStop
+local function make_distance_busy_score_calculator(to)
+	local to_x, to_y = pos_get(to.entity.position)
+	---@param from Cybersyn.TrainStop
+	return function(from)
+		local stop_b_x, stop_b_y = pos_get(from.entity.position)
+		local dx, dy = stop_b_x - to_x, stop_b_y - to_y
+		local distance = sqrt(dx * dx + dy * dy)
+		local busy = from:get_occupancy()
+		return distance + busy * 500
+	end
+end
+
+local function make_distance_busy_sort_fn(to)
+	local calc = make_distance_busy_score_calculator(to)
+	return function(a, b) return calc(a[1]) < calc(b[1]) end
+end
+
 ---@param item SignalKey
 ---@param puller_i Cybersyn.Node
 ---@param pull_prio integer
 function LogisticsThread:alloc_item_pull_providers(item, puller_i, pull_prio)
 	local groups =
 		self:get_descending_prio_groups(item, "providers", "providers_p")
+	local sort_fn = nil
 	for i = 1, #groups do
 		-- Filter providers. This will check if the provider is still providing
 		-- as well as channel and network matches.
 		local providers_ip = filter(groups[i], provider_match(self, puller_i, item))
 		-- strace(DEBUG, "alloc", item, "providers_ip", providers_ip)
 		if #providers_ip > 0 then
-			-- TODO: distance-busy-sort remaining nodes
-			tlib.shuffle(providers_ip)
-			-- Round-robin pull over providers
+			-- distance-busy-sort potential providers
+			if not sort_fn then sort_fn = make_distance_busy_sort_fn(puller_i) end
+			tsort(providers_ip, sort_fn)
+			-- Pull over sorted providers
 			for j = 1, #providers_ip do
 				local provider_j = providers_ip[j][1]
 				-- Optimize: skip providers that aren't providing anymore
@@ -198,6 +221,10 @@ function LogisticsThread:alloc_item_pull(item)
 		end
 	end
 end
+
+--------------------------------------------------------------------------------
+-- Loop core
+--------------------------------------------------------------------------------
 
 ---@param item SignalKey
 function LogisticsThread:alloc_item(item) self:alloc_item_pull(item) end
