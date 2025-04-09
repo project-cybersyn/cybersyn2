@@ -118,7 +118,7 @@ relm.define_element({
 
 cs2.register_combinator_mode({
 	name = "allow",
-	localized_string = "cybersyn2-gui.allow-list",
+	localized_string = "cybersyn2-combinator-modes.allow-list",
 	settings_element = "CombinatorGui.Mode.Allow",
 	help_element = "CombinatorGui.Mode.Allow.Help",
 })
