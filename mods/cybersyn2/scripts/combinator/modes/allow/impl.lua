@@ -57,6 +57,15 @@ local function stop_accepts_train(stop_layout, train_layout, is_strict, is_bidi)
 			return false
 		end
 	end
+	-- Train must have at least one loadable carriage.
+	local has_loadable = false
+	for i = 1, #train_layout.carriage_types do
+		if train_layout.carriage_types[i] > 1 then
+			has_loadable = true
+			break
+		end
+	end
+	if not has_loadable then return false end
 	-- For bidirectional trains, we must check the station can accept the reverse
 	-- order of the train as well. Position 1 of the station pattern
 	-- should be matched against position train_length of the train layout
