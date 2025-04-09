@@ -2,193 +2,208 @@
 -- Station combinator.
 --------------------------------------------------------------------------------
 
--- flib_gui typing causes a lot of extraneous missing fields errors
----@diagnostic disable: missing-fields
-
-local flib_gui = require("__flib__.gui")
+local relm = require("__cybersyn2__.lib.relm")
+local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
+local gui = _G.cs2.gui
+
+local Pr = relm.Primitive
+local VF = ultros.VFlow
+local HF = ultros.HFlow
+local If = ultros.If
 
 --------------------------------------------------------------------------------
 -- Station combinator settings.
 --------------------------------------------------------------------------------
 
 -- Name of the network virtual signal.
-combinator_api.register_setting(
-	combinator_api.make_raw_setting("network_signal", "network")
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("network_signal", "network")
 )
--- Whether the station should provide, request, or both. Encoded as an integer 0, 1, or 2.
-combinator_api.register_setting(combinator_api.make_raw_setting("pr", "pr"))
+-- Whether the station should provide, request, or both.
+-- 0 = p/r, 1 = p, 2 = r
+cs2.register_combinator_setting(cs2.lib.make_raw_setting("pr", "pr"))
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("allow_departure_signal", "allow_departure_signal")
+)
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("force_departure_signal", "force_departure_signal")
+)
+-- How to apply inactivity timeouts
+-- 0 = disabled, 1 = after delivery, 2 = force out
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("inactivity_mode", "inactivity_mode")
+)
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("inactivity_timeout", "inactivity_timeout")
+)
 
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("use_stack_thresholds", "station_flags", 0)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("use_stack_thresholds", "station_flags", 0)
+)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("disable_cargo_condition", "station_flags", 1)
+)
+-- TODO: impl
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("produce_single_item", "station_flags", 2)
 )
 
 --------------------------------------------------------------------------------
--- Station combinator GUI.
+-- Relm gui for station combinator
 --------------------------------------------------------------------------------
 
----@param event EventData.on_gui_elem_changed
----@param settings Cybersyn.Combinator.Ephemeral
-local function handle_network(event, settings)
-	local signal = event.element.elem_value
-	local stored = nil
-	if
-		signal
-		and signal.type == "virtual"
-		and not cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name]
-	then
-		stored = signal.name
-		if
-			signal.name == "signal-everything"
-			or signal.name == "signal-anything"
-			or signal.name == "signal-each"
-		then
-			stored = "signal-each"
-		end
-	end
-	combinator_api.write_setting(
-		settings,
-		combinator_settings.network_signal,
-		stored
-	)
-end
+relm.define_element({
+	name = "CombinatorGui.Mode.Station",
+	render = function(props)
+		return VF({
+			ultros.WellSection({ caption = "Settings" }, {
+				ultros.Labeled({ caption = "Cargo", top_margin = 6 }, {
+					gui.Switch(
+						"Determines whether deliveries can pick up, drop off, or both.",
+						true,
+						"Outbound only",
+						"Inbound only",
+						props.combinator,
+						combinator_settings.pr
+					),
+				}),
+				ultros.Labeled(
+					{ caption = { "cybersyn2-gui.network" }, top_margin = 6 },
+					{
+						gui.NetworkSignalPicker(
+							props.combinator,
+							combinator_settings.network_signal
+						),
+					}
+				),
+				If(
+					props.combinator:read_setting(combinator_settings.network_signal)
+						== nil,
+					ultros.RtLabel(
+						"[font=default-bold]Warning:[/font] No network signal selected."
+					)
+				),
+				gui.InnerHeading({
+					caption = "Flags",
+				}),
+				gui.Checkbox(
+					"Use stack thresholds",
+					"If checked, all item delivery thresholds will be interpreted as stacks of items. If unchecked, all item delivery thresholds will be interpreted as individual items.",
+					props.combinator,
+					combinator_settings.use_stack_thresholds
+				),
+			}),
+			ultros.WellFold({ caption = "Advanced" }, {
+				ultros.Labeled(
+					{ caption = "Signal: Allow departure", top_margin = 6 },
+					{
+						gui.AnySignalPicker(
+							props.combinator,
+							combinator_settings.allow_departure_signal
+						),
+					}
+				),
+				ultros.Labeled(
+					{ caption = "Signal: Force departure", top_margin = 6 },
+					{
+						gui.AnySignalPicker(
+							props.combinator,
+							combinator_settings.force_departure_signal
+						),
+					}
+				),
+				ultros.Labeled({ caption = "Inactivity mode", top_margin = 6 }, {
+					gui.Switch(
+						"Determines how the inactivity timer will apply. After delivery means the train will wait the appropriate number of seconds after emptying its cargo. Force out means the train will be forced out after the appropriate number of seconds, regardless of whether it has emptied its cargo. The center position disables inactivity timeouts.",
+						true,
+						"After delivery",
+						"Force out",
+						props.combinator,
+						combinator_settings.inactivity_mode
+					),
+				}),
+				ultros.Labeled(
+					{ caption = "Inactivity timeout (sec)", top_margin = 6 },
+					{
+						gui.Input({
+							combinator = props.combinator,
+							setting = combinator_settings.inactivity_timeout,
+							width = 75,
+							numeric = true,
+							allow_decimal = false,
+							allow_negative = false,
+						}),
+					}
+				),
+				gui.InnerHeading({
+					caption = "Flags",
+				}),
+				gui.Checkbox(
+					"Enable cargo condition",
+					"If checked, trains will receive a wait condition requiring them to pick up or drop off their cargo. If unchecked, you must manually control the train's departure using custom logic.",
+					props.combinator,
+					combinator_settings.disable_cargo_condition,
+					true
+				),
+				gui.Checkbox(
+					"Single item per outgoing train",
+					"If checked, this station will never load multiple items onto an outgoing train, instead loading only the first matching item.",
+					props.combinator,
+					combinator_settings.produce_single_item
+				),
+			}),
+		})
+	end,
+})
 
----@param event EventData.on_gui_switch_state_changed
----@param settings Cybersyn.Combinator.Ephemeral
-local function handle_pr_switch(event, settings)
-	local element = event.element
-	local is_pr_state = (element.switch_state == "none" and 0)
-		or (element.switch_state == "left" and 1)
-		or 2
-	combinator_api.write_setting(settings, combinator_settings.pr, is_pr_state)
-end
-
-flib_gui.add_handlers({
-	handle_network = handle_network,
-	handle_pr_switch = handle_pr_switch,
-}, combinator_api.flib_settings_handler_wrapper, "station_settings")
-
----@param parent LuaGuiElement
-local function create_gui(parent)
-	flib_gui.add(parent, {
-		{
-			type = "label",
-			style = "heading_2_label",
-			caption = { "cybersyn2-gui.settings" },
-			style_mods = { top_padding = 8 },
-		},
-		{
-			type = "switch",
-			name = "is_pr_switch",
-			allow_none_state = true,
-			switch_state = "none",
-			handler = handle_pr_switch,
-			left_label_caption = { "cybersyn2-gui.switch-provide" },
-			right_label_caption = { "cybersyn2-gui.switch-request" },
-			left_label_tooltip = { "cybersyn2-gui.switch-provide-tooltip" },
-			right_label_tooltip = { "cybersyn2-gui.switch-request-tooltip" },
-		},
-		{
-			type = "flow",
-			name = "network_flow",
-			direction = "horizontal",
-			style_mods = {
-				vertical_align = "center",
-				horizontally_stretchable = true,
-			},
-			children = {
-				{
-					type = "label",
-					caption = { "cybersyn2-gui.network" },
-				},
-				{
-					type = "flow",
-					style_mods = { horizontally_stretchable = true },
-				},
-				{
-					type = "choose-elem-button",
-					name = "network_button",
-					handler = handle_network,
-					style = "slot_button_in_shallow_frame",
-					tooltip = { "cybersyn2-gui.network-tooltip" },
-					elem_type = "signal",
-				},
-			},
-		},
-		{
-			type = "checkbox",
-			name = "is_stack",
-			state = false,
-			handler = combinator_api.generic_checkbox_handler,
-			tags = { setting = "use_stack_thresholds" },
-			tooltip = { "cybersyn2-gui.is-stack-tooltip" },
-			caption = { "cybersyn2-gui.is-stack-description" },
-		},
-		-- {
-		-- 	type = "flow",
-		-- 	name = "circuit_go_flow",
-		-- 	direction = "horizontal",
-		-- 	style_mods = { vertical_align = "center", horizontally_stretchable = true },
-		-- 	children = {
-		-- 		{
-		-- 			type = "label",
-		-- 			caption = "Circuit condition: allow departure",
-		-- 		},
-		-- 		{
-		-- 			type = "flow",
-		-- 			style_mods = { horizontally_stretchable = true },
-		-- 		},
-		-- 		{
-		-- 			type = "choose-elem-button",
-		-- 			name = "circuit_go_button",
-		-- 			style = "slot_button_in_shallow_frame",
-		-- 			style_mods = { right_margin = 8 },
-		-- 			tooltip = { "cybersyn-gui.network-tooltip" },
-		-- 			elem_type = "signal",
-		-- 		},
-		-- 	},
-		-- },
-	})
-end
-
----@param parent LuaGuiElement
----@param settings Cybersyn.Combinator.Ephemeral
-local function update_gui(parent, settings, _)
-	local switch_state = "none"
-	local is_pr_state
-	combinator_api.read_setting(settings, combinator_settings.pr)
-	if is_pr_state == 0 then
-		switch_state = "none"
-	elseif is_pr_state == 1 then
-		switch_state = "left"
-	elseif is_pr_state == 2 then
-		switch_state = "right"
-	end
-	parent["is_pr_switch"].switch_state = switch_state
-
-	local network_signal_name =
-		combinator_api.read_setting(settings, combinator_settings.network_signal)
-	local network_signal = nil
-	if network_signal_name then
-		network_signal = { name = network_signal_name, type = "virtual" }
-	end
-	parent["network_flow"]["network_button"].elem_value = network_signal
-
-	parent["is_stack"].state = combinator_api.read_setting(
-		settings,
-		combinator_settings.use_stack_thresholds
-	)
-end
+relm.define_element({
+	name = "CombinatorGui.Mode.Station.Help",
+	render = function(props)
+		return VF({
+			Pr({
+				type = "label",
+				font_color = { 255, 230, 192 },
+				font = "default-bold",
+				caption = "Signal Inputs",
+			}),
+			Pr({ type = "line", direction = "horizontal" }),
+			Pr({
+				type = "table",
+				column_count = 2,
+			}, {
+				ultros.BoldLabel("Signal"),
+				ultros.BoldLabel("Effect"),
+				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
+				ultros.RtMultilineLabel(
+					"Set station inventory. Positive values indicate available cargo, while negative values indicate requested cargo."
+				),
+				ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
+				ultros.RtMultilineLabel(
+					"Set the priority for all items at this station."
+				),
+				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
+				ultros.RtMultilineLabel(
+					"Set the inbound and outbound delivery threshold for all items at this station."
+				),
+				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
+				ultros.RtMultilineLabel(
+					"Set the inbound and outbound delivery threshold for all fluids at this station."
+				),
+			}),
+		})
+	end,
+})
 
 --------------------------------------------------------------------------------
 -- Station combinator mode registration.
 --------------------------------------------------------------------------------
 
-combinator_api.register_combinator_mode({
+cs2.register_combinator_mode({
 	name = "station",
-	localized_string = "cybersyn2-gui.station",
-	create_gui = create_gui,
-	update_gui = update_gui,
+	localized_string = "cybersyn2-combinator-modes.station",
+	settings_element = "CombinatorGui.Mode.Station",
+	help_element = "CombinatorGui.Mode.Station.Help",
+	is_input = true,
 })

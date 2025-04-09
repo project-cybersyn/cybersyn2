@@ -1,5 +1,7 @@
 ---
 base: lua52
+lua_versions:
+- lua52
 globals:
   storage:
     any: true
@@ -25,3 +27,8 @@ globals:
     any: true
   settings:
     any: true
+  commands:
+    any: true
+  table_size:
+    any: true
+

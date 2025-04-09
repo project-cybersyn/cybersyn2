@@ -3,66 +3,13 @@
 --------------------------------------------------------------------------------
 
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 
 local bit_extract = bit32.extract
 local bit_replace = bit32.replace
 
----@alias Cybersyn.Combinator.SettingReader fun(definition: Cybersyn.Combinator.SettingDefinition, settings: Cybersyn.Combinator.Ephemeral): any Reads a setting from a combinator. `nil` return value indicates the setting was absent.
----@alias Cybersyn.Combinator.SettingWriter fun(definition: Cybersyn.Combinator.SettingDefinition, settings: Cybersyn.Combinator.Ephemeral, value: any): boolean Writes a setting to a combinator. Returns `true` if the write was successful.
-
----@class Cybersyn.Combinator.SettingDefinition Definition of a setting that can be stored on a Cybersyn combinator.
----@field public name string The unique name of the setting.
----@field public reader Cybersyn.Combinator.SettingReader The function used to read this setting from a combinator.
----@field public writer Cybersyn.Combinator.SettingWriter? The function used to write this setting to a combinator.
-
----Global table of combinator settings definitions
----@type table<string, Cybersyn.Combinator.SettingDefinition>
-_G.cs2.combinator_settings = {}
-
----Read the value of a combinator setting.
----@param combinator Cybersyn.Combinator.Ephemeral
----@param setting Cybersyn.Combinator.SettingDefinition
----@return any value The value of the setting.
-function _G.cs2.combinator_api.read_setting(combinator, setting)
-	return setting.reader(setting, combinator)
-end
-
----Change the value of a combinator setting.
----@param combinator Cybersyn.Combinator.Ephemeral
----@param setting Cybersyn.Combinator.SettingDefinition
----@param value any
----@param skip_event boolean? If `true`, the setting changed event will not be raised.
----@return boolean was_written `true` if a changed value was written.
-function _G.cs2.combinator_api.write_setting(
-	combinator,
-	setting,
-	value,
-	skip_event
-)
-	local old = setting.reader(setting, combinator)
-	if old == value then
-		return false
-	end
-	local writer = setting.writer
-	if not writer then
-		return false
-	end
-	local written = writer(setting, combinator, value)
-	if written and not skip_event then
-		cs2.raise_combinator_or_ghost_setting_changed(
-			combinator,
-			setting.name,
-			value,
-			old
-		)
-	end
-	return written
-end
-
 ---Create a new combinator setting definition.
 ---@param definition Cybersyn.Combinator.SettingDefinition
-function _G.cs2.combinator_api.register_setting(definition)
+function _G.cs2.register_combinator_setting(definition)
 	local name = definition.name
 	if (not name) or cs2.combinator_settings[name] then
 		-- Crash here so dev knows they need to use a unique name.
@@ -78,31 +25,19 @@ end
 ---@param bitfield_key string The key of the bitfield to read from and write to.
 ---@param bit_index uint The index of the bit to read from and write to.
 ---@return Cybersyn.Combinator.SettingDefinition
-function _G.cs2.combinator_api.make_flag_setting(
-	setting_name,
-	bitfield_key,
-	bit_index
-)
+function _G.cs2.lib.make_flag_setting(setting_name, bitfield_key, bit_index)
 	return {
 		name = setting_name,
-		reader = function(_, settings)
-			local bits = combinator_api.get_raw_value(settings.entity, bitfield_key)
-			if type(bits) ~= "number" then
-				bits = bits and 1 or 0
-			end
+		reader = function(_, comb)
+			local bits = comb:get_raw_setting(bitfield_key)
+			if type(bits) ~= "number" then bits = bits and 1 or 0 end
 			return (bit_extract(bits, bit_index, 1) ~= 0)
 		end,
-		writer = function(_, settings, new_value)
-			local bits = combinator_api.get_raw_value(settings.entity, bitfield_key)
-			if type(bits) ~= "number" then
-				bits = bits and 1 or 0
-			end
+		writer = function(_, comb, new_value)
+			local bits = comb:get_raw_setting(bitfield_key)
+			if type(bits) ~= "number" then bits = bits and 1 or 0 end
 			local new_bits = bit_replace(bits, new_value and 1 or 0, bit_index, 1)
-			return combinator_api.set_raw_value(
-				settings.entity,
-				bitfield_key,
-				new_bits
-			)
+			return comb:set_raw_setting(bitfield_key, new_bits)
 		end,
 	}
 end
@@ -112,43 +47,24 @@ end
 ---@param key string The key of the value to read from and write to.
 ---@param default any? The default value if the setting is `nil` or absent.
 ---@return Cybersyn.Combinator.SettingDefinition
-function _G.cs2.combinator_api.make_raw_setting(setting_name, key, default)
+function _G.cs2.lib.make_raw_setting(setting_name, key, default)
 	return {
 		name = setting_name,
-		reader = function(_, settings)
-			return combinator_api.get_raw_value(settings.entity, key) or default
-		end,
-		writer = function(_, settings, new_value)
-			return combinator_api.set_raw_value(settings.entity, key, new_value)
+		reader = function(_, comb) return comb:get_raw_setting(key) or default end,
+		writer = function(_, comb, new_value)
+			return comb:set_raw_setting(key, new_value)
 		end,
 	}
 end
 
-combinator_api.register_setting({
+cs2.register_combinator_setting({
 	name = "mode",
-	reader = function(_, settings)
-		return combinator_api.get_raw_value(settings.entity, "mode") or "unknown"
-	end,
-	writer = function(_, settings, new_mode)
-		if not combinator_api.get_combinator_mode(new_mode) then
-			return false
-		end
-		return combinator_api.set_raw_value(settings.entity, "mode", new_mode)
+	reader = function(_, comb) return comb:get_raw_setting("mode") or "unknown" end,
+	writer = function(_, comb, new_mode)
+		if not cs2.get_combinator_mode(new_mode) then return false end
+		return comb:set_raw_setting("mode", new_mode)
 	end,
 })
-
----Read the mode of a valid live combinator directly from cache.
----@param combinator Cybersyn.Combinator A *valid* real combinator.
----@return string mode The mode of the combinator.
-function _G.cs2.combinator_api.read_mode(combinator)
-	local cache = storage.combinator_settings_cache[combinator.id]
-	if cache then
-		return cache.mode --[[@as string]]
-			or "unknown"
-	else
-		return "unknown"
-	end
-end
 
 --------------------------------------------------------------------------------
 -- Events

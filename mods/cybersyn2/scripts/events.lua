@@ -13,9 +13,11 @@ local event = require("__cybersyn2__.lib.events").create_event
 -- Factorio core control phase events
 --------------------------------------------------------------------------------
 
----Event corresponding to Factorio's `on_init`.
 _G.cs2.on_init, _G.cs2.raise_init =
 	event("init", "nil", "nil", "nil", "nil", "nil")
+
+_G.cs2.on_load, _G.cs2.raise_load =
+	event("load", "nil", "nil", "nil", "nil", "nil")
 
 ---Event corresponding to Factorio's `on_configuration_changed`.
 _G.cs2.on_configuration_changed, _G.cs2.raise_configuration_changed = event(
@@ -85,8 +87,8 @@ _G.cs2.on_entity_repositioned, _G.cs2.raise_entity_repositioned =
 _G.cs2.on_entity_renamed, _G.cs2.raise_entity_renamed =
 	event("entity_renamed", "string", "LuaEntity", "nil", "nil", "nil")
 
-_G.cs2.on_surface_removed, _G.cs2.raise_surface_removed =
-	event("surface_removed", "int", "nil", "nil", "nil", "nil")
+_G.cs2.on_surface, _G.cs2.raise_surface =
+	event("surface", "int", "string", "nil", "nil", "nil")
 
 ---Event raised when equipment recognized by the layout algorithm is built.
 _G.cs2.on_built_equipment, _G.cs2.raise_built_equipment =
@@ -125,8 +127,6 @@ _G.cs2.on_luatrain_changed_state, _G.cs2.raise_luatrain_changed_state = event(
 	"nil"
 )
 
----@alias BlueprintEntityArray BlueprintEntity[]
-
 ---Event raised when a blueprint is pasted into the world.
 _G.cs2.on_built_blueprint, _G.cs2.raise_built_blueprint = event(
 	"built_blueprint",
@@ -156,29 +156,6 @@ _G.cs2.on_vehicle_created, _G.cs2.raise_vehicle_created =
 _G.cs2.on_vehicle_destroyed, _G.cs2.raise_vehicle_destroyed =
 	event("vehicle_destroyed", "Cybersyn.Vehicle", "nil", "nil", "nil", "nil")
 
----Event raised when a new Cybersyn train group is created.
-_G.cs2.on_train_group_created, _G.cs2.raise_train_group_created =
-	event("train_group_created", "string", "nil", "nil", "nil", "nil")
-
----Event raised when a train is added to a Cybersyn group.
-_G.cs2.on_train_group_train_added, _G.cs2.raise_train_group_train_added =
-	event("train_group_train_added", "Cybersyn.Train", "nil", "nil", "nil", "nil")
-
----Event raised when a train is removed from a Cybersyn group.
-_G.cs2.on_train_group_train_removed, _G.cs2.raise_train_group_train_removed =
-	event(
-		"train_group_train_removed",
-		"Cybersyn.Train",
-		"string",
-		"nil",
-		"nil",
-		"nil"
-	)
-
----Event raised when a train group is destroyed.
-_G.cs2.on_train_group_destroyed, _G.cs2.raise_train_group_destroyed =
-	event("train_group_destroyed", "string", "nil", "nil", "nil", "nil")
-
 _G.cs2.on_train_layout_created, _G.cs2.raise_train_layout_created = event(
 	"train_layout_created",
 	"Cybersyn.TrainLayout",
@@ -188,22 +165,39 @@ _G.cs2.on_train_layout_created, _G.cs2.raise_train_layout_created = event(
 	"nil"
 )
 
---------------------------------------------------------------------------------
--- Cybersyn combinator object events
---------------------------------------------------------------------------------
+---@alias Cybersyn.TrainOrNil Cybersyn.Train|nil
+---@alias Cybersyn.TrainStopOrNil Cybersyn.TrainStop|nil
 
-_G.cs2.on_combinator_created, _G.cs2.raise_combinator_created = event(
-	"combinator_created",
-	"Cybersyn.Combinator.Internal",
-	"nil",
-	"nil",
+---Event raised when a train arrives at a stop.
+_G.cs2.on_train_arrived, _G.cs2.raise_train_arrived = event(
+	"train_arrived",
+	"LuaTrain",
+	"Cybersyn.Train",
+	"Cybersyn.TrainStop",
 	"nil",
 	"nil"
 )
 
+---Event raised when a train departs a stop.
+_G.cs2.on_train_departed, _G.cs2.raise_train_departed = event(
+	"train_departed",
+	"LuaTrain",
+	"Cybersyn.Train",
+	"Cybersyn.TrainStop",
+	"nil",
+	"nil"
+)
+
+--------------------------------------------------------------------------------
+-- Cybersyn combinator object events
+--------------------------------------------------------------------------------
+
+_G.cs2.on_combinator_created, _G.cs2.raise_combinator_created =
+	event("combinator_created", "Cybersyn.Combinator", "nil", "nil", "nil", "nil")
+
 _G.cs2.on_combinator_destroyed, _G.cs2.raise_combinator_destroyed = event(
 	"combinator_destroyed",
-	"Cybersyn.Combinator.Internal",
+	"Cybersyn.Combinator",
 	"nil",
 	"nil",
 	"nil",
@@ -213,13 +207,13 @@ _G.cs2.on_combinator_destroyed, _G.cs2.raise_combinator_destroyed = event(
 ---@alias CybersynNodeOrNil Cybersyn.Node|nil
 
 ---Event raised when a combinator is associated or disassociated with a node.
---- * Arg 1 - `Cybersyn.Combinator.Internal` - The combinator.
+--- * Arg 1 - `Cybersyn.Combinator` - The combinator.
 --- * Arg 2 - `Cybersyn.Node|nil` - The node, if any, that the combinator is now associated with.
 --- * Arg 3 - `Cybersyn.Node|nil` - The node, if any, that the combinator was previously associated with.
 _G.cs2.on_combinator_node_associated, _G.cs2.raise_combinator_node_associated =
 	event(
 		"combinator_node_associated",
-		"Cybersyn.Combinator.Internal",
+		"Cybersyn.Combinator",
 		"CybersynNodeOrNil",
 		"CybersynNodeOrNil",
 		"nil",
@@ -243,14 +237,14 @@ _G.cs2.on_combinator_or_ghost_setting_changed, _G.cs2.raise_combinator_or_ghost_
 
 ---Event raised when a real combinator's settings change, including when it
 ---is first built.
---- * Arg 1 - `Cybersyn.Combinator.Internal` - The combinator.
+--- * Arg 1 - `Cybersyn.Combinator` - The combinator.
 --- * Arg 2 - `string|nil` - The name of the setting that changed. If `nil`, you must assume that any or all of the settings have changed.
 --- * Arg 3 - `any` - The new value of the setting, if known.
 --- * Arg 4 - `any` - The old value of the setting, if known.
 _G.cs2.on_combinator_setting_changed, _G.cs2.raise_combinator_setting_changed =
 	event(
 		"combinator_setting_changed",
-		"Cybersyn.Combinator.Internal",
+		"Cybersyn.Combinator",
 		"StringOrNil",
 		"any",
 		"any",
@@ -260,6 +254,10 @@ _G.cs2.on_combinator_setting_changed, _G.cs2.raise_combinator_setting_changed =
 --------------------------------------------------------------------------------
 -- Cybersyn node object events
 --------------------------------------------------------------------------------
+
+---Event fired when the collection of topologies changes.
+_G.cs2.on_topologies, _G.cs2.raise_topologies =
+	event("topologies", "Cybersyn.Topology", "string", "nil", "nil", "nil")
 
 ---Event raised when the set of combinators associated with a node changes.
 _G.cs2.on_node_combinator_set_changed, _G.cs2.raise_node_combinator_set_changed =
@@ -319,6 +317,11 @@ _G.cs2.on_train_stop_pattern_changed, _G.cs2.raise_train_stop_pattern_changed =
 -- Inventories and deliveries.
 --------------------------------------------------------------------------------
 
+---Event raised only when the dispatch loop is paused and then stepped
+---manually by the user.
+_G.cs2.on_debug_loop, _G.cs2.raise_debug_loop =
+	event("debug_loop", "string", "Cybersyn.LogisticsThread", "nil", "nil", "nil")
+
 _G.cs2.on_inventory_created, _G.cs2.raise_inventory_created =
 	event("inventory_created", "Cybersyn.Inventory", "nil", "nil", "nil", "nil")
 
@@ -339,8 +342,8 @@ _G.cs2.on_delivery_destroyed, _G.cs2.raise_delivery_destroyed =
 _G.cs2.on_delivery_state_changed, _G.cs2.raise_delivery_state_changed = event(
 	"delivery_state_changed",
 	"Cybersyn.Delivery",
-	"Cybersyn.Delivery.State",
-	"Cybersyn.Delivery.State",
+	"string",
+	"StringOrNil",
 	"nil",
 	"nil"
 )

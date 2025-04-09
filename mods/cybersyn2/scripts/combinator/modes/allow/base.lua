@@ -2,27 +2,28 @@
 -- Allowlist combinator
 --------------------------------------------------------------------------------
 
--- flib_gui typing causes a lot of extraneous missing fields errors
----@diagnostic disable: missing-fields
-
-local flib_gui = require("__flib__.gui")
 local tlib = require("__cybersyn2__.lib.table")
+local relm = require("__cybersyn2__.lib.relm")
+local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
-local combinator_api = _G.cs2.combinator_api
 local combinator_settings = _G.cs2.combinator_settings
+local gui = _G.cs2.gui
+
+local Pr = relm.Primitive
+local VF = ultros.VFlow
 
 --------------------------------------------------------------------------------
 -- Settings
 --------------------------------------------------------------------------------
 
-combinator_api.register_setting(
-	combinator_api.make_raw_setting("allow_mode", "allow_mode", "auto")
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("allow_mode", "allow_mode", "auto")
 )
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("allow_strict", "allow_flags", 0)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("allow_strict", "allow_flags", 0)
 )
-combinator_api.register_setting(
-	combinator_api.make_flag_setting("allow_bidi", "allow_flags", 1)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("allow_bidi", "allow_flags", 1)
 )
 
 --------------------------------------------------------------------------------
@@ -30,125 +31,94 @@ combinator_api.register_setting(
 --------------------------------------------------------------------------------
 
 local mode_dropdown_items = {
-	{ "cybersyn2-gui.allow-mode-auto" },
-	{ "cybersyn2-gui.allow-mode-layout" },
-	{ "cybersyn2-gui.allow-mode-group" },
-	{ "cybersyn2-gui.allow-mode-all" },
+	{ key = "auto", caption = { "cybersyn2-gui.allow-mode-auto" } },
+	{ key = "layout", caption = { "cybersyn2-gui.allow-mode-layout" } },
+	{ key = "group", caption = { "cybersyn2-gui.allow-mode-group" } },
+	{ key = "all", caption = { "cybersyn2-gui.allow-mode-all" } },
 }
 
-local mode_names = { "auto", "layout", "group", "all" }
+local GroupSettings = relm.define_element({
+	name = "CombinatorGui.Mode.Allow.GroupSettings",
+	render = function(props) return {} end,
+})
 
----@param event flib.GuiEventData
----@param combinator Cybersyn.Combinator.Ephemeral
-local function handle_mode_dropdown(event, combinator)
-	local element = event.element
-	if not element then
-		return
-	end
-	local new_mode = mode_names[element.selected_index] or "auto"
-	combinator_api.write_setting(
-		combinator,
-		combinator_settings.allow_mode,
-		new_mode
-	)
-end
+local LayoutSettings = relm.define_element({
+	name = "CombinatorGui.Mode.Allow.LayoutSettings",
+	render = function(props) return {} end,
+})
 
-flib_gui.add_handlers({
-	["handle_mode_dropdown"] = handle_mode_dropdown,
-}, combinator_api.flib_settings_handler_wrapper, "allow_settings")
+local AutoSettings = relm.define_element({
+	name = "CombinatorGui.Mode.Allow.AutoSettings",
+	render = function(props)
+		return {
+			gui.InnerHeading({
+				caption = "Flags",
+			}),
+			gui.Checkbox(
+				"Strict allow list",
+				"Requires all equipment at the train stop to engage with a wagon.",
+				props.combinator,
+				combinator_settings.allow_strict
+			),
+			gui.Checkbox(
+				"Bidirectional trains only",
+				"Requires trains that can travel in both directions; both directions must also be compatible with the stop equipment",
+				props.combinator,
+				combinator_settings.allow_bidi
+			),
+		}
+	end,
+})
 
----@param parent LuaGuiElement
-local function create_gui(parent)
-	flib_gui.add(parent, {
-		{
-			type = "label",
-			style = "heading_2_label",
-			caption = { "cybersyn2-gui.settings" },
-			style_mods = { top_padding = 8 },
-		},
-		{
-			type = "flow",
-			name = "mode_flow",
-			direction = "horizontal",
-			style_mods = {
-				vertical_align = "center",
-				horizontally_stretchable = true,
-			},
-			children = {
-				{
-					type = "label",
-					caption = { "cybersyn2-gui.allow-mode" },
-				},
-				{
-					type = "flow",
-					style_mods = { horizontally_stretchable = true },
-				},
-				{
-					type = "drop-down",
-					name = "mode_dropdown",
-					style_mods = { top_padding = 3, right_margin = 8 },
-					handler = handle_mode_dropdown,
-					selected_index = 1,
-					items = mode_dropdown_items,
-				},
-			},
-		},
-		{
-			type = "checkbox",
-			name = "allow_strict",
-			state = false,
-			handler = combinator_api.generic_checkbox_handler,
-			tags = { setting = "allow_strict" },
-			tooltip = { "cybersyn2-gui.allow-strict-tooltip" },
-			caption = { "cybersyn2-gui.allow-strict-description" },
-		},
-		{
-			type = "checkbox",
-			name = "allow_bidi",
-			state = false,
-			handler = combinator_api.generic_checkbox_handler,
-			tags = { setting = "allow_bidi" },
-			tooltip = { "cybersyn2-gui.allow-bidi-tooltip" },
-			caption = { "cybersyn2-gui.allow-bidi-description" },
-		},
-	})
-end
+relm.define_element({
+	name = "CombinatorGui.Mode.Allow",
+	render = function(props)
+		local mode = props.combinator:read_setting(combinator_settings.allow_mode)
+		return VF({
+			ultros.WellSection({ caption = "Settings" }, {
+				ultros.Labeled({ caption = "Allowlist mode", top_margin = 6 }, {
+					gui.Dropdown(
+						nil,
+						props.combinator,
+						combinator_settings.allow_mode,
+						mode_dropdown_items
+					),
+				}),
+				ultros.If(
+					mode == "auto",
+					AutoSettings({ combinator = props.combinator })
+				),
+				ultros.If(
+					mode == "layout",
+					LayoutSettings({ combinator = props.combinator })
+				),
+				ultros.If(
+					mode == "group",
+					GroupSettings({ combinator = props.combinator })
+				),
+			}),
+		})
+	end,
+})
 
----@param parent LuaGuiElement
----@param settings Cybersyn.Combinator.Ephemeral
----@param changed_setting_name string?
-local function update_gui(parent, settings, changed_setting_name)
-	local allow_mode =
-		combinator_api.read_setting(settings, combinator_settings.allow_mode)
-
-	if allow_mode == "auto" then
-		-- Unhide auto-mode checkboxes
-		parent["allow_strict"].visible = true
-		parent["allow_bidi"].visible = true
-	else
-		-- Hide auto-mode checkboxes
-		parent["allow_strict"].visible = false
-		parent["allow_bidi"].visible = false
-	end
-
-	parent["allow_strict"].state =
-		combinator_api.read_setting(settings, combinator_settings.allow_strict)
-	parent["allow_bidi"].state =
-		combinator_api.read_setting(settings, combinator_settings.allow_bidi)
-
-	local _, mode_index = tlib.find(mode_names, function(x)
-		return x == allow_mode
-	end)
-	parent["mode_flow"]["mode_dropdown"].selected_index = mode_index or 1
-end
+relm.define_element({
+	name = "CombinatorGui.Mode.Allow.Help",
+	render = function(props)
+		return VF({
+			ultros.RtMultilineLabel(
+				"The [font=default-bold]allow list[/font] determines which trains can be sent to this station. An automatic algorithm can be used to determine this for you based on nearby equipment, or you may choose specific train layouts or groups."
+			),
+		})
+	end,
+})
 
 --------------------------------------------------------------------------------
 -- Station combinator mode registration.
 --------------------------------------------------------------------------------
 
-combinator_api.register_combinator_mode({
+cs2.register_combinator_mode({
 	name = "allow",
-	localized_string = "cybersyn2-gui.allow-list",
-	create_gui = create_gui,
-	update_gui = update_gui,
+	localized_string = "cybersyn2-combinator-modes.allow-list",
+	settings_element = "CombinatorGui.Mode.Allow",
+	help_element = "CombinatorGui.Mode.Allow.Help",
 })

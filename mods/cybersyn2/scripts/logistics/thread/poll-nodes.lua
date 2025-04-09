@@ -1,172 +1,225 @@
+--------------------------------------------------------------------------------
+-- poll_nodes phase
+-- Step over nodes in a topology, updating state variables from combinator
+-- inputs and adding their items to the logistics arrays.
+--------------------------------------------------------------------------------
+
+local stlib = require("__cybersyn2__.lib.strace")
+local tlib = require("__cybersyn2__.lib.table")
+local slib = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
-local inventory_api = _G.cs2.inventory_api
-local combinator_api = _G.cs2.combinator_api
-local stop_api = _G.cs2.stop_api
-local logistics_thread = _G.cs2.logistics_thread
 local mod_settings = _G.cs2.mod_settings
+local combinator_settings = _G.cs2.combinator_settings
+
+local strace = stlib.strace
+local TRACE = stlib.TRACE
+local WARN = stlib.WARN
+
+---@class Cybersyn.LogisticsThread
+local LogisticsThread = _G.cs2.LogisticsThread
+
+---@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
+---@param node Cybersyn.Node
+---@param item SignalKey
+function LogisticsThread:add_to_logisics_set(logistics_type, node, item)
+	local nodes = self[logistics_type][item]
+	if not nodes then
+		nodes = {}
+		self[logistics_type][item] = nodes
+	end
+	nodes[node.id] = true
+end
+
+---@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
+---@param node_id Id
+---@param item SignalKey
+function LogisticsThread:is_in_logistics_set(logistics_type, node_id, item)
+	local set = self[logistics_type][item]
+	return set and set[node_id]
+end
+
+---@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
+---@param node_id Id
+---@param item SignalKey
+function LogisticsThread:remove_from_logistics_set(
+	logistics_type,
+	node_id,
+	item
+)
+	local set = self[logistics_type][item]
+	if set then set[node_id] = nil end
+end
 
 ---@param stop Cybersyn.TrainStop
----@param combinator Cybersyn.Combinator
----@param data Cybersyn.Internal.LogisticsThreadData
-local function classify_train_stop_pull_inventory(
-	inventory,
-	stop,
-	combinator,
-	data
-)
-	if stop.can_provide then
-		local provided = inventory_api.get_net_provides(inventory)
-		for signal_name, count in pairs(provided) do
-			data.providers[signal_name] = (data.providers[signal_name] or 0) + count
+function LogisticsThread:classify_inventory(stop)
+	local inventory = stop:get_inventory()
+	-- TODO: this is ugly, apis to get at this inventory stuff should be
+	-- more centralized and less spaghetti
+	if not inventory then return end
+	if stop.is_producer then
+		for item, qty in pairs(inventory:get_net_produce()) do
+			local _, out_t = stop:get_delivery_thresholds(item)
+			if qty >= out_t then
+				self:add_to_logisics_set("providers", stop, item)
+				self.seen_cargo[item] = true
+			end
+			-- TODO: push
 		end
 	end
-	if stop.can_request then
+	if stop.is_consumer then
+		for item, qty in pairs(inventory:get_net_consume()) do
+			local in_t = stop:get_delivery_thresholds(item)
+			if qty <= -in_t then
+				self:add_to_logisics_set("pullers", stop, item)
+				self.seen_cargo[item] = true
+			end
+			-- TODO: sink
+		end
 	end
 end
 
 ---@param stop Cybersyn.TrainStop
----@param combinator Cybersyn.Combinator
----@param data Cybersyn.Internal.LogisticsThreadData
-local function classify_train_stop_inventories(stop, combinator, data)
-	local pull_inventory = inventory_api.get_inventory(stop.pull_inventory_id)
-	if pull_inventory then
-		classify_train_stop_pull_inventory(pull_inventory, stop, combinator, data)
+function LogisticsThread:poll_train_stop_station_comb(stop)
+	local combs = stop:get_associated_combinators(
+		function(comb) return comb.mode == "station" end
+	)
+	if #combs == 0 then
+		-- TODO: warning to station via api
+		strace(
+			WARN,
+			"message",
+			"Station ain't got no station comb, disabled for logistics",
+			stop.entity
+		)
+		return false
+	elseif #combs > 1 then
+		strace(WARN, "message", "Station has too many station combs", stop.entity)
+		return false
 	end
-end
-
----@param signal SignalID
----@param count int
----@param stop Cybersyn.TrainStop
----@param combinator Cybersyn.Combinator
----@param data Cybersyn.Internal.LogisticsThreadData
-local function poll_train_stop_configuration_signal(
-	signal,
-	count,
-	stop,
-	combinator,
-	data
-)
-	if signal.name == "cybersyn2-priority" then
-		stop.priority = count
-	elseif signal.name == "cybersyn2-item-threshold" then
-		stop.threshold_item_in = math.max(0, count)
-		stop.threshold_item_out = math.max(0, count)
-	elseif signal.name == "cybersyn2-fluid-threshold" then
-		stop.threshold_fluid_in = math.max(0, count)
-		stop.threshold_fluid_out = math.max(0, count)
-	elseif signal.name == "cybersyn2-item-slots" then
-		stop.reserved_slots = math.max(0, count)
-	elseif signal.name == "cybersyn2-fluid-slots" then
-		stop.reserved_fluid_capacity = math.max(0, count)
+	local comb = combs[1]
+	local inputs = comb.inputs
+	if not inputs then
+		strace(
+			WARN,
+			"message",
+			"Station hasn't been polled for inputs",
+			stop.entity
+		)
+		return false
 	end
-end
 
----@param stop Cybersyn.TrainStop
----@param combinator Cybersyn.Combinator
----@param data Cybersyn.Internal.LogisticsThreadData
-local function poll_train_stop_configuration_signals(stop, combinator, data)
-	local signals =
-		logistics_thread.get_combinator_signals(data, combinator.entity)
-	if signals then
-		local i = 1
-		while signals[i] do
-			local container = signals[i]
-			local signal = container.signal
-			local count = container.count
-			-- Consume and process configuration virtual signals
-			if cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name] then
-				poll_train_stop_configuration_signal(
-					signal,
-					count,
-					stop,
-					combinator,
-					data
-				)
-				signals[i] = signals[#signals]
-				signals[#signals] = nil
-			else
-				i = i + 1
+	-- Set defaults
+	stop.priority = 0
+	stop.threshold_fluid_in = 1
+	stop.threshold_fluid_out = 1
+	stop.threshold_item_in = 1
+	stop.threshold_item_out = 1
+
+	-- Read configuration values
+	stop.stack_thresholds =
+		not not comb:read_setting(combinator_settings.use_stack_thresholds)
+	local pr = comb:read_setting(combinator_settings.pr) or 0
+	if pr == 0 then
+		stop.is_consumer = true
+		stop.is_producer = true
+	elseif pr == 1 then
+		stop.is_consumer = false
+		stop.is_producer = true
+	elseif pr == 2 then
+		stop.is_consumer = true
+		stop.is_producer = false
+	end
+	local network_signal = comb:read_setting(combinator_settings.network_signal)
+	local is_each = network_signal == "signal-each"
+	local networks = {}
+	if network_signal and not is_each then
+		networks[network_signal] = 1 -- TODO: default global network mask setting
+	end
+	for k, v in pairs(inputs) do
+		if slib.key_is_virtual(k) then
+			if k == "cybersyn2-priority" then
+				stop.priority = v
+			elseif k == "cybersyn2-all-items" then
+				stop.threshold_item_in = v
+				stop.threshold_item_out = v
+			elseif k == "cybersyn2-all-fluids" then
+				stop.threshold_fluid_in = v
+				stop.threshold_fluid_out = v
+			elseif is_each or k == network_signal then
+				networks[k] = v
 			end
 		end
 	end
-end
-
----@param stop Cybersyn.TrainStop
----@param combinator Cybersyn.Combinator
----@param data Cybersyn.Internal.LogisticsThreadData
-local function poll_train_stop_networks(stop, combinator, data)
-	local signals =
-		logistics_thread.get_combinator_signals(data, combinator.entity)
-	-- Get networks
-	if stop.base_network == "signal-each" then
-		local networks = {}
-		-- Interpret all incoming non-config virtual signals as netmasks.
-		if signals then
-			for i = 1, #signals do
-				local signal = signals[i].signal
-				if
-					signal.type == "virtual"
-					and not cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name]
-				then
-					networks[signal.name] = signals[i].count
-				end
-			end
-		end
-		stop.networks = networks
+	stop.networks = networks
+	-- TODO: implement this
+	stop.network_operation = 1
+	stop.allow_departure_signal =
+		comb:read_setting(combinator_settings.allow_departure_signal)
+	stop.force_departure_signal =
+		comb:read_setting(combinator_settings.force_departure_signal)
+	local inact_sec = comb:read_setting(combinator_settings.inactivity_timeout)
+	if inact_sec then
+		stop.inactivity_timeout = inact_sec * 60 -- convert to ticks
 	else
-		stop.networks = { [stop.base_network] = -1 }
-		-- Single network; vsig matching name sets mask
-		if signals then
-			for i = 1, #signals do
-				local signal = signals[i].signal
-				if signal.type == "virtual" and signal.name == stop.base_network then
-					stop.networks[stop.base_network] = signals[i].count
-					break
-				end
-			end
-		end
+		stop.inactivity_timeout = nil
 	end
+	local im_setting = comb:read_setting(combinator_settings.inactivity_mode)
+	if im_setting == 0 then
+		stop.inactivity_mode = nil
+	elseif im_setting == 1 then
+		stop.inactivity_mode = "deliver"
+	elseif im_setting == 2 then
+		stop.inactivity_mode = "forceout"
+	end
+	stop.disable_cargo_condition =
+		comb:read_setting(combinator_settings.disable_cargo_condition)
+	stop.produce_single_item =
+		comb:read_setting(combinator_settings.produce_single_item)
+
+	-- Inventory has already been polled at this point so nothing left to do
+	-- at station comb.
+	return true
 end
 
 ---@param stop Cybersyn.TrainStop
----@param data Cybersyn.Internal.LogisticsThreadData
-local function poll_train_stop(stop, data)
-	local combinator = combinator_api.get_combinator(stop.station_combinator_id)
-	if not combinator then
-		return
-	end
-	poll_train_stop_configuration_signals(stop, combinator, data)
-	poll_train_stop_networks(stop, combinator, data)
-	classify_train_stop_inventories(stop, combinator, data)
+function LogisticsThread:poll_train_stop(stop)
+	-- Check warming-up state. Skip stops that are warming up.
+	-- TODO: this should be a mod_setting
+	if stop.created_tick + 1 > game.tick then return end
+	-- Get station comb info
+	if not self:poll_train_stop_station_comb(stop) then return end
+	-- Get delivery thresholds
+	-- Get push thresholds
+	-- Get sink thresholds
+	-- Get priorities
+	-- Classify inventory of stop
+	return self:classify_inventory(stop)
 end
 
 ---@param node Cybersyn.Node
----@param data Cybersyn.Internal.LogisticsThreadData
-local function poll_node(node, data)
-	if stop_api.is_valid(node) then
-		poll_train_stop(node --[[@as Cybersyn.TrainStop]], data)
+function LogisticsThread:poll_node(node)
+	if node.type == "stop" then
+		return self:poll_train_stop(node --[[@as Cybersyn.TrainStop]])
 	end
 end
 
----@param data Cybersyn.Internal.LogisticsThreadData
-local function transition_to_create_deliveries(data)
-	data.nodes = nil
-	data.inventories = nil
-	data.stride =
+function LogisticsThread:enter_poll_nodes()
+	self.providers = {}
+	self.pushers = {}
+	self.pullers = {}
+	self.sinks = {}
+	self.dumps = {}
+	self.seen_cargo = {}
+	self.stride =
 		math.ceil(mod_settings.work_factor * cs2.PERF_NODE_POLL_WORKLOAD)
-	data.index = 1
-	data.state = "create_deliveries"
+	self.index = 1
+	self.iteration = 1
 end
 
----@param data Cybersyn.Internal.LogisticsThreadData
-function _G.cs2.logistics_thread.poll_nodes(data)
-	local max_index = math.min(data.index + data.stride, #data.nodes)
-	for i = data.index, max_index do
-		poll_node(data.nodes[i], data)
-	end
-	if max_index >= #data.nodes then
-		transition_to_create_deliveries(data)
-	else
-		data.index = max_index + 1
-	end
+function LogisticsThread:poll_nodes()
+	self:async_loop(
+		self.nodes,
+		self.poll_node,
+		function(x) x:set_state("alloc") end
+	)
 end

@@ -1,3 +1,4 @@
+---@diagnostic disable: need-check-nil
 --------------------------------------------------------------------------------
 -- Shared utility library for working with Factorio signals, including hashing
 -- signals to and from strings.
@@ -9,6 +10,7 @@ end
 
 local strsub = string.sub
 local strfind = string.find
+local strformat = string.format
 local type = _G.type
 
 ---@alias SignalKey string A string identifying a particular SignalID.
@@ -59,9 +61,30 @@ local function get_signal_type_from_name(name)
 	end
 end
 
+local parameter_names = {
+	["parameter-0"] = true,
+	["parameter-1"] = true,
+	["parameter-2"] = true,
+	["parameter-3"] = true,
+	["parameter-4"] = true,
+	["parameter-5"] = true,
+	["parameter-6"] = true,
+	["parameter-7"] = true,
+	["parameter-8"] = true,
+	["parameter-9"] = true,
+}
+
 ---Cache mapping keys to signals
 ---@type table<SignalKey, SignalID>
 local key_to_sig = {}
+
+---Cache of signal keys to virtual/product
+---@type table<SignalKey, boolean>
+local key_v = {}
+
+---Cache mapping item signal keys to stack sizes
+---@type table<SignalKey, uint>
+local key_stack_size = {}
 
 ---Convert a signal to a key.
 ---@param signal SignalID
@@ -77,15 +100,21 @@ local function signal_to_key(signal)
 	else
 		quality_name = quality.name
 	end
+	-- TODO: benchmark caching this in a 2d hash like hash[quality][type]
+	---@type string
 	local key
 	if quality_name == nil or quality_name == "normal" then
 		key = signal.name
 	else
 		key = signal.name .. "|" .. quality_name
 	end
-	if stype == "item" or stype == "fluid" or stype == "virtual" then
-		---@diagnostic disable-next-line: need-check-nil
+	if stype == "item" or stype == "fluid" then
+		signal.quality = quality_name -- don't cache signal qualities as prototypes
 		key_to_sig[key] = signal
+		if not parameter_names[key] then key_v[key] = false end
+	elseif stype == "virtual" then
+		key_to_sig[key] = signal
+		key_v[key] = true
 	end
 	return key --[[@as SignalKey]]
 end
@@ -122,8 +151,12 @@ local function key_to_signal(key)
 	local name, ty, quality = missed_key_to_signal_parts(key)
 	if name then
 		signal = { name = name, type = ty, quality = quality }
-		if ty == "item" or ty == "fluid" or ty == "virtual" then
+		if ty == "item" or ty == "fluid" then
 			key_to_sig[key] = signal
+			if not parameter_names[key] then key_v[key] = false end
+		elseif ty == "virtual" then
+			key_to_sig[key] = signal
+			key_v[key] = true
 		end
 		return signal
 	else
@@ -131,5 +164,65 @@ local function key_to_signal(key)
 	end
 end
 lib.key_to_signal = key_to_signal
+
+---@param key SignalKey
+local function key_is_virtual(key)
+	local verdict = key_v[key]
+	if verdict ~= nil then return verdict end
+	local sig = key_to_signal(key)
+	return sig.type == "virtual"
+end
+lib.key_is_virtual = key_is_virtual
+
+---@param key SignalKey
+local function key_is_cargo(key)
+	local verdict = key_v[key]
+	if verdict ~= nil then return not verdict end
+	if parameter_names[key] then return false end
+	local sig = key_to_signal(key)
+	return sig.type == "item" or sig.type == "fluid"
+end
+lib.key_is_cargo = key_is_cargo
+
+---@param key SignalKey
+local function key_is_fluid(key)
+	local s = key_to_signal(key)
+	if s then return s.type == "fluid" end
+end
+lib.key_is_fluid = key_is_fluid
+
+---@param key SignalKey
+local function key_to_richtext(key)
+	local sig = key_to_signal(key)
+	if not sig then return "(INVALID SIGNAL KEY '" .. key .. "')" end
+	if sig.type == "item" then
+		if sig.quality then
+			return strformat("[item=%s,quality=%s]", sig.name, sig.quality)
+		else
+			return strformat("[item=%s]", sig.name)
+		end
+	elseif sig.type == "fluid" then
+		return strformat("[fluid=%s]", sig.name)
+	elseif sig.type == "virtual" then
+		return strformat("[virtual-signal=%s]", sig.name)
+	end
+end
+lib.key_to_richtext = key_to_richtext
+
+---@param key SignalKey
+local function key_to_stacksize(key)
+	if not key then return nil end
+	local sz = key_stack_size[key]
+	if sz then return sz end
+	local sig = key_to_signal(key)
+	if sig and sig.type == "item" then
+		sz = prototypes.item[sig.name].stack_size
+		key_stack_size[key] = sz
+		return sz
+	else
+		return nil
+	end
+end
+lib.key_to_stacksize = key_to_stacksize
 
 return lib

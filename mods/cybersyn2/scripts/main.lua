@@ -8,23 +8,39 @@
 local counters = require("__cybersyn2__.lib.counters")
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local tlib = require("__cybersyn2__.lib.table")
-local flib_gui = require("__flib__.gui")
+local relm = require("__cybersyn2__.lib.relm")
+local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
 local cs2 = _G.cs2
-local stop_api = _G.cs2.stop_api
-local combinator_api = _G.cs2.combinator_api
+
+local db_dispatch = dynamic_binding.dispatch
 
 --------------------------------------------------------------------------------
--- Library init
+-- Required library event bindings
 --------------------------------------------------------------------------------
 
 cs2.on_init(counters.init, true)
+
 cs2.on_init(scheduler.init, true)
+
+cs2.on_init(relm.init, true)
+cs2.on_load(relm.on_load)
+relm.install_event_handlers()
+
+-- Connect `dynamic_binding` to cs2 event backplane
+cs2.on_init(dynamic_binding.init, true)
+cs2.on_load(dynamic_binding.on_load)
+dynamic_binding.on_event_bound(function(event_name)
+	if _G.cs2[event_name] and string.sub(event_name, 1, 3) == "on_" then
+		_G.cs2[event_name](function(...) return db_dispatch(event_name, ...) end)
+	end
+end)
 
 --------------------------------------------------------------------------------
 -- Core Factorio control phase
 --------------------------------------------------------------------------------
 
 script.on_init(cs2.raise_init)
+script.on_load(cs2.raise_load)
 script.on_configuration_changed(cs2.raise_configuration_changed)
 script.on_event(
 	defines.events.on_runtime_mod_setting_changed,
@@ -69,8 +85,8 @@ local function on_built(event)
 	elseif entity.name == "cybersyn2-combinator" then
 		cs2.raise_built_combinator(entity, event.tags)
 	elseif
-		stop_api.is_equipment_type(entity.type)
-		or stop_api.is_equipment_name(entity.name)
+		cs2.lib.is_equipment_type(entity.type)
+		or cs2.lib.is_equipment_name(entity.name)
 	then
 		cs2.raise_built_equipment(entity)
 	end
@@ -85,10 +101,10 @@ local filter_built = {
 	{ filter = "ghost_name", name = "cybersyn2-combinator" },
 	{ filter = "ghost_name", name = "cybersyn2-combinator-settings" },
 }
-for _, type in ipairs(stop_api.get_equipment_types()) do
+for _, type in ipairs(cs2.lib.get_equipment_types()) do
 	table.insert(filter_built, { filter = "type", type = type })
 end
-for _, name in ipairs(stop_api.get_equipment_names()) do
+for _, name in ipairs(cs2.lib.get_equipment_names()) do
 	table.insert(filter_built, { filter = "name", name = name })
 end
 
@@ -174,8 +190,8 @@ local function on_destroyed(event)
 	elseif entity.name == "cybersyn2-combinator" then
 		cs2.raise_broken_combinator(entity)
 	elseif
-		stop_api.is_equipment_type(entity.type)
-		or stop_api.is_equipment_name(entity.name)
+		cs2.lib.is_equipment_type(entity.type)
+		or cs2.lib.is_equipment_name(entity.name)
 	then
 		cs2.raise_broken_equipment(entity)
 	elseif entity.train then
@@ -202,30 +218,34 @@ script.on_event(
 script.on_event(defines.events.script_raised_destroy, on_destroyed)
 
 --------------------------------------------------------------------------------
--- Surface destruction
+-- Surfaces
 --------------------------------------------------------------------------------
 
----@param event EventData.on_pre_surface_cleared|EventData.on_pre_surface_deleted
-local function on_surface_removed(event)
-	cs2.raise_surface_removed(event.surface_index)
-end
-
-script.on_event(defines.events.on_pre_surface_cleared, on_surface_removed)
-script.on_event(defines.events.on_pre_surface_deleted, on_surface_removed)
+script.on_event(
+	defines.events.on_pre_surface_cleared,
+	function(event) cs2.raise_surface(event.surface_index, "cleared") end
+)
+script.on_event(
+	defines.events.on_pre_surface_deleted,
+	function(event) cs2.raise_surface(event.surface_index, "deleted") end
+)
+script.on_event(
+	defines.events.on_surface_created,
+	function(event) cs2.raise_surface(event.surface_index, "created") end
+)
 
 --------------------------------------------------------------------------------
 -- Combinator GUI
 --------------------------------------------------------------------------------
 
-flib_gui.handle_events()
-
 script.on_event(defines.events.on_gui_opened, function(event)
-	local comb = combinator_api.entity_to_ephemeral(event.entity)
+	local comb = cs2.EphemeralCombinator.new(event.entity)
 	if not comb then return end
-	combinator_api.open_gui(event.player_index, comb)
+	cs2.lib.open_combinator_gui(event.player_index, comb)
 end)
+
 script.on_event(defines.events.on_gui_closed, function(event)
 	local element = event.element
 	if not element or element.name ~= cs2.WINDOW_NAME then return end
-	combinator_api.close_gui(event.player_index)
+	cs2.lib.close_combinator_gui(event.player_index)
 end)

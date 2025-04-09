@@ -3,12 +3,16 @@ if ... ~= "__cybersyn2__.lib.scheduler" then
 	return require("__cybersyn2__.lib.scheduler")
 end
 
-local log = require("__cybersyn2__.lib.logging")
 local counters = require("__cybersyn2__.lib.counters")
 
 local lib = {}
 
----@alias Scheduler.Handler fun(task: Scheduler.Task)
+local strace = nil
+local ERROR = 60
+local WARN = 50
+local TRACE = 10
+
+---@alias Scheduler.Handler fun(task: Scheduler.Task): any
 
 ---@alias Scheduler.TaskId integer
 
@@ -35,6 +39,11 @@ local lib = {}
 
 ---@type {[string]: Scheduler.Handler}
 local handlers = {}
+
+---Abort key that can be returned from schedule handlers to abort recurring
+---tasks.
+local ABORT = setmetatable({}, { __newindex = function() end })
+lib.ABORT = ABORT
 
 ---Register a global handler callback for the scheduler. This should be done
 ---at the global level of the control phase unconditionally for each handler.
@@ -74,20 +83,23 @@ function lib.tick(tick_data)
 			local task = state.tasks[task_id]
 			if task then
 				local handler = handlers[task.handler_name]
+				local handler_result = nil
 				if handler then
-					handler(task)
+					handler_result = handler(task)
 				else
-					log.once(
-						log.level.error,
-						"sched_handler_" .. task.handler_name,
-						nil,
-						nil,
-						"Scheduler: missing handler",
-						task.handler_name,
-						"for task",
-						task_id
-					)
+					if strace then
+						strace(
+							ERROR,
+							"scheduler",
+							"missing_handler",
+							"handler_name",
+							task.handler_name
+						)
+					end
+					handler_result = ABORT
 				end
+				-- Returning abort code can stop recurring tasks.
+				if handler_result == ABORT then state.tasks[task_id] = nil end
 				if task.type == "once" then
 					state.tasks[task_id] = nil
 				elseif task.type == "many" then
@@ -101,8 +113,7 @@ function lib.tick(tick_data)
 	end
 end
 
-local function dont_at(tick, task_id)
-	local state = storage._sched --[[@as Scheduler.Storage]]
+local function dont_at(state, tick, task_id)
 	local task_set = state.at[tick]
 	if task_set then task_set[task_id] = nil end
 end
@@ -119,7 +130,7 @@ local function at(tick, handler_name, data)
 	}
 	state.tasks[task_id] = task
 	do_at(tick, task_id)
-	log.trace("Scheduler: Created task", task)
+	if strace then strace(TRACE, "scheduler", "create_once", "task", task) end
 	return task_id
 end
 
@@ -136,7 +147,9 @@ local function every(first_tick, period, handler_name, data)
 	}
 	state.tasks[task_id] = task
 	do_at(first_tick, task_id)
-	log.trace("Scheduler: Created task", task)
+	if strace then
+		strace(TRACE, "scheduler", "create_recurring", "task", task)
+	end
 	return task_id
 end
 
@@ -148,23 +161,27 @@ end
 ---@return Scheduler.TaskId? #The unique identifier of the task, or `nil` if it couldnt be created.
 function lib.at(tick, handler_name, data)
 	if game and tick <= game.tick then
-		log.debug(
-			"Scheduler: Attempted to schedule task in the past",
-			tick,
-			game.tick,
-			handler_name
-		)
+		if strace then
+			strace(
+				WARN,
+				"scheduler",
+				"past",
+				"message",
+				"attempted to schedule task in the past"
+			)
+		end
 		return nil
 	end
 	if not handlers[handler_name] then
-		log.once(
-			log.level.error,
-			"sched_handler_" .. handler_name,
-			nil,
-			nil,
-			"Scheduler: missing handler",
-			handler_name
-		)
+		if strace then
+			strace(
+				ERROR,
+				"scheduler",
+				"missing_handler",
+				"handler_name",
+				handler_name
+			)
+		end
 		return nil
 	end
 	return at(tick, handler_name, data)
@@ -178,11 +195,16 @@ end
 ---@return Scheduler.TaskId? #The unique identifier of the task, or `nil` if it couldnt be created.
 function lib.after(ticks, handler_name, data)
 	if ticks < 1 then
-		log.debug(
-			"Scheduler: Attempted to schedule task in the past",
-			ticks,
-			handler_name
-		)
+		if strace then
+			strace(
+				WARN,
+				"scheduler",
+				"past",
+				"message",
+				"attempted to schedule task in the past"
+			)
+		end
+
 		return nil
 	end
 	return lib.at(game.tick + ticks, handler_name, data)
@@ -197,14 +219,15 @@ end
 ---@return Scheduler.TaskId? #The unique identifier of the task, or `nil` if it couldnt be created.
 function lib.every(period, handler_name, data, skew)
 	if not handlers[handler_name] then
-		log.once(
-			log.level.error,
-			"sched_handler_" .. handler_name,
-			nil,
-			nil,
-			"Scheduler: missing handler",
-			handler_name
-		)
+		if strace then
+			strace(
+				ERROR,
+				"scheduler",
+				"missing_handler",
+				"handler_name",
+				handler_name
+			)
+		end
 		return nil
 	end
 	local first_tick = game.tick + 1 + ((skew or 0) % period)
@@ -214,11 +237,12 @@ end
 ---Get a task by ID if it exists.
 ---@param task_id Scheduler.TaskId
 ---@return Scheduler.Task? #The task, or `nil` if it doesn't exist.
-function lib.get(task_id)
+local function get(task_id)
 	local state = storage._sched --[[@as Scheduler.Storage]]
 	if not state then return nil end
 	return state.tasks[task_id]
 end
+lib.get = get
 
 ---Change the period of an existing recurring task.
 function lib.set_period(task_id, period)
@@ -226,5 +250,19 @@ function lib.set_period(task_id, period)
 	if not task then return end
 	task.period = period
 end
+
+---Stop a task
+---@return boolean `true` if a task record was deleted
+function lib.stop(task_id)
+	local state = storage._sched --[[@as Scheduler.Storage]]
+	local task = state.tasks[task_id] --[[@as Scheduler.RecurringTask]]
+	if not task then return false end
+	state.tasks[task_id] = nil
+	return true
+end
+
+---Set strace handler. `nil` disables tracing entirely.
+---@param handler? fun(level: int, ...)
+function lib.set_strace_handler(handler) strace = handler end
 
 return lib
