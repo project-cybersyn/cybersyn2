@@ -5,8 +5,10 @@
 local class = require("__cybersyn2__.lib.class").class
 local StateMachine = require("__cybersyn2__.lib.state-machine")
 local scheduler = require("__cybersyn2__.lib.scheduler")
-
 local cs2 = _G.cs2
+
+local max = math.max
+local min = math.min
 
 ---@class Thread
 local Thread = class()
@@ -60,7 +62,7 @@ end
 ---@param step fun(self: StatefulThread, element: any)
 ---@param finish fun(self: StatefulThread)
 function StatefulThread:async_loop(array, step, finish)
-	local max_index = math.min(self.index + self.stride, #array)
+	local max_index = min(self.index + max(self.stride, 1) - 1, #array)
 	for i = self.index, max_index do
 		step(self, array[i])
 	end
