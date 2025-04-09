@@ -153,6 +153,8 @@ end
 ---@param delivery_id Id
 function TrainStop:add_delivery(delivery_id) self.deliveries[delivery_id] = true end
 
+function TrainStop:train_arrived(train) end
+
 ---@param train Cybersyn.Train
 function TrainStop:train_departed(train)
 	local delivery_id = train.delivery_id
@@ -224,6 +226,11 @@ end
 --------------------------------------------------------------------------------
 -- Stop events
 --------------------------------------------------------------------------------
+
+-- Forward train_arrived events to stops
+cs2.on_train_arrived(function(train, cstrain, stop)
+	if cstrain and stop then stop:train_arrived(cstrain) end
+end)
 
 -- Forward train_departed events to stops
 cs2.on_train_departed(function(train, cstrain, stop)

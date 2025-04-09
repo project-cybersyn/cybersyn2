@@ -111,6 +111,7 @@ lib.NodeNetworkOperation = {
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
+---@field public last_consumer_tick uint? The tick of the last time this node was dispatched to as a consumer. Used to disambiguate between equal prioirty consumers.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
@@ -127,7 +128,6 @@ lib.NodeNetworkOperation = {
 ---@field public inactivity_mode "deliver"|"forceout"|nil How to apply inactivity timeouts
 ---@field public disable_cargo_condition boolean? `true` if the cargo condition should be ignored
 ---@field public produce_single_item boolean? `true` if the station should only provide single items per delivery
----@field public last_dropoff_tick uint? The tick of the last dropoff to this stop.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.

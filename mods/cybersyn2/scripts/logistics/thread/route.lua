@@ -36,6 +36,8 @@ local function route_train(data, train, allocation, is_fluid, stack_size)
 	-- Refund and clear allocation
 	data:refund_allocation(allocation)
 	allocation.qty = 0
+	-- Mark consumer as receiving a delivery
+	allocation.to.last_consumer_tick = game.tick
 	-- Remove from avail_trains
 	data.avail_trains[train.id] = nil
 	-- Create delivery

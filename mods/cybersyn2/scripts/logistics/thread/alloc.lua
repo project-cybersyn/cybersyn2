@@ -156,18 +156,17 @@ function LogisticsThread:alloc_item_pull_providers(item, puller_i, pull_prio)
 		-- Filter providers. This will check if the provider is still providing
 		-- as well as channel and network matches.
 		local providers_ip = filter(groups[i], provider_match(self, puller_i, item))
-		strace(DEBUG, "alloc", item, "providers_ip", providers_ip)
+		-- strace(DEBUG, "alloc", item, "providers_ip", providers_ip)
 		if #providers_ip > 0 then
 			-- TODO: distance-busy-sort remaining nodes
 			tlib.shuffle(providers_ip)
 			-- Round-robin pull over providers
 			for j = 1, #providers_ip do
-				self:alloc_item_pull_provider(
-					item,
-					providers_ip[j][1],
-					puller_i,
-					pull_prio
-				)
+				local provider_j = providers_ip[j][1]
+				-- Optimize: skip providers that aren't providing anymore
+				if self:is_in_logistics_set("providers", provider_j.id, item) then
+					self:alloc_item_pull_provider(item, provider_j, puller_i, pull_prio)
+				end
 				-- Optimize: If puller is no longer pulling we can unwind the loop
 				if not self:is_in_logistics_set("pullers", puller_i.id, item) then
 					return
@@ -181,11 +180,15 @@ end
 function LogisticsThread:alloc_item_pull(item)
 	local groups = self:get_descending_prio_groups(item, "pullers", "pullers_p")
 	for i = 1, #groups do
-		-- Generate `random_shuffle(Pullers<I,p>)`
-		-- TODO: this is incorrect, should be sort-by-last-serviced
+		-- Generate `sort_by_last_serviced(Pullers<I,p>)`
 		local pullers_ip = groups[i]
-		tlib.shuffle(pullers_ip)
-		strace(DEBUG, "alloc", item, "pullers_ip", pullers_ip)
+		tsort(
+			pullers_ip,
+			function(a, b)
+				return (a[1].last_consumer_tick or 0) < (b[1].last_consumer_tick or 0)
+			end
+		)
+		-- strace(DEBUG, "alloc", item, "pullers_ip", pullers_ip)
 		for j = 1, #pullers_ip do
 			local puller_i = pullers_ip[j]
 			-- Optimize: puller may have been removed as a result of prior allocations
