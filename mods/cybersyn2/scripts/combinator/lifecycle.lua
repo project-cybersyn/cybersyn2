@@ -65,8 +65,8 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 	comb = Combinator.new(combinator_entity)
 
 	-- Store settings in cache
-	storage.combinator_settings_cache[comb.id] = tags
-		or _G.cs2.DEFAULT_COMBINATOR_SETTINGS
+	storage.combinator_settings_cache[comb.id] =
+		tlib.deep_copy(tags or _G.cs2.DEFAULT_COMBINATOR_SETTINGS, true)
 
 	-- Add LHS conditions. First is so we can control what displays in the
 	-- combinator's window, second is generic "always-true"
