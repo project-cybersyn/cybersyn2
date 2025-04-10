@@ -90,7 +90,19 @@ function LogisticsThread:allocate(
 		qty = qty,
 		prio = prio,
 	}
-	strace(DEBUG, "alloc", item, "allocation", allocation)
+	-- strace(
+	-- 	DEBUG,
+	-- 	"cs2",
+	-- 	"alloc",
+	-- 	"message",
+	-- 	item,
+	-- 	"from",
+	-- 	from_node.id,
+	-- 	"to",
+	-- 	to_node.id,
+	-- 	"qty",
+	-- 	qty
+	-- )
 	self.allocations[#self.allocations + 1] = allocation
 end
 
@@ -114,11 +126,33 @@ function LogisticsThread:alloc_item_pull_provider(
 	pull_prio
 )
 	local wanted, puller_in_t, puller_inv = puller_i:get_pull(item)
+	-- strace(
+	-- 	stlib.DEBUG,
+	-- 	"cs2",
+	-- 	"alloc",
+	-- 	"message",
+	-- 	"puller",
+	-- 	puller_i.id,
+	-- 	"wanted",
+	-- 	wanted,
+	-- 	item
+	-- )
 	if wanted == 0 or not puller_inv then
 		-- Puller no longer wants anything
 		return self:remove_from_logistics_set("pullers", puller_i.id, item)
 	end
 	local avail, provider_out_t, provider_inv = provider_i:get_provide(item)
+	-- strace(
+	-- 	stlib.DEBUG,
+	-- 	"cs2",
+	-- 	"alloc",
+	-- 	"message",
+	-- 	"provider",
+	-- 	provider_i.id,
+	-- 	"avail",
+	-- 	avail,
+	-- 	item
+	-- )
 	if avail == 0 or not provider_inv then
 		-- Provider is no longer providing
 		return self:remove_from_logistics_set("providers", provider_i.id, item)

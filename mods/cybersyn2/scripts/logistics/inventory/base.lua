@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local class = require("__cybersyn2__.lib.class").class
+local tlib = require("__cybersyn2__.lib.table")
 local counters = require("__cybersyn2__.lib.counters")
 local signal_keys = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
@@ -17,6 +18,7 @@ local signal_to_key = signal_keys.signal_to_key
 local key_is_cargo = signal_keys.key_is_cargo
 local min = math.min
 local max = math.max
+local assign = tlib.assign
 
 -- Inventory notes:
 -- - Don't poll a station while a train is there, because result will be
@@ -58,73 +60,43 @@ end
 ---cargo validity.
 ---@param counts SignalCounts
 function Inventory:set_base(counts)
-	local base = self.inventory
+	local base = {}
+	self.inventory = base
 	local inflow = self.inflow
 	local outflow = self.outflow
-	local net_inflow = self.net_inflow
-	local net_outflow = self.net_outflow
 
-	-- Replace replaceables
+	-- Rebuild base
 	for k, count in pairs(counts) do
-		if key_is_cargo(k) then
-			base[k] = count
-			if inflow then
-				local inflow_k = inflow[k] or 0
-				local net_inflow_k = count + inflow_k
-				if net_inflow_k > 0 then
-					if not net_inflow then
-						net_inflow = {}
-						self.net_inflow = net_inflow
-					end
-					net_inflow[k] = net_inflow_k
-				else
-					if net_inflow then net_inflow[k] = nil end
-				end
-			end
-
-			local outflow_k = (outflow and outflow[k]) or 0
-			local net_outflow_k = count - outflow_k
-			if net_outflow_k ~= 0 then
-				if not net_outflow then
-					net_outflow = {}
-					self.net_outflow = net_outflow
-				end
-				net_outflow[k] = net_outflow_k
-			else
-				if net_outflow then net_outflow[k] = nil end
-			end
-		end
+		if key_is_cargo(k) then base[k] = count end
 	end
-	-- Remove removables
-	for k in pairs(base) do
-		if not counts[k] then
-			base[k] = nil
-			local net_inflow_k = (inflow and inflow[k]) or 0
-			if net_inflow_k > 0 then
-				if not net_inflow then
-					net_inflow = {}
-					self.net_inflow = net_inflow
-				end
-				net_inflow[k] = net_inflow_k
-			else
-				if net_inflow then net_inflow[k] = nil end
-			end
 
-			local net_outflow_k = (outflow and -outflow[k]) or 0
-			if net_outflow_k ~= 0 then
-				if not net_outflow then
-					net_outflow = {}
-					self.net_outflow = net_outflow
-				end
-				net_outflow[k] = net_outflow_k
-			else
-				if net_outflow then net_outflow[k] = nil end
-			end
+	-- Rebuild net outflow
+	if outflow and next(outflow) then
+		local net_outflow = assign({}, base)
+		-- Recompute net outflow from base - outflow
+		for k, out in pairs(outflow) do
+			local nk = (net_outflow[k] or 0) - out
+			net_outflow[k] = nk
 		end
+		self.net_outflow = net_outflow
+	else
+		self.outflow = nil
+		self.net_outflow = nil
 	end
-	-- Clear nets
-	if net_inflow and not next(net_inflow) then self.net_inflow = nil end
-	if net_outflow and not next(net_outflow) then self.net_outflow = nil end
+
+	-- Rebuild net inflow
+	if inflow and next(inflow) then
+		local net_inflow = assign({}, base)
+		-- Recompute net inflow from base + inflow
+		for k, in_ in pairs(inflow) do
+			local nk = (net_inflow[k] or 0) + in_
+			net_inflow[k] = nk
+		end
+		self.net_inflow = net_inflow
+	else
+		self.inflow = nil
+		self.net_inflow = nil
+	end
 end
 
 ---@param counts SignalCounts
@@ -138,25 +110,20 @@ function Inventory:add_inflow(counts, sign)
 		local new_inflow = (inflow[k] or 0) + sign * count
 		if new_inflow <= 0 then
 			inflow[k] = nil
+			if net_inflow then net_inflow[k] = base[k] or 0 end
 		else
 			inflow[k] = new_inflow
-		end
-
-		local net_inflow_k = (base[k] or 0) + new_inflow
-		if net_inflow_k > 0 then
+			local net_inflow_k = (base[k] or 0) + new_inflow
 			if not net_inflow then
 				net_inflow = {}
 				self.net_inflow = net_inflow
 			end
 			net_inflow[k] = net_inflow_k
-		elseif net_inflow then
-			net_inflow[k] = nil
 		end
 	end
 
 	if next(inflow) then
 		self.inflow = inflow
-		if net_inflow and not next(net_inflow) then self.net_inflow = nil end
 	else
 		self.inflow = nil
 		self.net_inflow = nil
@@ -174,25 +141,20 @@ function Inventory:add_outflow(counts, sign)
 		local new_outflow = (outflow[k] or 0) + sign * count
 		if new_outflow <= 0 then
 			outflow[k] = nil
+			if net_outflow then net_outflow[k] = base[k] or 0 end
 		else
 			outflow[k] = new_outflow
-		end
-
-		local net_outflow_k = (base[k] or 0) - new_outflow
-		if net_outflow_k ~= 0 then
+			local net_outflow_k = (base[k] or 0) - new_outflow
 			if not net_outflow then
 				net_outflow = {}
 				self.net_outflow = net_outflow
 			end
 			net_outflow[k] = net_outflow_k
-		elseif net_outflow then
-			net_outflow[k] = nil
 		end
 	end
 
 	if next(outflow) then
 		self.outflow = outflow
-		if net_outflow and not next(net_outflow) then self.net_outflow = nil end
 	else
 		self.outflow = nil
 		self.net_outflow = nil
