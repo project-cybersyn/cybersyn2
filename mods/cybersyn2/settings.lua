@@ -32,13 +32,4 @@ data:extend({
 		minimum_value = 0.01,
 		maximum_value = 10.0,
 	},
-	{
-		type = "int-setting",
-		name = "cybersyn2-setting-combinator-latency",
-		order = "bc",
-		setting_type = "runtime-global",
-		default_value = 4,
-		minimum_value = 1,
-		maximum_value = 60,
-	},
 })
