@@ -5,6 +5,7 @@
 local class = require("__cybersyn2__.lib.class").class
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local cs2 = _G.cs2
+local mod_settings = _G.cs2.mod_settings
 
 ---@alias Cybersyn.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"find_vehicles"|"route"
 
@@ -71,4 +72,6 @@ function LogisticsThread:enter_init()
 	self.nodes = nil
 end
 
-function LogisticsThread:init() self:set_state("poll_combinators") end
+function LogisticsThread:init()
+	if mod_settings.enable_logistics then self:set_state("poll_combinators") end
+end
