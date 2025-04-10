@@ -8,6 +8,7 @@ local Node = _G.cs2.Node
 local Topology = _G.cs2.Topology
 local Delivery = _G.cs2.Delivery
 local Inventory = _G.cs2.Inventory
+local mod_settings = _G.cs2.mod_settings
 
 local strace = stlib.strace
 local distance_squared = mlib.pos_distsq
@@ -180,6 +181,14 @@ function TrainStop:is_full()
 	return table_size(self.deliveries) >= limit
 end
 
+---Determine if the queue of this train stop exceeds the user-set global limit.
+---@return boolean
+function TrainStop:is_queue_full()
+	local limit = mod_settings.queue_limit
+	if limit == 0 then return false end
+	return #self.delivery_queue >= limit
+end
+
 ---If deliveries < limit, pop the queue.
 function TrainStop:pop_queue()
 	while not self:is_full() and #self.delivery_queue > 0 do
@@ -202,11 +211,18 @@ end
 
 function TrainStop:get_num_deliveries() return table_size(self.deliveries) end
 
+function TrainStop:get_queue_size() return #self.delivery_queue end
+
+function TrainStop:get_tekbox_equation()
+	local limit = math.max(self.entity.trains_limit, 1)
+	return table_size(self.deliveries)
+		+ (#self.delivery_queue * (limit + 1) / limit)
+end
+
 ---Reread the inventory from either the station or the shared inventory
 ---combinator
 ---TODO: shared inventory
 function TrainStop:reread_inventory()
-	local inventory = Inventory.get(self.inventory_id)
 	if self.inventory_id == self.created_inventory_id then
 		-- Reread station control combinator
 		local combs = self:get_associated_combinators(

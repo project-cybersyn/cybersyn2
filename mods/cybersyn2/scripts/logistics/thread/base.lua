@@ -35,8 +35,6 @@ _G.cs2.LogisticsThread = LogisticsThread
 
 function LogisticsThread.new()
 	local thread = setmetatable({}, LogisticsThread) --[[@as Cybersyn.LogisticsThread]]
-	-- TODO: start paused for debugging. remove for release
-	thread.paused = true
 	thread:set_state("init")
 	return thread
 end

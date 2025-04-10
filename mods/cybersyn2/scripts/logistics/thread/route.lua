@@ -7,6 +7,7 @@ local stlib = require("__cybersyn2__.lib.strace")
 local signal = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 local TrainDelivery = _G.cs2.TrainDelivery
+local mod_settings = _G.cs2.mod_settings
 
 local max = math.max
 local min = math.min
@@ -26,6 +27,7 @@ local LogisticsThread = _G.cs2.LogisticsThread
 ---@param train Cybersyn.Train
 ---@param is_fluid boolean
 ---@param stack_size uint
+---@return boolean
 local function route_train(data, train, allocation, is_fluid, stack_size)
 	-- TODO: locked slots subtract from effective cap here
 	local train_capacity = is_fluid and train.fluid_capacity
@@ -50,10 +52,12 @@ local function route_train(data, train, allocation, is_fluid, stack_size)
 		manifest,
 		manifest -- source charge
 	)
+	return true
 end
 
 ---@param train Cybersyn.Train
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
+---@return number
 local function train_score(train, allocation, train_capacity)
 	-- TODO: re-evaluate this, ideal cap ratio is 1.0, and above 1.0 should
 	-- be treated more harshly than below 1.0
@@ -69,11 +73,10 @@ end
 function LogisticsThread:route_train_allocation(allocation)
 	local from = allocation.from --[[@as Cybersyn.TrainStop]]
 	local to = allocation.to --[[@as Cybersyn.TrainStop]]
-	if (not from:is_valid()) or (not to:is_valid()) then
-		self:refund_allocation(allocation)
-		allocation.qty = 0
-		return
-	end
+	if (not from:is_valid()) or (not to:is_valid()) then return false end
+
+	-- Don't queue into a full queue.
+	if from:is_queue_full() then return false end
 
 	-- TODO: make sure from station still has enough. spillover from
 	-- a previous delivery may have changed things.
@@ -116,18 +119,26 @@ function LogisticsThread:route_train_allocation(allocation)
 	if best_train then
 		return route_train(self, best_train, allocation, is_fluid, stack_size)
 	else
-		-- TODO: "No train" alert
-		self:refund_allocation(allocation)
-		allocation.qty = 0
+		-- TODO: "No train found" alert
+		return false
 	end
 end
 
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 function LogisticsThread:route_allocation(allocation)
-	-- Skip allocations with qty = 0
-	if allocation.qty < 1 then return end
 	if allocation.from.type == "stop" then
 		return self:route_train_allocation(allocation)
+	end
+end
+
+---@param allocation Cybersyn.Internal.LogisticsAllocation
+function LogisticsThread:maybe_route_allocation(allocation)
+	-- Skip allocations with qty = 0
+	if allocation.qty < 1 then return end
+	-- If can't route allocation, zero and refund it
+	if not self:route_allocation(allocation) then
+		self:refund_allocation(allocation)
+		allocation.qty = 0
 	end
 end
 
@@ -141,7 +152,7 @@ function LogisticsThread:exit_route() self.allocations = nil end
 function LogisticsThread:route()
 	self:async_loop(
 		self.allocations,
-		self.route_allocation,
+		self.maybe_route_allocation,
 		function(x) x:set_state("next_t") end
 	)
 end

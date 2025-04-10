@@ -9,6 +9,7 @@ local stlib = require("__cybersyn2__.lib.strace")
 local signal = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 local Inventory = _G.cs2.Inventory
+local mod_settings = _G.cs2.mod_settings
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
@@ -162,7 +163,7 @@ end
 ---@param item SignalKey
 function Node:get_channel_mask(item)
 	local channels = self.channels
-	local channel = self.channel or 1 -- TODO: setting for global default chan
+	local channel = self.channel or mod_settings.default_channel_mask
 	return channels and (channels[item] or channel) or channel
 end
 

@@ -133,7 +133,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	local is_each = network_signal == "signal-each"
 	local networks = {}
 	if network_signal and not is_each then
-		networks[network_signal] = 1 -- TODO: default global network mask setting
+		networks[network_signal] = mod_settings.default_network_mask
 	end
 	for k, v in pairs(inputs) do
 		if slib.key_is_virtual(k) then
@@ -184,8 +184,9 @@ end
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop(stop)
 	-- Check warming-up state. Skip stops that are warming up.
-	-- TODO: this should be a mod_setting
-	if stop.created_tick + 1 > game.tick then return end
+	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
+		return
+	end
 	-- Get station comb info
 	if not self:poll_train_stop_station_comb(stop) then return end
 	-- Get delivery thresholds
