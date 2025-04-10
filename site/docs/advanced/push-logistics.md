@@ -19,8 +19,6 @@ Push logistics is an advanced feature that should only be used when needed. Some
 Push logistics has a performance impact. If you were to set all your stations to push, you would double the workload of Cybersyn's logistics thread. Most of your ordinary stations will not need and should not use push logistics.
 :::
 
-Cybersyn stations can actively push items to other stations designated as storage, rather than waiting for those items to be pulled by a specific request.
-
 ## Pushing from Stations
 
 To push inventory away from a station, you must set a **push threshold** for each item to be pushed. Push thresholds can be set by placing a Cybersyn combinator in `Push thresholds` mode. Positive item and fluid signals fed to the input of this combinator will set the push threshold for the respective items.
