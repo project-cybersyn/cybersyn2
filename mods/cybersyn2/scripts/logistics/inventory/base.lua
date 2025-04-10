@@ -171,6 +171,31 @@ function Inventory:get_net_outflow() return self.net_outflow or self.inventory e
 ---@return SignalCounts
 function Inventory:get_net_inflow() return self.net_inflow or self.inventory end
 
+function Inventory:is_pseudoinventory() return false end
+
+--------------------------------------------------------------------------------
+-- Pseudoinventory
+--------------------------------------------------------------------------------
+
+---@class Cybersyn.Pseudoinventory
+local Pseudoinventory = class("Pseudoinventory", Inventory)
+_G.cs2.Pseudoinventory = Pseudoinventory
+
+---@return Cybersyn.Pseudoinventory
+function Pseudoinventory.new()
+	local id = counters.next("inventory")
+
+	storage.inventories[id] = setmetatable({
+		id = id --[[@as Id]],
+		inventory = {},
+	}, Pseudoinventory)
+	local inv = storage.inventories[id] --[[@as Cybersyn.Pseudoinventory]]
+	cs2.raise_inventory_created(inv)
+	return inv
+end
+
+function Pseudoinventory:is_pseudoinventory() return true end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
@@ -180,7 +205,7 @@ function Inventory:get_net_inflow() return self.net_inflow or self.inventory end
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
 		---@cast node Cybersyn.TrainStop
-		local inv = Inventory.new()
+		local inv = Pseudoinventory.new()
 		node.inventory_id = inv.id
 		node.created_inventory_id = inv.id
 		inv.created_for_node_id = node.id
