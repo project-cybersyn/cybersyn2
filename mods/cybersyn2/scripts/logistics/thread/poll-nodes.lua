@@ -57,7 +57,7 @@ function LogisticsThread:classify_inventory(stop)
 	-- more centralized and less spaghetti
 	if not inventory then return end
 	if stop.is_producer then
-		for item, qty in pairs(inventory:get_net_produce()) do
+		for item, qty in pairs(inventory:get_net_outflow()) do
 			local _, out_t = stop:get_delivery_thresholds(item)
 			if qty >= out_t then
 				self:add_to_logisics_set("providers", stop, item)
@@ -67,7 +67,7 @@ function LogisticsThread:classify_inventory(stop)
 		end
 	end
 	if stop.is_consumer then
-		for item, qty in pairs(inventory:get_net_consume()) do
+		for item, qty in pairs(inventory:get_net_inflow()) do
 			local in_t = stop:get_delivery_thresholds(item)
 			if qty <= -in_t then
 				self:add_to_logisics_set("pullers", stop, item)

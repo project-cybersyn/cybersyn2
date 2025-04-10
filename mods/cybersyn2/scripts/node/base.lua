@@ -225,9 +225,9 @@ end
 function Node:get_provide(item)
 	local inv = Inventory.get(self.inventory_id)
 	if not inv then return 0, 0, inv end
-	local produce = inv:get_net_produce()
+	local produce = inv:get_net_outflow()
 	local has = produce[item] or 0
-	if has == 0 then return 0, 0, inv end
+	if has <= 0 then return 0, 0, inv end
 	local _, out_t = self:get_delivery_thresholds(item)
 	if has < out_t then return 0, out_t, inv end
 	return has, out_t, inv
@@ -241,9 +241,9 @@ end
 function Node:get_pull(item)
 	local inv = Inventory.get(self.inventory_id)
 	if not inv then return 0, 0, nil end
-	local consume = inv:get_net_consume()
+	local consume = inv:get_net_inflow()
 	local has = consume[item] or 0
-	if has == 0 then return 0, 0, inv end
+	if has >= 0 then return 0, 0, inv end
 	has = -has
 	local in_t = self:get_delivery_thresholds(item)
 	if has < in_t then return 0, in_t, inv end

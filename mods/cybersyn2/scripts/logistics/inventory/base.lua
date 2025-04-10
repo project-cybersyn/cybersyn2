@@ -35,8 +35,7 @@ function Inventory.new()
 
 	storage.inventories[id] = setmetatable({
 		id = id --[[@as Id]],
-		produce = {},
-		consume = {},
+		inventory = {},
 	}, Inventory)
 	local inv = storage.inventories[id]
 	cs2.raise_inventory_created(inv)
@@ -55,131 +54,160 @@ function Inventory:destroy()
 	storage.inventories[self.id] = nil
 end
 
----Recompute net inventory by adding flows to base.
-function Inventory:recompute_net()
-	-- If no flow, net = base.
-	if (not self.flow) or (not next(self.flow)) then
-		self.flow = nil
-		self.net_produce = nil
-		self.net_consume = nil
-		return
-	end
-	local flow = self.flow --[[@as SignalCounts]]
+---Set base inventory from raw signal counts. Signals will be filtered for
+---cargo validity.
+---@param counts SignalCounts
+function Inventory:set_base(counts)
+	local base = self.inventory
+	local inflow = self.inflow
+	local outflow = self.outflow
+	local net_inflow = self.net_inflow
+	local net_outflow = self.net_outflow
 
-	-- Compute net produce
-	local produce = self.produce
-	local net_produce = nil
-	if next(produce) then
-		net_produce = {}
-		for key, count in pairs(produce) do
-			local net = count + min(flow[key] or 0, 0)
-			if net > 0 then net_produce[key] = net end
-		end
-	end
-	self.net_produce = net_produce
-
-	-- Compute net consume
-	local consume = self.consume
-	local net_consume = nil
-	if next(consume) then
-		net_consume = {}
-		for key, count in pairs(consume) do
-			local net = count + max(flow[key] or 0, 0)
-			if net < 0 then net_consume[key] = net end
-		end
-	end
-	self.net_consume = net_consume
-end
-
----Set the core produce/consume data of this inventory from signal values obtained
----by polling live Factorio data.
----@param signals SignalCounts
----@param is_consumer boolean Process consumes (negative inventory)
----@param is_producer boolean Process produces (positive inventory)
-function Inventory:set_base_inventory(signals, is_consumer, is_producer)
-	local produce = {}
-	local consume = {}
-
-	for k, count in pairs(signals) do
+	-- Replace replaceables
+	for k, count in pairs(counts) do
 		if key_is_cargo(k) then
-			if count > 0 and is_producer then
-				produce[k] = count
-			elseif count < 0 and is_consumer then
-				consume[k] = count
+			base[k] = count
+			if inflow then
+				local inflow_k = inflow[k] or 0
+				local net_inflow_k = count + inflow_k
+				if net_inflow_k > 0 then
+					if not net_inflow then
+						net_inflow = {}
+						self.net_inflow = net_inflow
+					end
+					net_inflow[k] = net_inflow_k
+				else
+					if net_inflow then net_inflow[k] = nil end
+				end
+			end
+
+			local outflow_k = (outflow and outflow[k]) or 0
+			local net_outflow_k = count - outflow_k
+			if net_outflow_k ~= 0 then
+				if not net_outflow then
+					net_outflow = {}
+					self.net_outflow = net_outflow
+				end
+				net_outflow[k] = net_outflow_k
+			else
+				if net_outflow then net_outflow[k] = nil end
 			end
 		end
 	end
+	-- Remove removables
+	for k in pairs(base) do
+		if not counts[k] then
+			base[k] = nil
+			local net_inflow_k = (inflow and inflow[k]) or 0
+			if net_inflow_k > 0 then
+				if not net_inflow then
+					net_inflow = {}
+					self.net_inflow = net_inflow
+				end
+				net_inflow[k] = net_inflow_k
+			else
+				if net_inflow then net_inflow[k] = nil end
+			end
 
-	self.produce = produce
-	self.consume = consume
-	self:recompute_net()
+			local net_outflow_k = (outflow and -outflow[k]) or 0
+			if net_outflow_k ~= 0 then
+				if not net_outflow then
+					net_outflow = {}
+					self.net_outflow = net_outflow
+				end
+				net_outflow[k] = net_outflow_k
+			else
+				if net_outflow then net_outflow[k] = nil end
+			end
+		end
+	end
+	-- Clear nets
+	if net_inflow and not next(net_inflow) then self.net_inflow = nil end
+	if net_outflow and not next(net_outflow) then self.net_outflow = nil end
 end
 
----Add the given counts to the current flow of this inventory.
----@param added_flow SignalCounts
----@param sign int 1 to add the flow, -1 to subtract it.
-function Inventory:add_flow(added_flow, sign)
-	local flow = self.flow or {}
-	local produce = self.produce
-	local consume = self.consume
-	local net_produce = self.net_produce
-	local net_consume = self.net_consume
+---@param counts SignalCounts
+---@param sign number 1 to add the inflow, -1 to subtract it
+function Inventory:add_inflow(counts, sign)
+	local inflow = self.inflow or {}
+	local net_inflow = self.net_inflow
+	local base = self.inventory
 
-	for key, count in pairs(added_flow) do
-		local new_flow = (flow[key] or 0) + sign * count
-		if new_flow == 0 then
-			flow[key] = nil
+	for k, count in pairs(counts) do
+		local new_inflow = (inflow[k] or 0) + sign * count
+		if new_inflow <= 0 then
+			inflow[k] = nil
 		else
-			flow[key] = new_flow
+			inflow[k] = new_inflow
 		end
-		-- Update net produce and consume entries.
-		local p_count = produce[key]
-		if p_count then
-			if not net_produce then
-				net_produce = {}
-				self.net_produce = net_produce
+
+		local net_inflow_k = (base[k] or 0) + new_inflow
+		if net_inflow_k > 0 then
+			if not net_inflow then
+				net_inflow = {}
+				self.net_inflow = net_inflow
 			end
-			local net = p_count + new_flow
-			net_produce[key] = max(net, 0)
-		end
-		local r_count = consume[key]
-		if r_count then
-			if not net_consume then
-				net_consume = {}
-				self.net_consume = net_consume
-			end
-			local net = r_count + new_flow
-			net_consume[key] = min(net, 0)
+			net_inflow[k] = net_inflow_k
+		elseif net_inflow then
+			net_inflow[k] = nil
 		end
 	end
 
-	if next(flow) then
-		self.flow = flow
+	if next(inflow) then
+		self.inflow = inflow
+		if net_inflow and not next(net_inflow) then self.net_inflow = nil end
 	else
-		self.flow = nil
-		self.net_produce = nil
-		self.net_consume = nil
+		self.inflow = nil
+		self.net_inflow = nil
 	end
 end
 
----Get the net produces of this inventory. This is a READ-ONLY cached table
----that should not be retained beyond the current tick.
----@return SignalCounts
-function Inventory:get_net_produce() return self.net_produce or self.produce end
+---@param counts SignalCounts
+---@param sign number 1 to add the outflow, -1 to subtract it
+function Inventory:add_outflow(counts, sign)
+	local outflow = self.outflow or {}
+	local net_outflow = self.net_outflow
+	local base = self.inventory
 
----Get the net consumes of this inventory. This is a READ-ONLY cached table
----that should not be retained beyond the current tick.
----@return SignalCounts
-function Inventory:get_net_consume() return self.net_consume or self.consume end
+	for k, count in pairs(counts) do
+		local new_outflow = (outflow[k] or 0) + sign * count
+		if new_outflow <= 0 then
+			outflow[k] = nil
+		else
+			outflow[k] = new_outflow
+		end
 
----@return SignalCounts produce
----@return SignalCounts consume
----@return SignalCounts? flow
-function Inventory:get_inventory_info()
-	return self.net_produce or self.produce,
-		self.net_consume or self.consume,
-		self.flow
+		local net_outflow_k = (base[k] or 0) - new_outflow
+		if net_outflow_k ~= 0 then
+			if not net_outflow then
+				net_outflow = {}
+				self.net_outflow = net_outflow
+			end
+			net_outflow[k] = net_outflow_k
+		elseif net_outflow then
+			net_outflow[k] = nil
+		end
+	end
+
+	if next(outflow) then
+		self.outflow = outflow
+		if net_outflow and not next(net_outflow) then self.net_outflow = nil end
+	else
+		self.outflow = nil
+		self.net_outflow = nil
+	end
 end
+
+---Get the net outflow of this inventory. This is a READ-ONLY cached table
+---that should not be retained beyond the current tick.
+---@return SignalCounts
+function Inventory:get_net_outflow() return self.net_outflow or self.inventory end
+
+---Get the net inflow of this inventory. This is a READ-ONLY cached table
+---that should not be retained beyond the current tick.
+---@return SignalCounts
+function Inventory:get_net_inflow() return self.net_inflow or self.inventory end
 
 --------------------------------------------------------------------------------
 -- Events

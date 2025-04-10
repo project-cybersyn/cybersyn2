@@ -48,8 +48,8 @@ function TrainDelivery.new(
 
 	delivery.to_charge = manifest
 	delivery.from_charge = from_charge
-	from_inv:add_flow(from_charge, -1)
-	to_inv:add_flow(manifest, 1)
+	from_inv:add_outflow(from_charge, 1)
+	to_inv:add_inflow(manifest, 1)
 	delivery.vehicle_id = train.id
 	train:set_delivery(delivery)
 
@@ -63,7 +63,7 @@ end
 function TrainDelivery:clear_from_charge()
 	if self.from_charge then
 		local from_inv = Inventory.get(self.from_inventory_id)
-		if from_inv then from_inv:add_flow(self.from_charge, 1) end
+		if from_inv then from_inv:add_outflow(self.from_charge, -1) end
 		self.from_charge = nil
 	end
 end
@@ -72,7 +72,7 @@ end
 function TrainDelivery:clear_to_charge()
 	if self.to_charge then
 		local to_inv = Inventory.get(self.to_inventory_id)
-		if to_inv then to_inv:add_flow(self.to_charge, -1) end
+		if to_inv then to_inv:add_inflow(self.to_charge, -1) end
 		self.to_charge = nil
 	end
 end

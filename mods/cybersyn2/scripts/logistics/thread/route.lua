@@ -136,6 +136,8 @@ function LogisticsThread:enter_route()
 	self.index = 1
 end
 
+function LogisticsThread:exit_route() self.allocations = nil end
+
 function LogisticsThread:route()
 	self:async_loop(
 		self.allocations,

@@ -71,15 +71,6 @@ function LogisticsThread:enter_init()
 	self.current_topology = nil
 	self.active_topologies = nil
 	self.nodes = nil
-	-- XXX: temp debugging
-	-- clear allocations (dispatch phase should do this)
-	if self.allocations then
-		for _, alloc in pairs(self.allocations) do
-			alloc.from_inv:add_flow({ [alloc.item] = alloc.qty }, 1)
-			alloc.to_inv:add_flow({ [alloc.item] = alloc.qty }, -1)
-		end
-		self.allocations = nil
-	end
 end
 
 function LogisticsThread:init() self:set_state("poll_combinators") end

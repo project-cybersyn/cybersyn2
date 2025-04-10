@@ -149,12 +149,11 @@ lib.NodeNetworkOperation = {
 ---@field public id Id
 ---@field public surface_index Id? The index of the surface this inventory should be associated with if any.
 ---@field public created_for_node_id Id? If this inventory was created implicitly for a node, that node's id.
----@field public produce SignalCounts Positive contents of inventory at last poll.
----@field public consume SignalCounts Negative contents of inventory at last poll.
----@field public flow SignalCounts? The net of all future incoming and outgoing deliveries to this inventory. Positive values represent inflows, negative outflows.
----@field public net_produce SignalCounts? Provide net of outflow, cached.
----@field public net_consume SignalCounts? Request net of inflow, cached.
----@field public deliveries IdSet? The set of future deliveries targeting this inventory.
+---@field public inventory SignalCounts Base inventory (or pseudoinventory) as read from the combinator or world state.
+---@field public inflow SignalCounts? All incoming deliveries
+---@field public outflow SignalCounts? All outgoing deliveries
+---@field public net_inflow SignalCounts? Base inventory plus inflow.
+---@field public net_outflow SignalCounts? Base inventory less outflow.
 
 ---@class Cybersyn.Delivery: StateMachine
 ---@field public id Id

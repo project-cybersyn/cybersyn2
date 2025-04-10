@@ -22,26 +22,23 @@ local WARN = stlib.WARN
 function Combinator:update_inventory(force)
 	-- TODO: shared inventory etc.
 
-	if self.mode ~= "station" then return end
-	local stop = Node.get(self.node_id)
-	if not stop or (not stop.type == "stop") then return end
-	---@cast stop Cybersyn.TrainStop
-	if (not force) and stop.entity.get_stopped_train() then
-		-- If a train is at a stop while reading its inventory combinator, read
-		-- must be treated as unreliable.
-
-		-- TODO: timer here, after so much time force an inventory read even
-		-- if train.
-		return
+	if self.mode == "station" then
+		local stop = Node.get(self.node_id)
+		if not stop or (not stop.type == "stop") then return end
+		---@cast stop Cybersyn.TrainStop
+		if (not force) and stop.entity.get_stopped_train() then
+			-- If a train is at a stop while reading its inventory combinator, read
+			-- must be treated as unreliable.
+			return
+		end
+		-- Inventory sent to station combinator goes to stop's created inventory.
+		-- (its actual inventory may come from a shared inventory combinator
+		-- elsewhere)
+		local inventory = Inventory.get(stop.created_inventory_id)
+		if not inventory then
+			strace(WARN, "message", "stop without an inventory", stop.entity)
+			return
+		end
+		inventory:set_base(self.inputs or {})
 	end
-	local inventory = Inventory.get(stop.inventory_id)
-	if not inventory then
-		strace(WARN, "message", "stop without an inventory", stop.entity)
-		return
-	end
-	inventory:set_base_inventory(
-		self.inputs or {},
-		stop.is_consumer,
-		stop.is_producer
-	)
 end
