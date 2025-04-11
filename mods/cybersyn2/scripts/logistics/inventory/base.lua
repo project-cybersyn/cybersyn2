@@ -115,7 +115,7 @@ function Inventory:add_inflow(counts, sign)
 			inflow[k] = new_inflow
 			local net_inflow_k = (base[k] or 0) + new_inflow
 			if not net_inflow then
-				net_inflow = {}
+				net_inflow = assign({}, base)
 				self.net_inflow = net_inflow
 			end
 			net_inflow[k] = net_inflow_k
@@ -146,7 +146,7 @@ function Inventory:add_outflow(counts, sign)
 			outflow[k] = new_outflow
 			local net_outflow_k = (base[k] or 0) - new_outflow
 			if not net_outflow then
-				net_outflow = {}
+				net_outflow = assign({}, base)
 				self.net_outflow = net_outflow
 			end
 			net_outflow[k] = net_outflow_k
