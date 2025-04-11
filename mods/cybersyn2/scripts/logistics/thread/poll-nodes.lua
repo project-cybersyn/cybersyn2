@@ -181,6 +181,8 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		combinator_settings.reserved_capacity
 	) or 0
 	stop.spillover = comb:read_setting(combinator_settings.spillover) or 0
+	stop.ignore_secondary_thresholds =
+		comb:read_setting(combinator_settings.ignore_secondary_thresholds)
 
 	-- Inventory has already been polled at this point so nothing left to do
 	-- at station comb.

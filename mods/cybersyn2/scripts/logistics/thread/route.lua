@@ -53,7 +53,8 @@ local function try_allocation(
 	-- Skip already-processed allocations
 	if allocation.qty < 1 then return true end
 	-- Allocations must have the same "from"
-	if allocation.from.id ~= original_allocation.from.id then return true end
+	local from = allocation.from --[[@as Cybersyn.TrainStop]]
+	if from.id ~= original_allocation.from.id then return true end
 	-- We must not have seen the item yet. This prevents stealing a higher
 	-- priority delivery from this "from" to another "to".
 	if cargo_state.seen_items[allocation.item] then return true end
@@ -61,6 +62,15 @@ local function try_allocation(
 	-- Allocations must have the same "to". We must check this after the seen
 	-- item check.
 	if allocation.to.id ~= original_allocation.to.id then return true end
+	-- Honor "ignore secondary thresholds"
+	local from_thresh = allocation.from_thresh
+	local to_thresh = allocation.to_thresh
+	if
+		(allocation ~= original_allocation) and from.ignore_secondary_thresholds
+	then
+		from_thresh = 1
+		to_thresh = 1
+	end
 
 	-- Fluid case
 	if allocation.is_fluid then
@@ -68,11 +78,12 @@ local function try_allocation(
 		if cargo_state.fluid_was_allocated then return true end
 		-- Verify capacity
 		if
-			cargo_state.fluid_capacity >= allocation.from_thresh
-			and cargo_state.fluid_capacity >= allocation.to_thresh
+			cargo_state.fluid_capacity >= from_thresh
+			and cargo_state.fluid_capacity >= to_thresh
 		then
 			-- Allocate fluid
 			cargo_state.fluid_was_allocated = true
+			-- TODO: mixin available `from` inventory
 			local amt = min(allocation.qty, cargo_state.fluid_capacity)
 			cargo_state.fluid_capacity = 0
 			cargo_state.manifest[allocation.item] = amt
@@ -96,12 +107,13 @@ local function try_allocation(
 	local remaining_item_capacity = (remaining_item_slots * stack_size)
 		- spillover
 	if
-		remaining_item_capacity < allocation.from_thresh
-		or remaining_item_capacity < allocation.to_thresh
+		remaining_item_capacity < from_thresh
+		or remaining_item_capacity < to_thresh
 	then
 		return true
 	end
 	-- Compute manifest and spillover
+	-- TODO: mixin available `from` inventory
 	local manifest_qty = min(allocation.qty, remaining_item_capacity)
 	local spillover_qty = min(allocation.qty + spillover, remaining_item_capacity)
 	local slots_needed = ceil(spillover_qty / stack_size)
@@ -145,7 +157,7 @@ local function route_train(data, train, allocation, index)
 
 	-- Attempt to tack on as many future point-to-point allocations as possible
 	local allocations = data.allocations --[[@as Cybersyn.Internal.LogisticsAllocation[] ]]
-	for i = index, #allocations do
+	for i = index, from.produce_single_item and index or #allocations do
 		local future_alloc = allocations[i]
 		if not try_allocation(data, allocation, future_alloc, cargo_state) then
 			break

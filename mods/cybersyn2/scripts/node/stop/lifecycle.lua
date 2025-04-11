@@ -61,6 +61,7 @@ function reassociate_recursive(combinators, depth)
 		-- Find the preferred stop for association
 		local target_stop_entity, target_rail_entity =
 			cs2.lib.find_associable_entities_for_combinator(combinator.entity)
+		combinator.connected_rail = target_rail_entity
 		---@type Cybersyn.TrainStop?
 		local target_stop = nil
 		local is_proximate = nil

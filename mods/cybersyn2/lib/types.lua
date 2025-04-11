@@ -33,6 +33,7 @@ local lib = {}
 ---@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
 ---@field public inputs? SignalCounts The most recent signals read from the combinator. This is a cached value and will be `nil` in various situations where the combinator hasn't been or can't be read.
 ---@field public associated_entities table<string,LuaEntity>? Hidden or related entities that must be created or destroyed along with the combinator.
+---@field public connected_rail LuaEntity? If this combinator was built next to a rail, this is that rail.
 
 ---A vehicle managed by Cybersyn.
 ---@class Cybersyn.Vehicle
@@ -133,6 +134,7 @@ lib.NodeNetworkOperation = {
 ---@field public reserved_slots uint? Reserved slots per cargo wagon
 ---@field public reserved_capacity uint? Reserved capacity per fluid wagon
 ---@field public spillover uint? Spillover per item per cargo wagon
+---@field public ignore_secondary_thresholds boolean? `true` if station should ignore thresholds when adding secondary items to outgoing trains.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
