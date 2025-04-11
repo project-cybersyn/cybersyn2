@@ -118,6 +118,9 @@ local renderers = {
 			rt_array(rt_array(function(np) return (np[1].id .. "p" .. np[2]) end))
 		)
 	),
+	cargo = rt(rt_array(rt_item_icon, 10)),
+	all_vehicles = rt(rt_array(rt_field("id"), 10)),
+	avail_trains = rt(rt_set(rt_val, 10)),
 }
 
 local function default_renderer(k, v)

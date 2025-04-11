@@ -48,4 +48,7 @@ _G.cs2.DEFAULT_COMBINATOR_SETTINGS = {
 	inactivity_mode = 0,
 	inactivity_timeout = 1,
 	station_flags = 1,
+	reserved_slots = 0,
+	reserved_capacity = 0,
+	spillover = 0,
 }

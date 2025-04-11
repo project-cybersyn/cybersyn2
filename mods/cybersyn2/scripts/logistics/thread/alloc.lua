@@ -5,6 +5,7 @@
 local tlib = require("__cybersyn2__.lib.table")
 local stlib = require("__cybersyn2__.lib.strace")
 local mlib = require("__cybersyn2__.lib.math")
+local siglib = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local Node = _G.cs2.Node
@@ -20,6 +21,8 @@ local filter = tlib.filter
 local min = math.min
 local pos_get = mlib.pos_get
 local sqrt = math.sqrt
+local key_is_fluid = siglib.key_is_fluid
+local key_to_stacksize = siglib.key_to_stacksize
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -35,6 +38,8 @@ local LogisticsThread = _G.cs2.LogisticsThread
 ---@field public item SignalKey
 ---@field public qty int
 ---@field public prio int
+---@field public stack_size uint Stack size, 1 for fluids
+---@field public is_fluid boolean
 
 ---Get and cache descending prio groups for a given item/logistic_type
 ---@param item string
@@ -79,6 +84,8 @@ function LogisticsThread:allocate(
 	local flow = { [item] = qty }
 	from_inv:add_outflow(flow, 1)
 	to_inv:add_inflow(flow, 1)
+	local is_fluid = key_is_fluid(item)
+	---@type Cybersyn.Internal.LogisticsAllocation
 	local allocation = {
 		from = from_node,
 		from_inv = from_inv,
@@ -89,6 +96,8 @@ function LogisticsThread:allocate(
 		item = item,
 		qty = qty,
 		prio = prio,
+		is_fluid = is_fluid,
+		stack_size = is_fluid and 1 or (key_to_stacksize(item) or 1),
 	}
 	-- strace(
 	-- 	DEBUG,

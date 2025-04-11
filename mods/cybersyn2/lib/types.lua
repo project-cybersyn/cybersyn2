@@ -72,6 +72,8 @@ lib.CarriageType = {
 ---@field public carriage_names string[] The names of the entity prototypes of the train's carriages from front to back.
 ---@field public carriage_types Cybersyn.CarriageType[] The types of the entity prototypes of the train's carriages from front to back.
 ---@field public bidirectional boolean `true` if the train has locomotives allowing it to move both directions.
+---@field public n_cargo_wagons uint Number of cargo wagons in the train.
+---@field public n_fluid_wagons uint Number of fluid wagons in the train.
 
 ---@enum Cybersyn.Node.NetworkOperation
 lib.NodeNetworkOperation = {
@@ -128,6 +130,9 @@ lib.NodeNetworkOperation = {
 ---@field public inactivity_mode "deliver"|"forceout"|nil How to apply inactivity timeouts
 ---@field public disable_cargo_condition boolean? `true` if the cargo condition should be ignored
 ---@field public produce_single_item boolean? `true` if the station should only provide single items per delivery
+---@field public reserved_slots uint? Reserved slots per cargo wagon
+---@field public reserved_capacity uint? Reserved capacity per fluid wagon
+---@field public spillover uint? Spillover per item per cargo wagon
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.

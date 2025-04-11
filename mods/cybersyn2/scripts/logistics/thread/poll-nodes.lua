@@ -175,6 +175,12 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		comb:read_setting(combinator_settings.disable_cargo_condition)
 	stop.produce_single_item =
 		comb:read_setting(combinator_settings.produce_single_item)
+	stop.reserved_slots = comb:read_setting(combinator_settings.reserved_slots)
+		or 0
+	stop.reserved_capacity = comb:read_setting(
+		combinator_settings.reserved_capacity
+	) or 0
+	stop.spillover = comb:read_setting(combinator_settings.spillover) or 0
 
 	-- Inventory has already been polled at this point so nothing left to do
 	-- at station comb.
