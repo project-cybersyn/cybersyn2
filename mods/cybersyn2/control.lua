@@ -55,6 +55,7 @@ require("scripts.combinator.modes.sinkt.base")
 require("scripts.combinator.modes.channels.base")
 require("scripts.combinator.modes.dump.base")
 require("scripts.combinator.modes.manifest.base")
+require("scripts.combinator.modes.wagon")
 
 require("scripts.logistics.thread.base")
 require("scripts.logistics.thread.poll-combinators")

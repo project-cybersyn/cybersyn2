@@ -172,7 +172,13 @@ local function update_stop_overlay(stop)
 	if not layout then return end
 
 	-- Text
-	local lines = { table.concat({ "[item=train-stop]", stop.id }) }
+	local lines = {
+		table.concat({
+			"[item=train-stop]",
+			stop.id,
+			stop.per_wagon_mode and "[item=cargo-wagon]" or "",
+		}),
+	}
 	table.insert(lines, table.concat(layout.carriage_loading_pattern or {}))
 	table.insert(lines, "Allowed Layouts:")
 	if stop.allowed_layouts then

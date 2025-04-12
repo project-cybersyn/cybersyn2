@@ -135,6 +135,7 @@ lib.NodeNetworkOperation = {
 ---@field public reserved_capacity uint? Reserved capacity per fluid wagon
 ---@field public spillover uint? Spillover per item per cargo wagon
 ---@field public ignore_secondary_thresholds boolean? `true` if station should ignore thresholds when adding secondary items to outgoing trains.
+---@field public per_wagon_mode boolean? `true` if the station is in per-wagon mode due to the presence of a wagon comb.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
