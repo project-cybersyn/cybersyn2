@@ -82,10 +82,15 @@ function Train:evaluate_capacity()
 		elseif carriage.type == "fluid-wagon" then
 			-- TODO: quality fluid wagon capacities
 			fluid_capacity = fluid_capacity + carriage.prototype.fluid_capacity
+		else
+			-- No capacity
 		end
 	end
 	self.item_slot_capacity = item_slot_capacity
 	self.fluid_capacity = fluid_capacity
+	-- These will be recomputed on demand by wagon control subsystem.
+	self.per_wagon_fluid_capacity = nil
+	self.per_wagon_item_slot_capacity = nil
 end
 
 cs2.on_vehicle_created(function(vehicle)

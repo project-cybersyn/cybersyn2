@@ -15,6 +15,7 @@ local distance_squared = mlib.pos_distsq
 local pos_get = mlib.pos_get
 local INF = math.huge
 local tremove = table.remove
+local abs = math.abs
 
 ---@class Cybersyn.TrainStop
 local TrainStop = class("TrainStop", Node)
@@ -245,6 +246,25 @@ function TrainStop:reread_inventory()
 	else
 		-- TODO: shared/external inventory
 	end
+end
+
+---Determine if a train parked at this stop is reversed relative to the stop.
+---@param lua_train LuaTrain
+---@return boolean #`true` if the train is parked backwards at this stop, `false` otherwise.
+function TrainStop:is_train_reversed(lua_train)
+	local back_end = lua_train.get_rail_end(defines.rail_direction.back)
+
+	if back_end and back_end.rail then
+		local back_pos = back_end.rail.position
+		local stop_pos = self.entity.position
+		if
+			abs(back_pos.x - stop_pos.x) < 3 and abs(back_pos.y - stop_pos.y) < 3
+		then
+			return true
+		end
+	end
+
+	return false
 end
 
 --------------------------------------------------------------------------------

@@ -25,6 +25,9 @@ _G.cs2.TrainDelivery = TrainDelivery
 ---@param to_inv Cybersyn.Inventory
 ---@param manifest SignalCounts
 ---@param from_charge SignalCounts
+---@param spillover uint
+---@param reserved_slots uint
+---@param reserved_capacity uint
 function TrainDelivery.new(
 	train,
 	from,
@@ -32,7 +35,10 @@ function TrainDelivery.new(
 	to,
 	to_inv,
 	manifest,
-	from_charge
+	from_charge,
+	spillover,
+	reserved_slots,
+	reserved_capacity
 )
 	local delivery = Delivery.new("train")
 	setmetatable(delivery, TrainDelivery)
@@ -42,9 +48,9 @@ function TrainDelivery.new(
 	delivery.to_id = to.id
 	delivery.from_inventory_id = from_inv.id
 	delivery.to_inventory_id = to_inv.id
-	cs2.raise_delivery_created(delivery)
-	-- Check if some bizarre side effect invalidated us
-	if not delivery:is_valid() then return nil end
+	delivery.spillover = spillover
+	delivery.reserved_slots = reserved_slots
+	delivery.reserved_fluid_capacity = reserved_capacity
 
 	delivery.to_charge = manifest
 	delivery.from_charge = from_charge
@@ -56,6 +62,7 @@ function TrainDelivery.new(
 	-- Immediately start the delivery
 	delivery:goto_from()
 
+	cs2.raise_delivery_created(delivery)
 	return delivery
 end
 

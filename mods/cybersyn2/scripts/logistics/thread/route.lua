@@ -27,7 +27,7 @@ local LogisticsThread = _G.cs2.LogisticsThread
 ---@field public remaining_item_slots uint Remaining item slots. Locked slots already subtracted.
 ---@field public fluid_capacity uint Train fluid capacity. Reserved cap already subtracted.
 ---@field public seen_items table<SignalKey, boolean> Seen items.
----@field public item_spillover uint Per-item spillover from provider.
+---@field public item_spillover uint Per-item spillover from provider PREMULTIPLIED BY NUMBER OF CARGO WAGONS
 ---@field public fluid_was_allocated boolean True if fluid was allocated.
 ---@field public manifest SignalCounts Manifest accumulated so far
 ---@field public spillover SignalCounts? Manifest with spillover included
@@ -190,7 +190,10 @@ local function route_train(data, train, allocation, index)
 		allocation.to --[[@as Cybersyn.TrainStop]],
 		allocation.to_inv,
 		cargo_state.manifest,
-		cargo_state.spillover or cargo_state.manifest -- source charge
+		cargo_state.spillover or cargo_state.manifest, -- source charge
+		spillover,
+		reserved_slots,
+		reserved_capacity
 	)
 	return true
 end

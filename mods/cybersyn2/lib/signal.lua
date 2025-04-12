@@ -13,10 +13,6 @@ local strfind = string.find
 local strformat = string.format
 local type = _G.type
 
----@alias SignalKey string A string identifying a particular SignalID.
-
----@alias SignalCounts table<SignalKey, int> Signals and associated counts.
-
 local lib = {}
 
 ---Get the `string` quality name from a `QualityID` value.

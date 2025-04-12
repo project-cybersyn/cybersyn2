@@ -16,6 +16,12 @@ local lib = {}
 
 ---@alias PlayerIndex uint A Factorio `player_index` associated uniquely with a particular `LuaPlayer`.
 
+---@alias SignalKey string A string identifying a particular SignalID.
+
+---@alias SignalCounts table<SignalKey, int> Signals and associated counts.
+
+---@alias Cybersyn.Manifest SignalCounts
+
 ---@class StateMachine
 ---@field public state string
 ---@field public is_changing_state boolean? `true` if a state change is ongoing
@@ -53,8 +59,11 @@ local lib = {}
 ---@field public volatile boolean? `true` if the `LuaTrain` associated to this train is unstable and may be invalidated at any time, eg for a train passing through a space elevator.
 ---@field public item_slot_capacity uint Number of item slots available across all wagons if known.
 ---@field public fluid_capacity uint Total fluid capacity of all wagons if known.
+---@field public per_wagon_item_slot_capacity table<uint, uint>? Cached number of item slots per wagon. Used by wagon control. Cleared on capacity re-eval.
+---@field public per_wagon_fluid_capacity table<uint, uint>? Cached fluid capacity per wagon. Used by wagon control. Cleared on capacity re-eval.
 ---@field public layout_id uint The layout ID of the train.
 ---@field public stopped_at LuaEntity? Cache of last known train stop. Do not rely on this value.
+---@field public is_filtered boolean? `true` if wagon filters were set on this train upon arrival at a stop.
 
 ---Numeric encoding of prototype types of carriages
 ---@enum Cybersyn.CarriageType
@@ -183,6 +192,9 @@ lib.NodeNetworkOperation = {
 ---@class Cybersyn.TrainDelivery: Cybersyn.Delivery
 ---@field public from_charge SignalCounts? Amount charged against the source station's inventory, which may differ from the manifest by overspill.
 ---@field public to_charge SignalCounts? Amount charged towards the destination station's inventory. Equal to the manifest, but `nil`ed when charge is cleared.
+---@field public spillover uint Overspill used when calculating this delivery
+---@field public reserved_slots uint Reserved slots used when calculating this delivery
+---@field public reserved_fluid_capacity uint Reserved capacity used when calculating this delivery
 
 --------------------------------------------------------------------------------
 -- Public type encodings for the query interface.
