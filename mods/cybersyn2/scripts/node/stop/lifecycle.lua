@@ -179,15 +179,6 @@ cs2.on_combinator_created(
 	function(combinator) cs2.lib.reassociate_combinators({ combinator }) end
 )
 
--- Reassociate a combinator if it's repositioned.
--- TODO: this should not be needed for 1x1 combs anymore
-cs2.on_entity_repositioned(function(what, entity)
-	if what == "combinator" then
-		local combinator = Combinator.get(entity.unit_number)
-		if combinator then cs2.lib.reassociate_combinators({ combinator }) end
-	end
-end)
-
 -- When a stop loses all its combinators, destroy it
 cs2.on_node_combinator_set_changed(function(node)
 	-- TODO: uncovered case: when none of the combinators are within yellow

@@ -18,10 +18,7 @@ local VF = ultros.VFlow
 
 relm.define_element({
 	name = "CombinatorGui.Mode.Channels",
-	render = function(props)
-		-- TODO: default channelmask as a setting?
-		return nil
-	end,
+	render = function(props) return nil end,
 })
 
 relm.define_element({

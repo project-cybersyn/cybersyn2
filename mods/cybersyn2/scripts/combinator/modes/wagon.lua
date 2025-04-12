@@ -151,7 +151,7 @@ local function compute_per_wagon_capacity(train)
 	for i = 1, #carriages do
 		local carriage = carriages[i]
 		if carriage.type == "fluid-wagon" then
-			-- TODO: quality
+			-- TODO: quality fluid wagons
 			fcap[i] = carriage.prototype.fluid_capacity
 		elseif carriage.type == "cargo-wagon" then
 			local inventory = carriage.get_inventory(defines.inventory.cargo_wagon)

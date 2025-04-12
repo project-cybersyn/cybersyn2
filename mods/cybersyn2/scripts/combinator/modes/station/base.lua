@@ -57,11 +57,9 @@ cs2.register_combinator_setting(
 cs2.register_combinator_setting(
 	cs2.lib.make_raw_setting("reserved_capacity", "reserved_capacity")
 )
--- TODO: impl
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("produce_single_item", "station_flags", 2)
 )
--- TODO: impl
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("ignore_secondary_thresholds", "station_flags", 3)
 )

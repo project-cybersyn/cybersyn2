@@ -151,7 +151,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		end
 	end
 	stop.networks = networks
-	-- TODO: implement this
+	-- TODO: implement network operations
 	stop.network_operation = 1
 	stop.allow_departure_signal =
 		comb:read_setting(combinator_settings.allow_departure_signal)

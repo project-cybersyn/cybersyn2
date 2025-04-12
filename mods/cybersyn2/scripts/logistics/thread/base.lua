@@ -53,7 +53,6 @@ function LogisticsThread:main()
 	end
 end
 
--- TODO: logistics start pauised for debugging, change for beta.
 cs2.schedule_thread("logistics", 0, function() return LogisticsThread.new() end)
 
 ---@return Cybersyn.LogisticsThread?

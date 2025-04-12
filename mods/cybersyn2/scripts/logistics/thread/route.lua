@@ -86,9 +86,11 @@ local function try_allocation(
 			-- TODO: mixin available `from` inventory
 			local amt = min(allocation.qty, cargo_state.fluid_capacity)
 			cargo_state.fluid_capacity = 0
-			cargo_state.manifest[allocation.item] = amt
-			if cargo_state.spillover then
-				cargo_state.spillover[allocation.item] = amt
+			if amt > 0 then
+				cargo_state.manifest[allocation.item] = amt
+				if cargo_state.spillover then
+					cargo_state.spillover[allocation.item] = amt
+				end
 			end
 			-- Refund and clear allocation
 			logistics_thread:refund_allocation(allocation)
@@ -220,9 +222,6 @@ function LogisticsThread:route_train_allocation(allocation, index)
 
 	-- Don't queue into a full queue.
 	if from:is_queue_full() then return false end
-
-	-- TODO: make sure from station still has enough. spillover from
-	-- a previous delivery may have changed things.
 
 	local is_fluid = allocation.is_fluid
 	local stack_size = allocation.stack_size

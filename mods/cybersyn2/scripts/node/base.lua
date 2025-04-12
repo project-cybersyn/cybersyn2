@@ -173,8 +173,7 @@ function Node:is_network_match(n2, mode)
 	local nets_1 = self.networks or {}
 	local nets_2 = n2.networks or {}
 	for k, v in pairs(nets_1) do
-		-- TODO: setting for default global netmask
-		if band(v, nets_2[k] or 1) ~= 0 then return true end
+		if band(v, nets_2[k] or 0) ~= 0 then return true end
 	end
 	return false
 end

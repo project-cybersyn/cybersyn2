@@ -59,23 +59,6 @@ _G.cs2.on_built_combinator, _G.cs2.raise_built_combinator =
 _G.cs2.on_broken_combinator, _G.cs2.raise_broken_combinator =
 	event("broken_combinator", "LuaEntity", "nil", "nil", "nil", "nil")
 
-_G.cs2.on_built_combinator_ghost, _G.cs2.raise_built_combinator_ghost =
-	event("built_combinator_ghost", "LuaEntity", "nil", "nil", "nil", "nil")
-
--- TODO: remove
-_G.cs2.on_built_combinator_settings_ghost, _G.cs2.raise_built_combinator_settings_ghost =
-	event(
-		"built_combinator_settings_ghost",
-		"LuaEntity",
-		"nil",
-		"nil",
-		"nil",
-		"nil"
-	)
-
-_G.cs2.on_broken_combinator_ghost, _G.cs2.raise_broken_combinator_ghost =
-	event("broken_combinator_ghost", "LuaEntity", "nil", "nil", "nil", "nil")
-
 _G.cs2.on_broken_train_stock, _G.cs2.raise_broken_train_stock =
 	event("broken_train_stock", "LuaEntity", "LuaTrain", "nil", "nil", "nil")
 
