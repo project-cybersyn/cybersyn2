@@ -204,6 +204,7 @@ end)
 -- Combinator hotwiring
 --------------------------------------------------------------------------------
 
+---@param combinator Cybersyn.Combinator
 local function hotwire_combinator(combinator)
 	local mdef = cs2.combinator_modes[combinator.mode or ""]
 	if mdef then

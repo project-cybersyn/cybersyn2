@@ -231,7 +231,7 @@ function TrainStop:reread_inventory()
 		)
 		if #combs == 1 then
 			strace(
-				stlib.DEBUG,
+				stlib.TRACE,
 				"cs2",
 				"inventory",
 				"stop",
