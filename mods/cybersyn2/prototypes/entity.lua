@@ -219,3 +219,5 @@ proxy_entity.hidden = true
 local invisible_sprite =
 	{ filename = "__cybersyn2__/graphics/invisible.png", width = 1, height = 1 }
 proxy_entity.picture = invisible_sprite
+
+data:extend({ proxy_entity })
