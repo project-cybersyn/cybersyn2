@@ -191,3 +191,31 @@ combinator_out_entity.circuit_wire_connection_points = {
 }
 
 data:extend({ combinator_out_entity })
+
+--------------------------------------------------------------------------------
+-- Hidden Proxy Chest
+--------------------------------------------------------------------------------
+
+local proxy_entity = flib.copy_prototype(
+	data.raw["proxy-container"]["proxy-container"],
+	"cybersyn2-proxy-chest"
+) --[[@as data.ProxyContainerPrototype]]
+proxy_entity.icon = nil
+proxy_entity.icon_size = nil
+proxy_entity.next_upgrade = nil
+proxy_entity.minable = nil
+proxy_entity.selection_box = nil
+proxy_entity.collision_box = nil
+proxy_entity.collision_mask = { layers = {} }
+proxy_entity.circuit_wire_max_distance = 3
+proxy_entity.draw_circuit_wires = false
+proxy_entity.draw_copper_wires = false
+proxy_entity.draw_inventory_content = false
+proxy_entity.flags =
+	{ "not-blueprintable", "not-deconstructable", "placeable-off-grid" }
+proxy_entity.hidden_in_factoriopedia = true
+proxy_entity.hidden = true
+
+local invisible_sprite =
+	{ filename = "__cybersyn2__/graphics/invisible.png", width = 1, height = 1 }
+proxy_entity.picture = invisible_sprite
