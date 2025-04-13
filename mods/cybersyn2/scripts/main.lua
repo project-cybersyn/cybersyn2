@@ -76,12 +76,6 @@ local function on_built(event)
 		or entity.type == "curved-rail-b"
 	then
 		cs2.raise_built_rail(entity)
-	elseif entity.name == "entity-ghost" then
-		if entity.ghost_name == "cybersyn2-combinator" then
-			cs2.raise_built_combinator_ghost(entity)
-		elseif entity.ghost_name == "cybersyn2-combinator-settings" then
-			cs2.raise_built_combinator_settings_ghost(entity)
-		end
 	elseif entity.name == "cybersyn2-combinator" then
 		cs2.raise_built_combinator(entity, event.tags)
 	elseif
@@ -98,8 +92,6 @@ local filter_built = {
 	{ filter = "type", type = "curved-rail-a" },
 	{ filter = "type", type = "curved-rail-b" },
 	{ filter = "name", name = "cybersyn2-combinator" },
-	{ filter = "ghost_name", name = "cybersyn2-combinator" },
-	{ filter = "ghost_name", name = "cybersyn2-combinator-settings" },
 }
 for _, type in ipairs(cs2.lib.get_equipment_types()) do
 	table.insert(filter_built, { filter = "type", type = type })
@@ -176,11 +168,6 @@ local function on_destroyed(event)
 		or entity.type == "curved-rail-b"
 	then
 		cs2.raise_broken_rail(entity)
-	elseif
-		entity.name == "entity-ghost"
-		and entity.ghost_name == "cybersyn2-combinator"
-	then
-		cs2.raise_broken_combinator_ghost(entity)
 	elseif entity.name == "cybersyn2-combinator" then
 		cs2.raise_broken_combinator(entity)
 	elseif
