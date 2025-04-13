@@ -57,7 +57,7 @@ require("scripts.combinator.modes.prio")
 require("scripts.combinator.modes.manifest")
 require("scripts.combinator.modes.wagon")
 require("scripts.combinator.modes.inventory")
-require("scripts.combinator.modes.inventory-control")
+require("scripts.combinator.modes.create-inventory")
 require("scripts.combinator.modes.wagon-contents")
 
 require("scripts.logistics.thread.base")
