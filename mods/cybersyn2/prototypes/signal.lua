@@ -44,19 +44,10 @@ data:extend({
 
 	{
 		type = "virtual-signal",
-		name = "cybersyn2-item-slots",
-		icon = "__cybersyn2__/graphics/icons/item-slots.png",
+		name = "cybersyn2-inventory",
+		icon = "__cybersyn2__/graphics/icons/inventory.png",
 		icon_size = 64,
 		subgroup = "cybersyn2-signals",
 		order = "e",
-	},
-
-	{
-		type = "virtual-signal",
-		name = "cybersyn2-fluid-capacity",
-		icon = "__cybersyn2__/graphics/icons/fluid-capacity.png",
-		icon_size = 64,
-		subgroup = "cybersyn2-signals",
-		order = "f",
 	},
 })
