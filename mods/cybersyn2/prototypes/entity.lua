@@ -117,7 +117,6 @@ combinator_entity.minable =
 	{ mining_time = 0.1, result = "cybersyn2-combinator" }
 combinator_entity.fast_replaceable_group = "cybersyn2-combinator"
 local flags = combinator_entity.flags or {}
-table.insert(flags, "get-by-unit-number")
 table.insert(flags, "hide-alt-info")
 combinator_entity.flags = flags
 
@@ -165,8 +164,12 @@ proxy_entity.circuit_wire_max_distance = 3
 proxy_entity.draw_circuit_wires = false
 proxy_entity.draw_copper_wires = false
 proxy_entity.draw_inventory_content = false
-proxy_entity.flags =
-	{ "not-blueprintable", "not-deconstructable", "placeable-off-grid" }
+proxy_entity.flags = {
+	"not-blueprintable",
+	"not-deconstructable",
+	"placeable-off-grid",
+	"hide-alt-info",
+}
 proxy_entity.hidden_in_factoriopedia = true
 proxy_entity.hidden = true
 
