@@ -3,6 +3,7 @@ local mlib = require("__cybersyn2__.lib.math")
 local slib = require("__cybersyn2__.lib.signal")
 local tlib = require("__cybersyn2__.lib.table")
 local stlib = require("__cybersyn2__.lib.strace")
+local scheduler = require("__cybersyn2__.lib.scheduler")
 local cs2 = _G.cs2
 local Node = _G.cs2.Node
 local Topology = _G.cs2.Topology
@@ -149,7 +150,9 @@ function TrainStop:force_remove_delivery(delivery_id)
 			function(id) return id ~= delivery_id end
 		)
 	end
-	self:pop_queue()
+	-- Defer pop queue in case of multiple force removals, e.g. station
+	-- deconstruction or inventory change.
+	self:defer_pop_queue()
 end
 
 ---@param delivery_id Id
@@ -196,6 +199,29 @@ function TrainStop:pop_queue()
 		local delivery_id = tremove(self.delivery_queue, 1)
 		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		if delivery then delivery:notify_queue(self) end
+	end
+end
+
+---Defer popping queue until next frame.
+function TrainStop:defer_pop_queue()
+	if self.deferred_pop_queue then return end
+	self.deferred_pop_queue = scheduler.at(game.tick + 1, "pop_stop_queue", self)
+end
+
+scheduler.register_handler("pop_stop_queue", function(task)
+	local stop = task.data --[[@as Cybersyn.TrainStop]]
+	stop.deferred_pop_queue = nil
+	if stop:is_valid() then stop:pop_queue() end
+end)
+
+function TrainStop:fail_all_deliveries(reason)
+	for _, delivery_id in ipairs(self.delivery_queue) do
+		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		if delivery then delivery:fail(reason) end
+	end
+	for delivery_id in pairs(self.deliveries) do
+		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		if delivery then delivery:fail(reason) end
 	end
 end
 

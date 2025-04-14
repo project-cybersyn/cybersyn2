@@ -193,6 +193,8 @@ function Train:clear_delivery(id)
 	if self.delivery_id == id then self.delivery_id = nil end
 end
 
+function Train:fail_delivery(id) return self:clear_delivery(id) end
+
 ---@param schedule LuaSchedule
 ---@return boolean in_interrupt `true` if the schedule is currently interrupted
 ---@return boolean in_depot `true` if the active schedule entry is the depot

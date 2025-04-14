@@ -193,7 +193,9 @@ function Inventory:foreach_consumable_item(f) end
 -- Pseudoinventory
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Pseudoinventory
+---A pseudoinventory is an inventory that can have negative base content
+---representing requests.
+---@class Cybersyn.Pseudoinventory: Cybersyn.Inventory
 local Pseudoinventory = class("Pseudoinventory", Inventory)
 _G.cs2.Pseudoinventory = Pseudoinventory
 
@@ -233,6 +235,33 @@ function Pseudoinventory:foreach_consumable_item(f)
 	for item, qty in pairs(nif) do
 		if qty < 0 then f(item, -qty, 0) end
 	end
+end
+
+--------------------------------------------------------------------------------
+-- TrueInventory
+--------------------------------------------------------------------------------
+
+---A true inventory is an inventory that can only have positive base content
+---representing actual inventory. Requests and thresholds are set separately.
+---@class Cybersyn.TrueInventory: Cybersyn.Inventory
+---@field public provides SignalCounts?
+---@field public requests SignalCounts?
+---@field public pushes SignalCounts?
+---@field public sinks SignalCounts?
+local TrueInventory = class("TrueInventory", Inventory)
+_G.cs2.TrueInventory = TrueInventory
+
+---@return Cybersyn.TrueInventory
+function TrueInventory.new()
+	local id = counters.next("inventory")
+
+	storage.inventories[id] = setmetatable({
+		id = id --[[@as Id]],
+		inventory = {},
+	}, TrueInventory)
+	local inv = storage.inventories[id] --[[@as Cybersyn.TrueInventory]]
+	cs2.raise_inventory_created(inv)
+	return inv
 end
 
 --------------------------------------------------------------------------------

@@ -35,10 +35,7 @@ function Combinator:update_inventory(force)
 		-- (its actual inventory may come from a shared inventory combinator
 		-- elsewhere)
 		local inventory = Inventory.get(stop.created_inventory_id)
-		if not inventory then
-			strace(WARN, "message", "stop without an inventory", stop.entity)
-			return
-		end
+		if not inventory then return end
 		inventory:set_base(self.inputs or {})
 	end
 end

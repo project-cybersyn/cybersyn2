@@ -172,10 +172,6 @@ lib.NodeNetworkOperation = {
 ---@field public net_inflow SignalCounts? Base inventory plus inflow.
 ---@field public net_outflow SignalCounts? Base inventory less outflow.
 
----A pseudoinventory is an inventory that can have negative base content
----representing requests.
----@class Cybersyn.Pseudoinventory: Cybersyn.Inventory
-
 ---@class Cybersyn.Delivery: StateMachine
 ---@field public id Id
 ---@field public type string

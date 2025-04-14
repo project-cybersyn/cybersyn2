@@ -177,6 +177,7 @@ local function update_stop_overlay(stop)
 			"[item=train-stop]",
 			stop.id,
 			stop.per_wagon_mode and "[item=cargo-wagon]" or "",
+			stop.true_inventory_id and "[item=buffer-chest]" or "",
 		}),
 	}
 	table.insert(lines, table.concat(layout.carriage_loading_pattern or {}))

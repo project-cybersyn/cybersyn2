@@ -249,3 +249,34 @@ end
 
 ---@return Cybersyn.Inventory?
 function Node:get_inventory() return Inventory.get(self.inventory_id) end
+
+---Fail ALL deliveries pending for this node.
+function Node:fail_all_deliveries(reason) end
+
+---Change the inventory of a node. If there are currently deliveries enroute
+---they will be failed.
+---@param id Id
+function Node:set_inventory(id)
+	if id == self.inventory_id then return end
+	strace(
+		stlib.DEBUG,
+		"cs2",
+		"inventory",
+		"node",
+		self,
+		"message",
+		"Swapping inventory and failing all deliveries"
+	)
+	self:fail_all_deliveries()
+	if not id then
+		self.inventory_id = nil
+		return
+	end
+	local inv = Inventory.get(id)
+	if not inv then
+		self.inventory_id = nil
+		return
+	end
+	self.inventory_id = id
+	cs2.raise_node_data_changed(self)
+end

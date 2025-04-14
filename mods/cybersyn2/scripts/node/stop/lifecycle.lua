@@ -192,8 +192,5 @@ end)
 cs2.on_node_destroyed(function(node)
 	if node.type ~= "stop" then return end
 	---@cast node Cybersyn.TrainStop
-	tlib.for_each(node.deliveries, function(_, delivery_id)
-		local delivery = Delivery.get(delivery_id, true)
-		if delivery then delivery:fail() end
-	end)
+	node:fail_all_deliveries()
 end)

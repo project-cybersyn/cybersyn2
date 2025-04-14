@@ -54,7 +54,8 @@ function Delivery:destroy()
 	storage.deliveries[id] = nil
 end
 
-function Delivery:fail()
+---Fail this delivery.
+function Delivery:fail(reason)
 	if self.state == "completed" or self.state == "failed" then
 		strace(
 			WARN,
