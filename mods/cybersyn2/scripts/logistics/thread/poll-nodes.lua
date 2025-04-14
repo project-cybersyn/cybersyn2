@@ -53,28 +53,26 @@ end
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:classify_inventory(stop)
 	local inventory = stop:get_inventory()
-	-- TODO: this is ugly, apis to get at this inventory stuff should be
-	-- more centralized and less spaghetti
 	if not inventory then return end
 	if stop.is_producer then
-		for item, qty in pairs(inventory:get_net_outflow()) do
+		inventory:foreach_producible_item(function(item, provide_qty)
 			local _, out_t = stop:get_delivery_thresholds(item)
-			if qty >= out_t then
+			if provide_qty >= out_t then
 				self:add_to_logisics_set("providers", stop, item)
 				self.seen_cargo[item] = true
 			end
 			-- TODO: push
-		end
+		end)
 	end
 	if stop.is_consumer then
-		for item, qty in pairs(inventory:get_net_inflow()) do
+		inventory:foreach_consumable_item(function(item, pull_qty)
 			local in_t = stop:get_delivery_thresholds(item)
-			if qty <= -in_t then
+			if pull_qty >= in_t then
 				self:add_to_logisics_set("pullers", stop, item)
 				self.seen_cargo[item] = true
 			end
 			-- TODO: sink
-		end
+		end)
 	end
 end
 

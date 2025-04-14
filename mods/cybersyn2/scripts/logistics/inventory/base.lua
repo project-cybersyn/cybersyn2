@@ -171,7 +171,23 @@ function Inventory:get_net_outflow() return self.net_outflow or self.inventory e
 ---@return SignalCounts
 function Inventory:get_net_inflow() return self.net_inflow or self.inventory end
 
-function Inventory:is_pseudoinventory() return false end
+---Get amount of the given item provided by this Inventory.
+function Inventory:get_provided_qty(item) return 0 end
+
+---Get the amount of the given item pulled by this Inventory.
+function Inventory:get_pulled_qty(item) return 0 end
+
+function Inventory:get_pushed_qty(item) return 0 end
+
+function Inventory:get_sink_qty(item) return 0 end
+
+---Iterate over items this inventory could conceivably produce.
+---@param f fun(item: SignalKey, provide_qty: integer, push_qty: integer)
+function Inventory:foreach_producible_item(f) end
+
+---Iterate over items this inventory could conceivably consume.
+---@param f fun(item: SignalKey, pull_qty: integer, sink_qty: integer)
+function Inventory:foreach_consumable_item(f) end
 
 --------------------------------------------------------------------------------
 -- Pseudoinventory
@@ -194,7 +210,30 @@ function Pseudoinventory.new()
 	return inv
 end
 
-function Pseudoinventory:is_pseudoinventory() return true end
+function Pseudoinventory:get_provided_qty(item)
+	local nof = self.net_outflow or self.inventory
+	return nof[item] or 0
+end
+
+function Pseudoinventory:get_pulled_qty(item)
+	local nif = self.net_inflow or self.inventory
+	local inif = nif[item] or 0
+	return inif < 0 and -inif or 0
+end
+
+function Pseudoinventory:foreach_producible_item(f)
+	local nof = self.net_outflow or self.inventory
+	for item, qty in pairs(nof) do
+		if qty > 0 then f(item, qty, 0) end
+	end
+end
+
+function Pseudoinventory:foreach_consumable_item(f)
+	local nif = self.net_inflow or self.inventory
+	for item, qty in pairs(nif) do
+		if qty < 0 then f(item, -qty, 0) end
+	end
+end
 
 --------------------------------------------------------------------------------
 -- Events
