@@ -10,8 +10,10 @@ local Topology = _G.cs2.Topology
 local Delivery = _G.cs2.Delivery
 local Inventory = _G.cs2.Inventory
 local mod_settings = _G.cs2.mod_settings
+local combinator_settings = _G.cs2.combinator_settings
 
 local strace = stlib.strace
+local TRACE = stlib.TRACE
 local distance_squared = mlib.pos_distsq
 local pos_get = mlib.pos_get
 local INF = math.huge
@@ -170,7 +172,7 @@ function TrainStop:train_departed(train)
 		self.deliveries[delivery_id] = nil
 		if delivery then delivery:notify_departed(self) end
 		-- Then try to opportunistically re-read the station's inventory.
-		self:reread_inventory()
+		self:update_inventory(true)
 	end
 	self:pop_queue()
 end
@@ -246,31 +248,107 @@ function TrainStop:get_tekbox_equation()
 		+ (#self.delivery_queue * (limit + 1) / limit)
 end
 
----Reread the inventory from either the station or the shared inventory
----combinator
----TODO: shared inventory
-function TrainStop:reread_inventory()
-	if self.inventory_id == self.created_inventory_id then
-		-- Reread station control combinator
-		local combs = self:get_associated_combinators(
-			function(comb) return comb.mode == "station" end
+---Determine if the inventory associated with this trainstop is volatile.
+---(eg. changing because a train is there being loaded/unloaded)
+function TrainStop:is_inventory_volatile()
+	if self.shared_inventory_master then
+		local master = TrainStop.get(self.shared_inventory_master)
+		if master then
+			return master:is_inventory_volatile()
+		else
+			return not not self.entity.get_stopped_train()
+		end
+	elseif self.shared_inventory_slaves then
+		for slave_id in pairs(self.shared_inventory_slaves) do
+			local slave = TrainStop.get(slave_id)
+			if slave and slave.entity.get_stopped_train() then return true end
+		end
+		return not not self.entity.get_stopped_train()
+	else
+		return not not self.entity.get_stopped_train()
+	end
+end
+
+---Update this stop's inventory
+---@param is_opportunistic boolean? `true` when updating inventory opportunistically (e.g. when train leaving stop), causes combinator inputs to be reread on-the-fly.
+function TrainStop:update_inventory(is_opportunistic)
+	if self.shared_inventory_master then
+		-- Opportunistic reread at a slave station should forward to master.
+		if is_opportunistic then
+			local master = TrainStop.get(self.shared_inventory_master)
+			if master then return master:update_inventory(is_opportunistic) end
+		end
+		-- Otherwise, no need to read inventory at a slave station.
+		return
+	end
+	-- Can't read volatile inventories
+	if self:is_inventory_volatile() then
+		strace(
+			TRACE,
+			"cs2",
+			"inventory",
+			"stop",
+			self,
+			"message",
+			"Inventory is volatile, not updating."
 		)
-		if #combs == 1 then
+		return
+	end
+	if self.true_inventory_id then
+		local inventory = Inventory.get(self.true_inventory_id)
+		if not inventory then
 			strace(
-				stlib.TRACE,
+				TRACE,
 				"cs2",
 				"inventory",
 				"stop",
 				self,
 				"message",
-				"Forcibly rereading inventory"
+				"True inventory is missing, not updating."
 			)
-			local comb = combs[1]
-			comb:read_inputs()
-			comb:update_inventory(true)
+			return
+		end
+		-- True inventory mode; read from Inventory combs.
+		local combs = self:get_associated_combinators(
+			function(c) return c.mode == "inventory" end
+		)
+		for _, comb in pairs(combs) do
+			local inv_mode = comb:read_setting(combinator_settings.inventory_mode)
+				or "inventory"
+			if inv_mode == "inventory" then
+				if is_opportunistic then comb:read_inputs() end
+				inventory:set_base(comb.inputs or {})
+			elseif inv_mode == "pull" then
+				inventory:set_pulls(comb.inputs or {})
+			elseif inv_mode == "push" then
+				inventory:set_pushes(comb.inputs or {})
+			elseif inv_mode == "sink" then
+				inventory:set_sinks(comb.inputs or {})
+			end
 		end
 	else
-		-- TODO: shared/external inventory
+		-- Pseudoinventory mode; read from Station comb.
+		local inventory = Inventory.get(self.created_inventory_id)
+		if not inventory then
+			strace(
+				TRACE,
+				"cs2",
+				"inventory",
+				"stop",
+				self,
+				"message",
+				"Pseudoinventory is missing, not updating."
+			)
+			return
+		end
+		local combs = self:get_associated_combinators(
+			function(c) return c.mode == "station" end
+		)
+		if #combs == 1 then
+			local comb = combs[1]
+			if is_opportunistic then comb:read_inputs() end
+			inventory:set_base(comb.inputs or {})
+		end
 	end
 end
 

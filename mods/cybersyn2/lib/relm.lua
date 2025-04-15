@@ -805,8 +805,8 @@ local function vpaint_context_diff(context, props, vnode)
 	local rk = removed_keys[vnode]
 	if elem.type ~= props.type then
 		needs_rebuild = true
-	elseif props.type == "label" and vnode.elem ~= elem then
-		-- If labels get shuffled between vnodes, just pessimize and rebuild them
+	elseif vnode.elem ~= elem then
+		-- Pessimize if new vnode
 		-- selene: allow(if_same_then_else)
 		needs_rebuild = true
 	elseif rk then

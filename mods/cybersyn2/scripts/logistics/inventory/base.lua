@@ -19,6 +19,7 @@ local key_is_cargo = signal_keys.key_is_cargo
 local min = math.min
 local max = math.max
 local assign = tlib.assign
+local empty = tlib.empty
 
 -- Inventory notes:
 -- - Don't poll a station while a train is there, because result will be
@@ -161,16 +162,6 @@ function Inventory:add_outflow(counts, sign)
 	end
 end
 
----Get the net outflow of this inventory. This is a READ-ONLY cached table
----that should not be retained beyond the current tick.
----@return SignalCounts
-function Inventory:get_net_outflow() return self.net_outflow or self.inventory end
-
----Get the net inflow of this inventory. This is a READ-ONLY cached table
----that should not be retained beyond the current tick.
----@return SignalCounts
-function Inventory:get_net_inflow() return self.net_inflow or self.inventory end
-
 ---Get amount of the given item provided by this Inventory.
 function Inventory:get_provided_qty(item) return 0 end
 
@@ -188,6 +179,18 @@ function Inventory:foreach_producible_item(f) end
 ---Iterate over items this inventory could conceivably consume.
 ---@param f fun(item: SignalKey, pull_qty: integer, sink_qty: integer)
 function Inventory:foreach_consumable_item(f) end
+
+---Set pulls for this inventory.
+---@param counts SignalCounts
+function Inventory:set_pulls(counts) end
+
+---Set push thresholds for this inventory.
+---@param counts SignalCounts
+function Inventory:set_pushes(counts) end
+
+---Set sink thresholds for this inventory.
+---@param counts SignalCounts
+function Inventory:set_sinks(counts) end
 
 --------------------------------------------------------------------------------
 -- Pseudoinventory
@@ -245,7 +248,7 @@ end
 ---representing actual inventory. Requests and thresholds are set separately.
 ---@class Cybersyn.TrueInventory: Cybersyn.Inventory
 ---@field public provides SignalCounts?
----@field public requests SignalCounts?
+---@field public pulls SignalCounts?
 ---@field public pushes SignalCounts?
 ---@field public sinks SignalCounts?
 local TrueInventory = class("TrueInventory", Inventory)
@@ -264,12 +267,86 @@ function TrueInventory.new()
 	return inv
 end
 
+function TrueInventory:set_pulls(counts)
+	local pulls = {}
+	self.pulls = pulls
+	for k, count in pairs(counts) do
+		if key_is_cargo(k) then self.pulls[k] = count end
+	end
+end
+
+function TrueInventory:set_pushes(counts)
+	local pushes = {}
+	self.pushes = pushes
+	for k, count in pairs(counts) do
+		if key_is_cargo(k) then self.pushes[k] = count end
+	end
+end
+
+function TrueInventory:set_sinks(counts)
+	local sinks = {}
+	self.sinks = sinks
+	for k, count in pairs(counts) do
+		if key_is_cargo(k) then self.sinks[k] = count end
+	end
+end
+
+function TrueInventory:get_provided_qty(item)
+	local nof = self.net_outflow or self.inventory
+	return nof[item] or 0
+end
+
+function TrueInventory:get_pulled_qty(item)
+	local pulls = self.pulls
+	if not pulls then return 0 end
+	local nif = self.net_inflow or self.inventory
+	return max((pulls[item] or 0) - (nif[item] or 0), 0)
+end
+
+function TrueInventory:get_pushed_qty(item)
+	local pushes = self.pushes
+	if not pushes then return 0 end
+	local nof = self.net_outflow or self.inventory
+	return max((nof[item] or 0) - (pushes[item] or 0), 0)
+end
+
+function TrueInventory:get_sink_qty(item)
+	local sinks = self.sinks
+	if not sinks then return 0 end
+	local nif = self.net_inflow or self.inventory
+	return max((sinks[item] or 0) - (nif[item] or 0), 0)
+end
+
+function TrueInventory:foreach_producible_item(f)
+	local nof = self.net_outflow or self.inventory
+	local pushes = self.pushes or empty
+	for item, qty in pairs(nof) do
+		if qty > 0 then f(item, qty, max(qty - (pushes[item] or 0), 0)) end
+	end
+end
+
+function TrueInventory:foreach_consumable_item(f)
+	local pulls = self.pulls or empty
+	local sinks = self.sinks or empty
+	local nif = self.net_inflow or self.inventory
+	for item, qty in pairs(pulls) do
+		local pulled = max(qty - (nif[item] or 0), 0)
+		local sunk = max((sinks[item] or 0) - (nif[item] or 0), 0)
+		if pulled > 0 then f(item, pulled, sunk) end
+	end
+	for item, qty in pairs(sinks) do
+		if not pulls[item] then
+			local sunk = max(qty - (nif[item] or 0), 0)
+			if sunk > 0 then f(item, 0, sunk) end
+		end
+	end
+end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
 
 -- Automatically create inventories for train stops.
--- TODO: shared inventory handling
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
 		---@cast node Cybersyn.TrainStop

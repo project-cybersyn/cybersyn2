@@ -398,9 +398,7 @@ lib.SignalPicker = lib.customize_primitive({
 	end
 end)
 
-lib.Checkbox = lib.customize_primitive({
-	type = "checkbox",
-}, function(props)
+local function checkbox_customizer(props)
 	if props.value == true or props.value == false then
 		props.state = props.value
 		props.value = nil
@@ -423,13 +421,21 @@ lib.Checkbox = lib.customize_primitive({
 		if payload.key == "value" and me.elem then return true, me.elem.state end
 		return false
 	end
-end)
+end
+
+lib.Checkbox = lib.customize_primitive({
+	type = "checkbox",
+}, checkbox_customizer)
+
+lib.RadioButton = lib.customize_primitive({
+	type = "radiobutton",
+}, checkbox_customizer)
 
 lib.WellSection = relm.define_element({
 	name = "WellSection",
 	render = function(props, state)
 		local collapsed = (state or {}).collapsed
-		return VF({ bottom_margin = 6 }, {
+		return VF({ bottom_margin = 6, horizontally_squashable = true }, {
 			Pr({
 				type = "frame",
 				style = "subheader_frame",
@@ -445,7 +451,12 @@ lib.WellSection = relm.define_element({
 				lib.CallIf(props.decorate, props.decorate, props, state),
 			}),
 			VF(
-				{ left_padding = 8, right_padding = 8, visible = not collapsed },
+				{
+					left_padding = 8,
+					right_padding = 8,
+					visible = not collapsed,
+					horizontally_squashable = true,
+				},
 				props.children
 			),
 		})
@@ -577,5 +588,45 @@ function lib.gather(tag_or_children, children)
 		return relm.Gather({}, tag_or_children)
 	end
 end
+
+local function map(A, f)
+	local B = {}
+	for i = 1, #A do
+		local x = f(A[i], i)
+		if x ~= nil then B[#B + 1] = x end
+	end
+	return B
+end
+
+lib.RadioButtons = relm.define_element({
+	name = "ultros.RadioButtons",
+	render = function(props)
+		local elems = props.buttons or {}
+		return map(elems, function(elem)
+			return lib.RadioButton({
+				caption = elem.caption,
+				value = (elem.key == props.value),
+				horizontally_stretchable = true,
+				on_change = function(me, value)
+					if value then
+						relm.msg_bubble(me, { key = "radio_clicked", value = elem.key })
+					end
+				end,
+			})
+		end)
+	end,
+	message = function(me, payload, props)
+		if payload.key == "radio_clicked" then
+			local value = payload.value
+			if value ~= props.value then
+				if props.on_change then
+					run_event_handler(props.on_change, me, value)
+				end
+			end
+			return true
+		end
+		return false
+	end,
+})
 
 return lib

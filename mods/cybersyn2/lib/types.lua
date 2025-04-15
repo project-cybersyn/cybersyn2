@@ -145,6 +145,8 @@ lib.NodeNetworkOperation = {
 ---@field public spillover uint? Spillover per item per cargo wagon
 ---@field public ignore_secondary_thresholds boolean? `true` if station should ignore thresholds when adding secondary items to outgoing trains.
 ---@field public per_wagon_mode boolean? `true` if the station is in per-wagon mode due to the presence of a wagon comb.
+---@field public shared_inventory_slaves IdSet? Exists only if this station is a shared-inventory master and contains the ids of the slaves.
+---@field public shared_inventory_master Id? The id of the shared inventory master, if this station is a slave.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.

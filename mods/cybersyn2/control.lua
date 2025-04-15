@@ -36,8 +36,6 @@ require("scripts.node.stop.layout.base")
 require("scripts.node.stop.layout.equipment")
 require("scripts.node.stop.layout.pattern")
 
-require("scripts.combinator.state") -- needs inventory, node
-
 require("scripts.vehicle.base")
 require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")

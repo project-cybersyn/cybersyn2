@@ -42,7 +42,6 @@ function LogisticsThread:poll_combinator(combinator_id)
 		return
 	end
 	combinator:read_inputs()
-	combinator:update_inventory()
 
 	-- Mark a topology as active if the owning node of a combinator is in that
 	-- topology.

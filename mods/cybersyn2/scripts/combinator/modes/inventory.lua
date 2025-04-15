@@ -14,7 +14,16 @@ local TrueInventory = _G.cs2.TrueInventory
 
 local Pr = relm.Primitive
 local VF = ultros.VFlow
+local HF = ultros.HFlow
 local strace = stlib.strace
+
+--------------------------------------------------------------------------------
+-- Settings
+--------------------------------------------------------------------------------
+
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("inventory_mode", "inventory_mode")
+)
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -22,7 +31,54 @@ local strace = stlib.strace
 
 relm.define_element({
 	name = "CombinatorGui.Mode.Inventory",
-	render = function(props) return nil end,
+	render = function(props)
+		return ultros.WellSection(
+			{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
+			{
+				gui.InnerHeading({
+					caption = { "cybersyn2-combinator-mode-inventory.input-modes" },
+				}),
+				Pr(
+					{ type = "table", column_count = 2, horizontally_stretchable = true },
+					{
+						ultros.RadioButtons({
+							value = props.combinator:read_setting(
+								combinator_settings.inventory_mode
+							) or "inventory",
+							buttons = {
+								{
+									caption = { "cybersyn2-combinator-mode-inventory.inventory" },
+									key = "inventory",
+								},
+								{
+									caption = { "cybersyn2-combinator-mode-inventory.requests" },
+									key = "pull",
+								},
+								{
+									caption = {
+										"cybersyn2-combinator-mode-inventory.push-thresholds",
+									},
+									key = "push",
+								},
+								{
+									caption = {
+										"cybersyn2-combinator-mode-inventory.sink-thresholds",
+									},
+									key = "sink",
+								},
+							},
+							on_change = function(_, value)
+								props.combinator:write_setting(
+									combinator_settings.inventory_mode,
+									value
+								)
+							end,
+						}),
+					}
+				),
+			}
+		)
+	end,
 })
 
 relm.define_element({
