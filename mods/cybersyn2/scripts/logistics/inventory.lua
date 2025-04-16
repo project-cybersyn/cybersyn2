@@ -238,7 +238,7 @@ function TrueInventory:set_pulls(counts)
 	local pulls = {}
 	self.pulls = pulls
 	for k, count in pairs(counts) do
-		if key_is_cargo(k) then self.pulls[k] = count end
+		if key_is_cargo(k) then pulls[k] = count end
 	end
 end
 
@@ -246,7 +246,7 @@ function TrueInventory:set_pushes(counts)
 	local pushes = {}
 	self.pushes = pushes
 	for k, count in pairs(counts) do
-		if key_is_cargo(k) then self.pushes[k] = count end
+		if key_is_cargo(k) then pushes[k] = count end
 	end
 end
 
@@ -254,7 +254,7 @@ function TrueInventory:set_sinks(counts)
 	local sinks = {}
 	self.sinks = sinks
 	for k, count in pairs(counts) do
-		if key_is_cargo(k) then self.sinks[k] = count end
+		if key_is_cargo(k) then sinks[k] = count end
 	end
 end
 
@@ -277,7 +277,6 @@ function TrueInventory:get_pushed_qty(item)
 	if not pushes then return 0 end
 	local inv = self.inventory
 	local of = self.outflow
-
 	return max(((inv[item] or 0) - (of[item] or 0)) - (pushes[item] or 0), 0)
 end
 
