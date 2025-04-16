@@ -34,7 +34,19 @@ local function table_add_positive(base, addend, sign)
 	end
 end
 
+---@param base table<string,int>
+---@param addend table<string,int>
+---@param sign int
+local function table_add(base, addend, sign)
+	for k, v in pairs(addend) do
+		local net = (base[k] or 0) + sign * v
+		base[k] = net
+	end
+end
+
 ---@class Cybersyn.Inventory
+---@field public inflow_rebate SignalCounts? Amount to be refunded to inflows during next base inventory update.
+---@field public outflow_rebate SignalCounts? Amount to be refunded to outflows during next base inventory update.
 local Inventory = class("Inventory")
 _G.cs2.Inventory = Inventory
 
@@ -69,19 +81,36 @@ end
 ---cargo validity.
 ---@param counts SignalCounts
 function Inventory:set_base(counts)
-	local base = {}
-	self.inventory = base
+	-- Rebate flows
+	if self.inflow_rebate then
+		self:add_inflow(self.inflow_rebate, 1)
+		self.inflow_rebate = nil
+	end
+
+	if self.outflow_rebate then
+		self:add_outflow(self.outflow_rebate, 1)
+		self.outflow_rebate = nil
+	end
 
 	-- Rebuild base
+	local base = {}
+	self.inventory = base
 	for k, count in pairs(counts) do
 		if key_is_cargo(k) then base[k] = count end
 	end
 end
 
 ---@param counts SignalCounts
----@param sign number 1 to add the inflow, -1 to subtract it
+---@param sign number
 function Inventory:add_inflow(counts, sign)
 	return table_add_positive(self.inflow, counts, sign)
+end
+
+---@param counts SignalCounts
+---@param sign number
+function Inventory:add_inflow_rebate(counts, sign)
+	if not self.inflow_rebate then self.inflow_rebate = {} end
+	return table_add(self.inflow_rebate, counts, sign)
 end
 
 ---@param item SignalKey
@@ -97,9 +126,16 @@ function Inventory:add_single_item_inflow(item, qty)
 end
 
 ---@param counts SignalCounts
----@param sign number 1 to add the outflow, -1 to subtract it
+---@param sign number
 function Inventory:add_outflow(counts, sign)
 	return table_add_positive(self.outflow, counts, sign)
+end
+
+---@param counts SignalCounts
+---@param sign number
+function Inventory:add_outflow_rebate(counts, sign)
+	if not self.outflow_rebate then self.outflow_rebate = {} end
+	return table_add(self.outflow_rebate, counts, sign)
 end
 
 ---@param item SignalKey
