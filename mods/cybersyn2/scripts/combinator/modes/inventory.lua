@@ -161,7 +161,7 @@ local function check_true_inventory_mode(stop)
 				"Creating true inventory at stop",
 				stop.id
 			)
-			local inv = TrueInventory.new()
+			local inv = TrueInventory:new()
 			stop.true_inventory_id = inv.id
 		end
 		-- Swap stop to true inventory

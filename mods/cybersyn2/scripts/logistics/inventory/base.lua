@@ -8,9 +8,8 @@ local counters = require("__cybersyn2__.lib.counters")
 local signal_keys = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 
--- This code is called in high performance dispatch loops. We will take some
--- care to microoptimize here by using upvalues rather than globals. We will
--- also unroll loops, avoid table lookups, etc.
+-- TODO: This code is called in high performance dispatch loops. Take some
+-- care to microoptimize here.
 
 local next = _G.next
 local pairs = _G.pairs
@@ -21,25 +20,20 @@ local max = math.max
 local assign = tlib.assign
 local empty = tlib.empty
 
--- Inventory notes:
--- - Don't poll a station while a train is there, because result will be
--- inaccurate.
--- - Poll stations when trains leave.
--- - Allow logistics algorithm to access live polling data.
-
 ---@class Cybersyn.Inventory
 local Inventory = class("Inventory")
 _G.cs2.Inventory = Inventory
 
 ---Create a new inventory.
----@return Cybersyn.Inventory
-function Inventory.new()
+function Inventory:new()
 	local id = counters.next("inventory")
 
 	storage.inventories[id] = setmetatable({
 		id = id --[[@as Id]],
 		inventory = {},
-	}, Inventory)
+		inflow = {},
+		outflow = {},
+	}, self)
 	local inv = storage.inventories[id]
 	cs2.raise_inventory_created(inv)
 	return inv
@@ -63,102 +57,40 @@ end
 function Inventory:set_base(counts)
 	local base = {}
 	self.inventory = base
-	local inflow = self.inflow
-	local outflow = self.outflow
 
 	-- Rebuild base
 	for k, count in pairs(counts) do
 		if key_is_cargo(k) then base[k] = count end
-	end
-
-	-- Rebuild net outflow
-	if outflow and next(outflow) then
-		local net_outflow = assign({}, base)
-		-- Recompute net outflow from base - outflow
-		for k, out in pairs(outflow) do
-			local nk = (net_outflow[k] or 0) - out
-			net_outflow[k] = nk
-		end
-		self.net_outflow = net_outflow
-	else
-		self.outflow = nil
-		self.net_outflow = nil
-	end
-
-	-- Rebuild net inflow
-	if inflow and next(inflow) then
-		local net_inflow = assign({}, base)
-		-- Recompute net inflow from base + inflow
-		for k, in_ in pairs(inflow) do
-			local nk = (net_inflow[k] or 0) + in_
-			net_inflow[k] = nk
-		end
-		self.net_inflow = net_inflow
-	else
-		self.inflow = nil
-		self.net_inflow = nil
 	end
 end
 
 ---@param counts SignalCounts
 ---@param sign number 1 to add the inflow, -1 to subtract it
 function Inventory:add_inflow(counts, sign)
-	local inflow = self.inflow or {}
-	local net_inflow = self.net_inflow
-	local base = self.inventory
+	local inflow = self.inflow
 
 	for k, count in pairs(counts) do
 		local new_inflow = (inflow[k] or 0) + sign * count
 		if new_inflow <= 0 then
 			inflow[k] = nil
-			if net_inflow then net_inflow[k] = base[k] or 0 end
 		else
 			inflow[k] = new_inflow
-			local net_inflow_k = (base[k] or 0) + new_inflow
-			if not net_inflow then
-				net_inflow = assign({}, base)
-				self.net_inflow = net_inflow
-			end
-			net_inflow[k] = net_inflow_k
 		end
-	end
-
-	if next(inflow) then
-		self.inflow = inflow
-	else
-		self.inflow = nil
-		self.net_inflow = nil
 	end
 end
 
 ---@param counts SignalCounts
 ---@param sign number 1 to add the outflow, -1 to subtract it
 function Inventory:add_outflow(counts, sign)
-	local outflow = self.outflow or {}
-	local net_outflow = self.net_outflow
-	local base = self.inventory
+	local outflow = self.outflow
 
 	for k, count in pairs(counts) do
 		local new_outflow = (outflow[k] or 0) + sign * count
 		if new_outflow <= 0 then
 			outflow[k] = nil
-			if net_outflow then net_outflow[k] = base[k] or 0 end
 		else
 			outflow[k] = new_outflow
-			local net_outflow_k = (base[k] or 0) - new_outflow
-			if not net_outflow then
-				net_outflow = assign({}, base)
-				self.net_outflow = net_outflow
-			end
-			net_outflow[k] = net_outflow_k
 		end
-	end
-
-	if next(outflow) then
-		self.outflow = outflow
-	else
-		self.outflow = nil
-		self.net_outflow = nil
 	end
 end
 
@@ -202,41 +134,33 @@ function Inventory:set_sinks(counts) end
 local Pseudoinventory = class("Pseudoinventory", Inventory)
 _G.cs2.Pseudoinventory = Pseudoinventory
 
----@return Cybersyn.Pseudoinventory
-function Pseudoinventory.new()
-	local id = counters.next("inventory")
-
-	storage.inventories[id] = setmetatable({
-		id = id --[[@as Id]],
-		inventory = {},
-	}, Pseudoinventory)
-	local inv = storage.inventories[id] --[[@as Cybersyn.Pseudoinventory]]
-	cs2.raise_inventory_created(inv)
-	return inv
-end
-
 function Pseudoinventory:get_provided_qty(item)
-	local nof = self.net_outflow or self.inventory
-	return nof[item] or 0
+	local inv = self.inventory
+	local of = self.outflow
+	return max((inv[item] or 0) - (of[item] or 0), 0)
 end
 
 function Pseudoinventory:get_pulled_qty(item)
-	local nif = self.net_inflow or self.inventory
-	local inif = nif[item] or 0
-	return inif < 0 and -inif or 0
+	local inv = self.inventory
+	local inf = self.inflow
+	return max(-((inv[item] or 0) + (inf[item] or 0)), 0)
 end
 
 function Pseudoinventory:foreach_producible_item(f)
-	local nof = self.net_outflow or self.inventory
-	for item, qty in pairs(nof) do
-		if qty > 0 then f(item, qty, 0) end
+	local inv = self.inventory
+	local of = self.outflow
+	for item, qty in pairs(inv) do
+		local net = max(qty - (of[item] or 0), 0)
+		if net > 0 then f(item, net, 0) end
 	end
 end
 
 function Pseudoinventory:foreach_consumable_item(f)
-	local nif = self.net_inflow or self.inventory
-	for item, qty in pairs(nif) do
-		if qty < 0 then f(item, -qty, 0) end
+	local inv = self.inventory
+	local inf = self.inflow
+	for item, qty in pairs(inv) do
+		local net = max(-(qty + (inf[item] or 0)), 0)
+		if net > 0 then f(item, net, 0) end
 	end
 end
 
@@ -253,19 +177,6 @@ end
 ---@field public sinks SignalCounts?
 local TrueInventory = class("TrueInventory", Inventory)
 _G.cs2.TrueInventory = TrueInventory
-
----@return Cybersyn.TrueInventory
-function TrueInventory.new()
-	local id = counters.next("inventory")
-
-	storage.inventories[id] = setmetatable({
-		id = id --[[@as Id]],
-		inventory = {},
-	}, TrueInventory)
-	local inv = storage.inventories[id] --[[@as Cybersyn.TrueInventory]]
-	cs2.raise_inventory_created(inv)
-	return inv
-end
 
 function TrueInventory:set_pulls(counts)
 	local pulls = {}
@@ -292,51 +203,63 @@ function TrueInventory:set_sinks(counts)
 end
 
 function TrueInventory:get_provided_qty(item)
-	local nof = self.net_outflow or self.inventory
-	return nof[item] or 0
+	local inv = self.inventory
+	local of = self.outflow
+	return max((inv[item] or 0) - (of[item] or 0), 0)
 end
 
 function TrueInventory:get_pulled_qty(item)
 	local pulls = self.pulls
 	if not pulls then return 0 end
-	local nif = self.net_inflow or self.inventory
-	return max((pulls[item] or 0) - (nif[item] or 0), 0)
+	local inv = self.inventory
+	local inf = self.inflow
+	return max((pulls[item] or 0) - ((inv[item] or 0) + (inf[item] or 0)), 0)
 end
 
 function TrueInventory:get_pushed_qty(item)
 	local pushes = self.pushes
 	if not pushes then return 0 end
-	local nof = self.net_outflow or self.inventory
-	return max((nof[item] or 0) - (pushes[item] or 0), 0)
+	local inv = self.inventory
+	local of = self.outflow
+
+	return max(((inv[item] or 0) - (of[item] or 0)) - (pushes[item] or 0), 0)
 end
 
 function TrueInventory:get_sink_qty(item)
 	local sinks = self.sinks
 	if not sinks then return 0 end
-	local nif = self.net_inflow or self.inventory
-	return max((sinks[item] or 0) - (nif[item] or 0), 0)
+	local inv = self.inventory
+	local inf = self.inflow
+	return max((sinks[item] or 0) - ((inv[item] or 0) + (inf[item] or 0)), 0)
 end
 
 function TrueInventory:foreach_producible_item(f)
-	local nof = self.net_outflow or self.inventory
+	local inv = self.inventory
+	local of = self.outflow
 	local pushes = self.pushes or empty
-	for item, qty in pairs(nof) do
-		if qty > 0 then f(item, qty, max(qty - (pushes[item] or 0), 0)) end
+	for item, qty in pairs(inv) do
+		local net = max(qty - (of[item] or 0), 0)
+		local pushed = max(net - pushes[item], 0)
+		if net > 0 or pushed > 0 then f(item, net, pushed) end
 	end
 end
 
 function TrueInventory:foreach_consumable_item(f)
+	local inv = self.inventory
+	local inf = self.inflow
 	local pulls = self.pulls or empty
 	local sinks = self.sinks or empty
-	local nif = self.net_inflow or self.inventory
+
 	for item, qty in pairs(pulls) do
-		local pulled = max(qty - (nif[item] or 0), 0)
-		local sunk = max((sinks[item] or 0) - (nif[item] or 0), 0)
-		if pulled > 0 then f(item, pulled, sunk) end
+		local net = (inv[item] or 0) + (inf[item] or 0)
+		local pulled = max(qty - net, 0)
+		local sunk = max((sinks[item] or 0) - net, 0)
+		if pulled > 0 or sunk > 0 then f(item, pulled, sunk) end
 	end
 	for item, qty in pairs(sinks) do
 		if not pulls[item] then
-			local sunk = max(qty - (nif[item] or 0), 0)
+			local net = (inv[item] or 0) + (inf[item] or 0)
+			local sunk = max(qty - net, 0)
 			if sunk > 0 then f(item, 0, sunk) end
 		end
 	end
@@ -350,7 +273,7 @@ end
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
 		---@cast node Cybersyn.TrainStop
-		local inv = Pseudoinventory.new()
+		local inv = Pseudoinventory:new()
 		node.inventory_id = inv.id
 		node.created_inventory_id = inv.id
 		inv.created_for_node_id = node.id
