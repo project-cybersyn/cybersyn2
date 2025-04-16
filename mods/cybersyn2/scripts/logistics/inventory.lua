@@ -20,6 +20,20 @@ local max = math.max
 local assign = tlib.assign
 local empty = tlib.empty
 
+---@param base table<string,int>
+---@param addend table<string,int>
+---@param sign int
+local function table_add_positive(base, addend, sign)
+	for k, v in pairs(addend) do
+		local net = (base[k] or 0) + sign * v
+		if net >= 0 then
+			base[k] = net
+		else
+			base[k] = nil
+		end
+	end
+end
+
 ---@class Cybersyn.Inventory
 local Inventory = class("Inventory")
 _G.cs2.Inventory = Inventory
@@ -67,16 +81,7 @@ end
 ---@param counts SignalCounts
 ---@param sign number 1 to add the inflow, -1 to subtract it
 function Inventory:add_inflow(counts, sign)
-	local inflow = self.inflow
-
-	for k, count in pairs(counts) do
-		local new_inflow = (inflow[k] or 0) + sign * count
-		if new_inflow <= 0 then
-			inflow[k] = nil
-		else
-			inflow[k] = new_inflow
-		end
-	end
+	return table_add_positive(self.inflow, counts, sign)
 end
 
 ---@param item SignalKey
@@ -94,16 +99,7 @@ end
 ---@param counts SignalCounts
 ---@param sign number 1 to add the outflow, -1 to subtract it
 function Inventory:add_outflow(counts, sign)
-	local outflow = self.outflow
-
-	for k, count in pairs(counts) do
-		local new_outflow = (outflow[k] or 0) + sign * count
-		if new_outflow <= 0 then
-			outflow[k] = nil
-		else
-			outflow[k] = new_outflow
-		end
-	end
+	return table_add_positive(self.outflow, counts, sign)
 end
 
 ---@param item SignalKey
