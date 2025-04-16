@@ -81,9 +81,8 @@ function LogisticsThread:allocate(
 	qty,
 	prio
 )
-	local flow = { [item] = qty }
-	from_inv:add_outflow(flow, 1)
-	to_inv:add_inflow(flow, 1)
+	from_inv:add_single_item_outflow(item, qty)
+	to_inv:add_single_item_inflow(item, qty)
 	local is_fluid = key_is_fluid(item)
 	---@type Cybersyn.Internal.LogisticsAllocation
 	local allocation = {
@@ -117,9 +116,10 @@ end
 
 ---@param alloc Cybersyn.Internal.LogisticsAllocation
 function LogisticsThread:refund_allocation(alloc)
-	local flow = { [alloc.item] = alloc.qty }
-	alloc.from_inv:add_outflow(flow, -1)
-	alloc.to_inv:add_inflow(flow, -1)
+	local item = alloc.item
+	local qty = -alloc.qty
+	alloc.from_inv:add_single_item_outflow(item, qty)
+	alloc.to_inv:add_single_item_inflow(item, qty)
 end
 
 --------------------------------------------------------------------------------

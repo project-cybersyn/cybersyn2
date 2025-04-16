@@ -79,6 +79,18 @@ function Inventory:add_inflow(counts, sign)
 	end
 end
 
+---@param item SignalKey
+---@param qty int
+function Inventory:add_single_item_inflow(item, qty)
+	local inflow = self.inflow
+	local new_inflow = (inflow[item] or 0) + qty
+	if new_inflow <= 0 then
+		inflow[item] = nil
+	else
+		inflow[item] = new_inflow
+	end
+end
+
 ---@param counts SignalCounts
 ---@param sign number 1 to add the outflow, -1 to subtract it
 function Inventory:add_outflow(counts, sign)
@@ -91,6 +103,18 @@ function Inventory:add_outflow(counts, sign)
 		else
 			outflow[k] = new_outflow
 		end
+	end
+end
+
+---@param item SignalKey
+---@param qty int
+function Inventory:add_single_item_outflow(item, qty)
+	local outflow = self.outflow
+	local new_outflow = (outflow[item] or 0) + qty
+	if new_outflow <= 0 then
+		outflow[item] = nil
+	else
+		outflow[item] = new_outflow
 	end
 end
 
