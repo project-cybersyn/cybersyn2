@@ -67,15 +67,17 @@ end
 ---@param id Id?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.Node?
-function Node.get(id, skip_validation)
+local function get_node(id, skip_validation)
 	if not id then return nil end
 	local node = storage.nodes[id]
 	if skip_validation then
 		return node
 	else
-		return node:is_valid() and node or nil
+		return (node and node:is_valid()) and node or nil
 	end
 end
+_G.cs2.get_node = get_node
+Node.get = get_node
 
 ---Determine if a node is valid.
 ---@return boolean

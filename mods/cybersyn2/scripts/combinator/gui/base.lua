@@ -206,7 +206,7 @@ local ModeSettings = relm.define_element({
 })
 
 local Status = relm.define_element({
-	name = "CombinatorGui.Status",
+	name = "CombinatorGui.StatusArea",
 	render = function(props)
 		local entity = props.combinator.entity
 		return VF({

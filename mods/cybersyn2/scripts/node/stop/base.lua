@@ -9,6 +9,7 @@ local Node = _G.cs2.Node
 local Topology = _G.cs2.Topology
 local Delivery = _G.cs2.Delivery
 local Inventory = _G.cs2.Inventory
+local TrueInventory = _G.cs2.TrueInventory
 local mod_settings = _G.cs2.mod_settings
 local combinator_settings = _G.cs2.combinator_settings
 
@@ -42,8 +43,9 @@ function TrainStop.new(stop_entity)
 	return node
 end
 
+---Get a train stop from storage by id.
 ---@return Cybersyn.TrainStop?
-function TrainStop.get(id, skip_validation)
+local function get_stop(id, skip_validation)
 	local stop = Node.get(id, skip_validation)
 	if stop and stop.type == "stop" then
 		return stop --[[@as Cybersyn.TrainStop]]
@@ -51,6 +53,8 @@ function TrainStop.get(id, skip_validation)
 		return nil
 	end
 end
+_G.cs2.get_stop = get_stop
+TrainStop.get = get_stop
 
 ---Find the stop associated to the given rail using the rail cache.
 ---@param rail_entity LuaEntity A *valid* rail.
@@ -139,6 +143,10 @@ function _G.cs2.lib.find_associable_entities_for_combinator(combinator_entity)
 	end
 	return stop, rail
 end
+
+--------------------------------------------------------------------------------
+-- DELIVERIES AND QUEUES
+--------------------------------------------------------------------------------
 
 ---Force remove a delivery from a train stop. Generally used when delivery
 ---has failed.
@@ -250,6 +258,73 @@ function TrainStop:get_tekbox_equation()
 		+ (#self.delivery_queue * (limit + 1) / limit)
 end
 
+---Determine if a train parked at this stop is reversed relative to the stop.
+---@param lua_train LuaTrain
+---@return boolean #`true` if the train is parked backwards at this stop, `false` otherwise.
+function TrainStop:is_train_reversed(lua_train)
+	local back_end = lua_train.get_rail_end(defines.rail_direction.back)
+
+	if back_end and back_end.rail then
+		local back_pos = back_end.rail.position
+		local stop_pos = self.entity.position
+		if
+			abs(back_pos.x - stop_pos.x) < 3 and abs(back_pos.y - stop_pos.y) < 3
+		then
+			return true
+		end
+	end
+
+	return false
+end
+
+--------------------------------------------------------------------------------
+-- INVENTORY
+--------------------------------------------------------------------------------
+
+---Based on the combinators present at the station and its sharing state,
+---update the inventory of the station as needed.
+function TrainStop:update_inventory_mode()
+	local combs = self:get_associated_combinators(
+		function(c) return c.mode == "inventory" end
+	)
+	if #combs == 0 then
+		-- Return stop to its internal pseudoinventory
+		self:set_inventory(self.created_inventory_id)
+		-- Destroy created true inventory
+		if self.true_inventory_id then
+			local inv = Inventory.get(self.true_inventory_id)
+			if inv then
+				strace(
+					stlib.DEBUG,
+					"cs2",
+					"inventory",
+					"message",
+					"Destroying true inventory at stop",
+					self.id
+				)
+				inv:destroy()
+			end
+			self.true_inventory_id = nil
+		end
+	else
+		-- Create true inventory if needed
+		if not self.true_inventory_id then
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"inventory",
+				"message",
+				"Creating true inventory at stop",
+				self.id
+			)
+			local inv = TrueInventory:new()
+			self.true_inventory_id = inv.id
+		end
+		-- Swap stop to true inventory
+		self:set_inventory(self.true_inventory_id)
+	end
+end
+
 ---Determine if the inventory associated with this trainstop is volatile.
 ---(eg. changing because a train is there being loaded/unloaded)
 function TrainStop:is_inventory_volatile()
@@ -354,23 +429,21 @@ function TrainStop:update_inventory(is_opportunistic)
 	end
 end
 
----Determine if a train parked at this stop is reversed relative to the stop.
----@param lua_train LuaTrain
----@return boolean #`true` if the train is parked backwards at this stop, `false` otherwise.
-function TrainStop:is_train_reversed(lua_train)
-	local back_end = lua_train.get_rail_end(defines.rail_direction.back)
-
-	if back_end and back_end.rail then
-		local back_pos = back_end.rail.position
-		local stop_pos = self.entity.position
-		if
-			abs(back_pos.x - stop_pos.x) < 3 and abs(back_pos.y - stop_pos.y) < 3
-		then
-			return true
-		end
+---Make this stop a shared inventory master.
+function TrainStop:is_sharing_inventory()
+	if self.shared_inventory_master or self.shared_inventory_slaves then
+		return true
+	else
+		return false
 	end
+end
 
-	return false
+function TrainStop:is_sharing_master()
+	if self.shared_inventory_slaves then
+		return true
+	else
+		return false
+	end
 end
 
 --------------------------------------------------------------------------------
