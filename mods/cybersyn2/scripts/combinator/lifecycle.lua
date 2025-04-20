@@ -64,6 +64,15 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 	end
 	comb = Combinator.new(combinator_entity)
 
+	strace(
+		TRACE,
+		"cs2",
+		"combinator",
+		"message",
+		"combinator created with tags",
+		tags
+	)
+
 	-- Store settings in cache
 	storage.combinator_settings_cache[comb.id] =
 		tlib.deep_copy(tags or _G.cs2.DEFAULT_COMBINATOR_SETTINGS, true)
@@ -135,24 +144,10 @@ local function bp_combinator_filter(bp_entity)
 	return bp_entity.name == COMBINATOR_NAME
 end
 
-cs2.on_built_blueprint(function(player, event)
-	local blueprintish = bplib.get_actual_blueprint(
-		player,
-		player.cursor_record,
-		player.cursor_stack
-	)
-	if blueprintish then
-		local bp_entities = blueprintish.get_blueprint_entities()
-		if not bp_entities then return end
-		local overlap_map = bplib.get_overlapping_entities(
-			bp_entities,
-			player.surface,
-			event.position,
-			event.direction,
-			event.flip_horizontal,
-			event.flip_vertical,
-			bp_combinator_filter
-		)
+cs2.on_blueprint_built(function(bpinfo)
+	local overlap_map = bpinfo:get_overlap(bp_combinator_filter)
+	if overlap_map and next(overlap_map) then
+		local bp_entities = bpinfo:get_entities() --[[@as BlueprintEntity[] ]]
 		for i, entity in pairs(overlap_map) do
 			local comb = Combinator.get(entity.unit_number, true)
 			local tags = bp_entities[i].tags or {}
@@ -170,21 +165,12 @@ cs2.on_built_blueprint(function(player, event)
 	end
 end)
 
--- Extract settings tags on blueprint setup.
-cs2.on_blueprint_setup(function(event)
-	-- Save config tags into blueprint
-	bplib.save_tags(event, function(entity)
-		if entity_is_combinator_or_ghost(entity) then
-			return get_raw_settings(entity)
-		end
-	end)
+cs2.on_blueprint_setup(function(bpinfo)
+	local bp_to_world = bpinfo:get_bp_to_world()
+	local bp_entities = bpinfo:get_entities()
+	if not bp_to_world or not bp_entities then return end
+
 	-- Remove decider combinator outputs
-	local player = game.get_player(event.player_index) --[[@as LuaPlayer]]
-	local blueprintish =
-		bplib.get_actual_blueprint(player, event.record, event.stack)
-	if not blueprintish then return end
-	local bp_entities = blueprintish.get_blueprint_entities()
-	if not bp_entities then return end
 	local changed = false
 	for _, entity in pairs(bp_entities) do
 		if entity.name == COMBINATOR_NAME then
@@ -197,7 +183,14 @@ cs2.on_blueprint_setup(function(event)
 			end
 		end
 	end
-	if changed then blueprintish.set_blueprint_entities(bp_entities) end
+	if changed then bpinfo:set_entities(bp_entities) end
+
+	-- Save config tags into blueprint
+	for bpid, entity in pairs(bp_to_world) do
+		if entity_is_combinator_or_ghost(entity) then
+			bpinfo:apply_tags(bpid, get_raw_settings(entity))
+		end
+	end
 end)
 
 --------------------------------------------------------------------------------

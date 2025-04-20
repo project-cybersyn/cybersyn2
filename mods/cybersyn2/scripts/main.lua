@@ -10,9 +10,12 @@ local scheduler = require("__cybersyn2__.lib.scheduler")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
+local bplib = require("__cybersyn2__.lib.blueprint")
 local cs2 = _G.cs2
+local cs2_lib = _G.cs2.lib
 
 local db_dispatch = dynamic_binding.dispatch
+local BlueprintInfo = bplib.BlueprintInfo
 
 --------------------------------------------------------------------------------
 -- Required library event bindings
@@ -132,24 +135,48 @@ local function on_renamed(event)
 	end
 end
 
----@param event EventData.on_pre_build
-local function on_maybe_blueprint_pasted(event)
-	local player = game.players[event.player_index]
-	if not player.is_cursor_blueprint() then return end
-	cs2.raise_built_blueprint(player, event)
-end
-
 script.on_event(defines.events.on_player_rotated_entity, on_repositioned)
 script.on_event(defines.events.on_entity_renamed, on_renamed)
-script.on_event(defines.events.on_pre_build, on_maybe_blueprint_pasted)
 script.on_event(
 	defines.events.on_entity_settings_pasted,
 	cs2.raise_entity_settings_pasted
 )
+
+script.on_event(defines.events.on_selected_entity_changed, function(event)
+	local player = game.get_player(event.player_index)
+	if not player then return end
+	local entity = player.selected
+	if
+		(event.last_entity and cs2_lib.entity_is_combinator(event.last_entity))
+		or (entity and cs2_lib.entity_is_combinator(entity))
+	then
+		cs2.raise_selected(entity, event.last_entity, player)
+	end
+end)
+
 script.on_event(
-	defines.events.on_player_setup_blueprint,
-	cs2.raise_blueprint_setup
+	"cybersyn2-linked-clear-cursor",
+	---@param event EventData.CustomInputEvent
+	function(event)
+		local player = game.get_player(event.player_index)
+		if not player then return end
+		cs2.raise_cursor_cleared(player)
+	end
 )
+
+--------------------------------------------------------------------------------
+-- Blueprinting
+--------------------------------------------------------------------------------
+
+script.on_event(defines.events.on_player_setup_blueprint, function(event)
+	local bpinfo = BlueprintInfo:create_from_setup_event(event)
+	if bpinfo then cs2.raise_blueprint_setup(bpinfo) end
+end)
+
+script.on_event(defines.events.on_pre_build, function(event)
+	local bpinfo = BlueprintInfo:create_from_pre_build_event(event)
+	if bpinfo then cs2.raise_blueprint_built(bpinfo) end
+end)
 
 --------------------------------------------------------------------------------
 -- Entity destruction
@@ -220,9 +247,20 @@ script.on_event(
 --------------------------------------------------------------------------------
 
 script.on_event(defines.events.on_gui_opened, function(event)
-	local comb = cs2.EphemeralCombinator.new(event.entity)
-	if not comb then return end
-	cs2.lib.open_combinator_gui(event.player_index, comb)
+	local player = game.get_player(event.player_index)
+	if not player then return end
+
+	-- Unfortunate spaghetti code case here: when creating a shared inventory
+	-- link, this is the event that ultimately gets raised. We have to distinguish
+	-- between this and someone actually wanting to open a combinator gui.
+	if cs2.try_finish_connection(player, event.entity) then
+		-- Close default combinator UI.
+		player.opened = nil
+	else
+		local comb = cs2.EphemeralCombinator.new(event.entity)
+		if not comb then return end
+		cs2.lib.open_combinator_gui(event.player_index, comb)
+	end
 end)
 
 script.on_event(defines.events.on_gui_closed, function(event)

@@ -310,4 +310,21 @@ end
 ---@param a T[]
 function lib.irpairs(a) return irnext, a, 0 end
 
+---Filter an array in place.
+---@generic T
+---@param A T[]
+---@param f fun(value: T, index: integer): boolean?
+function lib.filter_in_place(A, f)
+	local j = 1
+	for i = 1, #A do
+		if f(A[i], i) then
+			A[j] = A[i]
+			j = j + 1
+		end
+	end
+	for i = #A, j, -1 do
+		A[i] = nil
+	end
+end
+
 return lib

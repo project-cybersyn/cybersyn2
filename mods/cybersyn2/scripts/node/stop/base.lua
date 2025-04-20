@@ -44,6 +44,8 @@ function TrainStop.new(stop_entity)
 end
 
 ---Get a train stop from storage by id.
+---@param id Id
+---@param skip_validation boolean?
 ---@return Cybersyn.TrainStop?
 local function get_stop(id, skip_validation)
 	local stop = Node.get(id, skip_validation)
@@ -284,6 +286,7 @@ end
 ---Based on the combinators present at the station and its sharing state,
 ---update the inventory of the station as needed.
 function TrainStop:update_inventory_mode()
+	-- TODO: use get_combinator_with_mode
 	local combs = self:get_associated_combinators(
 		function(c) return c.mode == "inventory" end
 	)
@@ -429,7 +432,6 @@ function TrainStop:update_inventory(is_opportunistic)
 	end
 end
 
----Make this stop a shared inventory master.
 function TrainStop:is_sharing_inventory()
 	if self.shared_inventory_master or self.shared_inventory_slaves then
 		return true
@@ -444,6 +446,47 @@ function TrainStop:is_sharing_master()
 	else
 		return false
 	end
+end
+
+---Make this stop a shared inventory master.
+function TrainStop:share_inventory()
+	self.shared_inventory_slaves = {}
+	cs2.raise_train_stop_shared_inventory_changed(self)
+end
+
+function TrainStop:stop_sharing_inventory()
+	if self.shared_inventory_master then
+		local master = cs2.get_stop(self.shared_inventory_master)
+		self.shared_inventory_master = nil
+		cs2.raise_train_stop_shared_inventory_changed(self)
+		if master and master.shared_inventory_slaves then
+			master.shared_inventory_slaves[self.id] = nil
+			cs2.raise_train_stop_shared_inventory_changed(master)
+		end
+	end
+	if self.shared_inventory_slaves then
+		local slaves = self.shared_inventory_slaves --[[@as IdSet]]
+		self.shared_inventory_slaves = nil
+		cs2.raise_train_stop_shared_inventory_changed(self)
+		for slave_id in pairs(slaves) do
+			local slave = cs2.get_stop(slave_id)
+			if slave then
+				slave.shared_inventory_master = nil
+				cs2.raise_train_stop_shared_inventory_changed(slave)
+			end
+		end
+	end
+end
+
+---@param slave_stop Cybersyn.TrainStop
+function TrainStop:share_inventory_with(slave_stop)
+	if not self.shared_inventory_slaves then self.shared_inventory_slaves = {} end
+	if slave_stop.shared_inventory_master ~= self.id then
+		slave_stop.shared_inventory_master = self.id
+		cs2.raise_train_stop_shared_inventory_changed(slave_stop)
+	end
+	self.shared_inventory_slaves[slave_stop.id] = true
+	cs2.raise_train_stop_shared_inventory_changed(self)
 end
 
 --------------------------------------------------------------------------------

@@ -141,7 +141,6 @@ cs2.on_combinator_destroyed(function(combinator)
 end)
 
 ---Get all combinators associated with this node.
----@param self Cybersyn.Node Reference to a *valid* node.
 ---@param filter? fun(combinator: Cybersyn.Combinator): boolean? A filter function that returns `true` to include the combinator in the result.
 ---@return Cybersyn.Combinator[] #The combinators associated to the node, if any.
 function Node:get_associated_combinators(filter)
@@ -149,6 +148,17 @@ function Node:get_associated_combinators(filter)
 		local comb = Combinator.get(combinator_id, true)
 		if comb and ((not filter) or filter(comb)) then return comb end
 	end)
+end
+
+---Get the first combinator associated with this node and having the given
+---mode.
+---@param mode string
+---@return Cybersyn.Combinator? #A combinator with the given mode associated to this node, if any.
+function Node:get_combinator_with_mode(mode)
+	for id in pairs(self.combinator_set) do
+		local combinator = cs2.get_combinator(id, true)
+		if combinator and combinator.mode == mode then return combinator end
+	end
 end
 
 ---Get the per-item priority of the given item for this node, defaulting

@@ -21,17 +21,10 @@ end
 ---@param player_index PlayerIndex
 ---@param combinator Cybersyn.Combinator.Ephemeral
 local function create_gui_state(player_index, combinator)
-	if not storage.players[player_index] then
-		storage.players[player_index] = {
-			player_index = player_index,
-			open_combinator = nil,
-			open_combinator_unit_number = nil,
-		}
-	end
-	storage.players[player_index].open_combinator = combinator
-	storage.players[player_index].open_combinator_unit_number =
-		combinator.entity.unit_number
-	return storage.players[player_index]
+	local pstate = cs2.get_or_create_player_state(player_index)
+	pstate.open_combinator = combinator
+	pstate.open_combinator_unit_number = combinator.entity.unit_number
+	return pstate
 end
 
 ---Run a callback on each player who has an open combinator GUI.

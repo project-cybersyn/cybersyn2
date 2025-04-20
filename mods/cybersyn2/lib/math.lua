@@ -10,6 +10,10 @@ end
 local abs = math.abs
 local min = math.min
 local max = math.max
+local floor = math.floor
+local ceil = math.ceil
+local sin = math.sin
+local cos = math.cos
 
 local dir_N = defines.direction.north
 local dir_S = defines.direction.south
@@ -361,10 +365,11 @@ lib.bbox_rotate_ortho = bbox_rotate_ortho
 ---Flip a bbox horizontally across the vertical line given by the `x` parameter.
 ---The bbox need not intersect with the vertical line.
 ---@param bbox BoundingBox
----@param x number
+---@param x number?
 ---@return BoundingBox bbox The mutated bbox.
 local function bbox_flip_horiz(bbox, x)
 	local l, t, r, b = bbox_get(bbox)
+	if not x then x = (l + r) / 2 end
 	local dx1 = x - l
 	local dx2 = r - x
 	return bbox_set(bbox, x - dx2, t, x + dx1, b)
@@ -374,10 +379,11 @@ lib.bbox_flip_horiz = bbox_flip_horiz
 ---Flip a bbox vertically across the horizontal line given by the `y` parameter.
 ---The bbox need not intersect with the horizontal line.
 ---@param bbox BoundingBox
----@param y number
+---@param y number?
 ---@return BoundingBox bbox The mutated bbox.
 local function bbox_flip_vert(bbox, y)
 	local l, t, r, b = bbox_get(bbox)
+	if not y then y = (t + b) / 2 end
 	local dy1 = y - t
 	local dy2 = b - y
 	return bbox_set(bbox, l, y - dy2, r, y + dy1)
@@ -410,5 +416,97 @@ local function bbox_contains(bbox, pos)
 	return (x >= l) and (x <= r) and (y >= t) and (y <= b)
 end
 lib.bbox_contains = bbox_contains
+
+---Round a bbox outward so its dimensions are integral, while maintaining
+---its center.
+---@param bbox BoundingBox
+---@return BoundingBox bbox The mutated bbox.
+local function bbox_round(bbox)
+	local l, t, r, b = bbox_get(bbox)
+	local cx, cy = (l + r) / 2, (t + b) / 2
+	local w, h = ceil(r - l), ceil(b - t)
+	l, t = cx - w / 2, cy - h / 2
+	r, b = l + w, t + h
+	return bbox_set(bbox, l, t, r, b)
+end
+lib.bbox_round = bbox_round
+
+---Set the position to be the center of the given bbox.
+---@param pos MapPosition
+---@param bbox BoundingBox
+local function pos_set_center(pos, bbox)
+	local l, t, r, b = bbox_get(bbox)
+	local cx, cy = (l + r) / 2, (t + b) / 2
+	return pos_set(pos, cx, cy)
+end
+lib.pos_set_center = pos_set_center
+
+---@alias Vec {[1]: number, [2]: number}
+---@alias Rect {[1]: Vec, [2]: Vec, [3]: Vec, [4]: Vec}
+
+local function rect_get(rect)
+	local p1, p2, p3, p4 = rect[1], rect[2], rect[3], rect[4]
+	return p1[1], p1[2], p2[1], p2[2], p3[1], p3[2], p4[1], p4[2]
+end
+lib.rect_get = rect_get
+
+local function rect_set(rect, x1, y1, x2, y2, x3, y3, x4, y4)
+	local p1, p2, p3, p4 = rect[1], rect[2], rect[3], rect[4]
+
+	p1[1], p1[2] = x1, y1
+	p2[1], p2[2] = x2, y2
+	p3[1], p3[2] = x3, y3
+	p4[1], p4[2] = x4, y4
+
+	return rect
+end
+lib.rect_set = rect_set
+
+---@param bbox BoundingBox
+---@return Rect rect
+local function rect_from_bbox(bbox)
+	local l, t, r, b = bbox_get(bbox)
+	return { { l, t }, { r, t }, { r, b }, { l, b } }
+end
+lib.rect_from_bbox = rect_from_bbox
+
+---Rotate a rect by an arbitrary angle in radians about an origin.
+---Mutates the rect.
+---@param rect Rect
+---@param origin MapPosition
+---@param angle number
+local function rect_rotate(rect, origin, angle)
+	local x1, y1, x2, y2, x3, y3, x4, y4 = rect_get(rect)
+	local ox, oy = pos_get(origin)
+	local cos_a, sin_a = cos(angle), sin(angle)
+
+	return rect_set(
+		rect,
+		ox + cos_a * (x1 - ox) - sin_a * (y1 - oy),
+		oy + sin_a * (x1 - ox) + cos_a * (y1 - oy),
+		ox + cos_a * (x2 - ox) - sin_a * (y2 - oy),
+		oy + sin_a * (x2 - ox) + cos_a * (y2 - oy),
+		ox + cos_a * (x3 - ox) - sin_a * (y3 - oy),
+		oy + sin_a * (x3 - ox) + cos_a * (y3 - oy),
+		ox + cos_a * (x4 - ox) - sin_a * (y4 - oy),
+		oy + sin_a * (x4 - ox) + cos_a * (y4 - oy)
+	)
+end
+lib.rect_rotate = rect_rotate
+
+---@param bbox BoundingBox
+---@param rect Rect
+local function bbox_union_rect(bbox, rect)
+	local l, t, r, b = bbox_get(bbox)
+	local x1, y1, x2, y2, x3, y3, x4, y4 = rect_get(rect)
+
+	return bbox_set(
+		bbox,
+		min(l, x1, x2, x3, x4),
+		min(t, y1, y2, y3, y4),
+		max(r, x1, x2, x3, x4),
+		max(b, y1, y2, y3, y4)
+	)
+end
 
 return lib

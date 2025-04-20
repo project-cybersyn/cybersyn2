@@ -222,7 +222,7 @@ end
 ---@param unit_number UnitNumber?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.Combinator?
-function Combinator.get(unit_number, skip_validation)
+local function get_combinator(unit_number, skip_validation)
 	if not unit_number then return nil end
 	local combinator = storage.combinators[unit_number]
 	if skip_validation then
@@ -231,6 +231,8 @@ function Combinator.get(unit_number, skip_validation)
 		return combinator:is_valid() and combinator or nil
 	end
 end
+Combinator.get = get_combinator
+_G.cs2.get_combinator = get_combinator
 
 ---Destroy a saved combinator state. Should only be called by combinator
 ---lifecycle.

@@ -29,6 +29,29 @@ storage = {}
 ---@field public open_combinator? Cybersyn.Combinator.Ephemeral The combinator OR ghost currently open in the player's UI, if any.
 ---@field public open_combinator_unit_number? UnitNumber The unit number of the combinator currently open in the player's UI, if any. This is stored separately to allow for cases where the combinator is removed while the UI is open, eg ghost revival.
 ---@field public combinator_gui_root? int The Relm root id of the open combinator gui.
+---@field public connection_render_objects? LuaRenderObject[] The render objects used to visualize connections in the player's UI.
+---@field public connection_source? LuaEntity The combinator entity that is the source of the connection the user is creating in the UI.
+
+---Get the player state for a player, creating it if it doesn't exist.
+---@param player_index PlayerIndex
+---@return Cybersyn.PlayerState
+local function get_or_create_player_state(player_index)
+	if not storage.players[player_index] then
+		storage.players[player_index] = {
+			player_index = player_index,
+		}
+	end
+	return storage.players[player_index]
+end
+_G.cs2.get_or_create_player_state = get_or_create_player_state
+
+---Get the player state for a player.
+---@param player_index PlayerIndex
+---@return Cybersyn.PlayerState?
+local function get_player_state(player_index)
+	return storage.players[player_index]
+end
+_G.cs2.get_player_state = get_player_state
 
 _G.cs2.on_init(function()
 	storage.players = {}

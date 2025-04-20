@@ -111,10 +111,10 @@ _G.cs2.on_luatrain_changed_state, _G.cs2.raise_luatrain_changed_state = event(
 )
 
 ---Event raised when a blueprint is pasted into the world.
-_G.cs2.on_built_blueprint, _G.cs2.raise_built_blueprint = event(
-	"built_blueprint",
-	"LuaPlayer",
-	"EventData.on_pre_build",
+_G.cs2.on_blueprint_built, _G.cs2.raise_blueprint_built = event(
+	"blueprint_built",
+	"BlueprintLib.BlueprintInfo",
+	"nil",
 	"nil",
 	"nil",
 	"nil"
@@ -122,12 +122,21 @@ _G.cs2.on_built_blueprint, _G.cs2.raise_built_blueprint = event(
 
 _G.cs2.on_blueprint_setup, _G.cs2.raise_blueprint_setup = event(
 	"blueprint_setup",
-	"EventData.on_player_setup_blueprint",
+	"BlueprintLib.BlueprintInfo",
 	"nil",
 	"nil",
 	"nil",
 	"nil"
 )
+
+---Event raised when a relevant entity is "selected" as defined by
+---Factorio.
+_G.cs2.on_selected, _G.cs2.raise_selected =
+	event("selected", "LuaEntity", "LuaEntity", "LuaPlayer", "nil", "nil")
+
+---Event raised when a player clears his cursor.
+_G.cs2.on_cursor_cleared, _G.cs2.raise_cursor_cleared =
+	event("cursor_cleared", "LuaPlayer", "nil", "nil", "nil", "nil")
 
 --------------------------------------------------------------------------------
 -- Cybersyn vehicle object events
@@ -291,6 +300,16 @@ _G.cs2.on_train_stop_pattern_changed, _G.cs2.raise_train_stop_pattern_changed =
 		"train_stop_pattern_changed",
 		"Cybersyn.TrainStop",
 		"Cybersyn.TrainStopLayout",
+		"nil",
+		"nil",
+		"nil"
+	)
+
+_G.cs2.on_train_stop_shared_inventory_changed, _G.cs2.raise_train_stop_shared_inventory_changed =
+	event(
+		"train_stop_shared_inventory_changed",
+		"Cybersyn.TrainStop",
+		"nil",
 		"nil",
 		"nil",
 		"nil"
