@@ -10,6 +10,7 @@ local mlib = require("__cybersyn2__.lib.math")
 local stlib = require("__cybersyn2__.lib.strace")
 local strace = stlib.strace
 
+local PI = math.pi
 local floor = math.floor
 local ceil = math.ceil
 local pos_get = mlib.pos_get
@@ -28,6 +29,12 @@ local pos_set_center = mlib.pos_set_center
 local bbox_flip_horiz = mlib.bbox_flip_horiz
 local bbox_flip_vert = mlib.bbox_flip_vert
 local rect_from_bbox = mlib.rect_from_bbox
+local rect_rotate = mlib.rect_rotate
+local bbox_union_rect = mlib.bbox_union_rect
+local rect_translate = mlib.rect_translate
+local rect_new = mlib.rect_new
+local ONES = { 1, 1 }
+local ZEROES = { 0, 0 }
 
 local lib = {}
 
@@ -62,11 +69,12 @@ end
 ---@field public flip_vertical? boolean Whether the blueprint is flipped vertically.
 ---@field public overlap? {[int]: LuaEntity} A mapping of the blueprint entity indices to the entities in the world that would be overlapped by the corresponding entities in the blueprint if it were pasted at that position in worldspace.
 ---@field public bpspace_bbox? BoundingBox The bounding box of the blueprint in blueprint space.
----@field public bp_to_bbox? {[int]: BoundingBox} A mapping of the blueprint entity indices to the bounding boxes of the entities in blueprint space.
+---@field public bp_to_rect? {[int]: Rect} A mapping of the blueprint entity indices to the bounding rects of the entities in blueprint space. XXX: remove
 ---@field public bp_to_world_pos? {[int]: MapPosition} A mapping of the blueprint entity indices to positions in worldspace of where those entities will be when the blueprint is built.
 ---@field public snap? TilePosition Blueprint snapping grid size
 ---@field public snap_offset? TilePosition Blueprint snapping grid offset
 ---@field public snap_absolute? boolean Whether blueprint snapping is absolute or relative
+---@field public implied_snap_vector? MapPosition Vector governing even/odd snapping of entity position.
 local BlueprintInfo = {}
 BlueprintInfo.__index = BlueprintInfo
 lib.BlueprintInfo = BlueprintInfo
@@ -211,40 +219,162 @@ function BlueprintInfo:set_entities(bp_entities)
 	self.bpspace_bbox = nil
 end
 
+local function default_erect(bp_entity, eproto)
+	local erect = rect_from_bbox(eproto.collision_box)
+	local dir = bp_entity.direction
+	strace(
+		stlib.DEBUG,
+		"cs2",
+		"blueprint",
+		"message",
+		"dir",
+		dir,
+		"mirror",
+		bp_entity.mirror,
+		"bbox",
+		eproto.collision_box,
+		"bbox2",
+		eproto.secondary_collision_box,
+		"bp_entity",
+		bp_entity
+	)
+	rect_rotate(erect, ZEROES, (dir or 0) * PI / 8)
+	rect_translate(erect, bp_entity.position)
+	return erect
+end
+
+local cra_bb = {
+	-- Offsets from entity position to edges of empirical bbox, in order
+	-- left, top, right, bottom
+	[0] = { -2, -3, 1, 2 },
+	[2] = { -1, -3, 2, 2 },
+	[4] = { -2, -2, 3, 1 },
+	[6] = { -2, -1, 3, 2 },
+	[8] = { -1, -2, 2, 3 },
+	[10] = { -2, -2, 1, 3 },
+	[12] = { -3, -1, 2, 2 },
+	[14] = { -3, -2, 2, 1 },
+}
+
+local crb_bb = {
+	[0] = { -3, -3, 2, 3 },
+	[2] = { -2, -3, 3, 3 },
+	[4] = { -3, -3, 3, 2 },
+	[6] = { -3, -2, 3, 3 },
+	[8] = { -2, -3, 3, 3 },
+	[10] = { -3, -3, 2, 3 },
+	[12] = { -3, -2, 3, 3 },
+	[14] = { -3, -3, 3, 2 },
+}
+
+local function cra_erect(bp_entity, eproto)
+	local dir = bp_entity.direction or 0
+	local x, y = pos_get(bp_entity.position)
+	local adjustments = cra_bb[dir]
+	if not adjustments then
+		strace(
+			stlib.DEBUG,
+			"cs2",
+			"blueprint",
+			"message",
+			"cra_erect: no adjustments for dir",
+			dir
+		)
+		adjustments = { 0, 0, 0, 0 }
+	end
+	local box = {
+		{ x + adjustments[1], y + adjustments[2] },
+		{ x + adjustments[3], y + adjustments[4] },
+	}
+	local erect = rect_from_bbox(box)
+	return erect
+end
+
+local function crb_erect(bp_entity, eproto)
+	local dir = bp_entity.direction or 0
+	local x, y = pos_get(bp_entity.position)
+	local adjustments = crb_bb[dir]
+	if not adjustments then
+		strace(
+			stlib.DEBUG,
+			"cs2",
+			"blueprint",
+			"message",
+			"crb_erect: no adjustments for dir",
+			dir
+		)
+		adjustments = { 0, 0, 0, 0 }
+	end
+	local box = {
+		{ x + adjustments[1], y + adjustments[2] },
+		{ x + adjustments[3], y + adjustments[4] },
+	}
+	local erect = rect_from_bbox(box)
+	return erect
+end
+
+local calc_erect = {
+	["curved-rail-a"] = cra_erect,
+	["curved-rail-b"] = crb_erect,
+	["elevated-curved-rail-a"] = cra_erect,
+	["elevated-curved-rail-b"] = crb_erect,
+}
+
+-- Entity types that cause implied snapping
+local implied_snap = {
+	["straight-rail"] = { 1, 1 },
+	["curved-rail-a"] = { 2, 1 },
+	["curved-rail-b"] = { 1, 1 },
+	["elevated-straight-rail"] = { 1, 1 },
+	["elevated-curved-rail-a"] = { 2, 1 },
+	["elevated-curved-rail-b"] = { 1, 1 },
+	["train-stop"] = { 1, 1 },
+}
+
 function BlueprintInfo:get_bpspace_bbox()
 	if not self.bpspace_bbox then
 		local bp_entities = self:get_entities()
 		if not bp_entities or #bp_entities == 0 then return end
-		local entity_bboxes = {}
-		self.bp_to_bbox = entity_bboxes
-		local zero = { 0, 0 }
+
+		local rects = {} -- XXX
+		self.bp_to_rect = rects
+		local snap_index = nil
+		local snap_vector = nil
+
 		local e1x, e1y = pos_get(bp_entities[1].position)
 		---@type BoundingBox
 		local bpspace_bbox = { { e1x, e1y }, { e1x, e1y } }
 		for i = 1, #bp_entities do
 			local bp_entity = bp_entities[i]
 			local eproto = prototypes.entity[bp_entity.name]
-			-- If detecting a rail entity, we need to snap to nearest multiple of 2
-			-- TODO: more comprehensive snapping, elel rails etc
+			-- Detect entities which cause implied snapping of the blueprint.
 			local eproto_type = eproto.type
-			if
-				eproto_type == "straight-rail"
-				or eproto_type == "curved-rail-a"
-				or eproto_type == "curved-rail-b"
-				or eproto_type == "train-stop"
-			then
-				if not self.snap then self.snap = { 2, 2 } end
+			if snap_index == nil then
+				local snap_info = implied_snap[eproto_type]
+				if snap_info then
+					snap_index = i
+					snap_vector = snap_info
+				end
 			end
+			-- strace(
+			-- 	stlib.DEBUG,
+			-- 	"cs2",
+			-- 	"blueprint",
+			-- 	"message",
+			-- 	"compute bbox for bp_entity",
+			-- 	bp_entity
+			-- )
 			-- NOTE: this is an attempt to approximate whatever Factorio is doing
 			-- when computing blueprint size.
-			local ebox = bbox_new(eproto.collision_box)
-			local dir = bp_entity.direction
-			if dir and dir ~= 0 and dir % 4 == 0 then
-				bbox_rotate_ortho(ebox, zero, floor(dir / 4))
-			end
-			bbox_translate(ebox, bp_entity.position)
-			entity_bboxes[i] = ebox
-			bbox_union(bpspace_bbox, ebox)
+			local erector = calc_erect[eproto_type] or default_erect
+			local erect = erector(bp_entity, eproto)
+			rects[i] = erect -- XXX
+			bbox_union_rect(bpspace_bbox, erect)
+		end
+		bbox_round(bpspace_bbox)
+		-- Compute implied snapping info.
+		if snap_index and not self.snap_absolute then
+			self.implied_snap_vector = snap_vector
 		end
 		self.bpspace_bbox = bpspace_bbox
 	end
@@ -265,8 +395,22 @@ local function nearest_grid_point(x, y, gx, gy, ox, oy)
 	return nearest_x, nearest_y
 end
 
-local ONES = { 1, 1 }
-local ZEROES = { 0, 0 }
+local implied_snap_grid_offsets = {
+	[1] = {
+		[0] = 1,
+		[1] = 0,
+		[2] = 0,
+		[3] = -1,
+	},
+	[2] = {
+		[0] = -1,
+		[1] = -1,
+		[2] = 1,
+		[3] = 0,
+	},
+}
+
+-- OX should be -1, OY should be 0, DX is 5, DY is 3
 
 ---For a blueprint being built, get a map from the blueprint entity indices to
 ---the positions in worldspace of where those entities will be when the
@@ -275,48 +419,30 @@ function BlueprintInfo:get_bp_to_world_pos()
 	if self.bp_to_world_pos then return self.bp_to_world_pos end
 	local bbox = self:get_bpspace_bbox()
 	if not bbox then return end
-	bbox = bbox_new(bbox)
 	local l, t, r, b = bbox_get(bbox)
-
-	local bpspace_center = { (l + r) / 2, (t + b) / 2 }
+	local bp_width, bp_height = r - l, b - t
+	local bp_center = { (l + r) / 2, (t + b) / 2 }
 
 	-- Rotate by blueprint placement rotation
 	local rotation, bp_rot_n = self.direction, 0
 	if rotation % 4 == 0 then bp_rot_n = floor(rotation / 4) end
 	-- bbox_rotate_ortho(bbox, bpspace_center, bp_rot_n)
 	-- l, t, r, b = bbox_get(bbox)
-	strace(
-		stlib.DEBUG,
-		"cs2",
-		"blueprint",
-		"message",
-		"bbox",
-		bbox,
-		"dxy",
-		r - l,
-		b - t
-	)
-
-	-- Snap placement position to tile grid
-	local snap_grid = self.snap
-	local snap_offset = self.snap_offset
-	local snap_absolute = self.snap_absolute
 	-- strace(
 	-- 	stlib.DEBUG,
 	-- 	"cs2",
 	-- 	"blueprint",
 	-- 	"message",
-	-- 	"blueprint snapping info",
-	-- 	snap_grid,
-	-- 	snap_offset,
-	-- 	snap_absolute
+	-- 	"bbox",
+	-- 	bbox,
+	-- 	"dxy",
+	-- 	r - l,
+	-- 	b - t
 	-- )
 
 	-- Base coordinates
 	local position = self.position --[[@as MapPosition]]
 	local x, y = pos_get(position)
-	local gx, gy = pos_get(self.snap or ONES)
-	local ox, oy = pos_get(self.snap_offset or ZEROES)
 	local translation_center = pos_new()
 	-- XXX purple circle at mouse pos
 	rendering.draw_circle({
@@ -330,13 +456,17 @@ function BlueprintInfo:get_bp_to_world_pos()
 	})
 
 	-- Grid snapping
-	local placement_bbox = bbox_new()
+	local placement_bbox = bbox_new(bbox)
 	if self.snap_absolute then
 		-- When absolute snapping, the mouse cursor is snapped to a grid square
-		-- first, then the BP topleft is made to match the topleft of that grid square.
+		-- first, then the zero of BP space is made to match the topleft of that grid square.
+		local gx, gy = pos_get(self.snap or ONES)
+		local ox, oy = pos_get(self.snap_offset or ZEROES)
 		local gl, gt, gr, gb = floor_grid_square(x, y, gx, gy, ox, oy)
 		local rot_center = { (gl + gr) / 2, (gt + gb) / 2 }
-		bbox_set(placement_bbox, gl, gt, gl + (r - l), gt + (b - t))
+		bbox_set(placement_bbox, l + gl, t + gt, r + gl, b + gt)
+
+		-- Enact flip/rot
 		if self.flip_horizontal then
 			bbox_flip_horiz(placement_bbox, rot_center[1])
 		end
@@ -346,7 +476,7 @@ function BlueprintInfo:get_bp_to_world_pos()
 
 		-- XXX: draw gridsquare
 		rendering.draw_rectangle({
-			color = { r = 0, g = 0, b = 1, a = 1 },
+			color = { r = 0, g = 1, b = 0, a = 1 },
 			width = 1,
 			filled = false,
 			left_top = { gl, gt },
@@ -356,7 +486,7 @@ function BlueprintInfo:get_bp_to_world_pos()
 		})
 		-- XXX: draw new bbox
 		rendering.draw_rectangle({
-			color = { r = 0, g = 1, b = 0, a = 1 },
+			color = { r = 0, g = 0, b = 1, a = 1 },
 			width = 1,
 			filled = false,
 			left_top = { pl, pt },
@@ -365,20 +495,91 @@ function BlueprintInfo:get_bp_to_world_pos()
 			time_to_live = 1800,
 		})
 	else
-		-- Relative snapping. Draw bbox as if it were centered on the mouse cursor,
-		-- then bring its topleft to the nearest gridpoint.
-		local dx, dy = (r - l) / 2, (b - t) / 2
-		bbox_set(placement_bbox, x - dx, y - dy, x + dx, y + dy)
-		if self.flip_horizontal then bbox_flip_horiz(placement_bbox, x) end
-		if self.flip_vertical then bbox_flip_vert(placement_bbox, y) end
-		bbox_rotate_ortho(placement_bbox, position, -bp_rot_n)
-		local pl, pt, pr, pb = bbox_get(placement_bbox)
-		dx, dy = pr - pl, pb - pt
-		pl, pt = nearest_grid_point(pl, pt, gx, gy, ox, oy)
-		bbox_set(placement_bbox, pl, pt, pl + dx, pt + dy)
-		-- XXX: draw new bbox
+		-- Relative snapping.
+		-- Compute grid square.
+		local w, h = r - l, b - t
+		local gx, gy, ox, oy, cx, cy = 1, 1, 0, 0, 0, 0
+		if self.implied_snap_vector then
+			gx, gy = 2, 2
+			ox = implied_snap_grid_offsets[2][floor(w) % 4]
+			oy = implied_snap_grid_offsets[2][floor(h) % 4]
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"blueprint",
+				"message",
+				"implied snap vector",
+				"w",
+				w,
+				"h",
+				h,
+				"ox",
+				ox,
+				"oy",
+				oy
+			)
+			if self.flip_horizontal then ox = -ox end
+			if self.flip_vertical then oy = -oy end
+			local oxy = { ox, oy }
+			pos_rotate_ortho(oxy, ZEROES, -bp_rot_n)
+			ox, oy = pos_get(oxy)
+
+			-- Correction for nonzero grid offsets
+			cx = -0.5 * ox
+			cy = -0.5 * oy
+		end
+		local gl, gt, gr, gb = floor_grid_square(x, y, gx, gy, ox, oy)
+		local rot_center = { (gl + gr) / 2, (gt + gb) / 2 }
+		-- XXX: draw gridsquare
 		rendering.draw_rectangle({
 			color = { r = 0, g = 1, b = 0, a = 1 },
+			width = 1,
+			filled = false,
+			left_top = { gl, gt },
+			right_bottom = { gr, gb },
+			surface = self.surface,
+			time_to_live = 1800,
+		})
+
+		-- Place center of bbox at center of grid square
+		bbox_translate(placement_bbox, -1, bp_center)
+		bbox_translate(placement_bbox, 1, rot_center)
+		-- Apply coordinate correction
+		bbox_translate(placement_bbox, 1, cx, cy)
+
+		-- Enact flip/rot
+		if self.flip_horizontal then
+			bbox_flip_horiz(placement_bbox, rot_center[1])
+		end
+		if self.flip_vertical then bbox_flip_vert(placement_bbox, rot_center[2]) end
+		bbox_rotate_ortho(placement_bbox, rot_center, -bp_rot_n)
+
+		-- Implied snapping: make sure topleft of bbox is on the parity given
+		-- by the implied snap vector.
+		-- if self.implied_snap_vector then
+		-- 	local vec = pos_new(self.implied_snap_vector)
+		-- 	pos_rotate_ortho(vec, ZEROES, -bp_rot_n)
+		-- 	local ix, iy = pos_get(vec)
+		-- 	ix = mlib.round(math.abs(ix), 1)
+		-- 	iy = mlib.round(math.abs(iy), 1)
+		-- 	pl, pt, pr, pb = bbox_get(placement_bbox)
+		-- 	if ix == 2 then
+		-- 		if floor(pl) % 2 ~= 0 then pl = pl - 1 end
+		-- 	else
+		-- 		if floor(pl) % 2 == 0 then pl = pl - 1 end
+		-- 	end
+		-- 	if iy == 2 then
+		-- 		if floor(pt) % 2 ~= 0 then pt = pt - 1 end
+		-- 	else
+		-- 		if floor(pt) % 2 == 0 then pt = pt - 1 end
+		-- 	end
+		-- 	bbox_set(placement_bbox, pl, pt, pr, pb)
+		-- end
+
+		-- XXX: draw new bbox
+		local pl, pt, pr, pb = bbox_get(placement_bbox)
+		rendering.draw_rectangle({
+			color = { r = 0, g = 0, b = 1, a = 1 },
 			width = 1,
 			filled = false,
 			left_top = { pl, pt },
@@ -396,7 +597,7 @@ function BlueprintInfo:get_bp_to_world_pos()
 		-- Get bpspace position
 		local epos = pos_new(bp_entities[i].position)
 		-- Move to central frame of reference
-		pos_add(epos, -1, bpspace_center)
+		pos_add(epos, -1, bp_center)
 		-- Apply flip
 		local rx, ry = pos_get(epos)
 		if self.flip_horizontal then rx = -rx end
@@ -408,30 +609,52 @@ function BlueprintInfo:get_bp_to_world_pos()
 		pos_add(epos, 1, translation_center)
 
 		-- XXX
-		rendering.draw_circle({
-			color = { r = 1, g = 0, b = 0, a = 1 },
+		rendering.draw_rectangle({
+			color = { r = 0, g = 0, b = 1, a = 1 },
 			width = 1,
 			filled = true,
-			target = epos,
-			radius = 0.3,
+			left_top = { epos[1] - 0.2, epos[2] - 0.2 },
+			right_bottom = { epos[1] + 0.2, epos[2] + 0.2 },
 			surface = self.surface,
 			time_to_live = 1800,
 		})
 
-		-- XXX
-		local ebox = bbox_new(self.bp_to_bbox[i])
-		bbox_translate(ebox, -1 * bpspace_center[1], -1 * bpspace_center[2])
-		bbox_translate(ebox, translation_center)
-		local ebl, ebt, ebr, ebb = bbox_get(ebox)
-		rendering.draw_rectangle({
-			color = { r = 0, g = 0, b = 1, a = 1 },
-			width = 1,
-			filled = false,
-			left_top = { ebl, ebt },
-			right_bottom = { ebr, ebb },
-			surface = self.surface,
-			time_to_live = 1800,
-		})
+		-- XXX: draw rect
+		-- local erect = rect_new(self.bp_to_rect[i])
+		-- rect_translate(erect, bp_center, -1)
+		-- rect_translate(erect, translation_center, 1)
+		-- rendering.draw_line({
+		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
+		-- 	width = 1,
+		-- 	from = erect[1],
+		-- 	to = erect[2],
+		-- 	surface = self.surface,
+		-- 	time_to_live = 1800,
+		-- })
+		-- rendering.draw_line({
+		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
+		-- 	width = 1,
+		-- 	from = erect[2],
+		-- 	to = erect[3],
+		-- 	surface = self.surface,
+		-- 	time_to_live = 1800,
+		-- })
+		-- rendering.draw_line({
+		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
+		-- 	width = 1,
+		-- 	from = erect[3],
+		-- 	to = erect[4],
+		-- 	surface = self.surface,
+		-- 	time_to_live = 1800,
+		-- })
+		-- rendering.draw_line({
+		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
+		-- 	width = 1,
+		-- 	from = erect[4],
+		-- 	to = erect[1],
+		-- 	surface = self.surface,
+		-- 	time_to_live = 1800,
+		-- })
 
 		bp_to_world_pos[i] = epos
 	end
@@ -478,7 +701,7 @@ function BlueprintInfo:get_overlap(bp_entity_filter)
 		if dir and dir % 4 == 0 then
 			bbox_rotate_ortho(ebox, zero, floor(dir / 4))
 		end
-		bbox_translate(ebox, bp_entity_pos)
+		bbox_translate(ebox, 1, bp_entity_pos)
 		bbox_union(bpspace_bbox, ebox)
 	end
 	-- Early out if no filtered entities are present.

@@ -1,7 +1,4 @@
 -- Library of math, point, and box manipulation functions.
--- Why not just use flib for this? Well, each flib math function creates
--- unnecessary Lua garbage. These functions attempt to operate purely on
--- the Lua stack and avoid creating temp tables as much as possible.
 
 if ... ~= "__cybersyn2__.lib.math" then
 	return require("__cybersyn2__.lib.math")
@@ -21,6 +18,14 @@ local dir_E = defines.direction.east
 local dir_W = defines.direction.west
 
 local lib = {}
+
+---Round to nearest place.
+local function round(v, bracket)
+	bracket = bracket or 1
+	local sign = (v >= 0 and 1) or -1
+	return floor(v / bracket + sign * 0.5) * bracket
+end
+lib.round = round
 
 ---Get the coordinates of a position.
 ---@param pos MapPosition
@@ -392,9 +397,10 @@ lib.bbox_flip_vert = bbox_flip_vert
 
 ---Translate a bbox by the given vector. Mutates the given bbox.
 ---@param bbox BoundingBox
+---@param factor number
 ---@param pos_or_dx MapPosition|number
 ---@param dy? number
-local function bbox_translate(bbox, pos_or_dx, dy)
+local function bbox_translate(bbox, factor, pos_or_dx, dy)
 	local dx = 0
 	if type(pos_or_dx) == "table" then
 		dx, dy = pos_get(pos_or_dx)
@@ -402,6 +408,8 @@ local function bbox_translate(bbox, pos_or_dx, dy)
 		dx = pos_or_dx --[[@as number]]
 	end
 	local l, t, r, b = bbox_get(bbox)
+	dx = dx * factor
+	dy = dy * factor
 	return bbox_set(bbox, l + dx, t + dy, r + dx, b + dy)
 end
 lib.bbox_translate = bbox_translate
@@ -417,17 +425,18 @@ local function bbox_contains(bbox, pos)
 end
 lib.bbox_contains = bbox_contains
 
----Round a bbox outward so its dimensions are integral, while maintaining
----its center.
+---Round a bbox outward, attempting to ignore epsilons.
 ---@param bbox BoundingBox
 ---@return BoundingBox bbox The mutated bbox.
 local function bbox_round(bbox)
 	local l, t, r, b = bbox_get(bbox)
-	local cx, cy = (l + r) / 2, (t + b) / 2
-	local w, h = ceil(r - l), ceil(b - t)
-	l, t = cx - w / 2, cy - h / 2
-	r, b = l + w, t + h
-	return bbox_set(bbox, l, t, r, b)
+	return bbox_set(
+		bbox,
+		floor(round(l, 0.01)),
+		floor(round(t, 0.01)),
+		ceil(round(r, 0.01)),
+		ceil(round(b, 0.01))
+	)
 end
 lib.bbox_round = bbox_round
 
@@ -443,6 +452,21 @@ lib.pos_set_center = pos_set_center
 
 ---@alias Vec {[1]: number, [2]: number}
 ---@alias Rect {[1]: Vec, [2]: Vec, [3]: Vec, [4]: Vec}
+
+local function rect_new(rect)
+	if rect then
+		local p1, p2, p3, p4 = rect[1], rect[2], rect[3], rect[4]
+		return {
+			{ p1[1], p1[2] },
+			{ p2[1], p2[2] },
+			{ p3[1], p3[2] },
+			{ p4[1], p4[2] },
+		}
+	else
+		return { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } }
+	end
+end
+lib.rect_new = rect_new
 
 local function rect_get(rect)
 	local p1, p2, p3, p4 = rect[1], rect[2], rect[3], rect[4]
@@ -494,8 +518,30 @@ local function rect_rotate(rect, origin, angle)
 end
 lib.rect_rotate = rect_rotate
 
+local function rect_translate(rect, vec, factor)
+	local dx, dy = pos_get(vec)
+	dx = dx * (factor or 1)
+	dy = dy * (factor or 1)
+	local x1, y1, x2, y2, x3, y3, x4, y4 = rect_get(rect)
+
+	return rect_set(
+		rect,
+		x1 + dx,
+		y1 + dy,
+		x2 + dx,
+		y2 + dy,
+		x3 + dx,
+		y3 + dy,
+		x4 + dx,
+		y4 + dy
+	)
+end
+lib.rect_translate = rect_translate
+
+---Expand a bbox so it contains a rect. Mutates the bbox.
 ---@param bbox BoundingBox
 ---@param rect Rect
+---@return BoundingBox bbox The original bbox, expanded to contain the rect.
 local function bbox_union_rect(bbox, rect)
 	local l, t, r, b = bbox_get(bbox)
 	local x1, y1, x2, y2, x3, y3, x4, y4 = rect_get(rect)
@@ -508,5 +554,6 @@ local function bbox_union_rect(bbox, rect)
 		max(b, y1, y2, y3, y4)
 	)
 end
+lib.bbox_union_rect = bbox_union_rect
 
 return lib
