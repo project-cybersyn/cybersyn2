@@ -6,13 +6,8 @@ end
 
 local mlib = require("__cybersyn2__.lib.math")
 
--- XXX: remove
-local stlib = require("__cybersyn2__.lib.strace")
-local strace = stlib.strace
-
 local PI = math.pi
 local floor = math.floor
-local ceil = math.ceil
 local pos_get = mlib.pos_get
 local pos_set = mlib.pos_set
 local pos_new = mlib.pos_new
@@ -21,7 +16,6 @@ local pos_rotate_ortho = mlib.pos_rotate_ortho
 local bbox_new = mlib.bbox_new
 local bbox_rotate_ortho = mlib.bbox_rotate_ortho
 local bbox_translate = mlib.bbox_translate
-local bbox_union = mlib.bbox_union
 local bbox_get = mlib.bbox_get
 local bbox_set = mlib.bbox_set
 local bbox_round = mlib.bbox_round
@@ -32,29 +26,19 @@ local rect_from_bbox = mlib.rect_from_bbox
 local rect_rotate = mlib.rect_rotate
 local bbox_union_rect = mlib.bbox_union_rect
 local rect_translate = mlib.rect_translate
-local rect_new = mlib.rect_new
-local abs = math.abs
-local ONES = { 1, 1 }
 local ZEROES = { 0, 0 }
 
 local lib = {}
 
--- Helper function for coordinate snapping
-local function snap(x, dx)
-	if (ceil(dx) % 2) == 0 then
-		return floor(x + 0.5)
-	else
-		-- Snap to center
-		return floor(x) + 0.5
-	end
-end
+---A blueprint-like object
+---@alias BlueprintLib.Blueprintish LuaItemStack|LuaRecord
 
 ---Given either a record or a stack, which might be a blueprint or a blueprint book,
 ---return the actual blueprint involved, stripped of any containing books.
 ---@param player LuaPlayer The player who is manipulating the blueprint.
 ---@param record? LuaRecord
 ---@param stack? LuaItemStack
----@return (LuaItemStack|LuaRecord)? blueprintish The actual blueprint involved, stripped of any containing books or nil if not found.
+---@return BlueprintLib.Blueprintish? blueprintish The actual blueprint involved, stripped of any containing books or nil if not found.
 local function get_actual_blueprint(player, record, stack)
 	-- Determine the actual blueprint being held is ridiculously difficult to do.
 	-- h/t Xorimuth on factorio discord for this.
@@ -79,7 +63,7 @@ lib.get_actual_blueprint = get_actual_blueprint
 -- The factorio documentation for computing bounding boxes is basically
 -- completely false for rails, particularly curved rails. The following code
 -- is an attempt to empirically reverse engineer the behavior of rails wrt
--- bounding boxes and snapping, while falling back on factorio api docs
+-- bounding boxes and snapping, while falling back on factorio api
 -- information for most entities where they are reliable.
 --------------------------------------------------------------------------------
 
@@ -179,17 +163,7 @@ local function table_bbox_getter(table)
 		local dir = bp_entity.direction or 0
 		local x, y = pos_get(bp_entity.position)
 		local adjustments = table[dir]
-		if not adjustments then
-			strace(
-				stlib.DEBUG,
-				"cs2",
-				"blueprint",
-				"message",
-				"table_bbox_getter: no adjustments for dir",
-				dir
-			)
-			adjustments = { 0, 0, 0, 0 }
-		end
+		if not adjustments then adjustments = { 0, 0, 0, 0 } end
 		local box = {
 			{ x + adjustments[1], y + adjustments[2] },
 			{ x + adjustments[3], y + adjustments[4] },
@@ -261,24 +235,19 @@ local function get_bp_bbox(bp_entities, rects)
 	local e1x, e1y = pos_get(bp_entities[1].position)
 	---@type BoundingBox
 	local bpspace_bbox = { { e1x, e1y }, { e1x, e1y } }
+
 	for i = 1, #bp_entities do
 		local bp_entity = bp_entities[i]
 		local eproto = prototypes.entity[bp_entity.name]
 		local eproto_type = eproto.type
+
 		-- Detect entities which cause implied snapping of the blueprint.
 		if snap_index == nil then
 			local snap_info = snappable_types[eproto_type]
 			if snap_info then snap_index = i end
 		end
-		-- strace(
-		-- 	stlib.DEBUG,
-		-- 	"cs2",
-		-- 	"blueprint",
-		-- 	"message",
-		-- 	"compute bbox for bp_entity",
-		-- 	bp_entity
-		-- )
 
+		-- Get bbox for entity and union it with existing bbox.
 		local erect = get_bp_entity_bbox(bp_entity, eproto)
 		if rects then rects[i] = erect end
 		bbox_union_rect(bpspace_bbox, erect)
@@ -322,23 +291,6 @@ local function get_bp_relative_snapping(bp_entities, bbox, snap_index)
 	pos_add(spos, -1, { cx, cy })
 	spos[1] = mlib.round(spos[1] / 0.5, 1)
 	spos[2] = mlib.round(spos[2] / 0.5, 1)
-	strace(
-		stlib.DEBUG,
-		"cs2",
-		"blueprint",
-		"message",
-		"snap computations: center",
-		{ cx, cy },
-		"obj",
-		bp_entities[snap_index].name,
-		"spos",
-		spos,
-		"spos%4",
-		spos[1] % 4,
-		spos[2] % 4,
-		"target parities",
-		snap_target_parity
-	)
 
 	-- Find center parity that yields desired parity at snap entity position.
 	-- X snapping
@@ -464,12 +416,224 @@ local function get_absolute_grid_square(x, y, gx, gy, ox, oy)
 	return left, top, right, bottom
 end
 
+---If the blueprint were stamped in the world with the given parameters,
+---determine the resulting world position of each entity of the blueprint.
+---The return value is a map from blueprint entity indices to world positions.
+---@param bp_entities BlueprintEntity[] A *nonempty* set of blueprint entities
+---@param bp_entity_filter? fun(bp_entity: BlueprintEntity): boolean Filters which blueprint entities will have their positions computed. Filtering can save some work in handling large blueprints. (Note that you MUST NOT prefilter the blueprint entities array before calling this function.)
+---@param bbox BoundingBox As computed by `get_bp_bbox`.
+---@param snap_index uint? As computed by `get_bp_bbox`.
+---@param position MapPosition Placement position of the blueprint in worldspace.
+---@param direction defines.direction Placement direction of the blueprint.
+---@param flip_horizontal boolean? Whether the blueprint is flipped horizontally.
+---@param flip_vertical boolean? Whether the blueprint is flipped vertically.
+---@param snap TilePosition? If given, the size of the absolute grid to snap to.
+---@param snap_offset TilePosition? If given, offset from the absolute grid.
+---@param debug_render_surface LuaSurface? If given, debug graphics will be drawn on the given surface showing blueprint placement computations.
+local function get_bp_world_positions(
+	bp_entities,
+	bp_entity_filter,
+	bbox,
+	snap_index,
+	position,
+	direction,
+	flip_horizontal,
+	flip_vertical,
+	snap,
+	snap_offset,
+	debug_render_surface
+)
+	local l, t, r, b = bbox_get(bbox)
+	local bp_center = { (l + r) / 2, (t + b) / 2 }
+
+	-- Round blueprint rotation to 90 deg increments.
+	local rotation, bp_rot_n = direction, 0
+	if rotation % 4 == 0 then bp_rot_n = floor(rotation / 4) end
+
+	-- Base coordinates
+	local x, y = pos_get(position)
+	local translation_center = pos_new()
+	if debug_render_surface then
+		-- Debug: draw purple circle at mouse pos
+		rendering.draw_circle({
+			color = { r = 1, g = 0, b = 1, a = 0.75 },
+			width = 1,
+			filled = true,
+			target = position,
+			radius = 0.3,
+			surface = debug_render_surface,
+			time_to_live = 1800,
+		})
+	end
+
+	-- Grid snapping
+	local placement_bbox = bbox_new(bbox)
+	if snap then
+		-- When absolute snapping, the mouse cursor is snapped to a grid square
+		-- first, then the zero of BP space is made to match the topleft of that grid square.
+		local gx, gy = pos_get(snap)
+		local ox, oy = pos_get(snap_offset or ZEROES)
+		local gl, gt, gr, gb = get_absolute_grid_square(x, y, gx, gy, ox, oy)
+		local rot_center = { (gl + gr) / 2, (gt + gb) / 2 }
+		bbox_set(placement_bbox, l + gl, t + gt, r + gl, b + gt)
+
+		-- In absolute snapping, rotation is about the center of the gridsquare.
+		if flip_horizontal then bbox_flip_horiz(placement_bbox, rot_center[1]) end
+		if flip_vertical then bbox_flip_vert(placement_bbox, rot_center[2]) end
+		bbox_rotate_ortho(placement_bbox, rot_center, -bp_rot_n)
+		local pl, pt, pr, pb = bbox_get(placement_bbox)
+
+		if debug_render_surface then
+			-- Debug: draw green box around computed absolute gridsquare
+			rendering.draw_rectangle({
+				color = { r = 0, g = 1, b = 0, a = 1 },
+				width = 1,
+				filled = false,
+				left_top = { gl, gt },
+				right_bottom = { gr, gb },
+				surface = debug_render_surface,
+				time_to_live = 1800,
+			})
+			-- Debug: draw blue box around worldspace bbox
+			rendering.draw_rectangle({
+				color = { r = 0, g = 0, b = 1, a = 1 },
+				width = 1,
+				filled = false,
+				left_top = { pl, pt },
+				right_bottom = { pr, pb },
+				surface = debug_render_surface,
+				time_to_live = 1800,
+			})
+		end
+	else
+		-- Relative snapping.
+		local xst, yst = get_bp_relative_snapping(bp_entities, bbox, snap_index)
+		-- If rotating an odd direction, interchange x and y snapping
+		if bp_rot_n % 2 == 1 then
+			xst, yst = yst, xst
+		end
+		local sx, sy = snap_to(x, xst), snap_to(y, yst)
+		if debug_render_surface then
+			-- Debug: blue circle at snap point
+			rendering.draw_circle({
+				color = { r = 0, g = 0, b = 1, a = 0.75 },
+				width = 1,
+				filled = true,
+				target = { sx, sy },
+				radius = 0.3,
+				surface = debug_render_surface,
+				time_to_live = 1800,
+			})
+		end
+
+		-- Compute bbox center
+		local cx, cy = (l + r) / 2, (t + b) / 2
+		-- Enact flip/rot
+		if flip_horizontal then bbox_flip_horiz(placement_bbox, cx) end
+		if flip_vertical then bbox_flip_vert(placement_bbox, cy) end
+		bbox_rotate_ortho(placement_bbox, { cx, cy }, -bp_rot_n)
+		-- Map center of bbox to snapped x,y
+		bbox_translate(placement_bbox, 1, sx - cx, sy - cy)
+
+		if debug_render_surface then
+			-- Debug: draw world bbox in blue
+			local pl, pt, pr, pb = bbox_get(placement_bbox)
+			rendering.draw_rectangle({
+				color = { r = 0, g = 0, b = 1, a = 1 },
+				width = 1,
+				filled = false,
+				left_top = { pl, pt },
+				right_bottom = { pr, pb },
+				surface = debug_render_surface,
+				time_to_live = 1800,
+			})
+		end
+	end
+	pos_set_center(translation_center, placement_bbox)
+
+	-- Compute per-entity positions
+	local bp_to_world_pos = {}
+	for i = 1, #bp_entities do
+		local bp_entity = bp_entities[i]
+		if bp_entity_filter and not bp_entity_filter(bp_entity) then
+			goto continue
+		end
+		-- Get bpspace position
+		local epos = pos_new(bp_entity.position)
+		-- Move to central frame of reference
+		pos_add(epos, -1, bp_center)
+		-- Apply flip
+		local rx, ry = pos_get(epos)
+		if flip_horizontal then rx = -rx end
+		if flip_vertical then ry = -ry end
+		pos_set(epos, rx, ry)
+		-- Apply blueprint rotation
+		pos_rotate_ortho(epos, ZEROES, -bp_rot_n)
+		-- Translate back to worldspace
+		pos_add(epos, 1, translation_center)
+
+		if debug_render_surface then
+			-- Debug: blue square at computed entity pos.
+			-- This should overlap precisely with the green square drawn by the F4
+			-- debug mode when showing entity positions.
+			rendering.draw_rectangle({
+				color = { r = 0, g = 0, b = 1, a = 1 },
+				width = 1,
+				filled = true,
+				left_top = { epos[1] - 0.2, epos[2] - 0.2 },
+				right_bottom = { epos[1] + 0.2, epos[2] + 0.2 },
+				surface = debug_render_surface,
+				time_to_live = 1800,
+			})
+		end
+
+		-- XXX: draw rect
+		-- local erect = rect_new(self.bp_to_rect[i])
+		-- rect_translate(erect, bp_center, -1)
+		-- rect_translate(erect, translation_center, 1)
+		-- rendering.draw_line({
+		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
+		-- 	width = 1,
+		-- 	from = erect[1],
+		-- 	to = erect[2],
+		-- 	surface = self.surface,
+		-- 	time_to_live = 1800,
+		-- })
+		-- rendering.draw_line({
+		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
+		-- 	width = 1,
+		-- 	from = erect[2],
+		-- 	to = erect[3],
+		-- 	surface = self.surface,
+		-- 	time_to_live = 1800,
+		-- })
+		-- rendering.draw_line({
+		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
+		-- 	width = 1,
+		-- 	from = erect[3],
+		-- 	to = erect[4],
+		-- 	surface = self.surface,
+		-- 	time_to_live = 1800,
+		-- })
+		-- rendering.draw_line({
+		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
+		-- 	width = 1,
+		-- 	from = erect[4],
+		-- 	to = erect[1],
+		-- 	surface = self.surface,
+		-- 	time_to_live = 1800,
+		-- })
+
+		bp_to_world_pos[i] = epos
+		::continue::
+	end
+
+	return bp_to_world_pos
+end
+
 --------------------------------------------------------------------------------
 -- BLUEPRINTINFO TYPE
 --------------------------------------------------------------------------------
-
----A blueprint-like object
----@alias BlueprintLib.Blueprintish LuaItemStack|LuaRecord
 
 ---Class for end-to-end manipulation of blueprints. Lazily caches information
 ---about the blueprint and its entities as necessary.
@@ -487,14 +651,12 @@ end
 ---@field public direction? defines.direction The rotation of the blueprint expressed as a Factorio direction.
 ---@field public flip_horizontal? boolean Whether the blueprint is flipped horizontally.
 ---@field public flip_vertical? boolean Whether the blueprint is flipped vertically.
----@field public overlap? {[int]: LuaEntity} A mapping of the blueprint entity indices to the entities in the world that would be overlapped by the corresponding entities in the blueprint if it were pasted at that position in worldspace.
 ---@field public bpspace_bbox? BoundingBox The bounding box of the blueprint in blueprint space.
----@field public bp_to_rect? {[int]: Rect} A mapping of the blueprint entity indices to the bounding rects of the entities in blueprint space. XXX: remove
+---@field public bp_to_rect? {[int]: Rect} A mapping of the blueprint entity indices to the bounding rects of the entities in blueprint space.
 ---@field public bp_to_world_pos? {[int]: MapPosition} A mapping of the blueprint entity indices to positions in worldspace of where those entities will be when the blueprint is built.
 ---@field public snap? TilePosition Blueprint snapping grid size
 ---@field public snap_offset? TilePosition Blueprint snapping grid offset
 ---@field public snap_absolute? boolean Whether blueprint snapping is absolute or relative
----@field public implied_snap_vector? MapPosition Vector governing even/odd snapping of entity position.
 local BlueprintInfo = {}
 BlueprintInfo.__index = BlueprintInfo
 lib.BlueprintInfo = BlueprintInfo
@@ -623,10 +785,7 @@ function BlueprintInfo:get_bpspace_bbox()
 		self.bp_to_rect = rects
 		local bbox, snap_index = get_bp_bbox(bp_entities, rects)
 		self.bpspace_bbox = bbox
-		if not self.snap_absolute then
-			self.snap_type_x, self.snap_type_y =
-				get_bp_relative_snapping(bp_entities, bbox, snap_index)
-		end
+		self.snap_index = snap_index
 	end
 	return self.bpspace_bbox
 end
@@ -638,296 +797,46 @@ function BlueprintInfo:get_bp_to_world_pos()
 	if self.bp_to_world_pos then return self.bp_to_world_pos end
 	local bbox = self:get_bpspace_bbox()
 	if not bbox then return end
-	local l, t, r, b = bbox_get(bbox)
-	local bp_width, bp_height = r - l, b - t
-	local bp_center = { (l + r) / 2, (t + b) / 2 }
-
-	-- Rotate by blueprint placement rotation
-	local rotation, bp_rot_n = self.direction, 0
-	if rotation % 4 == 0 then bp_rot_n = floor(rotation / 4) end
-	-- bbox_rotate_ortho(bbox, bpspace_center, bp_rot_n)
-	-- l, t, r, b = bbox_get(bbox)
-	-- strace(
-	-- 	stlib.DEBUG,
-	-- 	"cs2",
-	-- 	"blueprint",
-	-- 	"message",
-	-- 	"bbox",
-	-- 	bbox,
-	-- 	"dxy",
-	-- 	r - l,
-	-- 	b - t
-	-- )
-
-	-- Base coordinates
-	local position = self.position --[[@as MapPosition]]
-	local x, y = pos_get(position)
-	local translation_center = pos_new()
-	-- XXX purple circle at mouse pos
-	rendering.draw_circle({
-		color = { r = 1, g = 0, b = 1, a = 0.75 },
-		width = 1,
-		filled = true,
-		target = position,
-		radius = 0.3,
-		surface = self.surface,
-		time_to_live = 1800,
-	})
-
-	-- Grid snapping
-	local placement_bbox = bbox_new(bbox)
-	if self.snap_absolute then
-		-- When absolute snapping, the mouse cursor is snapped to a grid square
-		-- first, then the zero of BP space is made to match the topleft of that grid square.
-		local gx, gy = pos_get(self.snap or ONES)
-		local ox, oy = pos_get(self.snap_offset or ZEROES)
-		local gl, gt, gr, gb = get_absolute_grid_square(x, y, gx, gy, ox, oy)
-		local rot_center = { (gl + gr) / 2, (gt + gb) / 2 }
-		bbox_set(placement_bbox, l + gl, t + gt, r + gl, b + gt)
-
-		-- Enact flip/rot
-		if self.flip_horizontal then
-			bbox_flip_horiz(placement_bbox, rot_center[1])
-		end
-		if self.flip_vertical then bbox_flip_vert(placement_bbox, rot_center[2]) end
-		bbox_rotate_ortho(placement_bbox, rot_center, -bp_rot_n)
-		local pl, pt, pr, pb = bbox_get(placement_bbox)
-
-		-- XXX: draw gridsquare
-		rendering.draw_rectangle({
-			color = { r = 0, g = 1, b = 0, a = 1 },
-			width = 1,
-			filled = false,
-			left_top = { gl, gt },
-			right_bottom = { gr, gb },
-			surface = self.surface,
-			time_to_live = 1800,
-		})
-		-- XXX: draw new bbox
-		rendering.draw_rectangle({
-			color = { r = 0, g = 0, b = 1, a = 1 },
-			width = 1,
-			filled = false,
-			left_top = { pl, pt },
-			right_bottom = { pr, pb },
-			surface = self.surface,
-			time_to_live = 1800,
-		})
-	else
-		-- Relative snapping.
-		local xst = self.snap_type_x
-		local yst = self.snap_type_y
-		-- If rotating an odd direction, interchange x and y snapping
-		if bp_rot_n % 2 == 1 then
-			xst, yst = yst, xst
-		end
-		local sx, sy = snap_to(x, xst), snap_to(y, yst)
-		-- XXX: draw snap point
-		rendering.draw_circle({
-			color = { r = 0, g = 0, b = 1, a = 0.75 },
-			width = 1,
-			filled = true,
-			target = { sx, sy },
-			radius = 0.3,
-			surface = self.surface,
-			time_to_live = 1800,
-		})
-		strace(
-			stlib.DEBUG,
-			"cs2",
-			"blueprint",
-			"message",
-			"snap_type",
-			SnapType[xst],
-			SnapType[yst],
-			"snap_from",
-			x,
-			y,
-			"snap_to",
-			sx,
-			sy
-		)
-
-		-- Compute bbox center
-		local cx, cy = (l + r) / 2, (t + b) / 2
-		-- Enact flip/rot
-		if self.flip_horizontal then bbox_flip_horiz(placement_bbox, cx) end
-		if self.flip_vertical then bbox_flip_vert(placement_bbox, cy) end
-		bbox_rotate_ortho(placement_bbox, { cx, cy }, -bp_rot_n)
-		-- Map center of bbox to x,y
-		bbox_translate(placement_bbox, 1, sx - cx, sy - cy)
-
-		-- XXX: draw new bbox
-		local pl, pt, pr, pb = bbox_get(placement_bbox)
-		rendering.draw_rectangle({
-			color = { r = 0, g = 0, b = 1, a = 1 },
-			width = 1,
-			filled = false,
-			left_top = { pl, pt },
-			right_bottom = { pr, pb },
-			surface = self.surface,
-			time_to_live = 1800,
-		})
-	end
-	pos_set_center(translation_center, placement_bbox)
-
-	-- Compute per-entity positions
-	local bp_to_world_pos = {}
 	local bp_entities = self:get_entities() --[[@as BlueprintEntity[] ]]
-	for i = 1, #bp_entities do
-		-- Get bpspace position
-		local epos = pos_new(bp_entities[i].position)
-		-- Move to central frame of reference
-		pos_add(epos, -1, bp_center)
-		-- Apply flip
-		local rx, ry = pos_get(epos)
-		if self.flip_horizontal then rx = -rx end
-		if self.flip_vertical then ry = -ry end
-		pos_set(epos, rx, ry)
-		-- Apply blueprint rotation
-		pos_rotate_ortho(epos, ZEROES, -bp_rot_n)
-		-- Translate back to worldspace
-		pos_add(epos, 1, translation_center)
 
-		-- XXX
-		rendering.draw_rectangle({
-			color = { r = 0, g = 0, b = 1, a = 1 },
-			width = 1,
-			filled = true,
-			left_top = { epos[1] - 0.2, epos[2] - 0.2 },
-			right_bottom = { epos[1] + 0.2, epos[2] + 0.2 },
-			surface = self.surface,
-			time_to_live = 1800,
-		})
-
-		-- XXX: draw rect
-		-- local erect = rect_new(self.bp_to_rect[i])
-		-- rect_translate(erect, bp_center, -1)
-		-- rect_translate(erect, translation_center, 1)
-		-- rendering.draw_line({
-		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
-		-- 	width = 1,
-		-- 	from = erect[1],
-		-- 	to = erect[2],
-		-- 	surface = self.surface,
-		-- 	time_to_live = 1800,
-		-- })
-		-- rendering.draw_line({
-		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
-		-- 	width = 1,
-		-- 	from = erect[2],
-		-- 	to = erect[3],
-		-- 	surface = self.surface,
-		-- 	time_to_live = 1800,
-		-- })
-		-- rendering.draw_line({
-		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
-		-- 	width = 1,
-		-- 	from = erect[3],
-		-- 	to = erect[4],
-		-- 	surface = self.surface,
-		-- 	time_to_live = 1800,
-		-- })
-		-- rendering.draw_line({
-		-- 	color = { r = 0, g = 0, b = 1, a = 1 },
-		-- 	width = 1,
-		-- 	from = erect[4],
-		-- 	to = erect[1],
-		-- 	surface = self.surface,
-		-- 	time_to_live = 1800,
-		-- })
-
-		bp_to_world_pos[i] = epos
-	end
+	local bp_to_world_pos = get_bp_world_positions(
+		bp_entities,
+		nil,
+		bbox,
+		self.snap_index,
+		self.position,
+		self.direction,
+		self.flip_horizontal,
+		self.flip_vertical,
+		self.snap_absolute and self.snap or nil,
+		self.snap_offset,
+		self.surface
+	)
 
 	self.bp_to_world_pos = bp_to_world_pos
 	return bp_to_world_pos
 end
 
----Given the entities in a blueprint, a worldspace location where it is being placed,
----and the rotation and flip state of the blueprint, find the pre-existing
----entites that would be overlapped by corresponding entities in the blueprint if it were pasted at that position in worldspace.
----The entities' prototype names must match to be considered overlapping.
----@param bp_entity_filter? fun(bp_entity: BlueprintEntity): boolean Filters which blueprint entities are considered for overlap. Filtering can save considerable work in handling large blueprints. (Note that you MUST NOT prefilter the blueprint entities array before calling this function.)
----@return table<uint, LuaEntity> map A table mapping the index of the blueprint entity to the overlapping entity in the world. Note that this is not a true array as indices not corresponding to overlapped entities will be nil.
-function BlueprintInfo:get_overlap(bp_entity_filter)
-	if self.overlap then return self.overlap end
+---Obtain a map from blueprint entity indices to the entities in the world
+---that would be overlapped by the corresponding blueprint entity when it
+---is placed.
+---@param entity_filter fun(bp_entity: BlueprintEntity): boolean? Optional filter function to apply to the blueprint entities before checking for overlap.
+---@return {[int]: LuaEntity}? overlap The overlapping entities indexed by the blueprint entity index that will overlap it.
+function BlueprintInfo:get_overlap(entity_filter)
+	local bpwp = self:get_bp_to_world_pos()
+	if not bpwp then return end
+	local bp_entities = self:get_entities() --[[@as BlueprintEntity[] ]]
+	local surface = self.surface --[[@as LuaSurface]]
 
-	local bp_entities = self:get_entities()
-	if (not bp_entities) or (#bp_entities == 0) then return {} end
-	local surface = self.surface
-	local position = self.position
-	local rotation = self.direction
-	local flip_horizontal = self.flip_horizontal
-	local flip_vertical = self.flip_vertical
-
-	-- Must first compute the center of blueprint space, as that will be translated
-	-- to the given worldspace position.
-	local e1x, e1y = pos_get(bp_entities[1].position)
-	---@type BoundingBox
-	local bpspace_bbox = { { e1x, e1y }, { e1x, e1y } }
-	---@type table<uint, MapPosition>
-	local entity_pos = {}
-	---@type MapPosition
-	local zero = { 0, 0 }
-	for i = 1, #bp_entities do
-		local bp_entity = bp_entities[i]
-		local bp_entity_name = bp_entity.name
-		local bp_entity_pos = bp_entity.position
-		local ebox = bbox_new(prototypes.entity[bp_entity_name].selection_box)
-		if (not bp_entity_filter) or bp_entity_filter(bp_entity) then
-			entity_pos[i] = pos_new(bp_entity_pos)
-		end
-		local dir = bp_entity.direction
-		if dir and dir % 4 == 0 then
-			bbox_rotate_ortho(ebox, zero, floor(dir / 4))
-		end
-		bbox_translate(ebox, 1, bp_entity_pos)
-		bbox_union(bpspace_bbox, ebox)
+	local overlap = {}
+	for index, pos in pairs(bpwp) do
+		local bp_entity = bp_entities[index]
+		if entity_filter and not entity_filter(bp_entity) then goto continue end
+		local world_entity = surface.find_entity(bp_entity.name, pos)
+		if world_entity then overlap[index] = world_entity end
+		::continue::
 	end
-	-- Early out if no filtered entities are present.
-	if not next(entity_pos) then return {} end
-
-	-- Find center
-	local l, t, r, b = bbox_get(bpspace_bbox)
-	---@type MapPosition
-	local bpspace_center = { (l + r) / 2, (t + b) / 2 }
-
-	-- Rotate by blueprint placement rotation
-	local bp_rot_n = 0
-	if rotation % 4 == 0 then bp_rot_n = floor(rotation / 4) end
-	bbox_rotate_ortho(bpspace_bbox, bpspace_center, bp_rot_n)
-	l, t, r, b = bbox_get(bpspace_bbox)
-
-	-- Snap placement position to tile grid
-	local x, y = pos_get(position)
-	local snapped_position = { snap(x, r - l), snap(y, b - t) }
-
-	-- Apply translation, flip, and rotation to the positions of relevant
-	-- entities.
-	for _, epos in pairs(entity_pos) do
-		pos_add(epos, -1, bpspace_center)
-		local rx, ry = pos_get(epos)
-		if flip_horizontal then rx = -rx end
-		if flip_vertical then ry = -ry end
-		pos_set(epos, rx, ry)
-		pos_rotate_ortho(epos, zero, -bp_rot_n)
-
-		-- Translate back to worldspace
-		pos_add(epos, 1, snapped_position)
-	end
-
-	-- Finally, attempt to find entities at the computed positions with the
-	-- same name as the blueprint entities.
-	---@type table<uint, LuaEntity>
-	local map = {}
-	for i, epos in pairs(entity_pos) do
-		local entity = surface.find_entity(bp_entities[i].name, epos)
-		if entity then map[i] = entity end
-	end
-
-	self.overlap = map
-	return map
+	return overlap
 end
 
 return lib
