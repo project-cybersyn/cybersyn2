@@ -418,7 +418,6 @@ end
 
 ---If the blueprint were stamped in the world with the given parameters,
 ---determine the resulting world position of each entity of the blueprint.
----The return value is a map from blueprint entity indices to world positions.
 ---@param bp_entities BlueprintEntity[] A *nonempty* set of blueprint entities
 ---@param bp_entity_filter? fun(bp_entity: BlueprintEntity): boolean Filters which blueprint entities will have their positions computed. Filtering can save some work in handling large blueprints. (Note that you MUST NOT prefilter the blueprint entities array before calling this function.)
 ---@param bbox BoundingBox As computed by `get_bp_bbox`.
@@ -430,6 +429,7 @@ end
 ---@param snap TilePosition? If given, the size of the absolute grid to snap to.
 ---@param snap_offset TilePosition? If given, offset from the absolute grid.
 ---@param debug_render_surface LuaSurface? If given, debug graphics will be drawn on the given surface showing blueprint placement computations.
+---@return {[uint]: MapPosition} bp_to_world_pos A mapping of blueprint entity indices to world positions.
 local function get_bp_world_positions(
 	bp_entities,
 	bp_entity_filter,
@@ -469,6 +469,7 @@ local function get_bp_world_positions(
 	-- Grid snapping
 	local placement_bbox = bbox_new(bbox)
 	if snap then
+		-- Absolute snapping case
 		-- When absolute snapping, the mouse cursor is snapped to a grid square
 		-- first, then the zero of BP space is made to match the topleft of that grid square.
 		local gx, gy = pos_get(snap)
@@ -506,7 +507,7 @@ local function get_bp_world_positions(
 			})
 		end
 	else
-		-- Relative snapping.
+		-- Relative snapping case.
 		local xst, yst = get_bp_relative_snapping(bp_entities, bbox, snap_index)
 		-- If rotating an odd direction, interchange x and y snapping
 		if bp_rot_n % 2 == 1 then
@@ -657,6 +658,7 @@ end
 ---@field public snap? TilePosition Blueprint snapping grid size
 ---@field public snap_offset? TilePosition Blueprint snapping grid offset
 ---@field public snap_absolute? boolean Whether blueprint snapping is absolute or relative
+---@field public debug? boolean Whether to draw debug graphics for the blueprint placement.
 local BlueprintInfo = {}
 BlueprintInfo.__index = BlueprintInfo
 lib.BlueprintInfo = BlueprintInfo
@@ -774,6 +776,7 @@ function BlueprintInfo:set_entities(bp_entities)
 	actual.set_blueprint_entities(bp_entities)
 	self.entities = bp_entities
 	self.bpspace_bbox = nil
+	self.bp_to_world_pos = nil
 end
 
 function BlueprintInfo:get_bpspace_bbox()
@@ -810,7 +813,7 @@ function BlueprintInfo:get_bp_to_world_pos()
 		self.flip_vertical,
 		self.snap_absolute and self.snap or nil,
 		self.snap_offset,
-		self.surface
+		self.debug and self.surface or nil
 	)
 
 	self.bp_to_world_pos = bp_to_world_pos

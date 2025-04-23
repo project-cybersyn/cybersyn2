@@ -170,11 +170,15 @@ script.on_event(
 
 script.on_event(defines.events.on_player_setup_blueprint, function(event)
 	local bpinfo = BlueprintInfo:create_from_setup_event(event)
+	-- XXX
+	bpinfo.debug = true
 	if bpinfo then cs2.raise_blueprint_setup(bpinfo) end
 end)
 
 script.on_event(defines.events.on_pre_build, function(event)
 	local bpinfo = BlueprintInfo:create_from_pre_build_event(event)
+	-- XXX
+	bpinfo.debug = true
 	if bpinfo then cs2.raise_blueprint_built(bpinfo) end
 end)
 
