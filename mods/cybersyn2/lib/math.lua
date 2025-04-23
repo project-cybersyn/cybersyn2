@@ -23,7 +23,7 @@ local lib = {}
 local function round(v, bracket)
 	bracket = bracket or 1
 	local sign = (v >= 0 and 1) or -1
-	return floor(v / bracket + sign * 0.5) * bracket
+	return floor(v / bracket + 0.5) * bracket
 end
 lib.round = round
 
@@ -430,13 +430,7 @@ lib.bbox_contains = bbox_contains
 ---@return BoundingBox bbox The mutated bbox.
 local function bbox_round(bbox)
 	local l, t, r, b = bbox_get(bbox)
-	return bbox_set(
-		bbox,
-		floor(round(l, 0.01)),
-		floor(round(t, 0.01)),
-		ceil(round(r, 0.01)),
-		ceil(round(b, 0.01))
-	)
+	return bbox_set(bbox, round(l, 1), round(t, 1), round(r, 1), round(b, 1))
 end
 lib.bbox_round = bbox_round
 
