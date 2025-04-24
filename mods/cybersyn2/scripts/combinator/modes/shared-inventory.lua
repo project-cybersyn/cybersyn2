@@ -459,10 +459,6 @@ local function get_link_storage()
 end
 
 cs2.on_blueprint_built(function(bpinfo)
-	-- XXX: move this below early out, here for debugging only
-	local pos = bpinfo:get_bp_to_world_pos()
-	if not pos then return end
-
 	-- Index all combinators in the blueprint that are in shared-inventory mode.
 	local bp_entities = bpinfo:get_entities()
 	if not bp_entities then return end
@@ -475,6 +471,9 @@ cs2.on_blueprint_built(function(bpinfo)
 
 	-- Early out if no shared inv combs
 	if not next(shared_inventory_combinators) then return end
+
+	local pos = bpinfo:get_bp_to_world_pos()
+	if not pos then return end
 
 	-- Create re-linking data in storage based on the worldspace positions of
 	-- the built combinators.
