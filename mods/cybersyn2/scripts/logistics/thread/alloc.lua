@@ -47,14 +47,18 @@ local LogisticsThread = _G.cs2.LogisticsThread
 ---@param p_key "providers_p" | "pushers_p" | "pullers_p" | "sinks_p"
 ---@return [Cybersyn.Node,int][][]
 function LogisticsThread:get_descending_prio_groups(item, base_key, p_key)
+	-- Check if we have already cached the groups for this item
 	if self[p_key][item] then return self[p_key][item] end
+	-- Get base logistics set for this item
 	local xs = self[base_key] --[[@as table<SignalKey, IdSet>]]
 	local x_i = xs[item]
 	if not x_i or table_size(x_i) == 0 then return {} end
+	-- Map into { node, prio } pairs
 	local g_i = t_map_a(x_i, function(_, id)
 		local node = Node.get(id)
 		if node then return { node, node:get_item_priority(item) } end
 	end)
+	-- Sort and group by descending prio
 	tsort(g_i, function(a, b) return a[2] > b[2] end)
 	local g = tlib.group_by(g_i, 2)
 	self[p_key][item] = g
@@ -123,12 +127,14 @@ function LogisticsThread:refund_allocation(alloc)
 end
 
 --------------------------------------------------------------------------------
--- Puller <- Provider
+-- Pull
 --------------------------------------------------------------------------------
 
+---@param self Cybersyn.LogisticsThread
 ---@param puller_i Cybersyn.Node
 ---@param provider_i Cybersyn.Node
-function LogisticsThread:alloc_item_pull_provider(
+local function alloc_item_pull_provider(
+	self,
 	item,
 	provider_i,
 	puller_i,
@@ -184,7 +190,7 @@ end
 ---@param data Cybersyn.LogisticsThread
 ---@param node Cybersyn.Node
 ---@param item SignalKey
-local function provider_match(data, node, item)
+local function make_provider_filter(data, node, item)
 	---@param np [Cybersyn.Node, integer]
 	return function(np)
 		return data:is_in_logistics_set("providers", np[1].id, item)
@@ -210,28 +216,41 @@ local function make_distance_busy_sort_fn(to)
 	return function(a, b) return calc(a[1]) < calc(b[1]) end
 end
 
+---@param self Cybersyn.LogisticsThread
 ---@param item SignalKey
 ---@param puller_i Cybersyn.Node
 ---@param pull_prio integer
-function LogisticsThread:alloc_item_pull_providers(item, puller_i, pull_prio)
-	local groups =
-		self:get_descending_prio_groups(item, "providers", "providers_p")
+---@param from_set string
+---@param from_set_p string
+---@param from_filter_gen function
+---@param from_sort_gen function
+local function generic_pull_allocator(
+	self,
+	item,
+	puller_i,
+	pull_prio,
+	from_set,
+	from_set_p,
+	from_filter_gen,
+	from_sort_gen,
+	allocator
+)
+	local groups = self:get_descending_prio_groups(item, from_set, from_set_p)
 	local sort_fn = nil
 	for i = 1, #groups do
-		-- Filter providers. This will check if the provider is still providing
-		-- as well as channel and network matches.
-		local providers_ip = filter(groups[i], provider_match(self, puller_i, item))
+		-- Filter item sources for existence, network, and channel matches.
+		local from_ip = filter(groups[i], from_filter_gen(self, puller_i, item))
 		-- strace(DEBUG, "alloc", item, "providers_ip", providers_ip)
-		if #providers_ip > 0 then
-			-- distance-busy-sort potential providers
-			if not sort_fn then sort_fn = make_distance_busy_sort_fn(puller_i) end
-			tsort(providers_ip, sort_fn)
-			-- Pull over sorted providers
-			for j = 1, #providers_ip do
-				local provider_j = providers_ip[j][1]
-				-- Optimize: skip providers that aren't providing anymore
-				if self:is_in_logistics_set("providers", provider_j.id, item) then
-					self:alloc_item_pull_provider(item, provider_j, puller_i, pull_prio)
+		if #from_ip > 0 then
+			-- distance-busy-sort potential sources
+			if not sort_fn then sort_fn = from_sort_gen(puller_i) end
+			tsort(from_ip, sort_fn)
+			-- Pull from sorted sources
+			for j = 1, #from_ip do
+				local from_j = from_ip[j][1]
+				-- Optimize: skip sources that can no longer provide
+				if self:is_in_logistics_set(from_set, from_j.id, item) then
+					allocator(self, item, from_j, puller_i, pull_prio)
 				end
 				-- Optimize: If puller is no longer pulling we can unwind the loop
 				if not self:is_in_logistics_set("pullers", puller_i.id, item) then
@@ -240,6 +259,27 @@ function LogisticsThread:alloc_item_pull_providers(item, puller_i, pull_prio)
 			end
 		end
 	end
+end
+
+---@param item SignalKey
+---@param puller_i Cybersyn.Node
+---@param pull_prio integer
+function LogisticsThread:alloc_item_pull_providers(
+	item,
+	puller_i,
+	pull_prio
+)
+	return generic_pull_allocator(
+		self,
+		item,
+		puller_i,
+		pull_prio,
+		"providers",
+		"providers_p",
+		make_provider_filter,
+		make_distance_busy_sort_fn,
+		alloc_item_pull_provider
+	)
 end
 
 ---@param item SignalKey
@@ -257,9 +297,10 @@ function LogisticsThread:alloc_item_pull(item)
 		-- strace(DEBUG, "alloc", item, "pullers_ip", pullers_ip)
 		for j = 1, #pullers_ip do
 			local puller_i = pullers_ip[j]
-			-- Optimize: puller may have been removed as a result of prior allocations
-			if self:is_in_logistics_set("pullers", puller_i[1].id, item) then
-				self:alloc_item_pull_providers(item, puller_i[1], puller_i[2])
+			local puller_i_node = puller_i[1]
+			local puller_i_prio = puller_i[2]
+			if self:is_in_logistics_set("pullers", puller_i_node.id, item) then
+				self:alloc_item_pull_providers(item, puller_i_node, puller_i_prio)
 			end
 		end
 	end
