@@ -64,11 +64,6 @@ cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("ignore_secondary_thresholds", "station_flags", 3)
 )
 
--- Inventory related
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("external_inventory", "station_flags", 4)
-)
-
 --------------------------------------------------------------------------------
 -- Relm gui for station combinator
 --------------------------------------------------------------------------------
@@ -112,12 +107,6 @@ relm.define_element({
 					"If checked, all item delivery thresholds will be interpreted as stacks of items. If unchecked, all item delivery thresholds will be interpreted as individual items.",
 					props.combinator,
 					combinator_settings.use_stack_thresholds
-				),
-				gui.Checkbox(
-					{ "cybersyn2-combinator-mode-station.use-external-inventory" },
-					{ "cybersyn2-combinator-mode-station.use-external-inventory-tooltip" },
-					props.combinator,
-					combinator_settings.external_inventory
 				),
 			}),
 			ultros.WellFold({ caption = "Departure Conditions" }, {

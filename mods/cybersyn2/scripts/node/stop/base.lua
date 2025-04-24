@@ -286,6 +286,21 @@ end
 ---Based on the combinators present at the station and its sharing state,
 ---update the inventory of the station as needed.
 function TrainStop:update_inventory_mode()
+	strace(
+		stlib.DEBUG,
+		"cs2",
+		"inventory",
+		"message",
+		"Updating inventory mode for stop",
+		self
+	)
+
+	-- If slave station, set inventory to master stop
+	if self.shared_inventory_master then
+		local master = cs2.get_stop(self.shared_inventory_master)
+		if master then self:set_inventory(master.inventory_id) end
+		return
+	end
 	-- TODO: use get_combinator_with_mode
 	local combs = self:get_associated_combinators(
 		function(c) return c.mode == "inventory" end
@@ -325,6 +340,13 @@ function TrainStop:update_inventory_mode()
 		end
 		-- Swap stop to true inventory
 		self:set_inventory(self.true_inventory_id)
+	end
+	-- Update inventory for all slaves
+	if self.shared_inventory_slaves then
+		for slave_id in pairs(self.shared_inventory_slaves) do
+			local slave = cs2.get_stop(slave_id)
+			if slave then slave:update_inventory_mode() end
+		end
 	end
 end
 
@@ -485,8 +507,10 @@ function TrainStop:share_inventory_with(slave_stop)
 		slave_stop.shared_inventory_master = self.id
 		cs2.raise_train_stop_shared_inventory_changed(slave_stop)
 	end
-	self.shared_inventory_slaves[slave_stop.id] = true
-	cs2.raise_train_stop_shared_inventory_changed(self)
+	if not self.shared_inventory_slaves[slave_stop.id] then
+		self.shared_inventory_slaves[slave_stop.id] = true
+		cs2.raise_train_stop_shared_inventory_changed(self)
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -502,3 +526,8 @@ end)
 cs2.on_train_departed(function(train, cstrain, stop)
 	if cstrain and stop then stop:train_departed(cstrain) end
 end)
+
+-- Shared inventory recalcs
+cs2.on_train_stop_shared_inventory_changed(
+	function(stop) stop:update_inventory_mode() end
+)

@@ -349,8 +349,8 @@ local function finish_connection(player, entity)
 		return
 	end
 
-	slave_stop.shared_inventory_master = master_stop.id
-	master_stop.shared_inventory_slaves[slave_stop.id] = true
+	master_stop:share_inventory_with(slave_stop)
+
 	render_connection(player)
 end
 

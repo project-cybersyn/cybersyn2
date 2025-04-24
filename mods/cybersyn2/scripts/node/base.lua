@@ -263,7 +263,9 @@ end
 function Node:get_inventory() return Inventory.get(self.inventory_id) end
 
 ---Fail ALL deliveries pending for this node.
-function Node:fail_all_deliveries(reason) end
+function Node:fail_all_deliveries(reason)
+	-- NOTE: implemented in subclasses
+end
 
 ---Change the inventory of a node. If there are currently deliveries enroute
 ---they will be failed.
