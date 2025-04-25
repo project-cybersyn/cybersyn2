@@ -275,9 +275,11 @@ end
 function TrueInventory:get_pushed_qty(item)
 	local pushes = self.pushes
 	if not pushes then return 0 end
+	local pushes_item = pushes[item]
+	if (not pushes_item) or pushes_item <= 0 then return 0 end
 	local inv = self.inventory
 	local of = self.outflow
-	return max(((inv[item] or 0) - (of[item] or 0)) - (pushes[item] or 0), 0)
+	return max(((inv[item] or 0) - (of[item] or 0)) - pushes_item, 0)
 end
 
 function TrueInventory:get_sink_qty(item)
@@ -294,7 +296,11 @@ function TrueInventory:foreach_producible_item(f)
 	local pushes = self.pushes or empty
 	for item, qty in pairs(inv) do
 		local net = max(qty - (of[item] or 0), 0)
-		local pushed = max(net - pushes[item], 0)
+		local pushes_item = pushes[item]
+		local pushed = 0
+		if pushes_item and pushes_item > 0 then
+			pushed = max(net - pushes_item, 0)
+		end
 		if net > 0 or pushed > 0 then f(item, net, pushed) end
 	end
 end

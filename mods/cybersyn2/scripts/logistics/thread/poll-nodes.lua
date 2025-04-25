@@ -55,23 +55,29 @@ function LogisticsThread:classify_inventory(stop)
 	local inventory = stop:get_inventory()
 	if not inventory then return end
 	if stop.is_producer then
-		inventory:foreach_producible_item(function(item, provide_qty)
+		inventory:foreach_producible_item(function(item, provide_qty, push_qty)
 			local _, out_t = stop:get_delivery_thresholds(item)
 			if provide_qty >= out_t then
 				self:add_to_logisics_set("providers", stop, item)
 				self.seen_cargo[item] = true
 			end
-			-- TODO: push
+			if push_qty >= out_t then
+				self:add_to_logisics_set("pushers", stop, item)
+				self.seen_cargo[item] = true
+			end
 		end)
 	end
 	if stop.is_consumer then
-		inventory:foreach_consumable_item(function(item, pull_qty)
+		inventory:foreach_consumable_item(function(item, pull_qty, sink_qty)
 			local in_t = stop:get_delivery_thresholds(item)
 			if pull_qty >= in_t then
 				self:add_to_logisics_set("pullers", stop, item)
 				self.seen_cargo[item] = true
 			end
-			-- TODO: sink
+			if sink_qty >= in_t then
+				self:add_to_logisics_set("sinks", stop, item)
+				self.seen_cargo[item] = true
+			end
 		end)
 	end
 end

@@ -94,7 +94,6 @@ local function try_allocation(
 			end
 			-- Refund and clear allocation
 			logistics_thread:refund_allocation(allocation)
-			allocation.qty = 0
 		end
 		return true
 	end
@@ -126,7 +125,6 @@ local function try_allocation(
 		cargo_state.spillover[allocation.item] = spillover_qty
 	end
 	logistics_thread:refund_allocation(allocation)
-	allocation.qty = 0
 	return true
 end
 
@@ -279,7 +277,6 @@ function LogisticsThread:maybe_route_allocation(allocation, index)
 	-- If can't route allocation, zero and refund it
 	if not self:route_allocation(allocation, index) then
 		self:refund_allocation(allocation)
-		allocation.qty = 0
 	end
 end
 

@@ -180,6 +180,7 @@ function TrainStop:train_departed(train)
 		-- Clear the delivery...
 		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		self.deliveries[delivery_id] = nil
+		-- TODO: consider using the event bus here.
 		-- NOTE: notify_departed adds inventory charge rebates so that hopefully
 		-- update_inventory can clear them optimistcally.
 		if delivery then delivery:notify_departed(self) end
