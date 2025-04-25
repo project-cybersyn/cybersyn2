@@ -22,9 +22,11 @@ local mod_settings = _G.cs2.mod_settings
 ---@field providers table<SignalKey, IdSet>? Idset of nodes providing the given product
 ---@field providers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped providers
 ---@field pushers table<SignalKey, IdSet>? Ids of nodes pushing the given product
+---@field pushers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped pushers
 ---@field pullers table<SignalKey, IdSet>? Ids of nodes pulling the given product
 ---@field pullers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped pullers
 ---@field sinks table<SignalKey, IdSet>? Ids of nodes that are sinks for the given product
+---@field sinks_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped sinks
 ---@field dumps Cybersyn.Node[]? Nodes that are dumps
 ---@field seen_cargo table<SignalKey, true>? Items we've seen and need to iterate over.
 ---@field allocations Cybersyn.Internal.LogisticsAllocation[]?

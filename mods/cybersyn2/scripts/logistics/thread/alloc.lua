@@ -23,6 +23,7 @@ local pos_get = mlib.pos_get
 local sqrt = math.sqrt
 local key_is_fluid = siglib.key_is_fluid
 local key_to_stacksize = siglib.key_to_stacksize
+local empty = tlib.empty
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -52,7 +53,7 @@ function LogisticsThread:get_descending_prio_groups(item, base_key, p_key)
 	-- Get base logistics set for this item
 	local xs = self[base_key] --[[@as table<SignalKey, IdSet>]]
 	local x_i = xs[item]
-	if not x_i or table_size(x_i) == 0 then return {} end
+	if not x_i or table_size(x_i) == 0 then return empty end
 	-- Map into { node, prio } pairs
 	local g_i = t_map_a(x_i, function(_, id)
 		local node = Node.get(id)
@@ -64,6 +65,10 @@ function LogisticsThread:get_descending_prio_groups(item, base_key, p_key)
 	self[p_key][item] = g
 	return g
 end
+
+--------------------------------------------------------------------------------
+-- Allocator primitives
+--------------------------------------------------------------------------------
 
 ---@param from_node Cybersyn.Node
 ---@param from_inv Cybersyn.Inventory
@@ -129,7 +134,7 @@ function LogisticsThread:refund_allocation(alloc)
 end
 
 --------------------------------------------------------------------------------
--- Pull
+-- Util
 --------------------------------------------------------------------------------
 
 ---@param self Cybersyn.LogisticsThread
@@ -207,81 +212,6 @@ local function alloc_item_generic(
 	end
 end
 
----@param self Cybersyn.LogisticsThread
----@param puller_i Cybersyn.Node
----@param provider_i Cybersyn.Node
-local function alloc_item_pull_provider(
-	self,
-	item,
-	provider_i,
-	puller_i,
-	pull_prio
-)
-	return alloc_item_generic(
-		self,
-		item,
-		provider_i,
-		"providers",
-		puller_i,
-		"pullers",
-		pull_prio,
-		function(node, itm) return node:get_provide(itm) end,
-		function(node, itm) return node:get_pull(itm) end
-	)
-end
-
----@param self Cybersyn.LogisticsThread
----@param puller_i Cybersyn.Node
----@param producer_i Cybersyn.Node
-local function alloc_item_pull_pusher(
-	self,
-	item,
-	producer_i,
-	puller_i,
-	pull_prio
-)
-	return alloc_item_generic(
-		self,
-		item,
-		producer_i,
-		"pushers",
-		puller_i,
-		"pullers",
-		pull_prio,
-		function(node, itm) return node:get_push(itm) end,
-		function(node, itm) return node:get_pull(itm) end
-	)
-end
-
----@param self Cybersyn.LogisticsThread
----@param pusher_i Cybersyn.Node
----@param sink_i Cybersyn.Node
-local function alloc_item_sink_pusher(self, item, pusher_i, sink_i, sink_prio)
-	strace(
-		DEBUG,
-		"cs2",
-		"alloc",
-		"message",
-		"post-filter alloc: item",
-		item,
-		"sink",
-		sink_i.id,
-		"pusher",
-		pusher_i.id
-	)
-	return alloc_item_generic(
-		self,
-		item,
-		pusher_i,
-		"pushers",
-		sink_i,
-		"sinks",
-		sink_prio,
-		function(node, itm) return node:get_push(itm) end,
-		function(node, itm) return node:get_sink(itm) end
-	)
-end
-
 ---@param data Cybersyn.LogisticsThread
 ---@param logistics_type string
 ---@param node Cybersyn.Node
@@ -357,10 +287,64 @@ local function generic_to_from_allocator(
 	end
 end
 
+--------------------------------------------------------------------------------
+-- Pull
+--------------------------------------------------------------------------------
+
+---@param self Cybersyn.LogisticsThread
+---@param puller_i Cybersyn.Node
+---@param provider_i Cybersyn.Node
+local function alloc_item_pull_provider(
+	self,
+	item,
+	provider_i,
+	puller_i,
+	pull_prio
+)
+	return alloc_item_generic(
+		self,
+		item,
+		provider_i,
+		"providers",
+		puller_i,
+		"pullers",
+		pull_prio,
+		function(node, itm) return node:get_provide(itm) end,
+		function(node, itm) return node:get_pull(itm) end
+	)
+end
+
+---@param self Cybersyn.LogisticsThread
+---@param puller_i Cybersyn.Node
+---@param producer_i Cybersyn.Node
+local function alloc_item_pull_pusher(
+	self,
+	item,
+	producer_i,
+	puller_i,
+	pull_prio
+)
+	return alloc_item_generic(
+		self,
+		item,
+		producer_i,
+		"pushers",
+		puller_i,
+		"pullers",
+		pull_prio,
+		function(node, itm) return node:get_push(itm) end,
+		function(node, itm) return node:get_pull(itm) end
+	)
+end
+
 ---@param item SignalKey
 ---@param puller_i Cybersyn.Node
 ---@param pull_prio integer
-function LogisticsThread:alloc_item_pull_pushers(item, puller_i, pull_prio)
+function LogisticsThread:alloc_item_pull_from_pushers(
+	item,
+	puller_i,
+	pull_prio
+)
 	return generic_to_from_allocator(
 		self,
 		item,
@@ -378,7 +362,7 @@ end
 ---@param item SignalKey
 ---@param puller_i Cybersyn.Node
 ---@param pull_prio integer
-function LogisticsThread:alloc_item_pull_providers(
+function LogisticsThread:alloc_item_pull_from_providers(
 	item,
 	puller_i,
 	pull_prio
@@ -394,23 +378,6 @@ function LogisticsThread:alloc_item_pull_providers(
 		make_from_filter,
 		make_distance_busy_sort_fn,
 		alloc_item_pull_provider
-	)
-end
-
-function LogisticsThread:alloc_item_sink_pushers(item, sink_i, sink_prio)
-	strace(DEBUG, "cs2", "alloc", "message", "item", item, "sink", sink_i.id)
-
-	return generic_to_from_allocator(
-		self,
-		item,
-		sink_i,
-		sink_prio,
-		"sinks",
-		"pushers",
-		"pushers_p",
-		make_from_filter,
-		make_distance_busy_sort_fn,
-		alloc_item_sink_pusher
 	)
 end
 
@@ -431,17 +398,55 @@ function LogisticsThread:alloc_item_pull(item)
 			local puller_i_node = puller_i[1]
 			local puller_i_prio = puller_i[2]
 			if self:is_in_logistics_set("pullers", puller_i_node.id, item) then
-				self:alloc_item_pull_pushers(item, puller_i_node, puller_i_prio)
+				self:alloc_item_pull_from_pushers(item, puller_i_node, puller_i_prio)
 			end
 			if self:is_in_logistics_set("pullers", puller_i_node.id, item) then
-				self:alloc_item_pull_providers(item, puller_i_node, puller_i_prio)
+				self:alloc_item_pull_from_providers(item, puller_i_node, puller_i_prio)
 			end
 		end
 	end
 end
 
+--------------------------------------------------------------------------------
+-- Push/Sink
+--------------------------------------------------------------------------------
+
+---@param self Cybersyn.LogisticsThread
+---@param pusher_i Cybersyn.Node
+---@param sink_i Cybersyn.Node
+local function alloc_item_sink_pusher(self, item, pusher_i, sink_i, sink_prio)
+	return alloc_item_generic(
+		self,
+		item,
+		pusher_i,
+		"pushers",
+		sink_i,
+		"sinks",
+		sink_prio,
+		function(node, itm) return node:get_push(itm) end,
+		function(node, itm) return node:get_sink(itm) end
+	)
+end
+
+function LogisticsThread:alloc_item_sink_pushers(item, sink_i, sink_prio)
+	return generic_to_from_allocator(
+		self,
+		item,
+		sink_i,
+		sink_prio,
+		"sinks",
+		"pushers",
+		"pushers_p",
+		make_from_filter,
+		make_distance_busy_sort_fn,
+		alloc_item_sink_pusher
+	)
+end
+
 ---@param item SignalKey
 function LogisticsThread:alloc_item_sink(item)
+	-- TODO: re-evaluate this. It may be the case that pushers should govern the
+	-- outer level of the logistics loop here.
 	local groups = self:get_descending_prio_groups(item, "sinks", "sinks_p")
 	for i = 1, #groups do
 		local sinks_ip = groups[i]
@@ -462,6 +467,84 @@ function LogisticsThread:alloc_item_sink(item)
 end
 
 --------------------------------------------------------------------------------
+-- Dump
+--------------------------------------------------------------------------------
+
+---@param data Cybersyn.LogisticsThread
+---@param node Cybersyn.Node
+---@param item SignalKey
+local function make_dump_filter(data, node, item)
+	---@param dump Cybersyn.Node
+	return function(dump) return node:is_item_match(dump, item) end
+end
+
+local function make_dump_sorter(pusher, item)
+	local calc = make_distance_busy_score_calculator(pusher)
+	---@param a Cybersyn.TrainStop
+	---@param b Cybersyn.TrainStop
+	return function(a, b)
+		local pa, pb = a:get_item_priority(item), b:get_item_priority(item)
+		if pa < pb then
+			return true
+		elseif pb < pa then
+			return false
+		else
+			return calc(a) < calc(b)
+		end
+	end
+end
+
+function LogisticsThread:alloc_item_push_to_dump(item, pusher_i, pusher_i_prio)
+	local sort_fn = nil
+	local dumps = filter(self.dumps, make_dump_filter(self, pusher_i, item))
+	if #dumps > 0 then
+		if not sort_fn then sort_fn = make_dump_sorter(pusher_i) end
+		tsort(dumps, sort_fn)
+		for j = 1, #dumps do
+			local dump_j = dumps[j]
+
+			strace(DEBUG, "cs2", "alloc", "message", item, "dump to", dump_j.id)
+
+			alloc_item_generic(
+				self,
+				item,
+				pusher_i,
+				"pushers",
+				dump_j,
+				"ERROR",
+				pusher_i_prio,
+				function(node, itm) return node:get_push(itm) end,
+				function(node, itm) return node:get_dump(itm) end
+			)
+
+			if not self:is_in_logistics_set("pushers", pusher_i.id, item) then
+				return
+			end
+		end
+	end
+end
+
+function LogisticsThread:alloc_item_dump(item)
+	local groups = self:get_descending_prio_groups(item, "pushers", "pushers_p")
+	for i = 1, #groups do
+		local pushers_ip = groups[i]
+		tsort(
+			pushers_ip,
+			function(a, b)
+				return (a[1].last_producer_tick or 0) < (b[1].last_producer_tick or 0)
+			end
+		)
+		for j = 1, #pushers_ip do
+			local pusher_i_node = pushers_ip[j][1]
+			local pusher_i_prio = pushers_ip[j][2]
+			if self:is_in_logistics_set("pushers", pusher_i_node.id, item) then
+				self:alloc_item_push_to_dump(item, pusher_i_node, pusher_i_prio)
+			end
+		end
+	end
+end
+
+--------------------------------------------------------------------------------
 -- Loop core
 --------------------------------------------------------------------------------
 
@@ -469,6 +552,7 @@ end
 function LogisticsThread:alloc_item(item)
 	self:alloc_item_pull(item)
 	self:alloc_item_sink(item)
+	self:alloc_item_dump(item)
 end
 
 function LogisticsThread:enter_alloc()

@@ -79,6 +79,7 @@ function LogisticsThread:classify_inventory(stop)
 				self.seen_cargo[item] = true
 			end
 		end)
+		if stop.is_dump then table.insert(self.dumps, stop) end
 	end
 end
 
@@ -133,6 +134,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		stop.is_consumer = true
 		stop.is_producer = false
 	end
+	stop.is_dump = comb:read_setting(combinator_settings.dump)
 	local network_signal = comb:read_setting(combinator_settings.network_signal)
 	local is_each = network_signal == "signal-each"
 	local networks = {}

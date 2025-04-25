@@ -180,6 +180,7 @@ local function route_train(data, train, allocation, index)
 
 	-- Mark consumer as receiving a delivery
 	allocation.to.last_consumer_tick = game.tick
+	allocation.from.last_producer_tick = game.tick
 	-- Remove from avail_trains
 	data.avail_trains[train.id] = nil
 	-- Create delivery

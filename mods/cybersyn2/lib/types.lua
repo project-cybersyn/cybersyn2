@@ -110,6 +110,7 @@ lib.NodeNetworkOperation = {
 ---@field public created_inventory_id Id? The id of the inventory automatically created for this node if any.
 ---@field public is_producer boolean? `true` if the node can send deliveries
 ---@field public is_consumer boolean? `true` if the node can receive deliveries
+---@field public is_dump boolean? `true` if the node is a push logistics dump. `is_consumer` must also be `true`.
 ---@field public networks? SignalCounts The network masks of the node. Updated only when the node is polled.
 ---@field public network_operation Cybersyn.Node.NetworkOperation How the network masks of the node should be combined.
 ---@field public priority int? Priority of the node.
@@ -123,7 +124,8 @@ lib.NodeNetworkOperation = {
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
----@field public last_consumer_tick uint? The tick of the last time this node was dispatched to as a consumer. Used to disambiguate between equal prioirty consumers.
+---@field public last_consumer_tick uint? The tick of the last time this node was dispatched to as a consumer.
+---@field public last_producer_tick uint? The tick of the last time this node was dispatched to as a producer.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node

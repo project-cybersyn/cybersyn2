@@ -279,6 +279,13 @@ function Node:get_sink(item)
 	return has, in_t, inv
 end
 
+function Node:get_dump(item)
+	local inv = Inventory.get(self.inventory_id)
+	if not inv then return 0, 0, nil end
+	local in_t = self:get_delivery_thresholds(item)
+	return math.huge, in_t, inv
+end
+
 ---@return Cybersyn.Inventory?
 function Node:get_inventory() return Inventory.get(self.inventory_id) end
 
