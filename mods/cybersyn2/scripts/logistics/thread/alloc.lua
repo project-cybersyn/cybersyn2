@@ -85,6 +85,7 @@ function LogisticsThread:allocate(
 	qty,
 	prio
 )
+	if qty <= 0 then return end
 	from_inv:add_single_item_outflow(item, qty)
 	to_inv:add_single_item_inflow(item, qty)
 	local is_fluid = key_is_fluid(item)
@@ -160,6 +161,25 @@ local function alloc_item_generic(
 			item
 		)
 	end
+
+	-- Honor consumer capacity.
+	local item_stack_capacity, fluid_capacity = consumer_inv:get_capacities()
+	if item_stack_capacity or fluid_capacity then
+		-- Rare case; capacity should not be used often.
+		local is_fluid = key_is_fluid(item)
+		if is_fluid and fluid_capacity then
+			local _, used_fluid_capacity = consumer_inv:get_used_capacities()
+			local avail_fluid_capacity = fluid_capacity - used_fluid_capacity
+			consumed = min(consumed, avail_fluid_capacity)
+		elseif not is_fluid and item_stack_capacity then
+			local used_item_stack_capacity = consumer_inv:get_used_capacities()
+			local avail_item_capacity = (
+				item_stack_capacity - used_item_stack_capacity
+			) * (key_to_stacksize(item) or 0)
+			consumed = min(consumed, avail_item_capacity)
+		end
+	end
+
 	local avail, producer_out_t, producer_inv =
 		get_production_info(producer, item)
 	if avail == 0 or not producer_inv then
@@ -169,7 +189,10 @@ local function alloc_item_generic(
 			item
 		)
 	end
-	if consumed >= producer_out_t and avail >= consumer_in_t then
+
+	local qty = min(consumed, avail)
+
+	if qty >= producer_out_t and qty >= consumer_in_t then
 		return self:allocate(
 			producer,
 			producer_inv,
@@ -178,7 +201,7 @@ local function alloc_item_generic(
 			consumer_inv,
 			consumer_in_t,
 			item,
-			min(avail, consumed),
+			qty,
 			consumer_prio
 		)
 	end

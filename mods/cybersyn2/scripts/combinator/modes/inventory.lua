@@ -44,11 +44,15 @@ relm.define_element({
 						ultros.RadioButtons({
 							value = props.combinator:read_setting(
 								combinator_settings.inventory_mode
-							) or "inventory",
+							),
 							buttons = {
 								{
 									caption = { "cybersyn2-combinator-mode-inventory.inventory" },
 									key = "inventory",
+								},
+								{
+									caption = { "cybersyn2-combinator-mode-inventory.provides" },
+									key = "provide",
 								},
 								{
 									caption = { "cybersyn2-combinator-mode-inventory.requests" },
@@ -65,6 +69,12 @@ relm.define_element({
 										"cybersyn2-combinator-mode-inventory.sink-thresholds",
 									},
 									key = "sink",
+								},
+								{
+									caption = {
+										"cybersyn2-combinator-mode-inventory.capacity",
+									},
+									key = "capacity",
 								},
 							},
 							on_change = function(_, value)
@@ -101,10 +111,6 @@ relm.define_element({
 			}, {
 				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.signal" }),
 				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.effect" }),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-inventory]"),
-				ultros.RtMultilineLabel({
-					"cybersyn2-combinator-mode-inventory-control.input-signal-id",
-				}),
 			}),
 		})
 	end,

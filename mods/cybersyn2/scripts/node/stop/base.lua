@@ -415,20 +415,46 @@ function TrainStop:update_inventory(is_opportunistic)
 		local combs = self:get_associated_combinators(
 			function(c) return c.mode == "inventory" end
 		)
+		local read_inventory = false
+		local read_provide = false
+		local read_pull = false
+		local read_push = false
+		local read_sink = false
+		local read_capacity = false
 		for _, comb in pairs(combs) do
 			local inv_mode = comb:read_setting(combinator_settings.inventory_mode)
-				or "inventory"
 			if inv_mode == "inventory" then
 				if is_opportunistic then comb:read_inputs() end
-				inventory:set_base(comb.inputs or {})
+				read_inventory = true
+				inventory:set_base(comb.inputs)
+			elseif inv_mode == "provide" then
+				read_provide = true
+				inventory:set_provides(comb.inputs or {})
 			elseif inv_mode == "pull" then
+				read_pull = true
 				inventory:set_pulls(comb.inputs or {})
 			elseif inv_mode == "push" then
+				read_push = true
 				inventory:set_pushes(comb.inputs or {})
 			elseif inv_mode == "sink" then
+				read_sink = true
 				inventory:set_sinks(comb.inputs or {})
+			elseif inv_mode == "capacity" then
+				read_capacity = true
+				local inputs = comb.inputs or {}
+				inventory:set_capacities(
+					inputs["cybersyn2-all-items"] or 0,
+					inputs["cybersyn2-all-fluids"] or 0
+				)
 			end
 		end
+		-- Clear data for areas where the combinator is not present.
+		if not read_inventory then inventory:set_base(nil) end
+		if not read_provide then inventory:set_provides(nil) end
+		if not read_pull then inventory:set_pulls(nil) end
+		if not read_push then inventory:set_pushes(nil) end
+		if not read_sink then inventory:set_sinks(nil) end
+		if not read_capacity then inventory:set_capacities(nil, nil) end
 	else
 		-- Pseudoinventory mode; read from Station comb.
 		local inventory = Inventory.get(self.created_inventory_id)

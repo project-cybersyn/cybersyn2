@@ -171,6 +171,8 @@ lib.NodeNetworkOperation = {
 ---@field public inventory SignalCounts Base inventory (or pseudoinventory) as read from the combinator or world state.
 ---@field public inflow SignalCounts Future incoming cargo
 ---@field public outflow SignalCounts Future outgoing cargo
+---@field public item_stack_capacity uint? The number of item slots available in this inventory, if known.
+---@field public fluid_capacity uint? The total fluid capacity of this inventory, if known.
 
 ---@class Cybersyn.Delivery: StateMachine
 ---@field public id Id

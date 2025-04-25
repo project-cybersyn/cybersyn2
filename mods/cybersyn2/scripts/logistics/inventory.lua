@@ -14,9 +14,12 @@ local cs2 = _G.cs2
 local next = _G.next
 local pairs = _G.pairs
 local signal_to_key = signal_keys.signal_to_key
+local key_to_stacksize = signal_keys.key_to_stacksize
 local key_is_cargo = signal_keys.key_is_cargo
+local key_is_fluid = signal_keys.key_is_fluid
 local min = math.min
 local max = math.max
+local ceil = math.ceil
 local assign = tlib.assign
 local empty = tlib.empty
 
@@ -26,7 +29,7 @@ local empty = tlib.empty
 local function table_add_positive(base, addend, sign)
 	for k, v in pairs(addend) do
 		local net = (base[k] or 0) + sign * v
-		if net >= 0 then
+		if net > 0 then
 			base[k] = net
 		else
 			base[k] = nil
@@ -47,6 +50,8 @@ end
 ---@class Cybersyn.Inventory
 ---@field public inflow_rebate SignalCounts? Amount to be refunded to inflows during next base inventory update.
 ---@field public outflow_rebate SignalCounts? Amount to be refunded to outflows during next base inventory update.
+---@field public used_item_stack_capacity uint? Cached value of used item stack capacity.
+---@field public used_fluid_capacity uint? Cached value of used fluid capacity.
 local Inventory = class("Inventory")
 _G.cs2.Inventory = Inventory
 
@@ -79,7 +84,7 @@ end
 
 ---Set base inventory from raw signal counts. Signals will be filtered for
 ---cargo validity.
----@param counts SignalCounts
+---@param counts SignalCounts|nil
 function Inventory:set_base(counts)
 	-- Rebate flows
 	if self.inflow_rebate then
@@ -92,17 +97,32 @@ function Inventory:set_base(counts)
 		self.outflow_rebate = nil
 	end
 
-	-- Rebuild base
-	local base = {}
-	self.inventory = base
-	for k, count in pairs(counts) do
-		if key_is_cargo(k) then base[k] = count end
+	if counts then
+		-- Rebuild base
+		local base = {}
+		self.inventory = base
+		for k, count in pairs(counts) do
+			if key_is_cargo(k) then base[k] = count end
+		end
+		-- Clear cached
+		self.used_fluid_capacity = nil
+		self.used_item_stack_capacity = nil
+	else
+		if next(self.inventory) then
+			-- Clear base
+			self.inventory = {}
+			-- Clear cached
+			self.used_fluid_capacity = nil
+			self.used_item_stack_capacity = nil
+		end
 	end
 end
 
 ---@param counts SignalCounts
 ---@param sign number
 function Inventory:add_inflow(counts, sign)
+	self.used_fluid_capacity = nil
+	self.used_item_stack_capacity = nil
 	return table_add_positive(self.inflow, counts, sign)
 end
 
@@ -116,6 +136,8 @@ end
 ---@param item SignalKey
 ---@param qty int
 function Inventory:add_single_item_inflow(item, qty)
+	self.used_fluid_capacity = nil
+	self.used_item_stack_capacity = nil
 	local inflow = self.inflow
 	local new_inflow = (inflow[item] or 0) + qty
 	if new_inflow <= 0 then
@@ -169,16 +191,76 @@ function Inventory:foreach_producible_item(f) end
 function Inventory:foreach_consumable_item(f) end
 
 ---Set pulls for this inventory.
----@param counts SignalCounts
+---@param counts SignalCounts|nil
 function Inventory:set_pulls(counts) end
 
 ---Set push thresholds for this inventory.
----@param counts SignalCounts
+---@param counts SignalCounts|nil
 function Inventory:set_pushes(counts) end
 
+---Set provides for this inventory.
+---@param counts SignalCounts|nil
+function Inventory:set_provides(counts) end
+
 ---Set sink thresholds for this inventory.
----@param counts SignalCounts
+---@param counts SignalCounts|nil
 function Inventory:set_sinks(counts) end
+
+---Compute used capacity of this inventory, in stacks (for items) and units
+---(for fluids).
+---@return uint
+---@return uint
+function Inventory:get_used_capacities()
+	if self.used_item_stack_capacity then
+		return self.used_item_stack_capacity, self.used_fluid_capacity
+	end
+
+	local used_item_stack_capacity = 0
+	local used_fluid_capacity = 0
+	local base = self.inventory or empty
+	local inflow = self.inflow or empty
+
+	for k, v in pairs(base) do
+		local net = v + (inflow[k] or 0)
+
+		if key_is_fluid(k) then
+			used_fluid_capacity = used_fluid_capacity + net
+		else
+			local ss = key_to_stacksize(k)
+			if ss and ss > 0 then
+				used_item_stack_capacity = used_item_stack_capacity + ceil(net / ss)
+			end
+		end
+	end
+	for k, v in pairs(inflow) do
+		if not base[k] then
+			if key_is_fluid(k) then
+				used_fluid_capacity = used_fluid_capacity + v
+			else
+				local ss = key_to_stacksize(k)
+				if ss and ss > 0 then
+					used_item_stack_capacity = used_item_stack_capacity + ceil(v / ss)
+				end
+			end
+		end
+	end
+
+	self.used_item_stack_capacity = used_item_stack_capacity
+	self.used_fluid_capacity = used_fluid_capacity
+
+	return used_item_stack_capacity, used_fluid_capacity
+end
+
+---@param item_stack_capacity uint|nil
+---@param fluid_capacity uint|nil
+function Inventory:set_capacities(item_stack_capacity, fluid_capacity)
+	self.item_stack_capacity = item_stack_capacity
+	self.fluid_capacity = fluid_capacity
+end
+
+function Inventory:get_capacities()
+	return self.item_stack_capacity, self.fluid_capacity
+end
 
 --------------------------------------------------------------------------------
 -- Pseudoinventory
@@ -235,26 +317,50 @@ local TrueInventory = class("TrueInventory", Inventory)
 _G.cs2.TrueInventory = TrueInventory
 
 function TrueInventory:set_pulls(counts)
-	local pulls = {}
-	self.pulls = pulls
-	for k, count in pairs(counts) do
-		if key_is_cargo(k) then pulls[k] = count end
+	if counts then
+		local pulls = {}
+		self.pulls = pulls
+		for k, count in pairs(counts) do
+			if key_is_cargo(k) then pulls[k] = count end
+		end
+	else
+		if self.pulls and next(self.pulls) then self.pulls = {} end
+	end
+end
+
+function TrueInventory:set_provides(counts)
+	if counts then
+		local provides = {}
+		self.provides = provides
+		for k, count in pairs(counts) do
+			if key_is_cargo(k) then provides[k] = count end
+		end
+	else
+		if self.provides and next(self.provides) then self.provides = {} end
 	end
 end
 
 function TrueInventory:set_pushes(counts)
-	local pushes = {}
-	self.pushes = pushes
-	for k, count in pairs(counts) do
-		if key_is_cargo(k) then pushes[k] = count end
+	if counts then
+		local pushes = {}
+		self.pushes = pushes
+		for k, count in pairs(counts) do
+			if key_is_cargo(k) then pushes[k] = count end
+		end
+	else
+		if self.pushes and next(self.pushes) then self.pushes = {} end
 	end
 end
 
 function TrueInventory:set_sinks(counts)
-	local sinks = {}
-	self.sinks = sinks
-	for k, count in pairs(counts) do
-		if key_is_cargo(k) then sinks[k] = count end
+	if counts then
+		local sinks = {}
+		self.sinks = sinks
+		for k, count in pairs(counts) do
+			if key_is_cargo(k) then sinks[k] = count end
+		end
+	else
+		if self.sinks and next(self.sinks) then self.sinks = {} end
 	end
 end
 
