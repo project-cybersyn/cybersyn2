@@ -117,7 +117,6 @@ combinator_entity.minable =
 	{ mining_time = 0.1, result = "cybersyn2-combinator" }
 combinator_entity.fast_replaceable_group = "cybersyn2-combinator"
 local flags = combinator_entity.flags or {}
-table.insert(flags, "get-by-unit-number")
 table.insert(flags, "hide-alt-info")
 combinator_entity.flags = flags
 
@@ -147,47 +146,35 @@ combinator_entity.sprites = make_4way_animation_from_spritesheet({
 data:extend({ combinator_entity })
 
 --------------------------------------------------------------------------------
--- Hidden Output
+-- Hidden Proxy Chest
 --------------------------------------------------------------------------------
 
-local combinator_out_entity = flib.copy_prototype(
-	data.raw["constant-combinator"]["constant-combinator"],
-	"cybersyn2-output"
-) --[[@as data.ConstantCombinatorPrototype]]
-combinator_out_entity.icon = nil
-combinator_out_entity.icon_size = nil
-combinator_out_entity.next_upgrade = nil
-combinator_out_entity.minable = nil
-combinator_out_entity.selection_box = nil
-combinator_out_entity.collision_box = nil
-combinator_out_entity.collision_mask = { layers = {} }
-combinator_out_entity.circuit_wire_max_distance = 3
-combinator_out_entity.flags =
-	{ "not-blueprintable", "not-deconstructable", "placeable-off-grid" }
-combinator_out_entity.hidden_in_factoriopedia = true
+local proxy_entity = flib.copy_prototype(
+	data.raw["proxy-container"]["proxy-container"],
+	"cybersyn2-proxy-chest"
+) --[[@as data.ProxyContainerPrototype]]
+proxy_entity.icon = nil
+proxy_entity.icon_size = nil
+proxy_entity.next_upgrade = nil
+proxy_entity.minable = nil
+proxy_entity.selection_box = nil
+proxy_entity.collision_box = nil
+proxy_entity.collision_mask = { layers = {} }
+proxy_entity.circuit_wire_max_distance = 3
+proxy_entity.draw_circuit_wires = false
+proxy_entity.draw_copper_wires = false
+proxy_entity.draw_inventory_content = false
+proxy_entity.flags = {
+	"not-blueprintable",
+	"not-deconstructable",
+	"placeable-off-grid",
+	"hide-alt-info",
+}
+proxy_entity.hidden_in_factoriopedia = true
+proxy_entity.hidden = true
 
-local origin = { 0.0, 0.0 }
 local invisible_sprite =
 	{ filename = "__cybersyn2__/graphics/invisible.png", width = 1, height = 1 }
-local wire_con1 = {
-	red = origin,
-	green = origin,
-}
-local wire_con0 = { wire = wire_con1, shadow = wire_con1 }
-combinator_out_entity.sprites = invisible_sprite
-combinator_out_entity.activity_led_sprites = invisible_sprite
-combinator_out_entity.activity_led_light = {
-	intensity = 0,
-	size = 0,
-}
-combinator_out_entity.activity_led_light_offsets =
-	{ origin, origin, origin, origin }
-combinator_out_entity.draw_circuit_wires = false
-combinator_out_entity.circuit_wire_connection_points = {
-	wire_con0,
-	wire_con0,
-	wire_con0,
-	wire_con0,
-}
+proxy_entity.picture = invisible_sprite
 
-data:extend({ combinator_out_entity })
+data:extend({ proxy_entity })

@@ -38,7 +38,7 @@ local function stringify(val)
 end
 lib.stringify = stringify
 
----@param level Log.Level
+---@param level int
 ---@param category string?
 ---@param filter any
 ---@param msg string

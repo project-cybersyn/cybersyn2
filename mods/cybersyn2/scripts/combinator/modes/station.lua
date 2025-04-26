@@ -25,6 +25,14 @@ cs2.register_combinator_setting(
 -- 0 = p/r, 1 = p, 2 = r
 cs2.register_combinator_setting(cs2.lib.make_raw_setting("pr", "pr"))
 cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("use_stack_thresholds", "station_flags", 0)
+)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("dump", "station_flags", 4)
+)
+
+-- Departure conditions
+cs2.register_combinator_setting(
 	cs2.lib.make_raw_setting("allow_departure_signal", "allow_departure_signal")
 )
 cs2.register_combinator_setting(
@@ -38,16 +46,25 @@ cs2.register_combinator_setting(
 cs2.register_combinator_setting(
 	cs2.lib.make_raw_setting("inactivity_timeout", "inactivity_timeout")
 )
-
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("use_stack_thresholds", "station_flags", 0)
-)
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("disable_cargo_condition", "station_flags", 1)
 )
--- TODO: impl
+
+-- Multi-item related
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("spillover", "spillover")
+)
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("reserved_slots", "reserved_slots")
+)
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("reserved_capacity", "reserved_capacity")
+)
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("produce_single_item", "station_flags", 2)
+)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("ignore_secondary_thresholds", "station_flags", 3)
 )
 
 --------------------------------------------------------------------------------
@@ -58,44 +75,53 @@ relm.define_element({
 	name = "CombinatorGui.Mode.Station",
 	render = function(props)
 		return VF({
-			ultros.WellSection({ caption = "Settings" }, {
-				ultros.Labeled({ caption = "Cargo", top_margin = 6 }, {
-					gui.Switch(
-						"Determines whether deliveries can pick up, drop off, or both.",
-						true,
-						"Outbound only",
-						"Inbound only",
-						props.combinator,
-						combinator_settings.pr
-					),
-				}),
-				ultros.Labeled(
-					{ caption = { "cybersyn2-gui.network" }, top_margin = 6 },
-					{
-						gui.NetworkSignalPicker(
+			ultros.WellSection(
+				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
+				{
+					ultros.Labeled({ caption = "Cargo", top_margin = 6 }, {
+						gui.Switch(
+							"Determines whether deliveries can pick up, drop off, or both.",
+							true,
+							"Outbound only",
+							"Inbound only",
 							props.combinator,
-							combinator_settings.network_signal
+							combinator_settings.pr
 						),
-					}
-				),
-				If(
-					props.combinator:read_setting(combinator_settings.network_signal)
-						== nil,
-					ultros.RtLabel(
-						"[font=default-bold]Warning:[/font] No network signal selected."
-					)
-				),
-				gui.InnerHeading({
-					caption = "Flags",
-				}),
-				gui.Checkbox(
-					"Use stack thresholds",
-					"If checked, all item delivery thresholds will be interpreted as stacks of items. If unchecked, all item delivery thresholds will be interpreted as individual items.",
-					props.combinator,
-					combinator_settings.use_stack_thresholds
-				),
-			}),
-			ultros.WellFold({ caption = "Advanced" }, {
+					}),
+					ultros.Labeled(
+						{ caption = { "cybersyn2-gui.network" }, top_margin = 6 },
+						{
+							gui.NetworkSignalPicker(
+								props.combinator,
+								combinator_settings.network_signal
+							),
+						}
+					),
+					If(
+						props.combinator:read_setting(combinator_settings.network_signal)
+							== nil,
+						ultros.RtLabel(
+							"[font=default-bold]Warning:[/font] No network signal selected."
+						)
+					),
+					gui.InnerHeading({
+						caption = "Flags",
+					}),
+					gui.Checkbox(
+						"Use stack thresholds",
+						"If checked, all item delivery thresholds will be interpreted as stacks of items. If unchecked, all item delivery thresholds will be interpreted as individual items.",
+						props.combinator,
+						combinator_settings.use_stack_thresholds
+					),
+					gui.Checkbox(
+						{ "cybersyn2-combinator-mode-station.dump" },
+						{ "cybersyn2-combinator-mode-station.dump-tooltip" },
+						props.combinator,
+						combinator_settings.dump
+					),
+				}
+			),
+			ultros.WellFold({ caption = "Departure Conditions" }, {
 				ultros.Labeled(
 					{ caption = "Signal: Allow departure", top_margin = 6 },
 					{
@@ -147,11 +173,63 @@ relm.define_element({
 					combinator_settings.disable_cargo_condition,
 					true
 				),
+			}),
+			ultros.WellFold({
+				caption = "Item Handling",
+			}, {
+				ultros.Labeled({ caption = "Spillover", top_margin = 6 }, {
+					gui.Input({
+						tooltip = "A number of extra items (measured in units, not stacks) that may be loaded into each cargo wagon of an outgoing train as a result of imprecise processes such as extra inserter swings. This value is applied per-item against the capacity of the each wagon and the net inventory of the station.",
+						combinator = props.combinator,
+						setting = combinator_settings.spillover,
+						width = 75,
+						numeric = true,
+						allow_decimal = false,
+						allow_negative = false,
+					}),
+				}),
+				ultros.Labeled(
+					{ caption = "Reserved slots per cargo wagon", top_margin = 6 },
+					{
+						gui.Input({
+							tooltip = "The number of slots that will be deducted for each cargo wagon when calculating the capacity of an outgoing train. Unlike spillover, reserve slots do not count against the net inventory of the station.",
+							combinator = props.combinator,
+							setting = combinator_settings.reserved_slots,
+							width = 75,
+							numeric = true,
+							allow_decimal = false,
+							allow_negative = false,
+						}),
+					}
+				),
+				ultros.Labeled(
+					{ caption = "Reserved capacity per fluid wagon", top_margin = 6 },
+					{
+						gui.Input({
+							tooltip = "A reserved amount of capacity to be deducted per fluid wagon. This can be used to allow pumps to clear their fluid boxes before a train departs.",
+							combinator = props.combinator,
+							setting = combinator_settings.reserved_capacity,
+							width = 75,
+							numeric = true,
+							allow_decimal = false,
+							allow_negative = false,
+						}),
+					}
+				),
+				gui.InnerHeading({
+					caption = "Flags",
+				}),
 				gui.Checkbox(
 					"Single item per outgoing train",
 					"If checked, this station will never load multiple items onto an outgoing train, instead loading only the first matching item.",
 					props.combinator,
 					combinator_settings.produce_single_item
+				),
+				gui.Checkbox(
+					"Ignore minimum delivery size for secondary items",
+					"If checked, when loading secondary items onto an outgoing train, this station will ignore minimum delivery sizes for those items. This can result in multiple items being more efficiently packed onto trains.",
+					props.combinator,
+					combinator_settings.ignore_secondary_thresholds
 				),
 			}),
 		})

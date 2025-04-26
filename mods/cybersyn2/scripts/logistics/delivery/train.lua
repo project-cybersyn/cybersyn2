@@ -25,6 +25,9 @@ _G.cs2.TrainDelivery = TrainDelivery
 ---@param to_inv Cybersyn.Inventory
 ---@param manifest SignalCounts
 ---@param from_charge SignalCounts
+---@param spillover uint
+---@param reserved_slots uint
+---@param reserved_capacity uint
 function TrainDelivery.new(
 	train,
 	from,
@@ -32,7 +35,10 @@ function TrainDelivery.new(
 	to,
 	to_inv,
 	manifest,
-	from_charge
+	from_charge,
+	spillover,
+	reserved_slots,
+	reserved_capacity
 )
 	local delivery = Delivery.new("train")
 	setmetatable(delivery, TrainDelivery)
@@ -42,20 +48,21 @@ function TrainDelivery.new(
 	delivery.to_id = to.id
 	delivery.from_inventory_id = from_inv.id
 	delivery.to_inventory_id = to_inv.id
-	cs2.raise_delivery_created(delivery)
-	-- Check if some bizarre side effect invalidated us
-	if not delivery:is_valid() then return nil end
+	delivery.spillover = spillover
+	delivery.reserved_slots = reserved_slots
+	delivery.reserved_fluid_capacity = reserved_capacity
 
 	delivery.to_charge = manifest
 	delivery.from_charge = from_charge
-	from_inv:add_flow(from_charge, -1)
-	to_inv:add_flow(manifest, 1)
+	from_inv:add_outflow(from_charge, 1)
+	to_inv:add_inflow(manifest, 1)
 	delivery.vehicle_id = train.id
 	train:set_delivery(delivery)
 
 	-- Immediately start the delivery
 	delivery:goto_from()
 
+	cs2.raise_delivery_created(delivery)
 	return delivery
 end
 
@@ -63,7 +70,7 @@ end
 function TrainDelivery:clear_from_charge()
 	if self.from_charge then
 		local from_inv = Inventory.get(self.from_inventory_id)
-		if from_inv then from_inv:add_flow(self.from_charge, 1) end
+		if from_inv then from_inv:add_outflow_rebate(self.from_charge, -1) end
 		self.from_charge = nil
 	end
 end
@@ -72,7 +79,7 @@ end
 function TrainDelivery:clear_to_charge()
 	if self.to_charge then
 		local to_inv = Inventory.get(self.to_inventory_id)
-		if to_inv then to_inv:add_flow(self.to_charge, -1) end
+		if to_inv then to_inv:add_inflow_rebate(self.to_charge, -1) end
 		self.to_charge = nil
 	end
 end
@@ -86,7 +93,7 @@ function TrainDelivery:force_clear()
 	local to_stop = TrainStop.get(self.to_id)
 	if to_stop then to_stop:force_remove_delivery(self.id) end
 	local train = Train.get(self.vehicle_id)
-	if train then train:clear_delivery(self.id) end
+	if train then train:fail_delivery(self.id) end
 end
 
 function TrainDelivery:enter_failed() self:force_clear() end

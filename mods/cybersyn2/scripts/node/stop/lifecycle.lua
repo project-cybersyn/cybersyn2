@@ -61,6 +61,7 @@ function reassociate_recursive(combinators, depth)
 		-- Find the preferred stop for association
 		local target_stop_entity, target_rail_entity =
 			cs2.lib.find_associable_entities_for_combinator(combinator.entity)
+		combinator.connected_rail = target_rail_entity
 		---@type Cybersyn.TrainStop?
 		local target_stop = nil
 		local is_proximate = nil
@@ -178,15 +179,6 @@ cs2.on_combinator_created(
 	function(combinator) cs2.lib.reassociate_combinators({ combinator }) end
 )
 
--- Reassociate a combinator if it's repositioned.
--- TODO: this should not be needed for 1x1 combs anymore
-cs2.on_entity_repositioned(function(what, entity)
-	if what == "combinator" then
-		local combinator = Combinator.get(entity.unit_number)
-		if combinator then cs2.lib.reassociate_combinators({ combinator }) end
-	end
-end)
-
 -- When a stop loses all its combinators, destroy it
 cs2.on_node_combinator_set_changed(function(node)
 	-- TODO: uncovered case: when none of the combinators are within yellow
@@ -200,8 +192,5 @@ end)
 cs2.on_node_destroyed(function(node)
 	if node.type ~= "stop" then return end
 	---@cast node Cybersyn.TrainStop
-	tlib.for_each(node.deliveries, function(_, delivery_id)
-		local delivery = Delivery.get(delivery_id, true)
-		if delivery then delivery:fail() end
-	end)
+	node:fail_all_deliveries()
 end)

@@ -9,6 +9,7 @@ local stlib = require("__cybersyn2__.lib.strace")
 local signal = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
 local Inventory = _G.cs2.Inventory
+local mod_settings = _G.cs2.mod_settings
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
@@ -66,15 +67,17 @@ end
 ---@param id Id?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.Node?
-function Node.get(id, skip_validation)
+local function get_node(id, skip_validation)
 	if not id then return nil end
 	local node = storage.nodes[id]
 	if skip_validation then
 		return node
 	else
-		return node:is_valid() and node or nil
+		return (node and node:is_valid()) and node or nil
 	end
 end
+_G.cs2.get_node = get_node
+Node.get = get_node
 
 ---Determine if a node is valid.
 ---@return boolean
@@ -138,7 +141,6 @@ cs2.on_combinator_destroyed(function(combinator)
 end)
 
 ---Get all combinators associated with this node.
----@param self Cybersyn.Node Reference to a *valid* node.
 ---@param filter? fun(combinator: Cybersyn.Combinator): boolean? A filter function that returns `true` to include the combinator in the result.
 ---@return Cybersyn.Combinator[] #The combinators associated to the node, if any.
 function Node:get_associated_combinators(filter)
@@ -146,6 +148,17 @@ function Node:get_associated_combinators(filter)
 		local comb = Combinator.get(combinator_id, true)
 		if comb and ((not filter) or filter(comb)) then return comb end
 	end)
+end
+
+---Get the first combinator associated with this node and having the given
+---mode.
+---@param mode string
+---@return Cybersyn.Combinator? #A combinator with the given mode associated to this node, if any.
+function Node:get_combinator_with_mode(mode)
+	for id in pairs(self.combinator_set) do
+		local combinator = cs2.get_combinator(id, true)
+		if combinator and combinator.mode == mode then return combinator end
+	end
 end
 
 ---Get the per-item priority of the given item for this node, defaulting
@@ -162,7 +175,7 @@ end
 ---@param item SignalKey
 function Node:get_channel_mask(item)
 	local channels = self.channels
-	local channel = self.channel or 1 -- TODO: setting for global default chan
+	local channel = self.channel or mod_settings.default_channel_mask
 	return channels and (channels[item] or channel) or channel
 end
 
@@ -172,8 +185,7 @@ function Node:is_network_match(n2, mode)
 	local nets_1 = self.networks or {}
 	local nets_2 = n2.networks or {}
 	for k, v in pairs(nets_1) do
-		-- TODO: setting for default global netmask
-		if band(v, nets_2[k] or 1) ~= 0 then return true end
+		if band(v, nets_2[k] or 0) ~= 0 then return true end
 	end
 	return false
 end
@@ -225,9 +237,8 @@ end
 function Node:get_provide(item)
 	local inv = Inventory.get(self.inventory_id)
 	if not inv then return 0, 0, inv end
-	local produce = inv:get_net_produce()
-	local has = produce[item] or 0
-	if has == 0 then return 0, 0, inv end
+	local has = inv:get_provided_qty(item)
+	if has <= 0 then return 0, 0, inv end
 	local _, out_t = self:get_delivery_thresholds(item)
 	if has < out_t then return 0, out_t, inv end
 	return has, out_t, inv
@@ -241,14 +252,72 @@ end
 function Node:get_pull(item)
 	local inv = Inventory.get(self.inventory_id)
 	if not inv then return 0, 0, nil end
-	local consume = inv:get_net_consume()
-	local has = consume[item] or 0
-	if has == 0 then return 0, 0, inv end
-	has = -has
+	local has = inv:get_pulled_qty(item)
+	if has <= 0 then return 0, 0, inv end
 	local in_t = self:get_delivery_thresholds(item)
 	if has < in_t then return 0, in_t, inv end
 	return has, in_t, inv
 end
 
+function Node:get_push(item)
+	local inv = Inventory.get(self.inventory_id)
+	if not inv then return 0, 0, nil end
+	local has = inv:get_pushed_qty(item)
+	if has <= 0 then return 0, 0, inv end
+	local _, out_t = self:get_delivery_thresholds(item)
+	if has < out_t then return 0, out_t, inv end
+	return has, out_t, inv
+end
+
+function Node:get_sink(item)
+	local inv = Inventory.get(self.inventory_id)
+	if not inv then return 0, 0, nil end
+	local has = inv:get_sink_qty(item)
+	if has <= 0 then return 0, 0, inv end
+	local in_t = self:get_delivery_thresholds(item)
+	if has < in_t then return 0, in_t, inv end
+	return has, in_t, inv
+end
+
+function Node:get_dump(item)
+	local inv = Inventory.get(self.inventory_id)
+	if not inv then return 0, 0, nil end
+	local in_t = self:get_delivery_thresholds(item)
+	return math.huge, in_t, inv
+end
+
 ---@return Cybersyn.Inventory?
 function Node:get_inventory() return Inventory.get(self.inventory_id) end
+
+---Fail ALL deliveries pending for this node.
+function Node:fail_all_deliveries(reason)
+	-- NOTE: implemented in subclasses
+end
+
+---Change the inventory of a node. If there are currently deliveries enroute
+---they will be failed.
+---@param id Id
+function Node:set_inventory(id)
+	if id == self.inventory_id then return end
+	strace(
+		stlib.DEBUG,
+		"cs2",
+		"inventory",
+		"node",
+		self,
+		"message",
+		"Swapping inventory and failing all deliveries"
+	)
+	self:fail_all_deliveries()
+	if not id then
+		self.inventory_id = nil
+		return
+	end
+	local inv = Inventory.get(id)
+	if not inv then
+		self.inventory_id = nil
+		return
+	end
+	self.inventory_id = id
+	cs2.raise_node_data_changed(self)
+end

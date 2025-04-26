@@ -17,8 +17,9 @@ require("scripts.storage")
 require("scripts.settings")
 require("scripts.lib")
 require("scripts.threads")
+require("scripts.alerts")
 
-require("scripts.logistics.inventory.base")
+require("scripts.logistics.inventory")
 require("scripts.logistics.delivery.base")
 
 require("scripts.combinator.base")
@@ -36,8 +37,6 @@ require("scripts.node.stop.layout.base")
 require("scripts.node.stop.layout.equipment")
 require("scripts.node.stop.layout.pattern")
 
-require("scripts.combinator.state") -- needs inventory, node
-
 require("scripts.vehicle.base")
 require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")
@@ -45,23 +44,23 @@ require("scripts.vehicle.train.layout")
 
 require("scripts.logistics.delivery.train") -- needs inventory, trainstop, train
 
-require("scripts.combinator.modes.station.base")
-require("scripts.combinator.modes.station.impl")
+require("scripts.combinator.modes.station")
 require("scripts.combinator.modes.allow.base")
 require("scripts.combinator.modes.allow.impl")
-require("scripts.combinator.modes.dt.base")
-require("scripts.combinator.modes.pusht.base")
-require("scripts.combinator.modes.sinkt.base")
-require("scripts.combinator.modes.channels.base")
-require("scripts.combinator.modes.dump.base")
-require("scripts.combinator.modes.manifest.base")
+require("scripts.combinator.modes.dt")
+require("scripts.combinator.modes.channels")
+require("scripts.combinator.modes.prio")
+require("scripts.combinator.modes.manifest")
+require("scripts.combinator.modes.wagon")
+require("scripts.combinator.modes.inventory")
+require("scripts.combinator.modes.shared-inventory")
+require("scripts.combinator.modes.wagon-contents")
 
 require("scripts.logistics.thread.base")
 require("scripts.logistics.thread.poll-combinators")
 require("scripts.logistics.thread.next-t")
 require("scripts.logistics.thread.poll-nodes")
 require("scripts.logistics.thread.alloc")
-require("scripts.logistics.thread.find-vehicles")
 require("scripts.logistics.thread.route")
 
 require("scripts.debug.base")

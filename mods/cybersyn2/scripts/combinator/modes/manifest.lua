@@ -86,6 +86,7 @@ local function create_manifest_outputs(manifest, sign)
 	end
 	return outputs
 end
+_G.cs2.lib.create_manifest_outputs = create_manifest_outputs
 
 cs2.on_train_arrived(function(train, cstrain, stop)
 	if not cstrain or not stop or not cstrain.delivery_id then return end
@@ -120,8 +121,10 @@ cs2.on_train_departed(function(train, cstrain, stop)
 	local combs = stop:get_associated_combinators(
 		function(c) return c.mode == "manifest" end
 	)
-	local empty = {}
-	for _, comb in pairs(combs) do
-		comb:direct_write_outputs(empty)
+	if #combs > 0 then
+		local empty = {}
+		for _, comb in pairs(combs) do
+			comb:direct_write_outputs(empty)
+		end
 	end
 end)

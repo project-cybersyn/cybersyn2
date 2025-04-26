@@ -28,10 +28,19 @@ local function get_layout_id(train)
 	local carriages = train.lua_train.carriages
 	local names = {}
 	local types = {}
+	local n_cargo_wagons = 0
+	local n_fluid_wagons = 0
 	for i = 1, #carriages do
 		local carriage = carriages[i]
 		names[i] = carriage.prototype.name
-		types[i] = type_map[carriage.prototype.type] or CarriageType.Unknown
+		local carriage_type = type_map[carriage.prototype.type]
+			or CarriageType.Unknown
+		types[i] = carriage_type
+		if carriage_type == CarriageType.CargoWagon then
+			n_cargo_wagons = n_cargo_wagons + 1
+		elseif carriage_type == CarriageType.FluidWagon then
+			n_fluid_wagons = n_fluid_wagons + 1
+		end
 	end
 
 	-- Check if layout exists
@@ -44,6 +53,8 @@ local function get_layout_id(train)
 		id = counters.next("train_layout"),
 		carriage_names = names,
 		carriage_types = types,
+		n_cargo_wagons = n_cargo_wagons,
+		n_fluid_wagons = n_fluid_wagons,
 		bidirectional = (
 			#(train.lua_train.locomotives["back_movers"] or empty) > 0
 		),
@@ -71,10 +82,15 @@ function Train:evaluate_capacity()
 		elseif carriage.type == "fluid-wagon" then
 			-- TODO: quality fluid wagon capacities
 			fluid_capacity = fluid_capacity + carriage.prototype.fluid_capacity
+		else
+			-- No capacity
 		end
 	end
 	self.item_slot_capacity = item_slot_capacity
 	self.fluid_capacity = fluid_capacity
+	-- These will be recomputed on demand by wagon control subsystem.
+	self.per_wagon_fluid_capacity = nil
+	self.per_wagon_item_slot_capacity = nil
 end
 
 cs2.on_vehicle_created(function(vehicle)

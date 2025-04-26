@@ -180,7 +180,10 @@ function Train:is_volatile()
 	end
 end
 
-function Train:get_stock() return self.stock end
+function Train:get_stock()
+	-- TODO: volatility
+	return self.stock
+end
 
 ---@param delivery Cybersyn.TrainDelivery
 function Train:set_delivery(delivery) self.delivery_id = delivery.id end
@@ -189,6 +192,8 @@ function Train:set_delivery(delivery) self.delivery_id = delivery.id end
 function Train:clear_delivery(id)
 	if self.delivery_id == id then self.delivery_id = nil end
 end
+
+function Train:fail_delivery(id) return self:clear_delivery(id) end
 
 ---@param schedule LuaSchedule
 ---@return boolean in_interrupt `true` if the schedule is currently interrupted
@@ -235,4 +240,15 @@ function Train:is_available()
 	local schedule = self.lua_train.get_schedule()
 	if get_schedule_state(schedule) then return false end
 	return true
+end
+
+---@return int n_cargo_wagons Number of cargo wagons
+---@return int n_fluid_wagons Number of fluid wagons
+function Train:get_wagon_counts()
+	local layout = storage.train_layouts[self.layout_id]
+	if layout then
+		return layout.n_cargo_wagons, layout.n_fluid_wagons
+	else
+		return 0, 0
+	end
 end

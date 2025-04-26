@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- SinkT combinator
+-- Channels combinator
 --------------------------------------------------------------------------------
 
 local tlib = require("__cybersyn2__.lib.table")
@@ -17,46 +17,48 @@ local VF = ultros.VFlow
 --------------------------------------------------------------------------------
 
 relm.define_element({
-	name = "CombinatorGui.Mode.SinkT",
+	name = "CombinatorGui.Mode.Channels",
 	render = function(props) return nil end,
 })
 
 relm.define_element({
-	name = "CombinatorGui.Mode.SinkT.Help",
+	name = "CombinatorGui.Mode.Channels.Help",
 	render = function(props)
 		return VF({
-			ultros.RtMultilineLabel(
-				"When net inventory is below [font=default-bold]sink threshold[/font], other stations [font=default-bold]pushing[/font] the corresponding item will send it here."
-			),
+			ultros.RtMultilineLabel({ "cybersyn2-combinator-mode-channels.desc" }),
 			Pr({
 				type = "label",
 				font_color = { 255, 230, 192 },
 				font = "default-bold",
-				caption = "Signal Inputs",
+				caption = { "cybersyn2-combinator-modes-labels.signal-inputs" },
 			}),
 			Pr({ type = "line", direction = "horizontal" }),
 			Pr({
 				type = "table",
 				column_count = 2,
 			}, {
-				ultros.BoldLabel("Signal"),
-				ultros.BoldLabel("Effect"),
+				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.signal" }),
+				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.effect" }),
 				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
-				ultros.RtMultilineLabel(
-					"Set sink thresholds for individual items at this station. Each item's threshold will be set to its signal value."
-				),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-channels.item-channels",
+				}),
+				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-channels.all-item-channels",
+				}),
 			}),
 		})
 	end,
 })
 
 --------------------------------------------------------------------------------
--- Mode registration
+-- Mode registration.
 --------------------------------------------------------------------------------
 
 cs2.register_combinator_mode({
-	name = "sinkt",
-	localized_string = "cybersyn2-combinator-modes.sinkt",
-	settings_element = "CombinatorGui.Mode.SinkT",
-	help_element = "CombinatorGui.Mode.SinkT.Help",
+	name = "channels",
+	localized_string = "cybersyn2-combinator-modes.channels",
+	settings_element = "CombinatorGui.Mode.Channels",
+	help_element = "CombinatorGui.Mode.Channels.Help",
 })

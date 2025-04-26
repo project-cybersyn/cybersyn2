@@ -161,11 +161,20 @@ local function evaluate_stop(stop, changed_layout_id)
 	)
 	if #allowlist_combs > 1 then
 		make_default_allow_list(stop, changed_layout_id)
-		-- TODO: warn about multiple combinators
+		cs2.create_alert(
+			stop.entity,
+			"multiple_allow_list",
+			cs2.CS2_ICON_SIGNAL_ID,
+			{
+				"cybersyn2-alerts.too-many-allowlist",
+			}
+		)
 	elseif #allowlist_combs == 0 then
 		make_default_allow_list(stop, changed_layout_id)
+		cs2.destroy_alert(stop.entity, "multiple_allow_list")
 	else
 		make_custom_allow_list(stop, allowlist_combs[1], changed_layout_id)
+		cs2.destroy_alert(stop.entity, "multiple_allow_list")
 	end
 end
 

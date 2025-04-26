@@ -136,3 +136,27 @@ _G.cs2.gui.Input = relm.define_element({
 		end
 	end,
 })
+
+local STATUS_COLOR_SPRITES = {
+	red = "utility/status_not_working",
+	green = "utility/status_working",
+	yellow = "utility/status_yellow",
+}
+
+_G.cs2.gui.Status = relm.define_element({
+	name = "CombinatorGui.Status",
+	render = function(props)
+		return HF({ vertical_align = "center" }, {
+			Pr({
+				type = "sprite",
+				sprite = STATUS_COLOR_SPRITES[props.color or "green"],
+				style = "status_image",
+				stretch_image_to_widget_size = true,
+			}),
+			Pr({
+				type = "label",
+				caption = props.caption,
+			}),
+		})
+	end,
+})

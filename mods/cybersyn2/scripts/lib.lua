@@ -67,6 +67,12 @@ function _G.cs2.lib.entity_is_combinator_or_ghost(entity)
 	return true_name == COMBINATOR_NAME
 end
 
+---@param entity LuaEntity?
+function _G.cs2.lib.entity_is_combinator(entity)
+	if not entity or not entity.valid then return false end
+	return entity.name == COMBINATOR_NAME
+end
+
 ---Locate all `LuaEntity`s corresponding to combinators within the given area.
 ---@param surface LuaSurface
 ---@param area BoundingBox?
@@ -85,4 +91,17 @@ function _G.cs2.lib.find_combinator_entities(
 		radius = radius,
 		name = COMBINATOR_NAME,
 	})
+end
+
+---@param player LuaPlayer
+---@param message LocalisedString
+---@param play_sound boolean?
+---@param position MapPosition?
+function _G.cs2.lib.flying_text(player, message, play_sound, position)
+	player.create_local_flying_text({
+		text = message,
+		create_at_cursor = not position,
+		position = position,
+	})
+	if play_sound then player.play_sound({ path = "utility/cannot_build" }) end
 end

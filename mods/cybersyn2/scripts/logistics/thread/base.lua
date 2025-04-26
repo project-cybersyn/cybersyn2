@@ -5,8 +5,9 @@
 local class = require("__cybersyn2__.lib.class").class
 local scheduler = require("__cybersyn2__.lib.scheduler")
 local cs2 = _G.cs2
+local mod_settings = _G.cs2.mod_settings
 
----@alias Cybersyn.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"find_vehicles"|"route"
+---@alias Cybersyn.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"route"
 
 ---@class Cybersyn.LogisticsThread: StatefulThread
 ---@field state Cybersyn.LogisticsThreadState State of the task.
@@ -21,22 +22,21 @@ local cs2 = _G.cs2
 ---@field providers table<SignalKey, IdSet>? Idset of nodes providing the given product
 ---@field providers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped providers
 ---@field pushers table<SignalKey, IdSet>? Ids of nodes pushing the given product
+---@field pushers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped pushers
 ---@field pullers table<SignalKey, IdSet>? Ids of nodes pulling the given product
 ---@field pullers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped pullers
 ---@field sinks table<SignalKey, IdSet>? Ids of nodes that are sinks for the given product
+---@field sinks_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped sinks
 ---@field dumps Cybersyn.Node[]? Nodes that are dumps
 ---@field seen_cargo table<SignalKey, true>? Items we've seen and need to iterate over.
 ---@field allocations Cybersyn.Internal.LogisticsAllocation[]?
 ---@field cargo SignalKey[]? List of cargo.
----@field all_vehicles Id[]? All vehicles in the topology
 ---@field avail_trains table<Id, Cybersyn.Train>? Available trains
 local LogisticsThread = class("LogisticsThread", cs2.StatefulThread)
 _G.cs2.LogisticsThread = LogisticsThread
 
 function LogisticsThread.new()
 	local thread = setmetatable({}, LogisticsThread) --[[@as Cybersyn.LogisticsThread]]
-	-- TODO: start paused for debugging. remove for release
-	thread.paused = true
 	thread:set_state("init")
 	return thread
 end
@@ -54,7 +54,6 @@ function LogisticsThread:main()
 	end
 end
 
--- TODO: logistics start pauised for debugging, change for beta.
 cs2.schedule_thread("logistics", 0, function() return LogisticsThread.new() end)
 
 ---@return Cybersyn.LogisticsThread?
@@ -71,15 +70,8 @@ function LogisticsThread:enter_init()
 	self.current_topology = nil
 	self.active_topologies = nil
 	self.nodes = nil
-	-- XXX: temp debugging
-	-- clear allocations (dispatch phase should do this)
-	if self.allocations then
-		for _, alloc in pairs(self.allocations) do
-			alloc.from_inv:add_flow({ [alloc.item] = alloc.qty }, 1)
-			alloc.to_inv:add_flow({ [alloc.item] = alloc.qty }, -1)
-		end
-		self.allocations = nil
-	end
 end
 
-function LogisticsThread:init() self:set_state("poll_combinators") end
+function LogisticsThread:init()
+	if mod_settings.enable_logistics then self:set_state("poll_combinators") end
+end

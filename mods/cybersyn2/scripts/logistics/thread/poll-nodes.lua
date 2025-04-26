@@ -14,6 +14,7 @@ local combinator_settings = _G.cs2.combinator_settings
 local strace = stlib.strace
 local TRACE = stlib.TRACE
 local WARN = stlib.WARN
+local key_is_cargo = slib.key_is_cargo
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -53,28 +54,33 @@ end
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:classify_inventory(stop)
 	local inventory = stop:get_inventory()
-	-- TODO: this is ugly, apis to get at this inventory stuff should be
-	-- more centralized and less spaghetti
 	if not inventory then return end
 	if stop.is_producer then
-		for item, qty in pairs(inventory:get_net_produce()) do
+		inventory:foreach_producible_item(function(item, provide_qty, push_qty)
 			local _, out_t = stop:get_delivery_thresholds(item)
-			if qty >= out_t then
+			if provide_qty >= out_t then
 				self:add_to_logisics_set("providers", stop, item)
 				self.seen_cargo[item] = true
 			end
-			-- TODO: push
-		end
+			if push_qty >= out_t then
+				self:add_to_logisics_set("pushers", stop, item)
+				self.seen_cargo[item] = true
+			end
+		end)
 	end
 	if stop.is_consumer then
-		for item, qty in pairs(inventory:get_net_consume()) do
+		inventory:foreach_consumable_item(function(item, pull_qty, sink_qty)
 			local in_t = stop:get_delivery_thresholds(item)
-			if qty <= -in_t then
+			if pull_qty >= in_t then
 				self:add_to_logisics_set("pullers", stop, item)
 				self.seen_cargo[item] = true
 			end
-			-- TODO: sink
-		end
+			if sink_qty >= in_t then
+				self:add_to_logisics_set("sinks", stop, item)
+				self.seen_cargo[item] = true
+			end
+		end)
+		if stop.is_dump then table.insert(self.dumps, stop) end
 	end
 end
 
@@ -84,17 +90,24 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		function(comb) return comb.mode == "station" end
 	)
 	if #combs == 0 then
-		-- TODO: warning to station via api
-		strace(
-			WARN,
-			"message",
-			"Station ain't got no station comb, disabled for logistics",
-			stop.entity
+		cs2.create_alert(
+			stop.entity,
+			"no_station",
+			cs2.CS2_ICON_SIGNAL_ID,
+			{ "cybersyn2-alerts.no-station" }
 		)
 		return false
 	elseif #combs > 1 then
-		strace(WARN, "message", "Station has too many station combs", stop.entity)
+		cs2.create_alert(
+			stop.entity,
+			"too_many_station",
+			cs2.CS2_ICON_SIGNAL_ID,
+			{ "cybersyn2-alerts.too-many-station" }
+		)
 		return false
+	else
+		cs2.destroy_alert(stop.entity, "no_station")
+		cs2.destroy_alert(stop.entity, "too_many_station")
 	end
 	local comb = combs[1]
 	local inputs = comb.inputs
@@ -129,11 +142,12 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		stop.is_consumer = true
 		stop.is_producer = false
 	end
+	stop.is_dump = comb:read_setting(combinator_settings.dump)
 	local network_signal = comb:read_setting(combinator_settings.network_signal)
 	local is_each = network_signal == "signal-each"
 	local networks = {}
 	if network_signal and not is_each then
-		networks[network_signal] = 1 -- TODO: default global network mask setting
+		networks[network_signal] = mod_settings.default_network_mask
 	end
 	for k, v in pairs(inputs) do
 		if slib.key_is_virtual(k) then
@@ -151,7 +165,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		end
 	end
 	stop.networks = networks
-	-- TODO: implement this
+	-- TODO: implement network operations
 	stop.network_operation = 1
 	stop.allow_departure_signal =
 		comb:read_setting(combinator_settings.allow_departure_signal)
@@ -175,6 +189,14 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		comb:read_setting(combinator_settings.disable_cargo_condition)
 	stop.produce_single_item =
 		comb:read_setting(combinator_settings.produce_single_item)
+	stop.reserved_slots = comb:read_setting(combinator_settings.reserved_slots)
+		or 0
+	stop.reserved_capacity = comb:read_setting(
+		combinator_settings.reserved_capacity
+	) or 0
+	stop.spillover = comb:read_setting(combinator_settings.spillover) or 0
+	stop.ignore_secondary_thresholds =
+		comb:read_setting(combinator_settings.ignore_secondary_thresholds)
 
 	-- Inventory has already been polled at this point so nothing left to do
 	-- at station comb.
@@ -182,16 +204,93 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 end
 
 ---@param stop Cybersyn.TrainStop
+function LogisticsThread:poll_dt_combs(stop)
+	local combs = stop:get_associated_combinators(
+		function(comb) return comb.mode == "dt" end
+	)
+	if #combs == 0 then return end
+	local thresholds_in = {}
+	stop.thresholds_in = thresholds_in
+	local thresholds_out = {}
+	stop.thresholds_out = thresholds_out
+	for _, comb in pairs(combs) do
+		local inputs = comb.inputs
+		if not inputs then return end
+		local is_in = comb:read_setting(combinator_settings.dt_inbound)
+		local is_out = comb:read_setting(combinator_settings.dt_outbound)
+		for k, v in pairs(inputs) do
+			if k == "cybersyn2-all-items" then
+				if is_in then stop.threshold_item_in = v end
+				if is_out then stop.threshold_item_out = v end
+			elseif k == "cybersyn2-all-fluids" then
+				if is_in then stop.threshold_fluid_in = v end
+				if is_out then stop.threshold_fluid_out = v end
+			elseif key_is_cargo(k) then
+				if is_in then stop.thresholds_in[k] = v end
+				if is_out then stop.thresholds_out[k] = v end
+			end
+		end
+	end
+end
+
+---@param stop Cybersyn.TrainStop
+function LogisticsThread:poll_prio_combs(stop)
+	local combs = stop:get_associated_combinators(
+		function(comb) return comb.mode == "prio" end
+	)
+	if #combs == 0 then return end
+	local priorities = {}
+	stop.priorities = priorities
+	for _, comb in pairs(combs) do
+		local inputs = comb.inputs
+		if not inputs then return end
+		for k, v in pairs(inputs) do
+			if k == "cybersyn2-priority" then
+				stop.priority = v
+			elseif key_is_cargo(k) then
+				priorities[k] = v
+			end
+		end
+	end
+end
+
+---@param stop Cybersyn.TrainStop
+function LogisticsThread:poll_channels_combs(stop)
+	local combs = stop:get_associated_combinators(
+		function(comb) return comb.mode == "channels" end
+	)
+	if #combs == 0 then return end
+	local channels = {}
+	stop.channels = channels
+	for _, comb in pairs(combs) do
+		local inputs = comb.inputs
+		if not inputs then return end
+		for k, v in pairs(inputs) do
+			if k == "cybersyn2-all-items" then
+				stop.channel = v
+			elseif key_is_cargo(k) then
+				channels[k] = v
+			end
+		end
+	end
+end
+
+---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop(stop)
 	-- Check warming-up state. Skip stops that are warming up.
-	-- TODO: this should be a mod_setting
-	if stop.created_tick + 1 > game.tick then return end
+	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
+		return
+	end
 	-- Get station comb info
 	if not self:poll_train_stop_station_comb(stop) then return end
+	-- Get inventory
+	stop:update_inventory(false)
 	-- Get delivery thresholds
-	-- Get push thresholds
-	-- Get sink thresholds
+	self:poll_dt_combs(stop)
 	-- Get priorities
+	self:poll_prio_combs(stop)
+	-- Get channels
+	self:poll_channels_combs(stop)
 	-- Classify inventory of stop
 	return self:classify_inventory(stop)
 end

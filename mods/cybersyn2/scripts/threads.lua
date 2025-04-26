@@ -59,12 +59,12 @@ end
 ---for each element in groups of `self.stride` per iteration.
 ---Calls `finish(self)` when the loop is complete.
 ---@param array any[] The array to loop over. (MUST be stable across iterations; best to copy and store in thread state if in doubt.)
----@param step fun(self: StatefulThread, element: any)
+---@param step fun(self: StatefulThread, element: any, index?: int, array?: any)
 ---@param finish fun(self: StatefulThread)
 function StatefulThread:async_loop(array, step, finish)
 	local max_index = min(self.index + max(self.stride, 1) - 1, #array)
 	for i = self.index, max_index do
-		step(self, array[i])
+		step(self, array[i], i, array)
 	end
 	if max_index >= #array then
 		finish(self)

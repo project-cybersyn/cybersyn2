@@ -5,12 +5,14 @@
 local class = require("__cybersyn2__.lib.class").class
 local tlib = require("__cybersyn2__.lib.table")
 local signal_lib = require("__cybersyn2__.lib.signal")
+local mlib = require("__cybersyn2__.lib.math")
 
 local cs2 = _G.cs2
 local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
 
 local signal_to_key = signal_lib.signal_to_key
 local key_to_signal = signal_lib.key_to_signal
+local distsq = mlib.pos_distsq
 
 --------------------------------------------------------------------------------
 -- Settings
@@ -220,7 +222,7 @@ end
 ---@param unit_number UnitNumber?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.Combinator?
-function Combinator.get(unit_number, skip_validation)
+local function get_combinator(unit_number, skip_validation)
 	if not unit_number then return nil end
 	local combinator = storage.combinators[unit_number]
 	if skip_validation then
@@ -229,6 +231,8 @@ function Combinator.get(unit_number, skip_validation)
 		return combinator:is_valid() and combinator or nil
 	end
 end
+Combinator.get = get_combinator
+_G.cs2.get_combinator = get_combinator
 
 ---Destroy a saved combinator state. Should only be called by combinator
 ---lifecycle.
@@ -347,4 +351,35 @@ function Combinator:cross_wires(state)
 		i_red.disconnect_all(SCRIPT)
 		i_green.disconnect_all(SCRIPT)
 	end
+end
+
+local WAGON_TYPES = { "locomotive", "cargo-wagon", "fluid-wagon" }
+
+---For a combinator associated with a rail, find the wagon the combinator
+---is pointing at if any.
+---@return LuaEntity? wagon The wagon the combinator is pointing at.
+function Combinator:find_connected_wagon()
+	-- TODO: this can be slightly optimized by looking at a 1x1 square
+	-- around the combinator (its bbox shifted 1 tile towards the rail)
+	-- instead of the whole rail.
+	local rail = self.connected_rail
+	if not rail then return nil end
+	local wagons = self.entity.surface.find_entities_filtered({
+		type = WAGON_TYPES,
+		area = rail.bounding_box,
+	})
+	if #wagons == 0 then return nil end
+	if #wagons == 1 then return wagons[1] end
+	local pos = self.entity.position
+	local closest = math.huge
+	local wagon = nil
+	for i = 1, #wagons do
+		local w = wagons[i]
+		local dist = distsq(pos, w.position)
+		if dist < closest then
+			wagon = w
+			closest = dist
+		end
+	end
+	return wagon
 end

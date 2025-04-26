@@ -130,6 +130,21 @@ function lib.map(A, f)
 	return B
 end
 
+---Map a numeric for loop into an array via a mapping function.
+---@generic T
+---@param min integer
+---@param max integer
+---@param step integer
+---@param f fun(i: integer): T
+---@return T[]
+function lib.map_range(min, max, step, f)
+	local A = {}
+	for i = min, max, step do
+		A[#A + 1] = f(i)
+	end
+	return A
+end
+
 ---Run a function for each element in a table.
 ---@generic K, V
 ---@param T table<K, V>
@@ -276,6 +291,40 @@ function lib.filter_groups(A, f)
 		if #group > 0 then result[#result + 1] = group end
 	end
 	return result
+end
+
+---@param a any[]
+---@param i uint
+local function irnext(a, i)
+	i = i + 1
+	if i <= #a then
+		local r = a[#a - i + 1]
+		return i, r
+	else
+		return nil, nil
+	end
+end
+
+---Iterate an array in reverse
+---@generic T
+---@param a T[]
+function lib.irpairs(a) return irnext, a, 0 end
+
+---Filter an array in place.
+---@generic T
+---@param A T[]
+---@param f fun(value: T, index: integer): boolean?
+function lib.filter_in_place(A, f)
+	local j = 1
+	for i = 1, #A do
+		if f(A[i], i) then
+			A[j] = A[i]
+			j = j + 1
+		end
+	end
+	for i = #A, j, -1 do
+		A[i] = nil
+	end
 end
 
 return lib

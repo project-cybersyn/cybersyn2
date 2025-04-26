@@ -16,6 +16,12 @@ local lib = {}
 
 ---@alias PlayerIndex uint A Factorio `player_index` associated uniquely with a particular `LuaPlayer`.
 
+---@alias SignalKey string A string identifying a particular SignalID.
+
+---@alias SignalCounts table<SignalKey, int> Signals and associated counts.
+
+---@alias Cybersyn.Manifest SignalCounts
+
 ---@class StateMachine
 ---@field public state string
 ---@field public is_changing_state boolean? `true` if a state change is ongoing
@@ -33,6 +39,7 @@ local lib = {}
 ---@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
 ---@field public inputs? SignalCounts The most recent signals read from the combinator. This is a cached value and will be `nil` in various situations where the combinator hasn't been or can't be read.
 ---@field public associated_entities table<string,LuaEntity>? Hidden or related entities that must be created or destroyed along with the combinator.
+---@field public connected_rail LuaEntity? If this combinator was built next to a rail, this is that rail.
 
 ---A vehicle managed by Cybersyn.
 ---@class Cybersyn.Vehicle
@@ -52,8 +59,11 @@ local lib = {}
 ---@field public volatile boolean? `true` if the `LuaTrain` associated to this train is unstable and may be invalidated at any time, eg for a train passing through a space elevator.
 ---@field public item_slot_capacity uint Number of item slots available across all wagons if known.
 ---@field public fluid_capacity uint Total fluid capacity of all wagons if known.
+---@field public per_wagon_item_slot_capacity table<uint, uint>? Cached number of item slots per wagon. Used by wagon control. Cleared on capacity re-eval.
+---@field public per_wagon_fluid_capacity table<uint, uint>? Cached fluid capacity per wagon. Used by wagon control. Cleared on capacity re-eval.
 ---@field public layout_id uint The layout ID of the train.
 ---@field public stopped_at LuaEntity? Cache of last known train stop. Do not rely on this value.
+---@field public is_filtered boolean? `true` if wagon filters were set on this train upon arrival at a stop.
 
 ---Numeric encoding of prototype types of carriages
 ---@enum Cybersyn.CarriageType
@@ -72,6 +82,8 @@ lib.CarriageType = {
 ---@field public carriage_names string[] The names of the entity prototypes of the train's carriages from front to back.
 ---@field public carriage_types Cybersyn.CarriageType[] The types of the entity prototypes of the train's carriages from front to back.
 ---@field public bidirectional boolean `true` if the train has locomotives allowing it to move both directions.
+---@field public n_cargo_wagons uint Number of cargo wagons in the train.
+---@field public n_fluid_wagons uint Number of fluid wagons in the train.
 
 ---@enum Cybersyn.Node.NetworkOperation
 lib.NodeNetworkOperation = {
@@ -98,6 +110,7 @@ lib.NodeNetworkOperation = {
 ---@field public created_inventory_id Id? The id of the inventory automatically created for this node if any.
 ---@field public is_producer boolean? `true` if the node can send deliveries
 ---@field public is_consumer boolean? `true` if the node can receive deliveries
+---@field public is_dump boolean? `true` if the node is a push logistics dump. `is_consumer` must also be `true`.
 ---@field public networks? SignalCounts The network masks of the node. Updated only when the node is polled.
 ---@field public network_operation Cybersyn.Node.NetworkOperation How the network masks of the node should be combined.
 ---@field public priority int? Priority of the node.
@@ -111,7 +124,8 @@ lib.NodeNetworkOperation = {
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
----@field public last_consumer_tick uint? The tick of the last time this node was dispatched to as a consumer. Used to disambiguate between equal prioirty consumers.
+---@field public last_consumer_tick uint? The tick of the last time this node was dispatched to as a consumer.
+---@field public last_producer_tick uint? The tick of the last time this node was dispatched to as a producer.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
@@ -128,6 +142,13 @@ lib.NodeNetworkOperation = {
 ---@field public inactivity_mode "deliver"|"forceout"|nil How to apply inactivity timeouts
 ---@field public disable_cargo_condition boolean? `true` if the cargo condition should be ignored
 ---@field public produce_single_item boolean? `true` if the station should only provide single items per delivery
+---@field public reserved_slots uint? Reserved slots per cargo wagon
+---@field public reserved_capacity uint? Reserved capacity per fluid wagon
+---@field public spillover uint? Spillover per item per cargo wagon
+---@field public ignore_secondary_thresholds boolean? `true` if station should ignore thresholds when adding secondary items to outgoing trains.
+---@field public per_wagon_mode boolean? `true` if the station is in per-wagon mode due to the presence of a wagon comb.
+---@field public shared_inventory_slaves IdSet? Exists only if this station is a shared-inventory master and contains the ids of the slaves.
+---@field public shared_inventory_master Id? The id of the shared inventory master, if this station is a slave.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
@@ -149,12 +170,11 @@ lib.NodeNetworkOperation = {
 ---@field public id Id
 ---@field public surface_index Id? The index of the surface this inventory should be associated with if any.
 ---@field public created_for_node_id Id? If this inventory was created implicitly for a node, that node's id.
----@field public produce SignalCounts Positive contents of inventory at last poll.
----@field public consume SignalCounts Negative contents of inventory at last poll.
----@field public flow SignalCounts? The net of all future incoming and outgoing deliveries to this inventory. Positive values represent inflows, negative outflows.
----@field public net_produce SignalCounts? Provide net of outflow, cached.
----@field public net_consume SignalCounts? Request net of inflow, cached.
----@field public deliveries IdSet? The set of future deliveries targeting this inventory.
+---@field public inventory SignalCounts Base inventory (or pseudoinventory) as read from the combinator or world state.
+---@field public inflow SignalCounts Future incoming cargo
+---@field public outflow SignalCounts Future outgoing cargo
+---@field public item_stack_capacity uint? The number of item slots available in this inventory, if known.
+---@field public fluid_capacity uint? The total fluid capacity of this inventory, if known.
 
 ---@class Cybersyn.Delivery: StateMachine
 ---@field public id Id
@@ -172,6 +192,9 @@ lib.NodeNetworkOperation = {
 ---@class Cybersyn.TrainDelivery: Cybersyn.Delivery
 ---@field public from_charge SignalCounts? Amount charged against the source station's inventory, which may differ from the manifest by overspill.
 ---@field public to_charge SignalCounts? Amount charged towards the destination station's inventory. Equal to the manifest, but `nil`ed when charge is cleared.
+---@field public spillover uint Overspill used when calculating this delivery
+---@field public reserved_slots uint Reserved slots used when calculating this delivery
+---@field public reserved_fluid_capacity uint Reserved capacity used when calculating this delivery
 
 --------------------------------------------------------------------------------
 -- Public type encodings for the query interface.
