@@ -30,7 +30,7 @@ relm.define_element({
 				type = "label",
 				font_color = { 255, 230, 192 },
 				font = "default-bold",
-				caption = "Signal Inputs",
+				caption = { "cybersyn2-combinator-modes-labels.signal-inputs" },
 			}),
 			Pr({ type = "line", direction = "horizontal" }),
 			Pr({
@@ -57,7 +57,7 @@ relm.define_element({
 --------------------------------------------------------------------------------
 
 cs2.register_combinator_mode({
-	name = "channels",
+	name = "prio",
 	localized_string = "cybersyn2-combinator-modes.prio",
 	settings_element = "CombinatorGui.Mode.Prio",
 	help_element = "CombinatorGui.Mode.Prio.Help",
