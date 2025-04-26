@@ -21,20 +21,54 @@ local get_quality_name = signal_lib.get_quality_name
 local ceil = math.ceil
 local floor = math.floor
 local min = math.min
+local empty = tlib.empty
 local Pr = relm.Primitive
 local VF = ultros.VFlow
+
+--------------------------------------------------------------------------------
+-- Settings
+--------------------------------------------------------------------------------
+
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("no_wagon_manifest", "wagon_flags", 0)
+)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("live_wagon_inventory", "wagon_flags", 1)
+)
 
 --------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
 
 relm.define_element({
-	name = "CombinatorGui.Mode.WagonManifest",
-	render = function(props) return nil end,
+	name = "CombinatorGui.Mode.Wagon",
+	render = function(props)
+		return ultros.WellSection(
+			{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
+			{
+				gui.InnerHeading({
+					caption = { "cybersyn2-combinator-modes-labels.flags" },
+				}),
+				gui.Checkbox(
+					{ "cybersyn2-combinator-mode-wagon.per-wagon-manifest" },
+					{ "cybersyn2-combinator-mode-wagon.per-wagon-manifest-tooltip" },
+					props.combinator,
+					combinator_settings.no_wagon_manifest,
+					true
+				),
+				gui.Checkbox(
+					{ "cybersyn2-combinator-mode-wagon.live-wagon-inventory" },
+					{ "cybersyn2-combinator-mode-wagon.live-wagon-inventory-tooltip" },
+					props.combinator,
+					combinator_settings.live_wagon_inventory
+				),
+			}
+		)
+	end,
 })
 
 relm.define_element({
-	name = "CombinatorGui.Mode.WagonManifest.Help",
+	name = "CombinatorGui.Mode.Wagon.Help",
 	render = function(props)
 		return VF({
 			ultros.RtMultilineLabel({ "cybersyn2-combinator-mode-wagon.desc" }),
@@ -42,7 +76,7 @@ relm.define_element({
 				type = "label",
 				font_color = { 255, 230, 192 },
 				font = "default-bold",
-				caption = "Signal Outputs",
+				caption = { "cybersyn2-combinator-modes-labels.signal-outputs" },
 			}),
 			Pr({ type = "line", direction = "horizontal" }),
 			Pr({
@@ -53,7 +87,7 @@ relm.define_element({
 				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.value" }),
 				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
 				ultros.RtMultilineLabel({
-					"cybersyn2-combinator-mode-wagon.input-signals",
+					"cybersyn2-combinator-mode-wagon.output-signals",
 				}),
 			}),
 		})
@@ -67,8 +101,8 @@ relm.define_element({
 cs2.register_combinator_mode({
 	name = "wagon",
 	localized_string = "cybersyn2-combinator-modes.wagon",
-	settings_element = "CombinatorGui.Mode.WagonManifest",
-	help_element = "CombinatorGui.Mode.WagonManifest.Help",
+	settings_element = "CombinatorGui.Mode.Wagon",
+	help_element = "CombinatorGui.Mode.Wagon.Help",
 	is_output = true,
 })
 
@@ -81,10 +115,18 @@ local function check_per_wagon_mode(stop)
 	local combs = stop:get_associated_combinators(
 		function(c) return c.mode == "wagon" end
 	)
-	if #combs == 0 and stop.per_wagon_mode then
+	local is_per_wagon = false
+	for _, comb in pairs(combs) do
+		if not comb:read_setting(combinator_settings.no_wagon_manifest) then
+			is_per_wagon = true
+			break
+		end
+	end
+
+	if (not is_per_wagon) and stop.per_wagon_mode then
 		stop.per_wagon_mode = nil
 		cs2.raise_node_data_changed(stop)
-	elseif #combs > 0 and not stop.per_wagon_mode then
+	elseif is_per_wagon and not stop.per_wagon_mode then
 		stop.per_wagon_mode = true
 		cs2.raise_node_data_changed(stop)
 	end
@@ -116,23 +158,23 @@ cs2.on_train_departed(function(train, cstrain, stop)
 		function(c) return c.mode == "wagon" end
 	)
 	if #combs > 0 then
-		local empty = {}
 		for _, comb in pairs(combs) do
 			comb:direct_write_outputs(empty)
 		end
 	end
+	-- TODO: remove when final decision of no filters is reached
 	-- Clear wagon inventory filters
-	if cstrain.is_filtered then
-		cstrain.is_filtered = nil
-		for _, carriage in pairs(train.cargo_wagons) do
-			local inv = carriage.get_inventory(defines.inventory.cargo_wagon)
-			if inv then
-				for j = 1, #inv do
-					inv.set_filter(j, nil)
-				end
-			end
-		end
-	end
+	-- if cstrain.is_filtered then
+	-- 	cstrain.is_filtered = nil
+	-- 	for _, carriage in pairs(train.cargo_wagons) do
+	-- 		local inv = carriage.get_inventory(defines.inventory.cargo_wagon)
+	-- 		if inv then
+	-- 			for j = 1, #inv do
+	-- 				inv.set_filter(j, nil)
+	-- 			end
+	-- 		end
+	-- 	end
+	-- end
 end)
 
 --------------------------------------------------------------------------------
@@ -342,7 +384,8 @@ local function create_wagon_manifests(train, stop, delivery)
 			) - n_slots
 			-- Distribute item slots + set filters
 			lock_item_slots(cw_manifests, n_slots, item, qty, stack_size)
-			train.is_filtered = true
+			-- TODO: remove when final decision of no filters is reached
+			-- train.is_filtered = true
 			-- Distribute spillover_slots
 			lock_item_slots(cw_manifests, spillover_slots, nil, nil, nil)
 		end
