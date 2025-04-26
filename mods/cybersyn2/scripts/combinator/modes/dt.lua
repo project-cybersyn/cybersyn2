@@ -59,7 +59,7 @@ relm.define_element({
 	render = function(props)
 		return VF({
 			ultros.RtMultilineLabel({
-				"cybersyn2-combinator-mode-delivery-size.help",
+				"cybersyn2-combinator-mode-delivery-size.desc",
 			}),
 			Pr({
 				type = "label",

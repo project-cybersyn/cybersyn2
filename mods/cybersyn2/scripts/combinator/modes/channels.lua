@@ -25,30 +25,28 @@ relm.define_element({
 	name = "CombinatorGui.Mode.Channels.Help",
 	render = function(props)
 		return VF({
-			ultros.RtMultilineLabel(
-				"Items can be assigned to any of 32 [font=default-bold]channels[/font] using bitmasks. Items will only be delivered between stations that have that item on the [font=default-bold]same channel[/font] as determined by the bitwise AND of the bitmasks."
-			),
+			ultros.RtMultilineLabel({ "cybersyn2-combinator-mode-channels.desc" }),
 			Pr({
 				type = "label",
 				font_color = { 255, 230, 192 },
 				font = "default-bold",
-				caption = "Signal Inputs",
+				caption = { "cybersyn2-combinator-modes-labels.signal-inputs" },
 			}),
 			Pr({ type = "line", direction = "horizontal" }),
 			Pr({
 				type = "table",
 				column_count = 2,
 			}, {
-				ultros.BoldLabel("Signal"),
-				ultros.BoldLabel("Effect"),
+				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.signal" }),
+				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.effect" }),
 				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
-				ultros.RtMultilineLabel(
-					"Set item channels for individual items at this station. Each item's channel mask will be set to its signal value."
-				),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-channels.item-channels",
+				}),
 				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
-				ultros.RtMultilineLabel(
-					"Set the default channel mask for this station. (Applies to fluids as well.)"
-				),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-channels.all-item-channels",
+				}),
 			}),
 		})
 	end,

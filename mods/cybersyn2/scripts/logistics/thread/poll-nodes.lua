@@ -255,6 +255,27 @@ function LogisticsThread:poll_prio_combs(stop)
 end
 
 ---@param stop Cybersyn.TrainStop
+function LogisticsThread:poll_channels_combs(stop)
+	local combs = stop:get_associated_combinators(
+		function(comb) return comb.mode == "channels" end
+	)
+	if #combs == 0 then return end
+	local channels = {}
+	stop.channels = channels
+	for _, comb in pairs(combs) do
+		local inputs = comb.inputs
+		if not inputs then return end
+		for k, v in pairs(inputs) do
+			if k == "cybersyn2-all-items" then
+				stop.channel = v
+			elseif key_is_cargo(k) then
+				channels[k] = v
+			end
+		end
+	end
+end
+
+---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop(stop)
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
@@ -268,6 +289,8 @@ function LogisticsThread:poll_train_stop(stop)
 	self:poll_dt_combs(stop)
 	-- Get priorities
 	self:poll_prio_combs(stop)
+	-- Get channels
+	self:poll_channels_combs(stop)
 	-- Classify inventory of stop
 	return self:classify_inventory(stop)
 end
