@@ -503,8 +503,6 @@ function LogisticsThread:alloc_item_push_to_dump(item, pusher_i, pusher_i_prio)
 		for j = 1, #dumps do
 			local dump_j = dumps[j]
 
-			strace(DEBUG, "cs2", "alloc", "message", item, "dump to", dump_j.id)
-
 			alloc_item_generic(
 				self,
 				item,
