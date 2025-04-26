@@ -52,3 +52,8 @@ _G.cs2.DEFAULT_COMBINATOR_SETTINGS = {
 	reserved_capacity = 0,
 	spillover = 0,
 }
+
+_G.cs2.CS2_ICON_SIGNAL_ID = {
+	type = "virtual",
+	name = "cybersyn2",
+}

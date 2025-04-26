@@ -17,6 +17,7 @@ require("scripts.storage")
 require("scripts.settings")
 require("scripts.lib")
 require("scripts.threads")
+require("scripts.alerts")
 
 require("scripts.logistics.inventory")
 require("scripts.logistics.delivery.base")

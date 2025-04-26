@@ -89,17 +89,24 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		function(comb) return comb.mode == "station" end
 	)
 	if #combs == 0 then
-		-- TODO: warning to station via api
-		strace(
-			WARN,
-			"message",
-			"Station ain't got no station comb, disabled for logistics",
-			stop.entity
+		cs2.create_alert(
+			stop.entity,
+			"no_station",
+			cs2.CS2_ICON_SIGNAL_ID,
+			{ "cybersyn2-alerts.no-station" }
 		)
 		return false
 	elseif #combs > 1 then
-		strace(WARN, "message", "Station has too many station combs", stop.entity)
+		cs2.create_alert(
+			stop.entity,
+			"too_many_station",
+			cs2.CS2_ICON_SIGNAL_ID,
+			{ "cybersyn2-alerts.too-many-station" }
+		)
 		return false
+	else
+		cs2.destroy_alert(stop.entity, "no_station")
+		cs2.destroy_alert(stop.entity, "too_many_station")
 	end
 	local comb = combs[1]
 	local inputs = comb.inputs

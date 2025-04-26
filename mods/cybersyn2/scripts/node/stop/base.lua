@@ -195,7 +195,15 @@ end
 function TrainStop:is_full()
 	local limit = self.entity.trains_limit or 1000
 	if limit == 0 then
-		-- TODO: warn user about setting 0 limits on cs stations
+		cs2.create_alert(
+			self.entity,
+			"train_stop_limit_zero",
+			cs2.CS2_ICON_SIGNAL_ID,
+			{
+				"cybersyn2-alerts.train-stop-limit-zero",
+			},
+			600
+		)
 	end
 	return table_size(self.deliveries) >= limit
 end
