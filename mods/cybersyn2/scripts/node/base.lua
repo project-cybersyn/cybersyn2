@@ -223,8 +223,8 @@ function Node:get_delivery_thresholds(item)
 		if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
 		local tin = (self.threshold_item_in * mul) or 1
 		local tout = (self.threshold_item_out * mul) or 1
-		return ins and ((ins[item] * mul) or tin) or tin,
-			outs and ((outs[item] * mul) or tout) or tout
+		return ins and ((ins[item] and (ins[item] * mul)) or tin) or tin,
+			outs and ((outs[item] and (outs[item] * mul)) or tout) or tout
 	end
 end
 
