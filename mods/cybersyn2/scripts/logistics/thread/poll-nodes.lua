@@ -14,6 +14,7 @@ local combinator_settings = _G.cs2.combinator_settings
 local strace = stlib.strace
 local TRACE = stlib.TRACE
 local WARN = stlib.WARN
+local key_is_cargo = slib.key_is_cargo
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -203,6 +204,36 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 end
 
 ---@param stop Cybersyn.TrainStop
+function LogisticsThread:poll_dt_combs(stop)
+	local combs = stop:get_associated_combinators(
+		function(comb) return comb.mode == "dt" end
+	)
+	if #combs == 0 then return end
+	local thresholds_in = {}
+	stop.thresholds_in = thresholds_in
+	local thresholds_out = {}
+	stop.thresholds_out = thresholds_out
+	for _, comb in pairs(combs) do
+		local inputs = comb.inputs
+		if not inputs then return end
+		local is_in = comb:read_setting(combinator_settings.dt_inbound)
+		local is_out = comb:read_setting(combinator_settings.dt_outbound)
+		for k, v in pairs(inputs) do
+			if k == "cybersyn2-all-items" then
+				if is_in then stop.threshold_item_in = v end
+				if is_out then stop.threshold_item_out = v end
+			elseif k == "cybersyn2-all-fluids" then
+				if is_in then stop.threshold_fluid_in = v end
+				if is_out then stop.threshold_fluid_out = v end
+			elseif key_is_cargo(k) then
+				if is_in then stop.thresholds_in[k] = v end
+				if is_out then stop.thresholds_out[k] = v end
+			end
+		end
+	end
+end
+
+---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop(stop)
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
@@ -213,6 +244,7 @@ function LogisticsThread:poll_train_stop(stop)
 	-- Get inventory
 	stop:update_inventory(false)
 	-- Get delivery thresholds
+	self:poll_dt_combs(stop)
 	-- Get priorities
 	-- Classify inventory of stop
 	return self:classify_inventory(stop)

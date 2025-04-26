@@ -31,24 +31,25 @@ relm.define_element({
 	name = "CombinatorGui.Mode.DT",
 	render = function(props)
 		return VF({
-			ultros.WellSection({ caption = "Settings" }, {
+			ultros.WellSection(
+				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
+				{
 
-				gui.InnerHeading({
-					caption = "Flags",
-				}),
-				gui.Checkbox(
-					"Set inbound delivery thresholds",
-					"If enabled, inbound thresholds will be set by the inputs to this combinator.",
-					props.combinator,
-					combinator_settings.dt_inbound
-				),
-				gui.Checkbox(
-					"Set outbound delivery thresholds",
-					"If enabled, outbound thresholds will be set by the inputs to this combinator.",
-					props.combinator,
-					combinator_settings.dt_outbound
-				),
-			}),
+					gui.InnerHeading({
+						caption = { "cybersyn2-combinator-modes-labels.flags" },
+					}),
+					gui.Checkbox({
+						"cybersyn2-combinator-mode-delivery-size.set-inbound-delivery-size",
+					}, {
+						"cybersyn2-combinator-mode-delivery-size.set-inbound-delivery-size-tooltip",
+					}, props.combinator, combinator_settings.dt_inbound),
+					gui.Checkbox({
+						"cybersyn2-combinator-mode-delivery-size.set-outbound-delivery-size",
+					}, {
+						"cybersyn2-combinator-mode-delivery-size.set-outbound-delivery-size-tooltip",
+					}, props.combinator, combinator_settings.dt_outbound),
+				}
+			),
 		})
 	end,
 })
@@ -57,34 +58,34 @@ relm.define_element({
 	name = "CombinatorGui.Mode.DT.Help",
 	render = function(props)
 		return VF({
-			ultros.RtMultilineLabel(
-				"Stations will not take orders below their [font=default-bold]inbound delivery threshold[/font] or send orders below their [font=default-bold]outbound delivery threshold[/font]. Thresholds apply to each item individually."
-			),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-delivery-size.help",
+			}),
 			Pr({
 				type = "label",
 				font_color = { 255, 230, 192 },
 				font = "default-bold",
-				caption = "Signal Inputs",
+				caption = { "cybersyn2-combinator-modes-labels.signal-inputs" },
 			}),
 			Pr({ type = "line", direction = "horizontal" }),
 			Pr({
 				type = "table",
 				column_count = 2,
 			}, {
-				ultros.BoldLabel("Signal"),
-				ultros.BoldLabel("Effect"),
+				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.signal" }),
+				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.effect" }),
 				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
-				ultros.RtMultilineLabel(
-					"Set checked thresholds for individual items at this station. Each item's threshold will be set to its signal value."
-				),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-delivery-size.cargo-inputs",
+				}),
 				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
-				ultros.RtMultilineLabel(
-					"Set checked thresholds for all items at this station."
-				),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-delivery-size.all-items",
+				}),
 				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
-				ultros.RtMultilineLabel(
-					"Set checked thresholds for all fluids at this station."
-				),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-delivery-size.all-fluids",
+				}),
 			}),
 		})
 	end,
