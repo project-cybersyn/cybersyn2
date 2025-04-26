@@ -359,6 +359,9 @@ local WAGON_TYPES = { "locomotive", "cargo-wagon", "fluid-wagon" }
 ---is pointing at if any.
 ---@return LuaEntity? wagon The wagon the combinator is pointing at.
 function Combinator:find_connected_wagon()
+	-- TODO: this can be slightly optimized by looking at a 1x1 square
+	-- around the combinator (its bbox shifted 1 tile towards the rail)
+	-- instead of the whole rail.
 	local rail = self.connected_rail
 	if not rail then return nil end
 	local wagons = self.entity.surface.find_entities_filtered({

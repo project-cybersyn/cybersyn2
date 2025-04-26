@@ -9,6 +9,7 @@ local cs2 = _G.cs2
 local TrainDelivery = _G.cs2.TrainDelivery
 local mod_settings = _G.cs2.mod_settings
 
+local empty = tlib.empty
 local max = math.max
 local min = math.min
 local INF = math.huge
@@ -225,12 +226,13 @@ function LogisticsThread:route_train_allocation(allocation, index)
 	local is_fluid = allocation.is_fluid
 	local stack_size = allocation.stack_size
 
+	local avail_trains = self.avail_trains or empty
 	local best_train = nil
 	local best_score = -INF
-	for train_id, train in pairs(self.avail_trains) do
+	for train_id, train in pairs(avail_trains) do
 		-- Check if still available
 		if not train:is_available() then
-			self.avail_trains[train_id] = nil
+			avail_trains[train_id] = nil
 			goto continue
 		end
 		-- Check if capacity exceeds both thresholds
@@ -282,6 +284,12 @@ function LogisticsThread:maybe_route_allocation(allocation, index)
 end
 
 function LogisticsThread:enter_route()
+	local top_id = self.current_topology
+	self.avail_trains = tlib.t_map_t(storage.vehicles, function(_, veh)
+		if veh.type == "train" and veh.topology_id == top_id then
+			return veh.id, veh
+		end
+	end) --[[@as table<uint, Cybersyn.Train>]]
 	self.stride = 1
 	self.index = 1
 end

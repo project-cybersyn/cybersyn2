@@ -571,6 +571,6 @@ function LogisticsThread:alloc()
 	self:async_loop(
 		self.cargo,
 		self.alloc_item,
-		function(x) x:set_state("find_vehicles") end
+		function(x) x:set_state("route") end
 	)
 end

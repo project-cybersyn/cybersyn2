@@ -7,7 +7,7 @@ local scheduler = require("__cybersyn2__.lib.scheduler")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
----@alias Cybersyn.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"find_vehicles"|"route"
+---@alias Cybersyn.LogisticsThreadState "init"|"poll_combinators"|"next_t"|"poll_nodes"|"alloc"|"route"
 
 ---@class Cybersyn.LogisticsThread: StatefulThread
 ---@field state Cybersyn.LogisticsThreadState State of the task.
@@ -31,7 +31,6 @@ local mod_settings = _G.cs2.mod_settings
 ---@field seen_cargo table<SignalKey, true>? Items we've seen and need to iterate over.
 ---@field allocations Cybersyn.Internal.LogisticsAllocation[]?
 ---@field cargo SignalKey[]? List of cargo.
----@field all_vehicles Id[]? All vehicles in the topology
 ---@field avail_trains table<Id, Cybersyn.Train>? Available trains
 local LogisticsThread = class("LogisticsThread", cs2.StatefulThread)
 _G.cs2.LogisticsThread = LogisticsThread
