@@ -255,7 +255,7 @@ relm.define_element({
 				ultros.BoldLabel("Effect"),
 				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
 				ultros.RtMultilineLabel(
-					"Set station inventory. Positive values indicate available cargo, while negative values indicate requested cargo."
+					"Set station inventory. Positive values indicate available cargo, while negative values indicate requested cargo. If an [font=default-bold]Inventory[/font] combinator is present, inventory from that combinator overrides this one."
 				),
 				ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
 				ultros.RtMultilineLabel(
@@ -263,11 +263,11 @@ relm.define_element({
 				),
 				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
 				ultros.RtMultilineLabel(
-					"Set the inbound and outbound delivery threshold for all items at this station."
+					"Set the inbound and outbound delivery size for all items at this station."
 				),
 				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
 				ultros.RtMultilineLabel(
-					"Set the inbound and outbound delivery threshold for all fluids at this station."
+					"Set the inbound and outbound delivery size for all fluids at this station."
 				),
 			}),
 		})
