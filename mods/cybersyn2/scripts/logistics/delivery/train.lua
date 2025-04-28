@@ -365,7 +365,7 @@ cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 	if renamed_type ~= "train-stop" then return end
 	local stop = TrainStop.get_stop_from_unit_number(entity.unit_number)
 	if not stop then return end
-	for delivery_id in stop.deliveries or empty do
+	for delivery_id in pairs(stop.deliveries or empty) do
 		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		if delivery then
 			local train = Train.get(delivery.vehicle_id)
