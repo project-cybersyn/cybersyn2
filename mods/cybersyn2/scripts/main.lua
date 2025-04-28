@@ -131,7 +131,7 @@ end
 ---@param event EventData.on_entity_renamed
 local function on_renamed(event)
 	if event.entity.name == "train-stop" then
-		cs2.raise_entity_renamed("train-stop", event.entity)
+		cs2.raise_entity_renamed("train-stop", event.entity, event.old_name)
 	end
 end
 
