@@ -61,4 +61,6 @@ cs2.register_combinator_mode({
 	localized_string = "cybersyn2-combinator-modes.prio",
 	settings_element = "CombinatorGui.Mode.Prio",
 	help_element = "CombinatorGui.Mode.Prio.Help",
+	is_input = true,
+	is_output = false,
 })

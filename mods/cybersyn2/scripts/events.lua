@@ -68,7 +68,7 @@ _G.cs2.on_entity_repositioned, _G.cs2.raise_entity_repositioned =
 
 -- Event raised when a relevant entity is renamed.
 _G.cs2.on_entity_renamed, _G.cs2.raise_entity_renamed =
-	event("entity_renamed", "string", "LuaEntity", "nil", "nil", "nil")
+	event("entity_renamed", "string", "LuaEntity", "string", "nil", "nil")
 
 _G.cs2.on_surface, _G.cs2.raise_surface =
 	event("surface", "int", "string", "nil", "nil", "nil")

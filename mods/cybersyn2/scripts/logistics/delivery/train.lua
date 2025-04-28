@@ -5,7 +5,9 @@
 local class = require("__cybersyn2__.lib.class").class
 local siglib = require("__cybersyn2__.lib.signal")
 local stlib = require("__cybersyn2__.lib.strace")
+local tlib = require("__cybersyn2__.lib.table")
 
+local empty = tlib.empty
 local strace = stlib.strace
 local key_is_fluid = siglib.key_is_fluid
 local key_to_signal = siglib.key_to_signal
@@ -326,9 +328,53 @@ local function interrupt_checker(train, cstrain, stop)
 	end
 end
 
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
 cs2.on_train_arrived(interrupt_checker)
 
 cs2.on_train_departed(interrupt_checker)
+
+---@param luatrain LuaTrain
+---@param old_name string
+---@param new_name string
+local function rename_stop_in_schedule(luatrain, old_name, new_name)
+	if not luatrain or not luatrain.valid then return end
+	local schedule = luatrain.get_schedule()
+	if not schedule then return end
+	local records = schedule.get_records()
+	if not records then return end
+	for i, record in ipairs(records) do
+		if record.temporary and record.station == old_name then
+			local new_record = record --[[@as AddRecordData]]
+			new_record.station = new_name
+			new_record.index = { schedule_index = i }
+			-- replace the record in the schedule
+			local is_current = schedule.current == i
+			schedule.remove_record(new_record.index)
+			schedule.add_record(new_record)
+			if is_current and schedule.current ~= i then schedule.go_to_station(i) end
+		end
+	end
+end
+
+-- When a train stop is renamed, rename the stop in any schedules of LuaTrains
+-- that may be using the stop.
+cs2.on_entity_renamed(function(renamed_type, entity, old_name)
+	if renamed_type ~= "train-stop" then return end
+	local stop = TrainStop.get_stop_from_unit_number(entity.unit_number)
+	if not stop then return end
+	for delivery_id in pairs(stop.deliveries or empty) do
+		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		if delivery then
+			local train = Train.get(delivery.vehicle_id)
+			if train then
+				rename_stop_in_schedule(train.lua_train, old_name, entity.backer_name)
+			end
+		end
+	end
+end)
 
 -- init: Virtual charges against source and dest inventory
 -- wait_from: Check for open slot at source and enter queue

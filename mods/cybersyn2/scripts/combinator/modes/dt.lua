@@ -100,4 +100,6 @@ cs2.register_combinator_mode({
 	localized_string = "cybersyn2-combinator-modes.dt",
 	settings_element = "CombinatorGui.Mode.DT",
 	help_element = "CombinatorGui.Mode.DT.Help",
+	is_input = true,
+	is_output = false,
 })

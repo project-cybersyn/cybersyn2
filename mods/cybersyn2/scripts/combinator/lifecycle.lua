@@ -165,6 +165,31 @@ cs2.on_blueprint_built(function(bpinfo)
 	end
 end)
 
+local DEFAULT_COMBINATOR_CONDITIONS = {
+	{
+		comparator = "=",
+		first_signal_networks = {
+			red = false,
+			green = false,
+		},
+		second_signal_networks = {
+			red = false,
+			green = false,
+		},
+	},
+	{
+		comparator = "=",
+		first_signal_networks = {
+			red = false,
+			green = false,
+		},
+		second_signal_networks = {
+			red = false,
+			green = false,
+		},
+	},
+}
+
 cs2.on_blueprint_setup(function(bpinfo)
 	local bp_to_world = bpinfo:get_bp_to_world()
 	local bp_entities = bpinfo:get_entities()
@@ -177,7 +202,8 @@ cs2.on_blueprint_setup(function(bpinfo)
 			if
 				entity.control_behavior and entity.control_behavior.decider_conditions
 			then
-				entity.control_behavior.decider_conditions.conditions = {}
+				entity.control_behavior.decider_conditions.conditions =
+					DEFAULT_COMBINATOR_CONDITIONS
 				entity.control_behavior.decider_conditions.outputs = {}
 				changed = true
 			end

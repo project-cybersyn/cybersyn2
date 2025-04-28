@@ -135,7 +135,6 @@ cs2.register_combinator_mode({
 	localized_string = "cybersyn2-combinator-modes.shared-inventory",
 	settings_element = "CombinatorGui.Mode.SharedInventory",
 	help_element = "CombinatorGui.Mode.SharedInventory.Help",
-	is_output = true,
 })
 
 --------------------------------------------------------------------------------
