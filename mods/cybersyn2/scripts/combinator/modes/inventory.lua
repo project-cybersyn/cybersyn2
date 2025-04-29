@@ -51,10 +51,6 @@ relm.define_element({
 									key = "inventory",
 								},
 								{
-									caption = { "cybersyn2-combinator-mode-inventory.provides" },
-									key = "provide",
-								},
-								{
 									caption = { "cybersyn2-combinator-mode-inventory.requests" },
 									key = "pull",
 								},
