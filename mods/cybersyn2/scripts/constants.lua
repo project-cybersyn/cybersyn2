@@ -26,16 +26,20 @@ _G.cs2.PERF_COMB_POLL_WORKLOAD = 1
 _G.cs2.PERF_NODE_POLL_WORKLOAD = 1
 -- Base number of items to examine per `alloc` iteration.
 _G.cs2.PERF_ALLOC_ITEM_WORKLOAD = 1
+-- Number of deliveries to examine per delivery monitor iteration.
+_G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 10
+
+-- Expiration time in ticks for a finished delivery to be deleted from storage.
+-- TODO: possibly make this a setting
+_G.cs2.DELIVERY_EXPIRATION_TICKS = 3600 * 15 -- 15 minutes
 
 -- Set of virtual signals considered configuration signals; these can't
 -- be used as network names.
 _G.cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET = {
 	["cybersyn2"] = true,
 	["cybersyn2-priority"] = true,
-	["cybersyn2-item-threshold"] = true,
-	["cybersyn2-fluid-threshold"] = true,
-	["cybersyn2-item-slots"] = true,
-	["cybersyn2-fluid-capacity"] = true,
+	["cybersyn2-all-items"] = true,
+	["cybersyn2-all-fluids"] = true,
 }
 
 -- Default settings for a newly placed combinator with no tags.
