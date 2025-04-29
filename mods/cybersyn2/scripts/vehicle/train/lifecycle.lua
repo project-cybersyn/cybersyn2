@@ -42,8 +42,6 @@ function TrainMonitor:enter_enum_luatrains()
 	self.index = 1
 	self.seen_groups = {}
 	self.trains = game.train_manager.get_trains(ALL_TRAINS_FILTER)
-
-	self:set_state("enum_luatrains")
 end
 
 ---@param luatrain LuaTrain
