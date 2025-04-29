@@ -119,10 +119,10 @@ end
 ---@class Cybersyn.Internal.DeliveryMonitor: StatefulThread
 ---@field state "init"|"enum_deliveries" State of the task.
 ---@field delivery_ids Id[] Extant Cybersyn delivery IDs at beginning of sweep.
-local DeliveryMonitor = class("TrainMonitor", cs2.StatefulThread)
+local DeliveryMonitor = class("DeliveryMonitor", cs2.StatefulThread)
 
 function DeliveryMonitor.new()
-	local thread = setmetatable({}, DeliveryMonitor) --[[@as Cybersyn.Internal.TrainMonitor]]
+	local thread = setmetatable({}, DeliveryMonitor) --[[@as Cybersyn.Internal.DeliveryMonitor]]
 	thread:set_state("init")
 	return thread
 end
