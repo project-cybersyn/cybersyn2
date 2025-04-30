@@ -165,53 +165,51 @@ cs2.on_blueprint_built(function(bpinfo)
 	end
 end)
 
-local DEFAULT_COMBINATOR_CONDITIONS = {
-	{
-		comparator = "=",
-		first_signal_networks = {
-			red = false,
-			green = false,
-		},
-		second_signal_networks = {
-			red = false,
-			green = false,
-		},
-	},
-	{
-		comparator = "=",
-		first_signal_networks = {
-			red = false,
-			green = false,
-		},
-		second_signal_networks = {
-			red = false,
-			green = false,
-		},
-	},
-}
-
 cs2.on_blueprint_setup(function(bpinfo)
-	local bp_to_world = bpinfo:get_bp_to_world()
 	local bp_entities = bpinfo:get_entities()
-	if not bp_to_world or not bp_entities then return end
+	if not bp_entities then return end
 
 	-- Remove decider combinator outputs
-	local changed = false
-	for _, entity in pairs(bp_entities) do
-		if entity.name == COMBINATOR_NAME then
-			if
-				entity.control_behavior and entity.control_behavior.decider_conditions
-			then
-				entity.control_behavior.decider_conditions.conditions =
-					DEFAULT_COMBINATOR_CONDITIONS
-				entity.control_behavior.decider_conditions.outputs = {}
-				changed = true
-			end
-		end
-	end
-	if changed then bpinfo:set_entities(bp_entities) end
+	-- local changed = false
+	-- for _, entity in pairs(bp_entities) do
+	-- 	if entity.name == COMBINATOR_NAME then
+	-- 		if
+	-- 			entity.control_behavior and entity.control_behavior.decider_conditions
+	-- 		then
+	-- 			entity.control_behavior.decider_conditions.conditions = {
+	-- 				{
+	-- 					comparator = "=",
+	-- 					first_signal_networks = {
+	-- 						red = false,
+	-- 						green = false,
+	-- 					},
+	-- 					second_signal_networks = {
+	-- 						red = false,
+	-- 						green = false,
+	-- 					},
+	-- 				},
+	-- 				{
+	-- 					comparator = "=",
+	-- 					first_signal_networks = {
+	-- 						red = false,
+	-- 						green = false,
+	-- 					},
+	-- 					second_signal_networks = {
+	-- 						red = false,
+	-- 						green = false,
+	-- 					},
+	-- 				},
+	-- 			}
+	-- 			entity.control_behavior.decider_conditions.outputs = {}
+	-- 			changed = true
+	-- 		end
+	-- 	end
+	-- end
+	-- if changed then bpinfo:set_entities(bp_entities) end
 
 	-- Save config tags into blueprint
+	local bp_to_world = bpinfo:get_bp_to_world()
+	if not bp_to_world then return end
 	for bpid, entity in pairs(bp_to_world) do
 		if entity_is_combinator_or_ghost(entity) then
 			bpinfo:apply_tags(bpid, get_raw_settings(entity))
