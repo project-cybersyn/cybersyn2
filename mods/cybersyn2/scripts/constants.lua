@@ -33,6 +33,12 @@ _G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 10
 -- TODO: possibly make this a setting
 _G.cs2.DELIVERY_EXPIRATION_TICKS = 3600 * 15 -- 15 minutes
 
+-- When attempting to restore a shared inventory link from blueprint tags,
+-- keep the hypothetical link in storage for this many ticks. (This gives
+-- bots time to build the appropriate stations.)
+-- If link is not restored after this time, it will be deleted from storage.
+_G.cs2.SHARED_INVENTORY_RELINK_ATTEMPT_TICKS = 3600 * 5 -- 5 minutes
+
 -- Set of virtual signals considered configuration signals; these can't
 -- be used as network names.
 _G.cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET = {
