@@ -113,7 +113,9 @@ end
 ---@param conditions WaitCondition[]
 ---@param stop Cybersyn.TrainStop
 local function add_controlled_out_conditions(conditions, stop)
-	if stop.inactivity_timeout > 0 and stop.inactivity_mode == "deliver" then
+	if
+		(stop.inactivity_timeout or 0) > 0 and stop.inactivity_mode == "deliver"
+	then
 		conditions[#conditions + 1] = {
 			type = "inactivity",
 			compare_type = "and",
@@ -147,7 +149,9 @@ local function add_forceout_conditions(conditions, stop)
 			},
 		}
 	end
-	if stop.inactivity_timeout > 0 and stop.inactivity_mode == "forceout" then
+	if
+		(stop.inactivity_timeout or 0) > 0 and stop.inactivity_mode == "forceout"
+	then
 		conditions[#conditions + 1] = {
 			type = "inactivity",
 			compare_type = "or",
