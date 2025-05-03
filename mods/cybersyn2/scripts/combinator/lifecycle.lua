@@ -75,7 +75,7 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 
 	-- Store settings in cache
 	storage.combinator_settings_cache[comb.id] =
-		tlib.deep_copy(tags or _G.cs2.DEFAULT_COMBINATOR_SETTINGS, true)
+		tlib.deep_copy(tags or cs2.DEFAULT_COMBINATOR_SETTINGS, true)
 
 	-- Add LHS conditions. First is so we can control what displays in the
 	-- combinator's window, second is generic "always-true"
@@ -103,6 +103,13 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 	}
 
 	cs2.raise_combinator_created(comb)
+end)
+
+cs2.on_built_combinator_ghost(function(ghost)
+	-- Apply default settings to ghosts when built.
+	if not ghost.tags then
+		ghost.tags = tlib.deep_copy(cs2.DEFAULT_COMBINATOR_SETTINGS, true)
+	end
 end)
 
 cs2.on_broken_combinator(function(combinator_entity)
@@ -169,6 +176,7 @@ cs2.on_blueprint_setup(function(bpinfo)
 	local bp_entities = bpinfo:get_entities()
 	if not bp_entities then return end
 
+	-- XXX: remove this
 	-- Remove decider combinator outputs
 	-- local changed = false
 	-- for _, entity in pairs(bp_entities) do
