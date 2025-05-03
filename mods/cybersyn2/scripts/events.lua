@@ -56,6 +56,9 @@ _G.cs2.on_broken_rail, _G.cs2.raise_broken_rail =
 _G.cs2.on_built_combinator, _G.cs2.raise_built_combinator =
 	event("built_combinator", "LuaEntity", "TagsOrNil", "nil", "nil", "nil")
 
+_G.cs2.on_built_combinator_ghost, _G.cs2.raise_built_combinator_ghost =
+	event("built_combinator_ghost", "LuaEntity", "nil", "nil", "nil", "nil")
+
 _G.cs2.on_broken_combinator, _G.cs2.raise_broken_combinator =
 	event("broken_combinator", "LuaEntity", "nil", "nil", "nil", "nil")
 

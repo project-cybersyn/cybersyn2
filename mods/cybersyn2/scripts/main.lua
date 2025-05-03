@@ -16,6 +16,7 @@ local cs2_lib = _G.cs2.lib
 
 local db_dispatch = dynamic_binding.dispatch
 local BlueprintInfo = bplib.BlueprintInfo
+local COMBINATOR_NAME = cs2.COMBINATOR_NAME
 
 --------------------------------------------------------------------------------
 -- Required library event bindings
@@ -79,8 +80,12 @@ local function on_built(event)
 		or entity.type == "curved-rail-b"
 	then
 		cs2.raise_built_rail(entity)
-	elseif entity.name == "cybersyn2-combinator" then
+	elseif entity.name == COMBINATOR_NAME then
 		cs2.raise_built_combinator(entity, event.tags)
+	elseif
+		entity.name == "entity-ghost" and entity.ghost_name == COMBINATOR_NAME
+	then
+		cs2.raise_built_combinator_ghost(entity)
 	elseif
 		cs2.lib.is_equipment_type(entity.type)
 		or cs2.lib.is_equipment_name(entity.name)
@@ -94,7 +99,8 @@ local filter_built = {
 	{ filter = "type", type = "straight-rail" },
 	{ filter = "type", type = "curved-rail-a" },
 	{ filter = "type", type = "curved-rail-b" },
-	{ filter = "name", name = "cybersyn2-combinator" },
+	{ filter = "name", name = COMBINATOR_NAME },
+	{ filter = "ghost_name", name = COMBINATOR_NAME },
 }
 for _, type in ipairs(cs2.lib.get_equipment_types()) do
 	table.insert(filter_built, { filter = "type", type = type })
@@ -195,7 +201,7 @@ local function on_destroyed(event)
 		or entity.type == "curved-rail-b"
 	then
 		cs2.raise_broken_rail(entity)
-	elseif entity.name == "cybersyn2-combinator" then
+	elseif entity.name == COMBINATOR_NAME then
 		cs2.raise_broken_combinator(entity)
 	elseif
 		cs2.lib.is_equipment_type(entity.type)

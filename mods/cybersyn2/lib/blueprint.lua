@@ -774,7 +774,7 @@ function BlueprintInfo:set_entities(bp_entities)
 	local actual = self:get_actual()
 	if not actual then return end
 	actual.set_blueprint_entities(bp_entities)
-	self.entities = bp_entities
+	self.entities = nil
 	self.bpspace_bbox = nil
 	self.bp_to_world_pos = nil
 end

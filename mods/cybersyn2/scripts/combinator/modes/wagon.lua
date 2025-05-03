@@ -107,8 +107,75 @@ cs2.register_combinator_mode({
 })
 
 --------------------------------------------------------------------------------
--- Events
+-- Modal functions
 --------------------------------------------------------------------------------
+
+local O_RED = defines.wire_connector_id.combinator_output_red
+local O_GREEN = defines.wire_connector_id.combinator_output_green
+local O_CHEST_RED = defines.wire_connector_id.circuit_red
+local O_CHEST_GREEN = defines.wire_connector_id.circuit_green
+local SCRIPT = defines.wire_origin.script
+
+---@param combinator Cybersyn.Combinator
+---@param force_destroy boolean?
+local function create_or_destroy_hidden_chest(combinator, force_destroy)
+	if
+		combinator.mode == "wagon"
+		and combinator:read_setting(combinator_settings.live_wagon_inventory)
+		and not force_destroy
+	then
+		if (not combinator.proxy_chest) or not combinator.proxy_chest.valid then
+			local combinator_entity = combinator.entity --[[@as LuaEntity]]
+
+			local chest = combinator_entity.surface.create_entity({
+				name = "cybersyn2-proxy-chest",
+				position = combinator.entity.position,
+				force = combinator.entity.force,
+			})
+
+			if not chest then
+				strace(
+					stlib.ERROR,
+					"cs2",
+					"combinator",
+					"message",
+					"Failed to create hidden proxy chest entity"
+				)
+				return
+			end
+
+			-- Wire chest to combinator outputs
+			local comb_red = combinator_entity.get_wire_connector(O_RED, true)
+			local comb_green = combinator_entity.get_wire_connector(O_GREEN, true)
+			local chest_red = chest.get_wire_connector(O_CHEST_RED, true)
+			local chest_green = chest.get_wire_connector(O_CHEST_GREEN, true)
+			chest_red.connect_to(comb_red, false, SCRIPT)
+			chest_green.connect_to(comb_green, false, SCRIPT)
+
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"combinator",
+				"message",
+				"Created hidden proxy chest entity"
+			)
+
+			combinator.proxy_chest = chest
+		end
+	else
+		if combinator.proxy_chest then
+			if combinator.proxy_chest.valid then combinator.proxy_chest.destroy() end
+			combinator.proxy_chest = nil
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"combinator",
+				"message",
+				"Destroyed hidden proxy chest entity"
+			)
+		end
+	end
+end
 
 ---@param stop Cybersyn.TrainStop
 local function check_per_wagon_mode(stop)
@@ -132,7 +199,12 @@ local function check_per_wagon_mode(stop)
 	end
 end
 
--- Detect per wagon on assoc
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+cs2.on_combinator_created(create_or_destroy_hidden_chest)
+
 cs2.on_combinator_node_associated(function(comb, new, prev)
 	if comb.mode == "wagon" then
 		if new then check_per_wagon_mode(new) end
@@ -140,16 +212,21 @@ cs2.on_combinator_node_associated(function(comb, new, prev)
 	end
 end)
 
--- Detect per wagon on mode change
-cs2.on_combinator_setting_changed(function(comb, setting, new, prev)
+cs2.on_combinator_setting_changed(function(combinator, setting, new, prev)
 	if
 		setting == nil
 		or (setting == "mode" and (new == "wagon" or prev == "wagon"))
+		or setting == "live_wagon_inventory"
 	then
-		local stop = comb:get_node("stop") --[[@as Cybersyn.TrainStop?]]
+		local stop = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
 		if stop then check_per_wagon_mode(stop) end
+		create_or_destroy_hidden_chest(combinator)
 	end
 end)
+
+cs2.on_combinator_destroyed(
+	function(combinator) create_or_destroy_hidden_chest(combinator, true) end
+)
 
 -- On train departure, clear all wagon combs.
 cs2.on_train_departed(function(train, cstrain, stop)
@@ -159,6 +236,17 @@ cs2.on_train_departed(function(train, cstrain, stop)
 	)
 	if #combs > 0 then
 		for _, comb in pairs(combs) do
+			-- Clear all wagon inventory signals
+			if comb.proxy_chest and comb.proxy_chest.valid then
+				comb.proxy_chest.proxy_target_entity = nil
+				strace(
+					stlib.DEBUG,
+					"cs2",
+					"combinator",
+					"message",
+					"Cleared proxy target entity"
+				)
+			end
 			comb:direct_write_outputs(empty)
 		end
 	end
@@ -450,6 +538,34 @@ local function get_wagon_index(train, wagon)
 	end
 end
 
+---@param comb Cybersyn.Combinator
+---@param wagon LuaEntity
+local function set_proxy_chest_inventory(comb, wagon)
+	if comb.proxy_chest and comb.proxy_chest.valid then
+		if wagon and wagon.type == "cargo-wagon" then
+			comb.proxy_chest.proxy_target_entity = wagon
+			comb.proxy_chest.proxy_target_inventory = defines.inventory.cargo_wagon
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"combinator",
+				"message",
+				"Set proxy target to wagon",
+				wagon
+			)
+		else
+			comb.proxy_chest.proxy_target_entity = nil
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"combinator",
+				"message",
+				"Cleared proxy target entity"
+			)
+		end
+	end
+end
+
 ---@param cstrain Cybersyn.Train
 ---@param stop Cybersyn.TrainStop
 ---@param delivery Cybersyn.TrainDelivery
@@ -468,6 +584,7 @@ local function set_producer_wagon_combs(cstrain, stop, delivery)
 					cs2.lib.create_manifest_outputs(manifests[index], -1)
 				)
 			end
+			set_proxy_chest_inventory(comb, wagon)
 		end
 	end
 end
@@ -488,6 +605,7 @@ local function set_consumer_wagon_combs(cstrain, stop, delivery)
 			if index and carriages[index] then
 				comb:direct_write_outputs(create_carriage_signals(carriages[index]))
 			end
+			set_proxy_chest_inventory(comb, wagon)
 		end
 	end
 end
