@@ -261,8 +261,6 @@ lib.RtMultilineLabel = function(caption)
 	})
 end
 
-lib.customize_primitive()
-
 -- TODO: implement barriers
 local Barrier = relm.define_element({
 	name = "Barrier",
@@ -450,15 +448,12 @@ lib.WellSection = relm.define_element({
 				lib.If(props.decorate, HF({ horizontally_stretchable = true }, {})),
 				lib.CallIf(props.decorate, props.decorate, props, state),
 			}),
-			VF(
-				{
-					left_padding = 8,
-					right_padding = 8,
-					visible = not collapsed,
-					horizontally_squashable = true,
-				},
-				props.children
-			),
+			VF({
+				left_padding = 8,
+				right_padding = 8,
+				visible = not collapsed,
+				horizontally_squashable = true,
+			}, props.children),
 		})
 	end,
 	state = function(props) return { collapsed = props.collapsed } end,

@@ -21,20 +21,54 @@ local get_quality_name = signal_lib.get_quality_name
 local ceil = math.ceil
 local floor = math.floor
 local min = math.min
+local empty = tlib.empty
 local Pr = relm.Primitive
 local VF = ultros.VFlow
+
+--------------------------------------------------------------------------------
+-- Settings
+--------------------------------------------------------------------------------
+
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("no_wagon_manifest", "wagon_flags", 0)
+)
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("live_wagon_inventory", "wagon_flags", 1)
+)
 
 --------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
 
 relm.define_element({
-	name = "CombinatorGui.Mode.WagonManifest",
-	render = function(props) return nil end,
+	name = "CombinatorGui.Mode.Wagon",
+	render = function(props)
+		return ultros.WellSection(
+			{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
+			{
+				gui.InnerHeading({
+					caption = { "cybersyn2-combinator-modes-labels.flags" },
+				}),
+				gui.Checkbox(
+					{ "cybersyn2-combinator-mode-wagon.per-wagon-manifest" },
+					{ "cybersyn2-combinator-mode-wagon.per-wagon-manifest-tooltip" },
+					props.combinator,
+					combinator_settings.no_wagon_manifest,
+					true
+				),
+				gui.Checkbox(
+					{ "cybersyn2-combinator-mode-wagon.live-wagon-inventory" },
+					{ "cybersyn2-combinator-mode-wagon.live-wagon-inventory-tooltip" },
+					props.combinator,
+					combinator_settings.live_wagon_inventory
+				),
+			}
+		)
+	end,
 })
 
 relm.define_element({
-	name = "CombinatorGui.Mode.WagonManifest.Help",
+	name = "CombinatorGui.Mode.Wagon.Help",
 	render = function(props)
 		return VF({
 			ultros.RtMultilineLabel({ "cybersyn2-combinator-mode-wagon.desc" }),
@@ -42,7 +76,7 @@ relm.define_element({
 				type = "label",
 				font_color = { 255, 230, 192 },
 				font = "default-bold",
-				caption = "Signal Outputs",
+				caption = { "cybersyn2-combinator-modes-labels.signal-outputs" },
 			}),
 			Pr({ type = "line", direction = "horizontal" }),
 			Pr({
@@ -53,7 +87,7 @@ relm.define_element({
 				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.value" }),
 				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
 				ultros.RtMultilineLabel({
-					"cybersyn2-combinator-mode-wagon.input-signals",
+					"cybersyn2-combinator-mode-wagon.output-signals",
 				}),
 			}),
 		})
@@ -67,30 +101,110 @@ relm.define_element({
 cs2.register_combinator_mode({
 	name = "wagon",
 	localized_string = "cybersyn2-combinator-modes.wagon",
-	settings_element = "CombinatorGui.Mode.WagonManifest",
-	help_element = "CombinatorGui.Mode.WagonManifest.Help",
+	settings_element = "CombinatorGui.Mode.Wagon",
+	help_element = "CombinatorGui.Mode.Wagon.Help",
 	is_output = true,
 })
 
 --------------------------------------------------------------------------------
--- Events
+-- Modal functions
 --------------------------------------------------------------------------------
+
+local O_RED = defines.wire_connector_id.combinator_output_red
+local O_GREEN = defines.wire_connector_id.combinator_output_green
+local O_CHEST_RED = defines.wire_connector_id.circuit_red
+local O_CHEST_GREEN = defines.wire_connector_id.circuit_green
+local SCRIPT = defines.wire_origin.script
+
+---@param combinator Cybersyn.Combinator
+---@param force_destroy boolean?
+local function create_or_destroy_hidden_chest(combinator, force_destroy)
+	if
+		combinator.mode == "wagon"
+		and combinator:read_setting(combinator_settings.live_wagon_inventory)
+		and not force_destroy
+	then
+		if (not combinator.proxy_chest) or not combinator.proxy_chest.valid then
+			local combinator_entity = combinator.entity --[[@as LuaEntity]]
+
+			local chest = combinator_entity.surface.create_entity({
+				name = "cybersyn2-proxy-chest",
+				position = combinator.entity.position,
+				force = combinator.entity.force,
+			})
+
+			if not chest then
+				strace(
+					stlib.ERROR,
+					"cs2",
+					"combinator",
+					"message",
+					"Failed to create hidden proxy chest entity"
+				)
+				return
+			end
+
+			-- Wire chest to combinator outputs
+			local comb_red = combinator_entity.get_wire_connector(O_RED, true)
+			local comb_green = combinator_entity.get_wire_connector(O_GREEN, true)
+			local chest_red = chest.get_wire_connector(O_CHEST_RED, true)
+			local chest_green = chest.get_wire_connector(O_CHEST_GREEN, true)
+			chest_red.connect_to(comb_red, false, SCRIPT)
+			chest_green.connect_to(comb_green, false, SCRIPT)
+
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"combinator",
+				"message",
+				"Created hidden proxy chest entity"
+			)
+
+			combinator.proxy_chest = chest
+		end
+	else
+		if combinator.proxy_chest then
+			if combinator.proxy_chest.valid then combinator.proxy_chest.destroy() end
+			combinator.proxy_chest = nil
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"combinator",
+				"message",
+				"Destroyed hidden proxy chest entity"
+			)
+		end
+	end
+end
 
 ---@param stop Cybersyn.TrainStop
 local function check_per_wagon_mode(stop)
 	local combs = stop:get_associated_combinators(
 		function(c) return c.mode == "wagon" end
 	)
-	if #combs == 0 and stop.per_wagon_mode then
+	local is_per_wagon = false
+	for _, comb in pairs(combs) do
+		if not comb:read_setting(combinator_settings.no_wagon_manifest) then
+			is_per_wagon = true
+			break
+		end
+	end
+
+	if (not is_per_wagon) and stop.per_wagon_mode then
 		stop.per_wagon_mode = nil
 		cs2.raise_node_data_changed(stop)
-	elseif #combs > 0 and not stop.per_wagon_mode then
+	elseif is_per_wagon and not stop.per_wagon_mode then
 		stop.per_wagon_mode = true
 		cs2.raise_node_data_changed(stop)
 	end
 end
 
--- Detect per wagon on assoc
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+cs2.on_combinator_created(create_or_destroy_hidden_chest)
+
 cs2.on_combinator_node_associated(function(comb, new, prev)
 	if comb.mode == "wagon" then
 		if new then check_per_wagon_mode(new) end
@@ -98,16 +212,21 @@ cs2.on_combinator_node_associated(function(comb, new, prev)
 	end
 end)
 
--- Detect per wagon on mode change
-cs2.on_combinator_setting_changed(function(comb, setting, new, prev)
+cs2.on_combinator_setting_changed(function(combinator, setting, new, prev)
 	if
 		setting == nil
 		or (setting == "mode" and (new == "wagon" or prev == "wagon"))
+		or setting == "live_wagon_inventory"
 	then
-		local stop = comb:get_node("stop") --[[@as Cybersyn.TrainStop?]]
+		local stop = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
 		if stop then check_per_wagon_mode(stop) end
+		create_or_destroy_hidden_chest(combinator)
 	end
 end)
+
+cs2.on_combinator_destroyed(
+	function(combinator) create_or_destroy_hidden_chest(combinator, true) end
+)
 
 -- On train departure, clear all wagon combs.
 cs2.on_train_departed(function(train, cstrain, stop)
@@ -116,23 +235,34 @@ cs2.on_train_departed(function(train, cstrain, stop)
 		function(c) return c.mode == "wagon" end
 	)
 	if #combs > 0 then
-		local empty = {}
 		for _, comb in pairs(combs) do
+			-- Clear all wagon inventory signals
+			if comb.proxy_chest and comb.proxy_chest.valid then
+				comb.proxy_chest.proxy_target_entity = nil
+				strace(
+					stlib.DEBUG,
+					"cs2",
+					"combinator",
+					"message",
+					"Cleared proxy target entity"
+				)
+			end
 			comb:direct_write_outputs(empty)
 		end
 	end
+	-- TODO: remove when final decision of no filters is reached
 	-- Clear wagon inventory filters
-	if cstrain.is_filtered then
-		cstrain.is_filtered = nil
-		for _, carriage in pairs(train.cargo_wagons) do
-			local inv = carriage.get_inventory(defines.inventory.cargo_wagon)
-			if inv then
-				for j = 1, #inv do
-					inv.set_filter(j, nil)
-				end
-			end
-		end
-	end
+	-- if cstrain.is_filtered then
+	-- 	cstrain.is_filtered = nil
+	-- 	for _, carriage in pairs(train.cargo_wagons) do
+	-- 		local inv = carriage.get_inventory(defines.inventory.cargo_wagon)
+	-- 		if inv then
+	-- 			for j = 1, #inv do
+	-- 				inv.set_filter(j, nil)
+	-- 			end
+	-- 		end
+	-- 	end
+	-- end
 end)
 
 --------------------------------------------------------------------------------
@@ -342,7 +472,8 @@ local function create_wagon_manifests(train, stop, delivery)
 			) - n_slots
 			-- Distribute item slots + set filters
 			lock_item_slots(cw_manifests, n_slots, item, qty, stack_size)
-			train.is_filtered = true
+			-- TODO: remove when final decision of no filters is reached
+			-- train.is_filtered = true
 			-- Distribute spillover_slots
 			lock_item_slots(cw_manifests, spillover_slots, nil, nil, nil)
 		end
@@ -407,6 +538,34 @@ local function get_wagon_index(train, wagon)
 	end
 end
 
+---@param comb Cybersyn.Combinator
+---@param wagon LuaEntity
+local function set_proxy_chest_inventory(comb, wagon)
+	if comb.proxy_chest and comb.proxy_chest.valid then
+		if wagon and wagon.type == "cargo-wagon" then
+			comb.proxy_chest.proxy_target_entity = wagon
+			comb.proxy_chest.proxy_target_inventory = defines.inventory.cargo_wagon
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"combinator",
+				"message",
+				"Set proxy target to wagon",
+				wagon
+			)
+		else
+			comb.proxy_chest.proxy_target_entity = nil
+			strace(
+				stlib.DEBUG,
+				"cs2",
+				"combinator",
+				"message",
+				"Cleared proxy target entity"
+			)
+		end
+	end
+end
+
 ---@param cstrain Cybersyn.Train
 ---@param stop Cybersyn.TrainStop
 ---@param delivery Cybersyn.TrainDelivery
@@ -425,6 +584,7 @@ local function set_producer_wagon_combs(cstrain, stop, delivery)
 					cs2.lib.create_manifest_outputs(manifests[index], -1)
 				)
 			end
+			set_proxy_chest_inventory(comb, wagon)
 		end
 	end
 end
@@ -445,6 +605,7 @@ local function set_consumer_wagon_combs(cstrain, stop, delivery)
 			if index and carriages[index] then
 				comb:direct_write_outputs(create_carriage_signals(carriages[index]))
 			end
+			set_proxy_chest_inventory(comb, wagon)
 		end
 	end
 end

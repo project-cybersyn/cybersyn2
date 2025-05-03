@@ -308,7 +308,7 @@ relm.define_element({
 	render = function(props, state)
 		local show_info = not not (state or {}).show_info
 		return ultros.WindowFrame({
-			caption = { "cybersyn-gui.combinator-title" },
+			caption = { "cybersyn2-gui.combinator-name" },
 			decoration = function()
 				return ultros.SpriteButton({
 					style = "frame_action_button",

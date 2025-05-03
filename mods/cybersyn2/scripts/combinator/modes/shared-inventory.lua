@@ -135,7 +135,6 @@ cs2.register_combinator_mode({
 	localized_string = "cybersyn2-combinator-modes.shared-inventory",
 	settings_element = "CombinatorGui.Mode.SharedInventory",
 	help_element = "CombinatorGui.Mode.SharedInventory.Help",
-	is_output = true,
 })
 
 --------------------------------------------------------------------------------
@@ -503,7 +502,9 @@ local function try_relink()
 	tlib.filter_in_place(links, function(link)
 		local tick, _, _, master_un, slave_un = table.unpack(link)
 		-- Expire old entries
-		if game.tick - tick > 7200 then return false end
+		if game.tick - tick > cs2.SHARED_INVENTORY_RELINK_ATTEMPT_TICKS then
+			return false
+		end
 		-- Ignore unresolved entries
 		if (not master_un) or not slave_un then return true end
 		-- Get master and slave combs by unit number

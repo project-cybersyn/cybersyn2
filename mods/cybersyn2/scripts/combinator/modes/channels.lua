@@ -61,4 +61,6 @@ cs2.register_combinator_mode({
 	localized_string = "cybersyn2-combinator-modes.channels",
 	settings_element = "CombinatorGui.Mode.Channels",
 	help_element = "CombinatorGui.Mode.Channels.Help",
+	is_input = true,
+	is_output = false,
 })

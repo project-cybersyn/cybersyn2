@@ -4,7 +4,7 @@
 
 _G.cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX = "[virtual-signal=cybersyn2]"
 _G.cs2.WINDOW_NAME = "cybersyn2-combinator-gui"
-_G.cs2.COMBINATOR_CLOSE_SOUND = "entity-close/cybersyn-combinator"
+_G.cs2.COMBINATOR_CLOSE_SOUND = "entity-close/cybersyn2-combinator"
 _G.cs2.COMBINATOR_NAME = "cybersyn2-combinator"
 
 -- Max rails to search away from station when checking layout.
@@ -26,16 +26,26 @@ _G.cs2.PERF_COMB_POLL_WORKLOAD = 1
 _G.cs2.PERF_NODE_POLL_WORKLOAD = 1
 -- Base number of items to examine per `alloc` iteration.
 _G.cs2.PERF_ALLOC_ITEM_WORKLOAD = 1
+-- Number of deliveries to examine per delivery monitor iteration.
+_G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 10
+
+-- Expiration time in ticks for a finished delivery to be deleted from storage.
+-- TODO: possibly make this a setting
+_G.cs2.DELIVERY_EXPIRATION_TICKS = 3600 * 15 -- 15 minutes
+
+-- When attempting to restore a shared inventory link from blueprint tags,
+-- keep the hypothetical link in storage for this many ticks. (This gives
+-- bots time to build the appropriate stations.)
+-- If link is not restored after this time, it will be deleted from storage.
+_G.cs2.SHARED_INVENTORY_RELINK_ATTEMPT_TICKS = 3600 * 5 -- 5 minutes
 
 -- Set of virtual signals considered configuration signals; these can't
 -- be used as network names.
 _G.cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET = {
 	["cybersyn2"] = true,
 	["cybersyn2-priority"] = true,
-	["cybersyn2-item-threshold"] = true,
-	["cybersyn2-fluid-threshold"] = true,
-	["cybersyn2-item-slots"] = true,
-	["cybersyn2-fluid-capacity"] = true,
+	["cybersyn2-all-items"] = true,
+	["cybersyn2-all-fluids"] = true,
 }
 
 -- Default settings for a newly placed combinator with no tags.

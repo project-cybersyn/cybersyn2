@@ -23,7 +23,7 @@ local lib = {}
 ---@alias Cybersyn.Manifest SignalCounts
 
 ---@class StateMachine
----@field public state string
+---@field public state string Current state.
 ---@field public is_changing_state boolean? `true` if a state change is ongoing
 ---@field public queued_state_changes string[]? A queue of state changes to be applied
 
@@ -63,7 +63,7 @@ local lib = {}
 ---@field public per_wagon_fluid_capacity table<uint, uint>? Cached fluid capacity per wagon. Used by wagon control. Cleared on capacity re-eval.
 ---@field public layout_id uint The layout ID of the train.
 ---@field public stopped_at LuaEntity? Cache of last known train stop. Do not rely on this value.
----@field public is_filtered boolean? `true` if wagon filters were set on this train upon arrival at a stop.
+---@field public is_filtered boolean? `true` if wagon filters were set on this train upon arrival at a stop. (TODO: remove)
 
 ---Numeric encoding of prototype types of carriages
 ---@enum Cybersyn.CarriageType

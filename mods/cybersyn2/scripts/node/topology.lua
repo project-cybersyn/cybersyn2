@@ -53,9 +53,11 @@ local function recheck_train_surfaces()
 		end
 	end
 end
+_G.cs2.recheck_train_surfaces = recheck_train_surfaces
 
 -- When config changes,re-enumerate surfaces and find matching topologies
 cs2.on_configuration_changed(function(data) recheck_train_surfaces() end)
+cs2.on_init(function(data) recheck_train_surfaces() end)
 
 -- When a planet is created make a train topology.
 cs2.on_surface(function(index, op)
