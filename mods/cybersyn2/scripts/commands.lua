@@ -4,7 +4,7 @@
 
 local cs2 = _G.cs2
 
-commands.add_command("cybersyn2", nil, function(command)
+commands.add_command("cs2", nil, function(command)
 	local arg = command.parameter
 	if arg == "debugger" then
 		cs2.debug.open_debugger(command.player_index)
