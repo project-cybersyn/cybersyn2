@@ -46,10 +46,10 @@ end)
 script.on_init(cs2.raise_init)
 script.on_load(cs2.raise_load)
 script.on_configuration_changed(cs2.raise_configuration_changed)
-script.on_event(
-	defines.events.on_runtime_mod_setting_changed,
-	cs2.handle_runtime_mod_setting_changed
-)
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
+	cs2.update_mod_settings()
+	cs2.raise_mod_settings_changed(event.setting)
+end)
 script.on_nth_tick(nil)
 script.on_nth_tick(1, scheduler.tick)
 

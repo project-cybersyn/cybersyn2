@@ -16,6 +16,7 @@ local mod_settings = {}
 
 _G.cs2.mod_settings = mod_settings
 
+---Reload mod settings table from Factorio settings.
 local function update_mod_settings()
 	mod_settings.enable_logistics =
 		settings.global["cybersyn2-setting-enable-logistics"].value --[[@as boolean]]
@@ -33,15 +34,10 @@ local function update_mod_settings()
 	mod_settings.queue_limit =
 		settings.global["cybersyn2-setting-queue-limit"].value --[[@as uint]]
 end
+_G.cs2.update_mod_settings = update_mod_settings
 
 -- Initial loading of settings
 update_mod_settings()
 
 -- On init we must treat settings as having been changed
 cs2.on_init(function() cs2.raise_mod_settings_changed(nil) end)
-
----@param event EventData.on_runtime_mod_setting_changed
-function _G.cs2.handle_runtime_mod_setting_changed(event)
-	update_mod_settings()
-	cs2.raise_mod_settings_changed(event.setting)
-end
