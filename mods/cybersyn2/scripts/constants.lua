@@ -20,12 +20,11 @@ _G.cs2.LONGEST_INSERTER_REACH = 2
 -- Base number of trains to examine per iteration of the train group monitor.
 _G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 5
 -- Base number of combinators to examine per `poll_combinators` iteration.
--- TODO: all these are set to 1 for debugging convenience, adjust later
-_G.cs2.PERF_COMB_POLL_WORKLOAD = 1
+_G.cs2.PERF_COMB_POLL_WORKLOAD = 10
 -- Base number of nodes to examine per `poll_nodes` iteration
-_G.cs2.PERF_NODE_POLL_WORKLOAD = 1
+_G.cs2.PERF_NODE_POLL_WORKLOAD = 6
 -- Base number of items to examine per `alloc` iteration.
-_G.cs2.PERF_ALLOC_ITEM_WORKLOAD = 1
+_G.cs2.PERF_ALLOC_ITEM_WORKLOAD = 2
 -- Number of deliveries to examine per delivery monitor iteration.
 _G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 10
 
@@ -37,7 +36,7 @@ _G.cs2.DELIVERY_EXPIRATION_TICKS = 3600 * 15 -- 15 minutes
 -- keep the hypothetical link in storage for this many ticks. (This gives
 -- bots time to build the appropriate stations.)
 -- If link is not restored after this time, it will be deleted from storage.
-_G.cs2.SHARED_INVENTORY_RELINK_ATTEMPT_TICKS = 3600 * 5 -- 5 minutes
+_G.cs2.SHARED_INVENTORY_RELINK_ATTEMPT_TICKS = 3600 * 15 -- 15 minutes
 
 -- Set of virtual signals considered configuration signals; these can't
 -- be used as network names.
