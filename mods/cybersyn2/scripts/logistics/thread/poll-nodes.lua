@@ -205,14 +205,14 @@ end
 
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_dt_combs(stop)
+	stop.thresholds_in = nil
+	stop.thresholds_out = nil
 	local combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "dt" end
 	)
 	if #combs == 0 then return end
-	local thresholds_in = {}
-	stop.thresholds_in = thresholds_in
-	local thresholds_out = {}
-	stop.thresholds_out = thresholds_out
+	local thresholds_in = nil
+	local thresholds_out = nil
 	for _, comb in pairs(combs) do
 		local inputs = comb.inputs
 		if not inputs then return end
@@ -226,11 +226,19 @@ function LogisticsThread:poll_dt_combs(stop)
 				if is_in then stop.threshold_fluid_in = v end
 				if is_out then stop.threshold_fluid_out = v end
 			elseif key_is_cargo(k) then
-				if is_in then stop.thresholds_in[k] = v end
-				if is_out then stop.thresholds_out[k] = v end
+				if is_in then
+					if not thresholds_in then thresholds_in = {} end
+					stop.thresholds_in[k] = v
+				end
+				if is_out then
+					if not thresholds_out then thresholds_out = {} end
+					stop.thresholds_out[k] = v
+				end
 			end
 		end
 	end
+	stop.thresholds_in = thresholds_in
+	stop.thresholds_out = thresholds_out
 end
 
 ---@param stop Cybersyn.TrainStop
