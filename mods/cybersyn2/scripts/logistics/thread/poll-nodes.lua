@@ -256,12 +256,15 @@ end
 
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_channels_combs(stop)
+	-- Impose defaults
+	stop.channels = nil
+	stop.channel = nil
+	-- Reread combs
 	local combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "channels" end
 	)
 	if #combs == 0 then return end
-	local channels = {}
-	stop.channels = channels
+	local channels = nil
 	for _, comb in pairs(combs) do
 		local inputs = comb.inputs
 		if not inputs then return end
@@ -269,10 +272,12 @@ function LogisticsThread:poll_channels_combs(stop)
 			if k == "cybersyn2-all-items" then
 				stop.channel = v
 			elseif key_is_cargo(k) then
+				if not channels then channels = {} end
 				channels[k] = v
 			end
 		end
 	end
+	stop.channels = channels
 end
 
 ---@param stop Cybersyn.TrainStop
