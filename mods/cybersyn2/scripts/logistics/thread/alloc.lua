@@ -157,12 +157,24 @@ local function alloc_item_generic(
 	get_production_info,
 	get_consumption_info
 )
+	-- Verify consumer wants item
 	local consumed, consumer_in_t, consumer_inv =
 		get_consumption_info(consumer, item)
 	if consumed == 0 or not consumer_inv then
 		return self:remove_from_logistics_set(
 			consumer_logistics_type,
 			consumer.id,
+			item
+		)
+	end
+
+	-- Verify producer has item
+	local avail, producer_out_t, producer_inv =
+		get_production_info(producer, item)
+	if avail == 0 or not producer_inv then
+		return self:remove_from_logistics_set(
+			producer_logistics_type,
+			producer.id,
 			item
 		)
 	end
@@ -183,16 +195,6 @@ local function alloc_item_generic(
 			) * (key_to_stacksize(item) or 0)
 			consumed = min(consumed, avail_item_capacity)
 		end
-	end
-
-	local avail, producer_out_t, producer_inv =
-		get_production_info(producer, item)
-	if avail == 0 or not producer_inv then
-		return self:remove_from_logistics_set(
-			producer_logistics_type,
-			producer.id,
-			item
-		)
 	end
 
 	local qty = min(consumed, avail)
