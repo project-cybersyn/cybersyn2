@@ -61,13 +61,6 @@ end
 ---Fail this delivery.
 function Delivery:fail(reason)
 	if self.state == "completed" or self.state == "failed" then
-		strace(
-			WARN,
-			"delivery",
-			self,
-			"message",
-			"Attempt to fail a delivery that is already completed or failed"
-		)
 		return
 	else
 		self:set_state("failed")
@@ -113,7 +106,19 @@ function Delivery:is_in_final_state()
 end
 
 --------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+cs2.on_vehicle_destroyed(function(vehicle)
+	local delivery = get_delivery(vehicle.delivery_id, true)
+	if delivery then delivery:fail("vehicle_destroyed") end
+end)
+
+--------------------------------------------------------------------------------
 -- Delivery monitor thread
+--
+-- Clears expired completed deliveries from storage and warns about deliveries
+-- that may be taking too long to complete.
 --------------------------------------------------------------------------------
 
 ---@class Cybersyn.Internal.DeliveryMonitor: StatefulThread
