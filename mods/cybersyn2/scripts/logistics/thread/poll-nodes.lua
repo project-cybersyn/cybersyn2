@@ -235,12 +235,12 @@ end
 
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_prio_combs(stop)
+	stop.priorities = nil
 	local combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "prio" end
 	)
 	if #combs == 0 then return end
-	local priorities = {}
-	stop.priorities = priorities
+	local priorities = nil
 	for _, comb in pairs(combs) do
 		local inputs = comb.inputs
 		if not inputs then return end
@@ -248,10 +248,12 @@ function LogisticsThread:poll_prio_combs(stop)
 			if k == "cybersyn2-priority" then
 				stop.priority = v
 			elseif key_is_cargo(k) then
+				if not priorities then priorities = {} end
 				priorities[k] = v
 			end
 		end
 	end
+	stop.priorities = priorities
 end
 
 ---@param stop Cybersyn.TrainStop
