@@ -67,6 +67,9 @@ end
 
 local function use_timer_unbinder(id) scheduler.stop(id) end
 
+---Send the given message to the component every `period` ticks.
+---@param period uint The period in ticks to send the message.
+---@param msg string The message to send to the component. The message will be sent with the key `msg`.
 function lib.use_timer(period, msg)
 	relm.use_effect({ period, msg }, use_timer_binder, use_timer_unbinder)
 end
