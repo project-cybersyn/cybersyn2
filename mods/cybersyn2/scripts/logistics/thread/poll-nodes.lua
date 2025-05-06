@@ -123,10 +123,10 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 
 	-- Set defaults
 	stop.priority = 0
-	stop.threshold_fluid_in = 1
-	stop.threshold_fluid_out = 1
-	stop.threshold_item_in = 1
-	stop.threshold_item_out = 1
+	stop.threshold_fluid_in = nil
+	stop.threshold_fluid_out = nil
+	stop.threshold_item_in = nil
+	stop.threshold_item_out = nil
 
 	-- Read configuration values
 	stop.stack_thresholds =
