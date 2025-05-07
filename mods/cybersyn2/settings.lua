@@ -55,9 +55,17 @@ data:extend({
 		name = "cybersyn2-setting-warmup-time",
 		order = "ca",
 		setting_type = "runtime-global",
-		-- TODO: change default warmup time for release
-		default_value = 1,
-		minimum_value = 0,
+		default_value = 20,
+		minimum_value = 1,
+		maximum_value = 2147483647,
+	},
+	{
+		type = "double-setting",
+		name = "cybersyn2-setting-vehicle-warmup-time",
+		order = "cb",
+		setting_type = "runtime-global",
+		default_value = 20,
+		minimum_value = 1,
 		maximum_value = 2147483647,
 	},
 	{

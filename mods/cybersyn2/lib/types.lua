@@ -48,6 +48,7 @@ local lib = {}
 ---@field public type string The type of the vehicle.
 ---@field public is_being_destroyed true? `true` if the vehicle is in the process of being removed from game state.
 ---@field public delivery_id Id? The current delivery this vehicle is processing.
+---@field public created_tick uint The tick this vehicle was created.
 
 ---A train managed by Cybersyn.
 ---@class Cybersyn.Train: Cybersyn.Vehicle
@@ -62,7 +63,7 @@ local lib = {}
 ---@field public per_wagon_item_slot_capacity table<uint, uint>? Cached number of item slots per wagon. Used by wagon control. Cleared on capacity re-eval.
 ---@field public per_wagon_fluid_capacity table<uint, uint>? Cached fluid capacity per wagon. Used by wagon control. Cleared on capacity re-eval.
 ---@field public layout_id uint The layout ID of the train.
----@field public stopped_at LuaEntity? Cache of last known train stop. Do not rely on this value.
+---@field public stopped_at LuaEntity? Cache of last known train stop. This value should be treated as volatile.
 ---@field public is_filtered boolean? `true` if wagon filters were set on this train upon arrival at a stop. (TODO: remove)
 
 ---Numeric encoding of prototype types of carriages
