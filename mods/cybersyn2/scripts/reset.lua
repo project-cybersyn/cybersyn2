@@ -11,6 +11,16 @@ local cs2 = _G.cs2
 
 function _G.cs2.reset()
 	local reset_state = {}
+	local nodes_before = table_size(storage.nodes)
 	cs2.raise_reset(reset_state)
 	cs2.raise_startup(reset_state)
+	local nodes_after = table_size(storage.nodes)
+	game.print({
+		"",
+		"Cybersyn 2 reset complete. ",
+		nodes_before,
+		" nodes before reset, ",
+		nodes_after,
+		" nodes after.",
+	})
 end

@@ -15,5 +15,8 @@ commands.add_command("cs2", nil, function(command)
 	elseif arg == "log_all" then
 		cs2.debug.set_strace(0, 0, nil)
 		return
+	elseif arg == "force_reset" then
+		cs2.reset()
+		return
 	end
 end)
