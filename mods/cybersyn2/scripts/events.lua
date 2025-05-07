@@ -203,10 +203,13 @@ _G.cs2.on_train_departed, _G.cs2.raise_train_departed = event(
 _G.cs2.on_combinator_created, _G.cs2.raise_combinator_created =
 	event("combinator_created", "Cybersyn.Combinator", "nil", "nil", "nil", "nil")
 
+---Event raised when a combinator is destroyed.
+---* Arg 1 - `Cybersyn.Combinator` - The combinator.
+---* Arg 2 - `boolean` - `true` if this is the result of a reset, `false` if it is the result of actual combinator destruction.
 _G.cs2.on_combinator_destroyed, _G.cs2.raise_combinator_destroyed = event(
 	"combinator_destroyed",
 	"Cybersyn.Combinator",
-	"nil",
+	"boolean",
 	"nil",
 	"nil",
 	"nil"

@@ -80,6 +80,20 @@ local function create_combinator(combinator_entity)
 	cs2.raise_combinator_created(comb)
 end
 
+---@param comb Cybersyn.Combinator
+---@param is_reset boolean
+local function destroy_combinator(comb, is_reset)
+	comb.is_being_destroyed = true
+
+	cs2.raise_combinator_destroyed(comb, is_reset)
+
+	if comb.associated_entities then
+		for _, entity in pairs(comb.associated_entities) do
+			if entity.valid then entity.destroy() end
+		end
+	end
+end
+
 cs2.on_built_combinator(function(combinator_entity, tags)
 	local comb_id = combinator_entity.unit_number --[[@as UnitNumber]]
 	local comb = Combinator.get(comb_id, true)
@@ -112,15 +126,7 @@ end)
 cs2.on_broken_combinator(function(combinator_entity)
 	local comb = Combinator.get(combinator_entity.unit_number, true)
 	if not comb then return end
-	comb.is_being_destroyed = true
-
-	cs2.raise_combinator_destroyed(comb)
-
-	if comb.associated_entities then
-		for _, entity in pairs(comb.associated_entities) do
-			if entity.valid then entity.destroy() end
-		end
-	end
+	destroy_combinator(comb, false)
 
 	-- Clear settings cache
 	storage.combinator_settings_cache[comb.id] = nil
@@ -249,6 +255,12 @@ end)
 cs2.on_reset(function(reset_data)
 	-- Need to hand off combinator settings so they can be restored after reset.
 	reset_data.combinator_settings_cache = storage.combinator_settings_cache
+
+	-- Simulate destruction of all combinators. This will cause any hidden
+	-- entities to be cleaned up.
+	for _, comb in pairs(storage.combinators) do
+		destroy_combinator(comb, true)
+	end
 end)
 
 cs2.on_startup(function(reset_data)
