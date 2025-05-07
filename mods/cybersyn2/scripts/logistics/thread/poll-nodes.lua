@@ -228,11 +228,11 @@ function LogisticsThread:poll_dt_combs(stop)
 			elseif key_is_cargo(k) then
 				if is_in then
 					if not thresholds_in then thresholds_in = {} end
-					stop.thresholds_in[k] = v
+					thresholds_in[k] = v
 				end
 				if is_out then
 					if not thresholds_out then thresholds_out = {} end
-					stop.thresholds_out[k] = v
+					thresholds_out[k] = v
 				end
 			end
 		end
