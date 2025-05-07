@@ -29,6 +29,10 @@ cs2.on_startup(scheduler.init, true)
 cs2.on_startup(relm.init, true)
 cs2.on_load(relm.on_load)
 relm.install_event_handlers()
+cs2.on_reset(function()
+	-- On reset, we must destroy all Relm roots.
+	relm.root_foreach(function(_, root_id) relm.root_destroy(root_id) end)
+end)
 
 -- Connect `dynamic_binding` to cs2 event backplane
 cs2.on_startup(dynamic_binding.init, true)

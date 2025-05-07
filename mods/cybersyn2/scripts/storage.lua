@@ -23,6 +23,7 @@
 ---@field public surface_index_to_train_topology table<uint,Id> Map from planetary surfaces to associated train topologies
 ---@field public alerts {[Id]: Cybersyn.Alert} Currently displayed alerts
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
+---@field public inventory_links Cybersyn.Internal.StoredLink[] State of blueprinted inventory links between shared inventory combinators
 storage = {}
 
 ---Per-player global state.
@@ -75,4 +76,5 @@ _G.cs2.on_startup(function()
 	storage.surface_index_to_train_topology = {}
 	storage.alerts = {}
 	storage.alerts_by_entity = {}
+	storage.inventory_links = {}
 end, true)

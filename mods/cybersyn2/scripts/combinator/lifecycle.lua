@@ -48,34 +48,9 @@ local NO_NETWORKS = { red = false, green = false }
 -- Combinator lifecycle events.
 --------------------------------------------------------------------------------
 
-cs2.on_built_combinator(function(combinator_entity, tags)
-	local comb_id = combinator_entity.unit_number --[[@as UnitNumber]]
-	local comb = Combinator.get(comb_id, true)
-	if comb then
-		-- Should be impossible
-		return strace(
-			ERROR,
-			"cs2",
-			"combinator",
-			"message",
-			"Duplicate combinator unit number, should be impossible.",
-			comb_id
-		)
-	end
-	comb = Combinator.new(combinator_entity)
-
-	strace(
-		TRACE,
-		"cs2",
-		"combinator",
-		"message",
-		"combinator created with tags",
-		tags
-	)
-
-	-- Store settings in cache
-	storage.combinator_settings_cache[comb.id] =
-		tlib.deep_copy(tags or cs2.DEFAULT_COMBINATOR_SETTINGS, true)
+---@param combinator_entity LuaEntity
+local function create_combinator(combinator_entity)
+	local comb = Combinator.new(combinator_entity)
 
 	-- Add LHS conditions. First is so we can control what displays in the
 	-- combinator's window, second is generic "always-true"
@@ -103,6 +78,28 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 	}
 
 	cs2.raise_combinator_created(comb)
+end
+
+cs2.on_built_combinator(function(combinator_entity, tags)
+	local comb_id = combinator_entity.unit_number --[[@as UnitNumber]]
+	local comb = Combinator.get(comb_id, true)
+	if comb then
+		-- Should be impossible
+		return strace(
+			ERROR,
+			"cs2",
+			"combinator",
+			"message",
+			"Duplicate combinator unit number, should be impossible.",
+			comb_id
+		)
+	end
+
+	-- Copy settings from tags to cache
+	storage.combinator_settings_cache[comb_id] =
+		tlib.deep_copy(tags or cs2.DEFAULT_COMBINATOR_SETTINGS, true)
+
+	create_combinator(combinator_entity)
 end)
 
 cs2.on_built_combinator_ghost(function(ghost)
@@ -244,4 +241,30 @@ end
 cs2.on_combinator_created(hotwire_combinator)
 cs2.on_combinator_setting_changed(function(combinator, setting)
 	if setting == "mode" or setting == nil then hotwire_combinator(combinator) end
+end)
+
+--------------------------------------------------------------------------------
+-- Reset
+--------------------------------------------------------------------------------
+cs2.on_reset(function(reset_data)
+	-- Need to hand off combinator settings so they can be restored after reset.
+	reset_data.combinator_settings_cache = storage.combinator_settings_cache
+end)
+
+cs2.on_startup(function(reset_data)
+	-- Restore combinator settings after reset.
+	if reset_data.combinator_settings_cache then
+		storage.combinator_settings_cache = reset_data.combinator_settings_cache
+	end
+
+	-- Recreate all combinators in the world.
+	for _, surface in pairs(game.surfaces) do
+		for _, comb_entity in
+			pairs(surface.find_entities_filtered({ name = COMBINATOR_NAME }))
+		do
+			if not storage.combinators[comb_entity.unit_number] then
+				create_combinator(comb_entity)
+			end
+		end
+	end
 end)

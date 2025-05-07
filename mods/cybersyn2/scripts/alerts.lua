@@ -136,3 +136,16 @@ function _G.cs2.destroy_alert(target_entity, key)
 	if not alert then return end
 	destroy_alert(alert.id, true)
 end
+
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+cs2.on_reset(function()
+	-- Clear all alerts on reset
+	if storage.alerts then
+		for id in pairs(storage.alerts) do
+			destroy_alert(id, true)
+		end
+	end
+end)
