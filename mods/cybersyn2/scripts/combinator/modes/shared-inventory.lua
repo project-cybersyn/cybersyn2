@@ -590,7 +590,7 @@ cs2.on_reset(function(reset_data)
 	local inventory_links = get_link_storage() or {}
 	reset_data.inventory_links = inventory_links
 	-- TODO: impl
-	for _, master in storage.nodes do
+	for _, master in pairs(storage.nodes) do
 		if master.type == "stop" and master:is_valid() then
 			---@cast master Cybersyn.TrainStop
 			local slaves = master.shared_inventory_slaves
