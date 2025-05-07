@@ -124,7 +124,15 @@ local function create_or_destroy_hidden_chest(combinator, force_destroy)
 		and combinator:read_setting(combinator_settings.live_wagon_inventory)
 		and not force_destroy
 	then
-		if (not combinator.proxy_chest) or not combinator.proxy_chest.valid then
+		local assoc_entities = combinator.associated_entities
+		if not assoc_entities then
+			combinator.associated_entities = {}
+			assoc_entities = combinator.associated_entities
+		end
+		---@cast assoc_entities table<string, LuaEntity>
+		if
+			not assoc_entities.proxy_chest or not assoc_entities.proxy_chest.valid
+		then
 			local combinator_entity = combinator.entity --[[@as LuaEntity]]
 
 			local chest = combinator_entity.surface.create_entity({
@@ -160,12 +168,14 @@ local function create_or_destroy_hidden_chest(combinator, force_destroy)
 				"Created hidden proxy chest entity"
 			)
 
-			combinator.proxy_chest = chest
+			assoc_entities.proxy_chest = chest
 		end
 	else
-		if combinator.proxy_chest then
-			if combinator.proxy_chest.valid then combinator.proxy_chest.destroy() end
-			combinator.proxy_chest = nil
+		local chest = combinator.associated_entities
+			and combinator.associated_entities.proxy_chest
+		if chest then
+			if chest.valid then chest.destroy() end
+			combinator.associated_entities.proxy_chest = nil
 			strace(
 				stlib.DEBUG,
 				"cs2",
@@ -237,8 +247,10 @@ cs2.on_train_departed(function(train, cstrain, stop)
 	if #combs > 0 then
 		for _, comb in pairs(combs) do
 			-- Clear all wagon inventory signals
-			if comb.proxy_chest and comb.proxy_chest.valid then
-				comb.proxy_chest.proxy_target_entity = nil
+			local chest = comb.associated_entities
+				and comb.associated_entities.proxy_chest
+			if chest and chest.valid then
+				chest.proxy_target_entity = nil
 				strace(
 					stlib.DEBUG,
 					"cs2",
@@ -541,10 +553,12 @@ end
 ---@param comb Cybersyn.Combinator
 ---@param wagon LuaEntity
 local function set_proxy_chest_inventory(comb, wagon)
-	if comb.proxy_chest and comb.proxy_chest.valid then
+	local chest = comb.associated_entities
+		and comb.associated_entities.proxy_chest
+	if chest and chest.valid then
 		if wagon and wagon.type == "cargo-wagon" then
-			comb.proxy_chest.proxy_target_entity = wagon
-			comb.proxy_chest.proxy_target_inventory = defines.inventory.cargo_wagon
+			chest.proxy_target_entity = wagon
+			chest.proxy_target_inventory = defines.inventory.cargo_wagon
 			strace(
 				stlib.DEBUG,
 				"cs2",
@@ -554,7 +568,7 @@ local function set_proxy_chest_inventory(comb, wagon)
 				wagon
 			)
 		else
-			comb.proxy_chest.proxy_target_entity = nil
+			chest.proxy_target_entity = nil
 			strace(
 				stlib.DEBUG,
 				"cs2",
