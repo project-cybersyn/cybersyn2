@@ -9,6 +9,7 @@ local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
 local TrainStop = _G.cs2.TrainStop
 local Delivery = _G.cs2.Delivery
+local Topology = _G.cs2.Topology
 
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
@@ -193,4 +194,21 @@ cs2.on_node_destroyed(function(node)
 	if node.type ~= "stop" then return end
 	---@cast node Cybersyn.TrainStop
 	node:fail_all_deliveries()
+end)
+
+-- When a topology is created, reassociate any stops with the appropriate
+-- train topology
+cs2.on_topologies(function(topology, what)
+	if what == "created" then
+		-- TODO: this is very brute force. we should try to figure out
+		-- exactly which nodes need to be updated.
+		for _, stop in pairs(storage.nodes) do
+			if stop.type == "stop" and stop:is_valid() then
+				---@cast stop Cybersyn.TrainStop
+				local train_topology =
+					Topology.get_train_topology(stop.entity.surface_index)
+				if train_topology then stop.topology_id = train_topology.id end
+			end
+		end
+	end
 end)
