@@ -295,6 +295,7 @@ local function enable_or_disable_overlays()
 	end
 end
 
+cs2.on_reset(clear_all_overlays)
 cs2.on_mod_settings_changed(enable_or_disable_overlays)
 cs2.on_combinator_destroyed(destroy_combinator_overlay)
 --cs2.on_combinator_created(update_combinator_overlay)
