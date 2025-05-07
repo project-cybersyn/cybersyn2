@@ -256,10 +256,14 @@ cs2.on_reset(function(reset_data)
 	-- Need to hand off combinator settings so they can be restored after reset.
 	reset_data.combinator_settings_cache = storage.combinator_settings_cache
 
-	-- Simulate destruction of all combinators. This will cause any hidden
-	-- entities to be cleaned up.
+	-- Must destroy all hidden associated entities, otherwise they will
+	-- be double-created.
 	for _, comb in pairs(storage.combinators) do
-		destroy_combinator(comb, true)
+		if comb.associated_entities then
+			for _, entity in pairs(comb.associated_entities) do
+				if entity.valid then entity.destroy() end
+			end
+		end
 	end
 end)
 
