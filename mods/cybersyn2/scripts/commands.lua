@@ -4,19 +4,20 @@
 
 local cs2 = _G.cs2
 
-commands.add_command("cs2", nil, function(command)
-	local arg = command.parameter
-	if arg == "debugger" then
-		cs2.debug.open_debugger(command.player_index)
-		return
-	elseif arg == "check_surfaces" then
-		cs2.recheck_train_surfaces()
-		return
-	elseif arg == "log_all" then
-		cs2.debug.set_strace(0, 0, nil)
-		return
-	elseif arg == "force_reset" then
-		cs2.reset()
-		return
-	end
-end)
+commands.add_command(
+	"cs2-force-reset",
+	{ "cybersyn2-commands.force-reset-command-help" },
+	function() cs2.reset() end
+)
+
+commands.add_command(
+	"cs2-debugger",
+	{ "cybersyn2-commands.debugger-command-help" },
+	function(command) cs2.debug.open_debugger(command.player_index) end
+)
+
+commands.add_command(
+	"cs2-log-all",
+	{ "cybersyn2-commands.log-all-command-help" },
+	function() cs2.debug.set_strace(0, 0, nil) end
+)
