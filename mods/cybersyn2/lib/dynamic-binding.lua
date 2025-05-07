@@ -31,9 +31,7 @@ end
 
 ---Initialize the binding system. MUST be called in the mod's `on_init` handler.
 function lib.init()
-	if not storage._dynbind then
-		storage._dynbind = { id = 0, events = {}, id_key = {} }
-	end
+	storage._dynbind = { id = 0, events = {}, id_key = {} }
 end
 
 ---Restore dynamic bindings across save barriers. MUST be called in the mod's

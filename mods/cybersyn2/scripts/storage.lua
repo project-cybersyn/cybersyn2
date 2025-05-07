@@ -55,7 +55,7 @@ local function get_player_state(player_index)
 end
 _G.cs2.get_player_state = get_player_state
 
-_G.cs2.on_init(function()
+_G.cs2.on_startup(function()
 	storage.players = {}
 	storage.vehicles = {}
 	storage.combinators = {}

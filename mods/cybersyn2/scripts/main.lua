@@ -22,16 +22,16 @@ local COMBINATOR_NAME = cs2.COMBINATOR_NAME
 -- Required library event bindings
 --------------------------------------------------------------------------------
 
-cs2.on_init(counters.init, true)
+cs2.on_startup(counters.init, true)
 
-cs2.on_init(scheduler.init, true)
+cs2.on_startup(scheduler.init, true)
 
-cs2.on_init(relm.init, true)
+cs2.on_startup(relm.init, true)
 cs2.on_load(relm.on_load)
 relm.install_event_handlers()
 
 -- Connect `dynamic_binding` to cs2 event backplane
-cs2.on_init(dynamic_binding.init, true)
+cs2.on_startup(dynamic_binding.init, true)
 cs2.on_load(dynamic_binding.on_load)
 dynamic_binding.on_event_bound(function(event_name)
 	if _G.cs2[event_name] and string.sub(event_name, 1, 3) == "on_" then
@@ -44,6 +44,7 @@ end)
 --------------------------------------------------------------------------------
 
 script.on_init(cs2.raise_init)
+cs2.on_init(function() cs2.raise_startup({}) end, true)
 script.on_load(cs2.raise_load)
 script.on_configuration_changed(cs2.raise_configuration_changed)
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
@@ -51,7 +52,7 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 	cs2.raise_mod_settings_changed(event.setting)
 end)
 script.on_nth_tick(nil)
-script.on_nth_tick(1, scheduler.tick)
+script.on_nth_tick(1, function(data) scheduler.tick(data) end)
 
 --------------------------------------------------------------------------------
 -- LuaTrains

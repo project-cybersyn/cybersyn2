@@ -40,4 +40,4 @@ _G.cs2.update_mod_settings = update_mod_settings
 update_mod_settings()
 
 -- On init we must treat settings as having been changed
-cs2.on_init(function() cs2.raise_mod_settings_changed(nil) end)
+cs2.on_startup(function() cs2.raise_mod_settings_changed(nil) end)
