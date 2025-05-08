@@ -18,6 +18,7 @@ local pairs = _G.pairs
 local key_is_fluid = signal.key_is_fluid
 local key_to_stacksize = signal.key_to_stacksize
 local Combinator = _G.cs2.Combinator
+local empty = tlib.empty
 
 ---@class Cybersyn.Node
 local Node = class("Node")
@@ -182,8 +183,8 @@ end
 ---Determine if this node shares a network with the other.
 ---@param n2 Cybersyn.Node
 function Node:is_network_match(n2, mode)
-	local nets_1 = self.networks or {}
-	local nets_2 = n2.networks or {}
+	local nets_1 = self.networks or empty
+	local nets_2 = n2.networks or empty
 	for k, v in pairs(nets_1) do
 		if band(v, nets_2[k] or 0) ~= 0 then return true end
 	end
