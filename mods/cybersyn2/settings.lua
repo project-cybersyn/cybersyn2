@@ -17,9 +17,9 @@ data:extend({
 	{
 		type = "int-setting",
 		name = "cybersyn2-setting-work-period",
-		order = "ba",
-		setting_type = "runtime-global",
-		default_value = 2,
+		order = "aa",
+		setting_type = "startup",
+		default_value = 1,
 		minimum_value = 1,
 		maximum_value = 60,
 	},
