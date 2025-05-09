@@ -15,6 +15,7 @@ local BIG_INT = 9007199254740000
 local DEFAULT_MAX_WORKLOAD = 100
 local DEFAULT_MAX_BUCKET_SIZE = 5
 local DEFAULT_RESCHEDULE_INTERVAL = 6000
+local DEFAULT_WORK_PERIOD = 1
 
 local lib = {}
 
@@ -43,6 +44,7 @@ function lib.set_strace_handler(handler) strace = handler end
 ---@field public current_bucket uint The current bucket being processed.
 ---@field public wake_at {[uint]: Lib.Thread.IdSet} Threads that are scheduled to wake up at a given tick.
 ---@field public last_reschedule_tick uint The tick at which the last reschedule occurred.
+---@field public work_period uint Number of idle ticks to insert between threads, plus 1. 1 is the lowest value, the recommended value, and results in threads running every tick.
 
 ---Initialize the threads system. Must be called in the mod's `on_init` handler.
 function lib.init()
@@ -51,6 +53,7 @@ function lib.init()
 		threads = {},
 		max_workload = DEFAULT_MAX_WORKLOAD,
 		max_bucket_size = DEFAULT_MAX_BUCKET_SIZE,
+		work_period = DEFAULT_WORK_PERIOD,
 		buckets = { {} },
 		bucket_workloads = { 0 },
 		current_bucket = 1,
@@ -191,6 +194,9 @@ function lib.tick(tick_data)
 		end
 		data.wake_at[tick_n] = nil
 	end
+
+	-- Honor work period
+	if tick_n % data.work_period ~= 0 then return end
 
 	-- Execute all mainloops in current bucket.
 	local buckets = data.buckets
