@@ -74,7 +74,7 @@ end
 ---@field public friendly_name? string Friendly name of the thread, used for debugging and logging
 ---@field public wake_at? integer The tick at which the thread should wake up. If `nil`, the thread is not sleeping.
 ---@field public workload? number Empirical measure of work done by this thread per execution cycle. Used to determine how many threads should fit into a frame window.
-local Thread = class()
+local Thread = class("Thread")
 lib.Thread = Thread
 
 --------------------------------------------------------------------------------
