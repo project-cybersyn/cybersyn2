@@ -19,7 +19,6 @@ _G.cs2.on_init, _G.cs2.raise_init =
 _G.cs2.on_load, _G.cs2.raise_load =
 	event("load", "nil", "nil", "nil", "nil", "nil")
 
----Event corresponding to Factorio's `on_configuration_changed`.
 _G.cs2.on_configuration_changed, _G.cs2.raise_configuration_changed = event(
 	"configuration_changed",
 	"ConfigurationChangedData",
@@ -150,7 +149,6 @@ _G.cs2.on_blueprint_setup, _G.cs2.raise_blueprint_setup = event(
 _G.cs2.on_selected, _G.cs2.raise_selected =
 	event("selected", "LuaEntity", "LuaEntity", "LuaPlayer", "nil", "nil")
 
----Event raised when a player clears his cursor.
 _G.cs2.on_cursor_cleared, _G.cs2.raise_cursor_cleared =
 	event("cursor_cleared", "LuaPlayer", "nil", "nil", "nil", "nil")
 

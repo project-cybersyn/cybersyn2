@@ -249,7 +249,7 @@ local PrimitiveType = {
 }
 lib.PrimitiveType = PrimitiveType
 
----Species of non-primitive container that can contain items of a `Cybersyn.DataType`.
+---Species of non-primitive container that can contain items of a `Cybersyn.PrimitiveType`.
 ---@enum Cybersyn.ContainerType
 local ContainerType = {
 	"value",
