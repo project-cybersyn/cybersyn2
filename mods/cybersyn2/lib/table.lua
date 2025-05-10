@@ -231,11 +231,13 @@ end
 ---Fisher-Yates shuffle an array in place.
 ---@generic T
 ---@param A T[]
+---@return T[] A The shuffled array.
 function lib.shuffle(A)
 	for i = #A, 2, -1 do
 		local j = random(i)
 		A[i], A[j] = A[j], A[i]
 	end
+	return A
 end
 
 ---Generates a stateless iterator for use with `for` that iterates over
