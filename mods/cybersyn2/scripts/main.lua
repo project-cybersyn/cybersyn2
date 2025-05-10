@@ -7,6 +7,7 @@
 
 local counters = require("__cybersyn2__.lib.counters")
 local scheduler = require("__cybersyn2__.lib.scheduler")
+local thread = require("__cybersyn2__.lib.thread")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
@@ -25,6 +26,8 @@ local COMBINATOR_NAME = cs2.COMBINATOR_NAME
 cs2.on_startup(counters.init, true)
 
 cs2.on_startup(scheduler.init, true)
+
+cs2.on_startup(thread.init, true)
 
 cs2.on_startup(relm.init, true)
 cs2.on_load(relm.on_load)
@@ -56,7 +59,10 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 	cs2.raise_mod_settings_changed(event.setting)
 end)
 script.on_nth_tick(nil)
-script.on_nth_tick(1, function(data) scheduler.tick(data) end)
+script.on_nth_tick(1, function(data)
+	scheduler.tick(data)
+	thread.tick(data)
+end)
 
 --------------------------------------------------------------------------------
 -- LuaTrains

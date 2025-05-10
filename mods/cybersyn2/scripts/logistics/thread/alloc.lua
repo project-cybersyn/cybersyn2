@@ -561,18 +561,13 @@ function LogisticsThread:enter_alloc()
 	self.pullers_p = {}
 	self.pushers_p = {}
 	self.sinks_p = {}
-	self.cargo = tlib.keys(self.seen_cargo)
-	tlib.shuffle(self.cargo)
-	self.stride =
-		math.ceil(mod_settings.work_factor * cs2.PERF_ALLOC_ITEM_WORKLOAD)
-	self.index = 1
 	self.iteration = 1
+	self:begin_async_loop(
+		tlib.shuffle(tlib.keys(self.seen_cargo)),
+		math.ceil(mod_settings.work_factor * cs2.PERF_ALLOC_ITEM_WORKLOAD)
+	)
 end
 
 function LogisticsThread:alloc()
-	self:async_loop(
-		self.cargo,
-		self.alloc_item,
-		function(x) x:set_state("route") end
-	)
+	self:step_async_loop(self.alloc_item, function(x) x:set_state("route") end)
 end

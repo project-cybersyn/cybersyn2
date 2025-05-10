@@ -290,15 +290,13 @@ function LogisticsThread:enter_route()
 			return veh.id, veh
 		end
 	end) --[[@as table<uint, Cybersyn.Train>]]
-	self.stride = 1
-	self.index = 1
+	self:begin_async_loop(self.allocations, 1)
 end
 
 function LogisticsThread:exit_route() self.allocations = nil end
 
 function LogisticsThread:route()
-	self:async_loop(
-		self.allocations,
+	self:step_async_loop(
 		self.maybe_route_allocation,
 		function(x) x:set_state("next_t") end
 	)

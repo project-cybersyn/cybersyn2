@@ -324,16 +324,13 @@ function LogisticsThread:enter_poll_nodes()
 	self.sinks = {}
 	self.dumps = {}
 	self.seen_cargo = {}
-	self.stride =
-		math.ceil(mod_settings.work_factor * cs2.PERF_NODE_POLL_WORKLOAD)
-	self.index = 1
 	self.iteration = 1
+	self:begin_async_loop(
+		self.nodes,
+		math.ceil(cs2.PERF_NODE_POLL_WORKLOAD * mod_settings.work_factor)
+	)
 end
 
 function LogisticsThread:poll_nodes()
-	self:async_loop(
-		self.nodes,
-		self.poll_node,
-		function(x) x:set_state("alloc") end
-	)
+	self:step_async_loop(self.poll_node, function(thr) thr:set_state("alloc") end)
 end

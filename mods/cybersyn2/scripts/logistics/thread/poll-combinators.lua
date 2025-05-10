@@ -19,14 +19,11 @@ local LogisticsThread = _G.cs2.LogisticsThread
 
 function LogisticsThread:enter_poll_combinators()
 	self.active_topologies = {}
-	self.combinators = tlib.t_map_a(
-		storage.combinators,
-		function(_, k) return k end
-	)
-	self.stride =
-		math.ceil(mod_settings.work_factor * cs2.PERF_COMB_POLL_WORKLOAD)
-	self.index = 1
 	self.iteration = 1
+	self:begin_async_loop(
+		tlib.t_map_a(storage.combinators, function(_, k) return k end),
+		math.ceil(cs2.PERF_COMB_POLL_WORKLOAD * mod_settings.work_factor)
+	)
 end
 
 ---@param combinator_id UnitNumber
@@ -52,9 +49,8 @@ function LogisticsThread:poll_combinator(combinator_id)
 end
 
 function LogisticsThread:poll_combinators()
-	self:async_loop(
-		self.combinators,
+	self:step_async_loop(
 		self.poll_combinator,
-		function(x) x:set_state("next_t") end
+		function(thr) thr:set_state("next_t") end
 	)
 end

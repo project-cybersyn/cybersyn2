@@ -5,47 +5,32 @@
 local class = require("__cybersyn2__.lib.class").class
 local StateMachine = require("__cybersyn2__.lib.state-machine")
 local scheduler = require("__cybersyn2__.lib.scheduler")
+local thread = require("__cybersyn2__.lib.thread")
+local Thread = thread.Thread
 local cs2 = _G.cs2
 
 local max = math.max
 local min = math.min
 
----@class Thread
-local Thread = class()
-_G.cs2.Thread = Thread
+-- TODO: copy work period startup setting into thread global storage.
 
----Main loop of the thread. Override in child classes.
-function Thread:main() end
+-- Legacy handler: bind old threads to noop so alpha saves don't crash.
+-- TODO: remove at release
+scheduler.register_handler("thread_handler", function() end)
 
-scheduler.register_handler("thread_handler", function(task)
-	(task.data --[[@as Thread]]):main()
-end)
-
----Schedule a thread to run every `work_period` ticks, automatically updating
----when user changes mod settings.
----@param name string
----@param offset int Tick offset for task. Should be set differently than other tasks in the mod so all threads don't update on the same tick.
----@param constructor fun(): Thread Construct initial thread if it doesn't exist.
-function _G.cs2.schedule_thread(name, offset, constructor)
-	cs2.on_mod_settings_changed(function()
-		if storage.task_ids[name] then
-			scheduler.set_period(storage.task_ids[name], cs2.mod_settings.work_period)
-		else
-			storage.task_ids[name] = scheduler.every(
-				cs2.mod_settings.work_period,
-				"thread_handler",
-				constructor(),
-				offset
-			)
-		end
-	end)
-end
-
----@class StatefulThread: Thread, StateMachine
----@field public stride int? For enumerating threads, the number of elements to loop over in a single iteration
----@field public index int? The current index in the enumeration, if applicable
-local StatefulThread = class(nil, Thread, StateMachine)
+---@class StatefulThread: Lib.Thread, StateMachine
+---@field public stride? int For enumerating threads, the number of elements to loop over in a single iteration
+---@field public index? int The current index in the enumeration, if applicable
+---@field public iterating? any[] The array being iterated over, if applicable
+local StatefulThread = class("StatefulThread", Thread, StateMachine)
 _G.cs2.StatefulThread = StatefulThread
+
+---@param initial_state? string
+function StatefulThread:new(initial_state)
+	local thr = Thread.new(self) --[[@as StatefulThread]]
+	thr.state = initial_state
+	return thr
+end
 
 function StatefulThread:main()
 	local state = self.state
@@ -55,18 +40,30 @@ function StatefulThread:main()
 	handler(self)
 end
 
+---Initializes thread state to asynchronously iterate over an array.
+---@param array any[] The array to loop over.
+---@param stride? int The number of elements to loop over in a single iteration. Defaults to 1.
+function StatefulThread:begin_async_loop(array, stride)
+	-- Initialize the thread state for async iteration
+	self.stride = stride or 1
+	self.index = 1
+	self.iterating = array
+end
+
 ---Perform an asynchronous loop over an array, calling `step(self, element)`
 ---for each element in groups of `self.stride` per iteration.
 ---Calls `finish(self)` when the loop is complete.
----@param array any[] The array to loop over. (MUST be stable across iterations; best to copy and store in thread state if in doubt.)
 ---@param step fun(self: StatefulThread, element: any, index?: int, array?: any)
 ---@param finish fun(self: StatefulThread)
-function StatefulThread:async_loop(array, step, finish)
+function StatefulThread:step_async_loop(step, finish)
+	local array = self.iterating
+	if not array then return finish(self) end
 	local max_index = min(self.index + max(self.stride, 1) - 1, #array)
 	for i = self.index, max_index do
 		step(self, array[i], i, array)
 	end
 	if max_index >= #array then
+		self.iterating = nil
 		finish(self)
 	else
 		self.index = max_index + 1

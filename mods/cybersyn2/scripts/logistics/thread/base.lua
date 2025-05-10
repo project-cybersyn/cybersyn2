@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
 
 local class = require("__cybersyn2__.lib.class").class
-local scheduler = require("__cybersyn2__.lib.scheduler")
+local thread_lib = require("__cybersyn2__.lib.thread")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
@@ -35,9 +35,12 @@ local mod_settings = _G.cs2.mod_settings
 local LogisticsThread = class("LogisticsThread", cs2.StatefulThread)
 _G.cs2.LogisticsThread = LogisticsThread
 
-function LogisticsThread.new()
-	local thread = setmetatable({}, LogisticsThread) --[[@as Cybersyn.LogisticsThread]]
+function LogisticsThread:new()
+	local thread = cs2.StatefulThread.new(self) --[[@as Cybersyn.LogisticsThread]]
+	thread.friendly_name = "logistics"
+	thread.workload = 100
 	thread:set_state("init")
+	thread:wake()
 	return thread
 end
 
@@ -54,17 +57,6 @@ function LogisticsThread:main()
 	end
 end
 
-cs2.schedule_thread("logistics", 0, function() return LogisticsThread.new() end)
-
----@return Cybersyn.LogisticsThread?
-function _G.cs2.debug.get_logistics_thread()
-	local id = storage.task_ids["logistics"]
-	if id then
-		local t = scheduler.get(id)
-		if t then return t.data end
-	end
-end
-
 function LogisticsThread:enter_init()
 	self.topologies = nil
 	self.current_topology = nil
@@ -74,4 +66,18 @@ end
 
 function LogisticsThread:init()
 	if mod_settings.enable_logistics then self:set_state("poll_combinators") end
+end
+
+-- Start thread on startup.
+cs2.on_startup(function() LogisticsThread:new() end)
+
+---@return Cybersyn.LogisticsThread?
+function _G.cs2.debug.get_logistics_thread()
+	local tids = thread_lib.get_thread_ids()
+	for _, id in pairs(tids) do
+		local t = thread_lib.get_thread(id)
+		if t and t.friendly_name == "logistics" then
+			return t --[[@as Cybersyn.LogisticsThread]]
+		end
+	end
 end

@@ -26,9 +26,12 @@ local WARN = stlib.WARN
 ---@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
 local TrainMonitor = class("TrainMonitor", cs2.StatefulThread)
 
-function TrainMonitor.new()
-	local thread = setmetatable({}, TrainMonitor) --[[@as Cybersyn.Internal.TrainMonitor]]
+function TrainMonitor:new()
+	local thread = cs2.StatefulThread.new(self) --[[@as Cybersyn.Internal.TrainMonitor]]
+	thread.friendly_name = "train_monitor"
+	thread.workload = 20
 	thread:set_state("init")
+	thread:wake()
 	return thread
 end
 
@@ -37,11 +40,11 @@ function TrainMonitor:init()
 end
 
 function TrainMonitor:enter_enum_luatrains()
-	self.stride =
-		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
-	self.index = 1
 	self.seen_groups = {}
-	self.trains = game.train_manager.get_trains(ALL_TRAINS_FILTER)
+	self:begin_async_loop(
+		game.train_manager.get_trains(ALL_TRAINS_FILTER),
+		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
+	)
 end
 
 ---@param luatrain LuaTrain
@@ -105,19 +108,19 @@ function TrainMonitor:enum_luatrain(luatrain)
 end
 
 function TrainMonitor:enum_luatrains()
-	self:async_loop(
-		self.trains,
+	self:step_async_loop(
 		self.enum_luatrain,
 		function(thr) thr:set_state("enum_cstrains") end
 	)
 end
 
 function TrainMonitor:enter_enum_cstrains()
-	self.index = 1
-	self.trains = nil
-	self.train_ids = tlib.t_map_a(Vehicle.all(), function(veh)
-		if veh.type == "train" then return veh.id end
-	end)
+	self:begin_async_loop(
+		tlib.t_map_a(Vehicle.all(), function(veh)
+			if veh.type == "train" then return veh.id end
+		end),
+		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
+	)
 end
 
 function TrainMonitor:enum_cstrain(vehicle_id)
@@ -135,20 +138,14 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 end
 
 function TrainMonitor:enum_cstrains()
-	self:async_loop(
-		self.train_ids,
+	self:step_async_loop(
 		self.enum_cstrain,
 		function(thr) thr:set_state("init") end
 	)
 end
 
-function TrainMonitor:exit_enum_cstrains() self.train_ids = nil end
-
-cs2.schedule_thread(
-	"train_group_monitor",
-	1,
-	function() return TrainMonitor.new() end
-)
+-- Start thread on startup.
+cs2.on_startup(function() TrainMonitor:new() end)
 
 --------------------------------------------------------------------------------
 -- Handle trains arriving/leaving at stops
