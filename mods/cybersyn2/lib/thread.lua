@@ -331,7 +331,7 @@ end
 ---@return {[integer]: Lib.Thread} #The thread map.
 ---@return Lib.Thread.IdSet[] #The thread buckets, indexed by frame.
 ---@return number[] #The workload of each bucket, indexed by frame.
-function lib.debug_get_thread_info()
+function lib.debug_get_threads()
 	local data = get_data()
 	return data.threads, data.buckets, data.bucket_workloads
 end
