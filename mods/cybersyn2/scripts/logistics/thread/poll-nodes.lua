@@ -319,9 +319,13 @@ end
 
 function LogisticsThread:enter_poll_nodes()
 	self.providers = {}
+	self.provided_qty = {}
 	self.pushers = {}
+	self.pushed_qty = {}
 	self.pullers = {}
+	self.pulled_qty = {}
 	self.sinks = {}
+	self.sunk_qty = {}
 	self.dumps = {}
 	self.seen_cargo = {}
 	self.iteration = 1
