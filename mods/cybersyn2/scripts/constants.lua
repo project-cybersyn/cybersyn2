@@ -23,6 +23,8 @@ _G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 4
 _G.cs2.PERF_COMB_POLL_WORKLOAD = 5
 -- Base number of nodes to examine per `poll_nodes` iteration
 _G.cs2.PERF_NODE_POLL_WORKLOAD = 3
+-- Base number of items to examine per `cull` iteration.
+_G.cs2.PERF_CULL_WORKLOAD = 20
 -- Base number of items to examine per `alloc` iteration.
 _G.cs2.PERF_ALLOC_ITEM_WORKLOAD = 1
 -- Number of deliveries to examine per delivery monitor iteration.

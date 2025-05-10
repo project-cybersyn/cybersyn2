@@ -360,5 +360,5 @@ function LogisticsThread:exit_poll_nodes()
 end
 
 function LogisticsThread:poll_nodes()
-	self:step_async_loop(self.poll_node, function(thr) thr:set_state("alloc") end)
+	self:step_async_loop(self.poll_node, function(thr) thr:set_state("cull") end)
 end
