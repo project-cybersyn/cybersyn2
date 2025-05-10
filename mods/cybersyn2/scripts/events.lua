@@ -366,3 +366,15 @@ _G.cs2.on_delivery_state_changed, _G.cs2.raise_delivery_state_changed = event(
 	"nil",
 	"nil"
 )
+
+---Event raised when the logistics thread has finished computing net inventory
+---for an entire topology.
+_G.cs2.on_topology_inventory_updated, _G.cs2.raise_topology_inventory_updated =
+	event(
+		"topology_inventory_updated",
+		"Cybersyn.Topology",
+		"nil",
+		"nil",
+		"nil",
+		"nil"
+	)

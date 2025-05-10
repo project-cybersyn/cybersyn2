@@ -521,6 +521,14 @@ function TrainStop:is_sharing_master()
 	end
 end
 
+function TrainStop:is_sharing_slave()
+	if self.shared_inventory_master then
+		return true
+	else
+		return false
+	end
+end
+
 ---Make this stop a shared inventory master.
 function TrainStop:share_inventory()
 	self.shared_inventory_slaves = {}

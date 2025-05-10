@@ -26,6 +26,15 @@ end
 ---@param id Id
 function Topology.get(id) return storage.topologies[id or ""] end
 
+---Called to trigger the event indicating a topology's net inventory was
+---computed by the logistics thread. Special handling must be taken to
+---ensure that the event handlers, which are likely to be expensive, are
+---lifted out of the main thread.
+function Topology:raise_inventory_updated()
+	-- TODO: implement this properly. For now, just raise the event.
+	cs2.raise_topology_inventory_updated(self)
+end
+
 ---@param surface_index uint
 local function create_train_topology(surface_index)
 	local t = Topology.new()
@@ -55,8 +64,8 @@ local function recheck_train_surfaces()
 end
 _G.cs2.recheck_train_surfaces = recheck_train_surfaces
 
--- When config changes,re-enumerate surfaces and find matching topologies
-cs2.on_startup(function(data) recheck_train_surfaces() end)
+-- At startup re-enumerate surfaces and find matching topologies
+cs2.on_startup(function() recheck_train_surfaces() end)
 
 -- When a planet is created make a train topology.
 cs2.on_surface(function(index, op)

@@ -98,6 +98,10 @@ lib.NodeNetworkOperation = {
 ---@field public surface_index? uint The index of the surface this topology is associated with, if any. This is not a 1-1 association; a surface may have multiple topologies.
 ---@field public name? string The name of the topology, if any. This is not a unique key and primarily used for debugging.
 ---@field public vehicle_type string The vehicle type intended to traverse this topology.
+---@field public provided? SignalCounts Count of all items provided by nodes in this topology. This is a cached value and is not updated in realtime.
+---@field public pushed? SignalCounts Count of all items pushed by nodes in this topology. This is a cached value and is not updated in realtime.
+---@field public pulled? SignalCounts Count of all items pulled by nodes in this topology. This is a cached value and is not updated in realtime.
+---@field public sunk? SignalCounts Count of all items sunk by nodes in this topology. This is a cached value and is not updated in realtime.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
 ---@class Cybersyn.Node

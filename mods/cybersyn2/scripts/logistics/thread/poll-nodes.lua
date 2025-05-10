@@ -55,13 +55,14 @@ end
 function LogisticsThread:classify_inventory(stop)
 	local inventory = stop:get_inventory()
 	if not inventory then return end
-	local is_master = not stop.shared_inventory_master
+	-- Ignore slave stops when counting inventory qty to avoid double counting
+	local count_inventory = not stop:is_sharing_slave()
 	if stop.is_producer then
 		inventory:foreach_producible_item(function(item, provide_qty, push_qty)
-			if is_master and provide_qty > 0 then
+			if count_inventory and provide_qty > 0 then
 				self.provided_qty[item] = (self.provided_qty[item] or 0) + provide_qty
 			end
-			if is_master and push_qty > 0 then
+			if count_inventory and push_qty > 0 then
 				self.pushed_qty[item] = (self.pushed_qty[item] or 0) + push_qty
 			end
 			local _, out_t = stop:get_delivery_thresholds(item)
@@ -77,10 +78,10 @@ function LogisticsThread:classify_inventory(stop)
 	end
 	if stop.is_consumer then
 		inventory:foreach_consumable_item(function(item, pull_qty, sink_qty)
-			if is_master and pull_qty > 0 then
+			if count_inventory and pull_qty > 0 then
 				self.pulled_qty[item] = (self.pulled_qty[item] or 0) + pull_qty
 			end
-			if is_master and sink_qty > 0 then
+			if count_inventory and sink_qty > 0 then
 				self.sunk_qty[item] = (self.sunk_qty[item] or 0) + sink_qty
 			end
 			local in_t = stop:get_delivery_thresholds(item)
@@ -345,6 +346,17 @@ function LogisticsThread:enter_poll_nodes()
 		self.nodes,
 		math.ceil(cs2.PERF_NODE_POLL_WORKLOAD * mod_settings.work_factor)
 	)
+end
+
+function LogisticsThread:exit_poll_nodes()
+	-- Shallow copy net inventory signal counts to the topology.
+	local topology = self.topologies[self.current_topology]
+	topology.provided = tlib.assign({}, self.provided_qty)
+	topology.pushed = tlib.assign({}, self.pushed_qty)
+	topology.pulled = tlib.assign({}, self.pulled_qty)
+	topology.sunk = tlib.assign({}, self.sunk_qty)
+	-- Fire mass inventory update event for the topology.
+	topology:raise_inventory_updated()
 end
 
 function LogisticsThread:poll_nodes()
