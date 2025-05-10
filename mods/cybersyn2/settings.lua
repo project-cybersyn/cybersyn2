@@ -46,7 +46,7 @@ data:extend({
 		name = "cybersyn2-setting-channel-mask",
 		order = "bd",
 		setting_type = "runtime-global",
-		default_value = -1,
+		default_value = 1,
 		minimum_value = -2147483648,
 		maximum_value = 2147483647,
 	},
