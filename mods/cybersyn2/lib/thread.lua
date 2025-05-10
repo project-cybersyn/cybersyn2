@@ -326,4 +326,14 @@ function lib.get_thread_ids()
 	return ids
 end
 
+---Get internal state of thread system. DO NOT mutate this or you will break
+---threading. This is for debugging purposes only.
+---@return {[integer]: Lib.Thread} #The thread map.
+---@return Lib.Thread.IdSet[] #The thread buckets, indexed by frame.
+---@return number[] #The workload of each bucket, indexed by frame.
+function lib.debug_get_thread_info()
+	local data = get_data()
+	return data.threads, data.buckets, data.bucket_workloads
+end
+
 return lib
