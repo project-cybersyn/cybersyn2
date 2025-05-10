@@ -19,7 +19,6 @@ local LogisticsThread = _G.cs2.LogisticsThread
 
 function LogisticsThread:enter_poll_combinators()
 	self.active_topologies = {}
-	self.iteration = 1
 	self:begin_async_loop(
 		tlib.t_map_a(storage.combinators, function(_, k) return k end),
 		math.ceil(cs2.PERF_COMB_POLL_WORKLOAD * mod_settings.work_factor)

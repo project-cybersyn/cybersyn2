@@ -561,7 +561,6 @@ function LogisticsThread:enter_alloc()
 	self.pullers_p = {}
 	self.pushers_p = {}
 	self.sinks_p = {}
-	self.iteration = 1
 	self:begin_async_loop(
 		tlib.shuffle(tlib.keys(self.seen_cargo)),
 		math.ceil(mod_settings.work_factor * cs2.PERF_ALLOC_ITEM_WORKLOAD)
