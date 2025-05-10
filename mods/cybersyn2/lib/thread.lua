@@ -239,8 +239,7 @@ end
 -- API
 --------------------------------------------------------------------------------
 
----Create a new thread with the given handler. The thread is started in a
----sleeping state.
+---Create a new thread. The thread begins in a sleeping state.
 function Thread:new()
 	local id = counters.next("_thread")
 	local thread = setmetatable({
@@ -297,6 +296,7 @@ function Thread:wake()
 		if wake_now then wake_now[self.id] = nil end
 	end
 	-- Schedule the thread.
+	self.wake_at = nil
 	return schedule(data, self, false)
 end
 
