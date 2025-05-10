@@ -55,8 +55,15 @@ end
 function LogisticsThread:classify_inventory(stop)
 	local inventory = stop:get_inventory()
 	if not inventory then return end
+	local is_master = not stop.shared_inventory_master
 	if stop.is_producer then
 		inventory:foreach_producible_item(function(item, provide_qty, push_qty)
+			if is_master and provide_qty > 0 then
+				self.provided_qty[item] = (self.provided_qty[item] or 0) + provide_qty
+			end
+			if is_master and push_qty > 0 then
+				self.pushed_qty[item] = (self.pushed_qty[item] or 0) + push_qty
+			end
 			local _, out_t = stop:get_delivery_thresholds(item)
 			if provide_qty >= out_t then
 				self:add_to_logisics_set("providers", stop, item)
@@ -70,6 +77,12 @@ function LogisticsThread:classify_inventory(stop)
 	end
 	if stop.is_consumer then
 		inventory:foreach_consumable_item(function(item, pull_qty, sink_qty)
+			if is_master and pull_qty > 0 then
+				self.pulled_qty[item] = (self.pulled_qty[item] or 0) + pull_qty
+			end
+			if is_master and sink_qty > 0 then
+				self.sunk_qty[item] = (self.sunk_qty[item] or 0) + sink_qty
+			end
 			local in_t = stop:get_delivery_thresholds(item)
 			if pull_qty >= in_t then
 				self:add_to_logisics_set("pullers", stop, item)
@@ -328,7 +341,6 @@ function LogisticsThread:enter_poll_nodes()
 	self.sunk_qty = {}
 	self.dumps = {}
 	self.seen_cargo = {}
-	self.iteration = 1
 	self:begin_async_loop(
 		self.nodes,
 		math.ceil(cs2.PERF_NODE_POLL_WORKLOAD * mod_settings.work_factor)
