@@ -248,6 +248,20 @@ function TrainStop:fail_all_deliveries(reason)
 	end
 end
 
+function TrainStop:fail_all_shared_deliveries(reason)
+	if self.shared_inventory_master then
+		local master = cs2.get_stop(self.shared_inventory_master)
+		if master then return master:fail_all_shared_deliveries(reason) end
+	end
+	if self.shared_inventory_slaves then
+		for slave_id in pairs(self.shared_inventory_slaves) do
+			local slave = cs2.get_stop(slave_id)
+			if slave then slave:fail_all_deliveries(reason) end
+		end
+	end
+	self:fail_all_deliveries(reason)
+end
+
 ---@param delivery_id Id
 function TrainStop:enqueue(delivery_id)
 	self.delivery_queue[#self.delivery_queue + 1] = delivery_id
@@ -307,50 +321,61 @@ function TrainStop:update_inventory_mode()
 	-- If slave station, set inventory to master stop
 	if self.shared_inventory_master then
 		local master = cs2.get_stop(self.shared_inventory_master)
-		if master then self:set_inventory(master.inventory_id) end
+		if master then
+			if self:set_inventory(master.inventory_id) then
+				self:fail_all_deliveries("INVENTORY_CHANGED")
+			end
+		end
 		return
 	end
-	-- TODO: use get_combinator_with_mode
-	local combs = self:get_associated_combinators(
-		function(c) return c.mode == "inventory" end
-	)
-	if #combs == 0 then
-		-- Return stop to its internal pseudoinventory
-		self:set_inventory(self.created_inventory_id)
-		-- Destroy created true inventory
-		if self.true_inventory_id then
-			local inv = Inventory.get(self.true_inventory_id)
-			if inv then
-				strace(
-					stlib.DEBUG,
-					"cs2",
-					"inventory",
-					"message",
-					"Destroying true inventory at stop",
-					self.id
-				)
-				inv:destroy()
+
+	local failed_deliveries = false
+
+	-- Reset to internal inventory if we don't have a master. No-op if already
+	-- set.
+	if
+		self:set_inventory(self.created_inventory_id) and not failed_deliveries
+	then
+		self:fail_all_deliveries("INVENTORY_CHANGED")
+		failed_deliveries = true
+	end
+
+	local inv = self:get_inventory()
+	if not inv then
+		strace(
+			stlib.ERROR,
+			"cs2",
+			"inventory",
+			"stop",
+			self,
+			"message",
+			"Train stop has no inventory."
+		)
+		return
+	end
+
+	local inv_comb = self:get_combinator_with_mode("inventory")
+	if not inv_comb then
+		-- Pseudoinventory case
+		if not inv.is_pseudoinventory then
+			if not failed_deliveries then
+				self:fail_all_shared_deliveries("INVENTORY_CHANGED")
+				failed_deliveries = true
 			end
-			self.true_inventory_id = nil
+			inv:convert_to_pseudoinventory()
 		end
 	else
-		-- Create true inventory if needed
-		if not self.true_inventory_id then
-			strace(
-				stlib.DEBUG,
-				"cs2",
-				"inventory",
-				"message",
-				"Creating true inventory at stop",
-				self.id
-			)
-			local inv = TrueInventory:new()
-			self.true_inventory_id = inv.id
+		if inv.is_pseudoinventory then
+			if not failed_deliveries then
+				self:fail_all_shared_deliveries("INVENTORY_CHANGED")
+				failed_deliveries = true
+			end
+			inv:convert_to_true_inventory()
 		end
-		-- Swap stop to true inventory
-		self:set_inventory(self.true_inventory_id)
 	end
-	-- Update inventory for all slaves
+
+	-- Update inventory mode for all slaves
+	-- TODO: don't think this is needed anymore
 	if self.shared_inventory_slaves then
 		for slave_id in pairs(self.shared_inventory_slaves) do
 			local slave = cs2.get_stop(slave_id)
@@ -383,16 +408,18 @@ end
 ---Update this stop's inventory
 ---@param is_opportunistic boolean? `true` when updating inventory opportunistically (e.g. when train leaving stop), causes combinator inputs to be reread on-the-fly.
 function TrainStop:update_inventory(is_opportunistic)
+	-- If shared inventory, forward to master when relevant.
 	if self.shared_inventory_master then
 		-- Opportunistic reread at a slave station should forward to master.
 		if is_opportunistic then
-			local master = TrainStop.get(self.shared_inventory_master)
+			local master = cs2.get_stop(self.shared_inventory_master)
 			if master then return master:update_inventory(is_opportunistic) end
 		end
 		-- Otherwise, no need to read inventory at a slave station.
 		return
 	end
-	-- Can't read volatile inventories
+
+	-- Don't read volatile inventories
 	if self:is_inventory_volatile() then
 		strace(
 			TRACE,
@@ -405,20 +432,22 @@ function TrainStop:update_inventory(is_opportunistic)
 		)
 		return
 	end
-	if self.true_inventory_id then
-		local inventory = Inventory.get(self.true_inventory_id)
-		if not inventory then
-			strace(
-				TRACE,
-				"cs2",
-				"inventory",
-				"stop",
-				self,
-				"message",
-				"True inventory is missing, not updating."
-			)
-			return
-		end
+
+	local inventory = self:get_inventory()
+	if not inventory then
+		strace(
+			stlib.ERROR,
+			"cs2",
+			"inventory",
+			"stop",
+			self,
+			"message",
+			"Train stop has no inventory."
+		)
+		return
+	end
+
+	if not inventory.is_pseudoinventory then
 		-- True inventory mode; read from Inventory combs.
 		local combs = self:get_associated_combinators(
 			function(c) return c.mode == "inventory" end
@@ -464,20 +493,7 @@ function TrainStop:update_inventory(is_opportunistic)
 		if not read_sink then inventory:set_sinks(nil) end
 		if not read_capacity then inventory:set_capacities(nil, nil) end
 	else
-		-- Pseudoinventory mode; read from Station comb.
-		local inventory = Inventory.get(self.created_inventory_id)
-		if not inventory then
-			strace(
-				TRACE,
-				"cs2",
-				"inventory",
-				"stop",
-				self,
-				"message",
-				"Pseudoinventory is missing, not updating."
-			)
-			return
-		end
+		-- Pseudoinventory mode; read from station combinator.
 		local combs = self:get_associated_combinators(
 			function(c) return c.mode == "station" end
 		)

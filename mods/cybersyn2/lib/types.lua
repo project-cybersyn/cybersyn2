@@ -169,6 +169,7 @@ lib.NodeNetworkOperation = {
 
 ---@class Cybersyn.Inventory
 ---@field public id Id
+---@field public is_pseudoinventory boolean
 ---@field public surface_index Id? The index of the surface this inventory should be associated with if any.
 ---@field public created_for_node_id Id? If this inventory was created implicitly for a node, that node's id.
 ---@field public inventory SignalCounts Base inventory (or pseudoinventory) as read from the combinator or world state.

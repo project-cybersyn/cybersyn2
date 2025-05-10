@@ -66,16 +66,18 @@ function Inventory:new()
 		outflow = {},
 	}, self)
 	local inv = storage.inventories[id]
-	cs2.raise_inventory_created(inv)
+
 	return inv
 end
 
 ---Get an inventory by ID.
 ---@param inventory_id Id?
 ---@return Cybersyn.Inventory?
-function Inventory.get(inventory_id)
+local function get_inventory(inventory_id)
 	return storage.inventories[inventory_id or ""]
 end
+Inventory.get = get_inventory
+_G.cs2.get_inventory = get_inventory
 
 function Inventory:destroy()
 	cs2.raise_inventory_destroyed(self)
@@ -262,6 +264,26 @@ function Inventory:get_capacities()
 	return self.item_stack_capacity, self.fluid_capacity
 end
 
+---Convert this inventory in place to a pseudoinventory.
+---@return boolean was_converted `true` if the inventory was converted, `false` if it was already a pseudoinventory.
+function Inventory:convert_to_pseudoinventory() return false end
+
+---Convert this inventory in place to a true inventory.
+---@return boolean was_converted `true` if the inventory was converted, `false` if it was already a true inventory.
+function Inventory:convert_to_true_inventory() return false end
+
+function Inventory:clear()
+	self.inventory = {}
+	self.inflow = {}
+	self.inflow_rebate = nil
+	self.outflow = {}
+	self.outflow_rebate = nil
+	self.item_stack_capacity = nil
+	self.fluid_capacity = nil
+	self.used_item_stack_capacity = nil
+	self.used_fluid_capacity = nil
+end
+
 --------------------------------------------------------------------------------
 -- Pseudoinventory
 --------------------------------------------------------------------------------
@@ -271,6 +293,12 @@ end
 ---@class Cybersyn.Pseudoinventory: Cybersyn.Inventory
 local Pseudoinventory = class("Pseudoinventory", Inventory)
 _G.cs2.Pseudoinventory = Pseudoinventory
+
+function Pseudoinventory:new()
+	local inv = Inventory.new(self)
+	inv.is_pseudoinventory = true
+	return inv
+end
 
 function Pseudoinventory:get_provided_qty(item)
 	local inv = self.inventory
@@ -302,6 +330,13 @@ function Pseudoinventory:foreach_consumable_item(f)
 	end
 end
 
+function Pseudoinventory:convert_to_true_inventory()
+	self:clear()
+	setmetatable(self, cs2.TrueInventory)
+	self.is_pseudoinventory = false
+	return true
+end
+
 --------------------------------------------------------------------------------
 -- TrueInventory
 --------------------------------------------------------------------------------
@@ -315,6 +350,12 @@ end
 ---@field public sinks SignalCounts?
 local TrueInventory = class("TrueInventory", Inventory)
 _G.cs2.TrueInventory = TrueInventory
+
+function TrueInventory:new()
+	local inv = Inventory.new(self)
+	inv.is_pseudoinventory = false
+	return inv
+end
 
 function TrueInventory:set_pulls(counts)
 	if counts then
@@ -432,6 +473,21 @@ function TrueInventory:foreach_consumable_item(f)
 	end
 end
 
+function TrueInventory:clear()
+	Inventory.clear(self)
+	self.provides = nil
+	self.pulls = nil
+	self.pushes = nil
+	self.sinks = nil
+end
+
+function TrueInventory:convert_to_pseudoinventory()
+	self:clear()
+	setmetatable(self, cs2.Pseudoinventory)
+	self.is_pseudoinventory = true
+	return true
+end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
@@ -445,6 +501,7 @@ cs2.on_node_created(function(node)
 		node.created_inventory_id = inv.id
 		inv.created_for_node_id = node.id
 		inv.surface_index = node.entity.surface_index
+		cs2.raise_inventory_created(inv)
 	end
 end, true)
 

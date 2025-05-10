@@ -170,6 +170,8 @@ local function update_stop_overlay(stop)
 	if not overlay then return end
 	local layout = stop:get_layout()
 	if not layout then return end
+	local inventory = stop:get_inventory()
+	if not inventory then return end
 
 	-- Text
 	local lines = {
@@ -177,7 +179,7 @@ local function update_stop_overlay(stop)
 			"[item=train-stop]",
 			stop.id,
 			stop.per_wagon_mode and "[item=cargo-wagon]" or "",
-			stop.true_inventory_id and "[item=buffer-chest]" or "",
+			(not inventory.is_pseudoinventory) and "[item=buffer-chest]" or "",
 			"[item=steel-chest]",
 			stop.inventory_id,
 		}),
