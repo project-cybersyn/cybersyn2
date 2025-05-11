@@ -2,10 +2,21 @@
 -- Train delivery controller
 --------------------------------------------------------------------------------
 
+-- States:
+-- init: Virtual charges against source and dest inventory
+-- wait_from: Check for open slot at source and enter queue
+-- to_from: Add schedule for source
+-- interrupted_from: Train was interrupted while trying to get to `from`, reschedule to `from` when it hits depot.
+-- wait_to: Clear virtual charge from source inventory, check for open slot at dest and enter queue
+-- to_to: Add schedule for dest.
+-- completed: Clear virtual charge from dest
+-- failed: Clear any virtual charges, remove from any queue slots
+
 local class = require("__cybersyn2__.lib.class").class
 local siglib = require("__cybersyn2__.lib.signal")
 local stlib = require("__cybersyn2__.lib.strace")
 local tlib = require("__cybersyn2__.lib.table")
+local thread_lib = require("__cybersyn2__.lib.thread")
 
 local empty = tlib.empty
 local strace = stlib.strace
@@ -15,6 +26,7 @@ local Delivery = _G.cs2.Delivery
 local Inventory = _G.cs2.Inventory
 local TrainStop = _G.cs2.TrainStop
 local Train = _G.cs2.Train
+local Thread = thread_lib.Thread
 
 ---@class Cybersyn.TrainDelivery
 local TrainDelivery = class("TrainDelivery", Delivery)
@@ -61,8 +73,7 @@ function TrainDelivery.new(
 	delivery.vehicle_id = train.id
 	train:set_delivery(delivery)
 
-	-- Immediately start the delivery
-	delivery:goto_from()
+	cs2.enqueue_delivery_for_dispatch(delivery)
 
 	cs2.raise_delivery_created(delivery)
 	return delivery
@@ -380,11 +391,52 @@ cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 	end
 end)
 
--- init: Virtual charges against source and dest inventory
--- wait_from: Check for open slot at source and enter queue
--- to_from: Add schedule for source
--- interrupted_from: Train was interrupted while trying to get to `from`, reschedule to `from` when it hits depot.
--- wait_to: Clear virtual charge from source inventory, check for open slot at dest and enter queue
--- to_to: Add schedule for dest.
--- completed: Clear virtual charge from dest
--- failed: Clear any virtual charges, remove from any queue slots
+--------------------------------------------------------------------------------
+-- Dispatch thread
+-- Due to the large cost incurred by calling the Factorio API to dispatch a
+-- train, we want it to happen on its own frame isolated from all other processing.
+-- This should prevent UPS-killing spikes when a train is dispatched.
+--------------------------------------------------------------------------------
+
+---@class Cybersyn.Internal.DeliveryDispatchThread: Lib.Thread
+---@field public queue int[] Queue of delivery IDs to be dispatched.
+local DeliveryDispatchThread = class("DeliveryDispatchThread", Thread)
+
+function DeliveryDispatchThread:new()
+	local thread = Thread.new(self) --[[@as Cybersyn.Internal.DeliveryDispatchThread]]
+	thread.friendly_name = "delivery_dispatch"
+	-- Guarantee that the thread gets its own exclusive frame.
+	thread.workload = 1000000000
+	thread.queue = {}
+	return thread
+end
+
+function DeliveryDispatchThread:main()
+	local queue = self.queue
+	if #queue == 0 then return self:sleep() end
+	-- Pop exactly one delivery and schedule it
+	local delivery_id = table.remove(queue, 1)
+	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+	if not delivery then return end
+	delivery:goto_from()
+	-- Sleep whenever queue is empty.
+	if #queue == 0 then return self:sleep() end
+end
+
+function DeliveryDispatchThread:enqueue(delivery_id)
+	self.queue[#self.queue + 1] = delivery_id
+	self:wake()
+end
+
+cs2.on_startup(function()
+	-- Create the dispatch thread on startup.
+	local thread = DeliveryDispatchThread:new()
+	storage.task_ids["delivery_dispatch"] = thread.id
+end)
+
+---@param delivery Cybersyn.TrainDelivery
+function _G.cs2.enqueue_delivery_for_dispatch(delivery)
+	local ddt = thread_lib.get_thread(storage.task_ids["delivery_dispatch"]) --[[@as Cybersyn.Internal.DeliveryDispatchThread?]]
+	if not ddt then return end
+	ddt:enqueue(delivery.id)
+end

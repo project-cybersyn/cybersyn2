@@ -20,9 +20,9 @@ _G.cs2.LONGEST_INSERTER_REACH = 2
 -- Base number of trains to examine per iteration of the train group monitor.
 _G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 4
 -- Base number of combinators to examine per `poll_combinators` iteration.
-_G.cs2.PERF_COMB_POLL_WORKLOAD = 5
+_G.cs2.PERF_COMB_POLL_WORKLOAD = 6
 -- Base number of nodes to examine per `poll_nodes` iteration
-_G.cs2.PERF_NODE_POLL_WORKLOAD = 3
+_G.cs2.PERF_NODE_POLL_WORKLOAD = 4
 -- Base number of items to examine per `cull` iteration.
 _G.cs2.PERF_CULL_WORKLOAD = 20
 -- Base number of items to examine per `alloc` iteration.
