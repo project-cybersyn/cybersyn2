@@ -73,7 +73,7 @@ function TrainDelivery.new(
 	delivery.vehicle_id = train.id
 	train:set_delivery(delivery)
 
-	cs2.enqueue_delivery_for_dispatch(delivery)
+	cs2.enqueue_delivery_operation(delivery, "goto_from")
 
 	cs2.raise_delivery_created(delivery)
 	return delivery
@@ -287,7 +287,8 @@ end
 ---that stop
 function TrainDelivery:notify_departed(stop)
 	if self.state == "to_from" and stop.id == self.from_id then
-		self:goto_to()
+		self:clear_from_charge()
+		cs2.enqueue_delivery_operation(self, "goto_to")
 	elseif self.state == "to_to" and stop.id == self.to_id then
 		self:complete()
 	else
@@ -395,11 +396,10 @@ end)
 -- Dispatch thread
 -- Due to the large cost incurred by calling the Factorio API to dispatch a
 -- train, we want it to happen on its own frame isolated from all other processing.
--- This should prevent UPS-killing spikes when a train is dispatched.
 --------------------------------------------------------------------------------
 
 ---@class Cybersyn.Internal.DeliveryDispatchThread: Lib.Thread
----@field public queue int[] Queue of delivery IDs to be dispatched.
+---@field public queue (int|string)[] Queue of delivery IDs to be dispatched.
 local DeliveryDispatchThread = class("DeliveryDispatchThread", Thread)
 
 function DeliveryDispatchThread:new()
@@ -416,15 +416,19 @@ function DeliveryDispatchThread:main()
 	if #queue == 0 then return self:sleep() end
 	-- Pop exactly one delivery and schedule it
 	local delivery_id = table.remove(queue, 1)
+	local operation = table.remove(queue, 1)
 	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 	if not delivery then return end
-	delivery:goto_from()
+	delivery[operation](delivery)
 	-- Sleep whenever queue is empty.
 	if #queue == 0 then return self:sleep() end
 end
 
-function DeliveryDispatchThread:enqueue(delivery_id)
+---@param delivery_id int The ID of the delivery to be dispatched.
+---@param operation string The operation to be performed on the delivery.
+function DeliveryDispatchThread:enqueue(delivery_id, operation)
 	self.queue[#self.queue + 1] = delivery_id
+	self.queue[#self.queue + 1] = operation
 	self:wake()
 end
 
@@ -434,9 +438,11 @@ cs2.on_startup(function()
 	storage.task_ids["delivery_dispatch"] = thread.id
 end)
 
+---Defer an operation that will schedule a train onto its own frame.
 ---@param delivery Cybersyn.TrainDelivery
-function _G.cs2.enqueue_delivery_for_dispatch(delivery)
+---@param operation string The method to call on the delivery.
+function _G.cs2.enqueue_delivery_operation(delivery, operation)
 	local ddt = thread_lib.get_thread(storage.task_ids["delivery_dispatch"]) --[[@as Cybersyn.Internal.DeliveryDispatchThread?]]
 	if not ddt then return end
-	ddt:enqueue(delivery.id)
+	ddt:enqueue(delivery.id, operation)
 end

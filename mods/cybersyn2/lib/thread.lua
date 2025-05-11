@@ -10,6 +10,9 @@ local class = require("__cybersyn2__.lib.class").class
 local counters = require("__cybersyn2__.lib.counters")
 
 local table_size = _G.table_size
+local pairs = _G.pairs
+local next = _G.next
+
 local BIG_INT = 9007199254740000
 
 local DEFAULT_MAX_WORKLOAD = 100
