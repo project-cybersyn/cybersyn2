@@ -33,6 +33,7 @@ function Topology.get(id) return storage.topologies[id or ""] end
 function Topology:raise_inventory_updated()
 	-- TODO: implement this properly. For now, just raise the event.
 	cs2.raise_topology_inventory_updated(self)
+	script.raise_event("cybersyn2-topology-inventory-updated", { id = self.id })
 end
 
 ---@param surface_index uint
