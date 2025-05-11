@@ -146,8 +146,10 @@ local function schedule(data, thread, use_current_bucket)
 		local bucket = buckets[bucket_index]
 		local workload = bucket_workloads[bucket_index]
 		local next_workload = workload + thread_workload
+		local bucket_size = table_size(bucket)
 		if
-			next_workload <= max_workload and table_size(bucket) < max_bucket_size
+			(bucket_size == 0)
+			or (next_workload <= max_workload and bucket_size < max_bucket_size)
 		then
 			bucket[thread.id] = true
 			bucket_workloads[bucket_index] = next_workload
@@ -311,7 +313,7 @@ function Thread:main() end
 ---@return Lib.Thread? #The thread with the given ID, or `nil` if it does not exist.
 function lib.get_thread(id)
 	local data = get_data()
-	return data and data.threads[id]
+	return data and data.threads[id or ""]
 end
 
 ---Get all thread IDs. Returns an empty table if no threads exist.
