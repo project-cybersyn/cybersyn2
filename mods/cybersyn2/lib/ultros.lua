@@ -624,4 +624,71 @@ lib.RadioButtons = relm.define_element({
 	end,
 })
 
+local function selected_tab_query_handler(me, payload, props)
+	if payload.key == "selected_tab" and me.elem then
+		return true, me.elem.selected_tab_index
+	end
+	return false
+end
+
+lib.TabbedPane = relm.define_element({
+	name = "ultros.TabbedPane",
+	render = function(props, state)
+		local selected_tab = (state or empty).selected_tab
+		local passed_props = assign({}, props)
+		passed_props.type = "tabbed-pane"
+		passed_props.listen = true
+		passed_props.selected_tab_index = selected_tab
+		passed_props.query_handler = selected_tab_query_handler
+		passed_props.tabs = nil
+
+		local children = {}
+		for i, tab in ipairs(props.tabs) do
+			if tab.content then
+				children[#children + 1] = Pr({
+					type = "tab",
+					caption = tab.caption or "(no caption)",
+				})
+				if i == selected_tab then
+					tab.content.props.selected = true
+				else
+					tab.content.props.selected = false
+				end
+				children[#children + 1] = tab.content
+			end
+		end
+		return Pr(passed_props, children)
+	end,
+	message = function(me, payload, props)
+		if payload.key == "factorio_event" then
+			if payload.name == defines.events.on_gui_selected_tab_changed then
+				local _, index =
+					relm.query_broadcast(me, { key = "selected_tab" }, true)
+				relm.set_state(me, {
+					selected_tab = index,
+				})
+			end
+			return true
+		end
+		return false
+	end,
+	state = function(props)
+		return { selected_tab = props.initial_selected_tab or 1 }
+	end,
+})
+
+---Ensures that tabs that are not selected have their Relm elements removed
+---so that events/timers don't fire when unneeded. Only valid as a `content`
+---item in a `TabbedPane`.
+lib.HiddenTabRemover = relm.define_element({
+	name = "ultros.HiddenTabRemover",
+	render = function(props)
+		if props.selected then
+			return props.content
+		else
+			return Pr({ type = "empty-widget" })
+		end
+	end,
+})
+
 return lib
