@@ -15,6 +15,8 @@ local QueryType = {
 	["combinators"] = "combinators",
 	["stops"] = "stops",
 	["vehicles"] = "vehicles",
+	["inventories"] = "inventories",
+	["topologies"] = "topologies",
 }
 lib.QueryType = QueryType
 
