@@ -80,3 +80,5 @@ script.on_event(defines.events.on_lua_shortcut, function(event)
 		mgr.raise_manager_toggle(event.player_index)
 	end
 end)
+
+commands.add_command("cs2-manager-reset", nil, function() mgr.raise_init() end)

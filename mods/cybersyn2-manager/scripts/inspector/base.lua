@@ -1,4 +1,3 @@
-local log = require("__cybersyn2__.lib.logging")
 local strace_lib = require("__cybersyn2__.lib.strace")
 local relm = require("__cybersyn2__.lib.relm")
 local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
@@ -9,10 +8,6 @@ local mgr = _G.mgr
 local strace = strace_lib.strace
 local Pr = relm.Primitive
 local empty = tlib.empty
-
----@class Cybersyn2.Manager.InspectorFrameType
----@field public name string Type of this panel
----@field public widget_type string CSGUI widget to create.
 
 _G.mgr.inspector = {}
 _G.mgr.INSPECTOR_WINDOW_NAME = "cybersyn2-inspector"
