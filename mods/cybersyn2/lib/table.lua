@@ -329,4 +329,34 @@ function lib.filter_in_place(A, f)
 	end
 end
 
+---Filter a table in place.
+---@generic K, V
+---@param T table<K, V>
+---@param f fun(key: K, value: V): boolean?
+---@return table<K, V> T The filtered table.
+function lib.filter_table_in_place(T, f)
+	for k, v in pairs(T) do
+		if not f(k, v) then T[k] = nil end
+	end
+	return T
+end
+
+---Pairwise sum two tables whose values are numerical. Computes
+---`a * T1 + b * T2`
+---@generic K, V
+---@param a V
+---@param T1 table<K, V>
+---@param b V
+---@param T2 table<K, V>
+function lib.vector_sum(a, T1, b, T2)
+	local result = {}
+	for k, v in pairs(T1) do
+		result[k] = a * v + b * (T2[k] or 0)
+	end
+	for k, v in pairs(T2) do
+		if not T1[k] then result[k] = b * v end
+	end
+	return result
+end
+
 return lib
