@@ -12,6 +12,9 @@ local strsub = string.sub
 local strfind = string.find
 local strformat = string.format
 local type = _G.type
+local abs = math.abs
+local floor = math.floor
+local tostring = _G.tostring
 
 local lib = {}
 
@@ -220,5 +223,27 @@ local function key_to_stacksize(key)
 	end
 end
 lib.key_to_stacksize = key_to_stacksize
+
+---Format the count of a signal as a small SI string for display on buttons.
+---@param count int
+---@return string
+function lib.format_signal_count(count)
+	local function si_format(divisor, si_symbol)
+		if abs(floor(count / divisor)) >= 10 then
+			count = floor(count / divisor)
+			return strformat("%.0f%s", count, si_symbol)
+		else
+			count = floor(count / (divisor / 10)) / 10
+			return strformat("%.1f%s", count, si_symbol)
+		end
+	end
+
+	local absv = abs(count)
+	return -- signals are 32bit integers so Giga is enough
+		absv >= 1e9 and si_format(1e9, "G") or absv >= 1e6 and si_format(
+		1e6,
+		"M"
+	) or absv >= 1e3 and si_format(1e3, "k") or tostring(count)
+end
 
 return lib
