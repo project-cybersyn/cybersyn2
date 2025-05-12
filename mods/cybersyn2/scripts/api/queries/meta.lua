@@ -97,6 +97,26 @@ local query_defs = {
 			PrimitiveType["Cybersyn.Vehicle"],
 		},
 	},
+	["topologies"] = {
+		name = "topologies",
+		args = {
+			ids = {
+				false,
+				ContainerType.list,
+				PrimitiveType.Id,
+			},
+			surface_index = {
+				false,
+				ContainerType.list,
+				PrimitiveType.Id,
+			},
+		},
+		result_type = {
+			true,
+			ContainerType.list,
+			PrimitiveType["Cybersyn.Topology"],
+		},
+	},
 }
 
 ---Machine-readable definitions of enums used in Cybersyn queries. If a
