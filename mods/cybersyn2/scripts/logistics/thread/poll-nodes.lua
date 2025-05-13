@@ -8,8 +8,10 @@ local stlib = require("__cybersyn2__.lib.strace")
 local tlib = require("__cybersyn2__.lib.table")
 local slib = require("__cybersyn2__.lib.signal")
 local cs2 = _G.cs2
+
 local mod_settings = _G.cs2.mod_settings
 local combinator_settings = _G.cs2.combinator_settings
+local Topology = _G.cs2.Topology
 
 local strace = stlib.strace
 local TRACE = stlib.TRACE
@@ -350,12 +352,15 @@ end
 
 function LogisticsThread:exit_poll_nodes()
 	-- Shallow copy net inventory signal counts to the topology.
-	local topology = self.topologies[self.current_topology]
+	local topology = cs2.get_topology(self.topology_id)
+	if not topology then return end
 	topology.provided = tlib.assign({}, self.provided_qty)
 	topology.pushed = tlib.assign({}, self.pushed_qty)
 	topology.pulled = tlib.assign({}, self.pulled_qty)
 	topology.sunk = tlib.assign({}, self.sunk_qty)
 	-- Fire mass inventory update event for the topology.
+	-- TODO: this should be defered to a unique state at the end of the thread
+	-- so all statistics can be updated at once.
 	topology:raise_inventory_updated()
 end
 

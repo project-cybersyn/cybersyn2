@@ -76,7 +76,9 @@ local function try_allocation(
 	-- Fluid case
 	if allocation.is_fluid then
 		-- No mixing fluid
-		if cargo_state.fluid_was_allocated then return true end
+		if cargo_state.fluid_was_allocated or cargo_state.fluid_capacity < 1 then
+			return true
+		end
 		-- Verify capacity
 		if
 			cargo_state.fluid_capacity >= from_thresh
@@ -119,6 +121,7 @@ local function try_allocation(
 	local manifest_qty = min(allocation.qty, remaining_item_capacity)
 	local spillover_qty = min(allocation.qty + spillover, remaining_item_capacity)
 	local slots_needed = ceil(spillover_qty / stack_size)
+	if slots_needed > remaining_item_slots then return true end
 	cargo_state.remaining_item_slots = remaining_item_slots - slots_needed
 	cargo_state.manifest[allocation.item] = manifest_qty
 	if spillover > 0 then
@@ -284,7 +287,7 @@ function LogisticsThread:maybe_route_allocation(allocation, index)
 end
 
 function LogisticsThread:enter_route()
-	local top_id = self.current_topology
+	local top_id = self.topology_id
 	self.avail_trains = tlib.t_map_t(storage.vehicles, function(_, veh)
 		if veh.type == "train" and veh.topology_id == top_id then
 			return veh.id, veh
@@ -298,6 +301,6 @@ function LogisticsThread:exit_route() self.allocations = nil end
 function LogisticsThread:route()
 	self:step_async_loop(
 		self.maybe_route_allocation,
-		function(x) x:set_state("next_t") end
+		function(x) x:set_state("init") end
 	)
 end

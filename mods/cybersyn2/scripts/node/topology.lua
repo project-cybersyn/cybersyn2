@@ -23,8 +23,11 @@ function Topology.new()
 end
 
 ---Get a topology by its id
----@param id Id
-function Topology.get(id) return storage.topologies[id or ""] end
+---@param id Id?
+---@return Cybersyn.Topology?
+local function get_topology(id) return storage.topologies[id or ""] end
+Topology.get = get_topology
+_G.cs2.get_topology = get_topology
 
 ---Called to trigger the event indicating a topology's net inventory was
 ---computed by the logistics thread. Special handling must be taken to
@@ -40,6 +43,7 @@ end
 local function create_train_topology(surface_index)
 	local t = Topology.new()
 	t.surface_index = surface_index
+	t.name = game.get_surface(surface_index).name
 	t.vehicle_type = "train"
 	storage.surface_index_to_train_topology[surface_index] = t.id
 	cs2.raise_topologies(t, "created")
