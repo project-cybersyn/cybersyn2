@@ -1,6 +1,7 @@
 --------------------------------------------------------------------------------
 -- poll_combinators phase
--- Read and cache all input info we will need for rest of logistics loop.
+--
+-- Read and cache all input signals from input-mode combinators in the topology.
 --------------------------------------------------------------------------------
 
 local stlib = require("__cybersyn2__.lib.strace")
@@ -18,10 +19,9 @@ local TRACE = stlib.TRACE
 local LogisticsThread = _G.cs2.LogisticsThread
 
 function LogisticsThread:enter_poll_combinators()
-	self.active_topologies = {}
 	self:begin_async_loop(
-		tlib.t_map_a(storage.combinators, function(_, k) return k end),
-		math.ceil(cs2.PERF_COMB_POLL_WORKLOAD * mod_settings.work_factor)
+		self.combinators,
+		math.ceil(cs2.PERF_POLL_COMBINATORS_WORKLOAD * mod_settings.work_factor)
 	)
 end
 
@@ -38,18 +38,11 @@ function LogisticsThread:poll_combinator(combinator_id)
 		return
 	end
 	combinator:read_inputs()
-
-	-- Mark a topology as active if the owning node of a combinator is in that
-	-- topology.
-	local node = Node.get(combinator.node_id)
-	if node and node.topology_id then
-		self.active_topologies[node.topology_id] = true
-	end
 end
 
 function LogisticsThread:poll_combinators()
 	self:step_async_loop(
 		self.poll_combinator,
-		function(thr) thr:set_state("next_t") end
+		function(thr) thr:set_state("poll_nodes") end
 	)
 end

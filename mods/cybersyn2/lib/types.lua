@@ -97,6 +97,7 @@ lib.NodeNetworkOperation = {
 ---@field public id Id Unique id of the topology.
 ---@field public surface_index? uint The index of the surface this topology is associated with, if any. This is not a 1-1 association; a surface may have multiple topologies.
 ---@field public name? string The name of the topology, if any. This is not a unique key and primarily used for debugging.
+---@field public thread_id? int The id of the thread servicing this topology if any.
 ---@field public vehicle_type string The vehicle type intended to traverse this topology.
 ---@field public provided? SignalCounts Count of all items provided by nodes in this topology. This is a cached value and is not updated in realtime.
 ---@field public pushed? SignalCounts Count of all items pushed by nodes in this topology. This is a cached value and is not updated in realtime.
