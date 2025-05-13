@@ -64,7 +64,7 @@ local lib = {}
 ---@field public per_wagon_fluid_capacity table<uint, uint>? Cached fluid capacity per wagon. Used by wagon control. Cleared on capacity re-eval.
 ---@field public layout_id uint The layout ID of the train.
 ---@field public stopped_at LuaEntity? Cache of last known train stop. This value should be treated as volatile.
----@field public is_filtered boolean? `true` if wagon filters were set on this train upon arrival at a stop. (TODO: remove)
+---@field public is_filtered boolean? `true` if wagon filters were set on this train upon arrival at a stop. Causes filters to be cleared when train leaves.
 
 ---Numeric encoding of prototype types of carriages
 ---@enum Cybersyn.CarriageType

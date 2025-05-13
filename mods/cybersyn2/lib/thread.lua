@@ -258,9 +258,9 @@ end
 
 ---@param data Lib.Thread.Storage
 local function do_sleep_until(data, thread, tick)
-	local id = thread.id
 	thread.wake_at = tick
 	if tick < BIG_INT then
+		local id = thread.id
 		local wake_at = data.wake_at[tick]
 		if not wake_at then
 			data.wake_at[tick] = { [id] = true }

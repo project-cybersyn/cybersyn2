@@ -262,19 +262,18 @@ cs2.on_train_departed(function(train, cstrain, stop)
 			comb:direct_write_outputs(empty)
 		end
 	end
-	-- TODO: remove when final decision of no filters is reached
 	-- Clear wagon inventory filters
-	-- if cstrain.is_filtered then
-	-- 	cstrain.is_filtered = nil
-	-- 	for _, carriage in pairs(train.cargo_wagons) do
-	-- 		local inv = carriage.get_inventory(defines.inventory.cargo_wagon)
-	-- 		if inv then
-	-- 			for j = 1, #inv do
-	-- 				inv.set_filter(j, nil)
-	-- 			end
-	-- 		end
-	-- 	end
-	-- end
+	if cstrain.is_filtered then
+		cstrain.is_filtered = nil
+		for _, carriage in pairs(train.cargo_wagons) do
+			local inv = carriage.get_inventory(defines.inventory.cargo_wagon)
+			if inv then
+				for j = 1, #inv do
+					inv.set_filter(j, nil)
+				end
+			end
+		end
+	end
 end)
 
 --------------------------------------------------------------------------------
@@ -330,19 +329,18 @@ local function lock_item_slots(cw_manifests, n_slots, item, count, stack_size)
 	if n_slots == 0 then return true end
 	local target_slots_per_wagon = ceil(n_slots / #cw_manifests)
 
-	-- XXX: removed item filtering from wagon control
 	---@type ItemFilter?
-	-- local item_filter = nil
-	-- if item then
-	-- 	local sig = key_to_signal(item)
-	-- 	if sig then
-	-- 		item_filter = {
-	-- 			name = sig.name,
-	-- 			quality = sig.quality,
-	-- 			comparator = "=",
-	-- 		}
-	-- 	end
-	-- end
+	local item_filter = nil
+	if item then
+		local sig = key_to_signal(item)
+		if sig then
+			item_filter = {
+				name = sig.name,
+				quality = sig.quality,
+				comparator = "=",
+			}
+		end
+	end
 
 	-- Attempt to distribute the slots evenly over all the cargo wagons,
 	-- accounting for variant capacities etc.
@@ -361,16 +359,17 @@ local function lock_item_slots(cw_manifests, n_slots, item, count, stack_size)
 					count = count - n_distributed
 					cw_manifest.manifest[item] = (cw_manifest.manifest[item] or 0)
 						+ n_distributed
-					-- XXX: removed item filters from wagon control
-					-- if item_filter then
-					-- 	for i = 1, slots_to_distribute do
-					-- 		cw_manifest.inv.set_filter(
-					-- 			cw_manifest.slot_filter_index,
-					-- 			item_filter
-					-- 		)
-					-- 		cw_manifest.slot_filter_index = cw_manifest.slot_filter_index + 1
-					-- 	end
-					-- end
+
+					-- Set the filter for the slots we just allocated
+					if item_filter then
+						for i = 1, slots_to_distribute do
+							cw_manifest.inv.set_filter(
+								cw_manifest.slot_filter_index,
+								item_filter
+							)
+							cw_manifest.slot_filter_index = cw_manifest.slot_filter_index + 1
+						end
+					end
 				end
 				distributed_some = true
 			end
@@ -484,8 +483,7 @@ local function create_wagon_manifests(train, stop, delivery)
 			) - n_slots
 			-- Distribute item slots + set filters
 			lock_item_slots(cw_manifests, n_slots, item, qty, stack_size)
-			-- TODO: remove when final decision of no filters is reached
-			-- train.is_filtered = true
+			train.is_filtered = true
 			-- Distribute spillover_slots
 			lock_item_slots(cw_manifests, spillover_slots, nil, nil, nil)
 		end
