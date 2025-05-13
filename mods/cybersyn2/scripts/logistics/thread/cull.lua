@@ -2,6 +2,7 @@
 -- Cull phase
 --------------------------------------------------------------------------------
 
+local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
@@ -36,7 +37,10 @@ end
 function LogisticsThread:enter_cull()
 	self.n_culled = 0
 	self:begin_async_pairs(
-		self.seen_cargo,
+		-- Fix: clone the table here because the lua guarantee of being
+		-- able to remove while iterating does not apply across Factorio
+		-- save boundaries.
+		tlib.assign({}, self.seen_cargo),
 		math.ceil(mod_settings.work_factor * cs2.PERF_CULL_WORKLOAD)
 	)
 end
