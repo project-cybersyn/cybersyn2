@@ -132,9 +132,22 @@ function _G.cs2.create_alert(target_entity, key, icon, message, duration)
 end
 
 function _G.cs2.destroy_alert(target_entity, key)
+	if not target_entity or not target_entity.valid then return end
 	local alert = get_alert_for_entity(target_entity.unit_number, key)
 	if not alert then return end
 	destroy_alert(alert.id, true)
+end
+
+---Destroy all alerts for a given entity.
+---@param target_entity LuaEntity Entity to destroy alerts for
+function _G.cs2.destroy_alerts(target_entity)
+	if not target_entity or not target_entity.valid then return end
+	local abe = storage.alerts_by_entity
+		and storage.alerts_by_entity[target_entity.unit_number]
+	if not abe then return end
+	for _, id in pairs(abe) do
+		destroy_alert(id, true)
+	end
 end
 
 --------------------------------------------------------------------------------

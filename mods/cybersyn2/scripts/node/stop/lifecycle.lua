@@ -189,11 +189,14 @@ cs2.on_node_combinator_set_changed(function(node)
 	end
 end)
 
--- When a stop is destroyed, fail all its deliveries.
+-- Cleanup state when a stop is destroyed.
 cs2.on_node_destroyed(function(node)
 	if node.type ~= "stop" then return end
 	---@cast node Cybersyn.TrainStop
+	-- Fail all deliveries associated with this stop.
 	node:fail_all_deliveries()
+	-- Destroy all alerts associated with this stop.
+	cs2.destroy_alerts(node.entity)
 end)
 
 -- When a topology is created, reassociate any stops with the appropriate

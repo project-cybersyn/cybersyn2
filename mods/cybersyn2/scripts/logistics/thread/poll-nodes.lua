@@ -105,7 +105,8 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	local combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "station" end
 	)
-	if #combs == 0 then
+	local is_valid = stop:is_valid()
+	if #combs == 0 and is_valid then
 		cs2.create_alert(
 			stop.entity,
 			"no_station",
@@ -113,7 +114,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 			{ "cybersyn2-alerts.no-station" }
 		)
 		return false
-	elseif #combs > 1 then
+	elseif #combs > 1 and is_valid then
 		cs2.create_alert(
 			stop.entity,
 			"too_many_station",
@@ -125,6 +126,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		cs2.destroy_alert(stop.entity, "no_station")
 		cs2.destroy_alert(stop.entity, "too_many_station")
 	end
+	if not is_valid then return false end
 	local comb = combs[1]
 	local inputs = comb.inputs
 	if not inputs then
