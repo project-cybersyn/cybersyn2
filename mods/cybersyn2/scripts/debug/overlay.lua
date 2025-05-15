@@ -303,16 +303,16 @@ cs2.on_combinator_destroyed(destroy_combinator_overlay)
 --cs2.on_combinator_created(update_combinator_overlay)
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
 	--update_combinator_overlay(combinator)
-	if new_node then
-		local l, t, r, b = mlib.bbox_get(combinator.entity.bounding_box)
-		rendering.draw_rectangle({
-			color = { r = 0, g = 1, b = 1, a = 0.5 },
-			left_top = { l, t },
-			right_bottom = { r, b },
-			surface = combinator.entity.surface,
-			time_to_live = 300,
-		})
-	end
+	-- if new_node then
+	-- 	local l, t, r, b = mlib.bbox_get(combinator.entity.bounding_box)
+	-- 	rendering.draw_rectangle({
+	-- 		color = { r = 0, g = 1, b = 1, a = 0.5 },
+	-- 		left_top = { l, t },
+	-- 		right_bottom = { r, b },
+	-- 		surface = combinator.entity.surface,
+	-- 		time_to_live = 300,
+	-- 	})
+	-- end
 end)
 cs2.on_node_destroyed(destroy_stop_overlay)
 cs2.on_node_created(update_stop_overlay)
