@@ -398,7 +398,7 @@ local function stop_to_shared_inventory_comb_unit_number(stop)
 end
 
 cs2.on_blueprint_setup(function(bpinfo)
-	local bp_to_world = bpinfo:get_bp_to_world()
+	local bp_to_world = bpinfo:map_blueprint_indices_to_world_entities()
 	if not bp_to_world then return end
 
 	-- Map shared-inventory combinators to and from their blueprint index
@@ -465,7 +465,7 @@ cs2.on_blueprint_built(function(bpinfo)
 	if not next(shared_inventory_combinators) then return end
 
 	-- Get worldspace pos of all built BP entities
-	local pos = bpinfo:get_bp_to_world_pos()
+	local pos = bpinfo:map_blueprint_indices_to_world_positions()
 	if not pos then return end
 
 	-- Create re-linking data in storage based on the worldspace positions of

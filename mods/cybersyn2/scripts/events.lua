@@ -126,23 +126,11 @@ _G.cs2.on_luatrain_changed_state, _G.cs2.raise_luatrain_changed_state = event(
 )
 
 ---Event raised when a blueprint is pasted into the world.
-_G.cs2.on_blueprint_built, _G.cs2.raise_blueprint_built = event(
-	"blueprint_built",
-	"BlueprintLib.BlueprintInfo",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
+_G.cs2.on_blueprint_built, _G.cs2.raise_blueprint_built =
+	event("blueprint_built", "bplib.BlueprintBuild", "nil", "nil", "nil", "nil")
 
-_G.cs2.on_blueprint_setup, _G.cs2.raise_blueprint_setup = event(
-	"blueprint_setup",
-	"BlueprintLib.BlueprintInfo",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
+_G.cs2.on_blueprint_setup, _G.cs2.raise_blueprint_setup =
+	event("blueprint_setup", "bplib.BlueprintSetup", "nil", "nil", "nil", "nil")
 
 ---Event raised when a relevant entity is "selected" as defined by
 ---Factorio.

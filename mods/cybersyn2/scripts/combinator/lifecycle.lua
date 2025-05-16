@@ -8,7 +8,6 @@
 local stlib = require("__cybersyn2__.lib.strace")
 local log = require("__cybersyn2__.lib.logging")
 local tlib = require("__cybersyn2__.lib.table")
-local bplib = require("__cybersyn2__.lib.blueprint")
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local EphemeralCombinator = _G.cs2.EphemeralCombinator
@@ -155,7 +154,8 @@ local function bp_combinator_filter(bp_entity)
 end
 
 cs2.on_blueprint_built(function(bpinfo)
-	local overlap_map = bpinfo:get_overlap(bp_combinator_filter)
+	local overlap_map =
+		bpinfo:map_blueprint_indices_to_overlapping_entities(bp_combinator_filter)
 	if overlap_map and next(overlap_map) then
 		local bp_entities = bpinfo:get_entities() --[[@as BlueprintEntity[] ]]
 		for i, entity in pairs(overlap_map) do
@@ -219,7 +219,7 @@ cs2.on_blueprint_setup(function(bpinfo)
 	-- if changed then bpinfo:set_entities(bp_entities) end
 
 	-- Save config tags into blueprint
-	local bp_to_world = bpinfo:get_bp_to_world()
+	local bp_to_world = bpinfo:map_blueprint_indices_to_world_entities()
 	if not bp_to_world then return end
 	for bpid, entity in pairs(bp_to_world) do
 		if entity_is_combinator_or_ghost(entity) then

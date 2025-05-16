@@ -11,13 +11,14 @@ local thread = require("__cybersyn2__.lib.thread")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
-local bplib = require("__cybersyn2__.lib.blueprint")
+local bplib = require("__bplib__.blueprint")
 local cs2 = _G.cs2
 local cs2_lib = _G.cs2.lib
 
 local db_dispatch = dynamic_binding.dispatch
-local BlueprintInfo = bplib.BlueprintInfo
 local COMBINATOR_NAME = cs2.COMBINATOR_NAME
+local BlueprintBuild = bplib.BlueprintBuild
+local BlueprintSetup = bplib.BlueprintSetup
 
 --------------------------------------------------------------------------------
 -- Required library event bindings
@@ -186,13 +187,15 @@ script.on_event(
 --------------------------------------------------------------------------------
 
 script.on_event(defines.events.on_player_setup_blueprint, function(event)
-	local bpinfo = BlueprintInfo:create_from_setup_event(event)
-	if bpinfo then cs2.raise_blueprint_setup(bpinfo) end
+	local bp_setup = BlueprintSetup:new(event)
+	if not bp_setup then return end
+	cs2.raise_blueprint_setup(bp_setup)
 end)
 
 script.on_event(defines.events.on_pre_build, function(event)
-	local bpinfo = BlueprintInfo:create_from_pre_build_event(event)
-	if bpinfo then cs2.raise_blueprint_built(bpinfo) end
+	local bp_build = BlueprintBuild:new(event)
+	if not bp_build then return end
+	cs2.raise_blueprint_built(bp_build)
 end)
 
 --------------------------------------------------------------------------------
