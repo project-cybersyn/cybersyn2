@@ -592,9 +592,7 @@ local function set_producer_wagon_combs(cstrain, stop, delivery)
 		if wagon then
 			local index = get_wagon_index(cstrain, wagon)
 			if index and manifests[index] then
-				comb:direct_write_outputs(
-					cs2.lib.create_manifest_outputs(manifests[index], -1)
-				)
+				comb:write_outputs(manifests[index], -1)
 			end
 			set_proxy_chest_inventory(comb, wagon)
 		end
