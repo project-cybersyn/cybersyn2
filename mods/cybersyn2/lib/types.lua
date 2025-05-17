@@ -55,6 +55,7 @@ local lib = {}
 ---@field public type "train"
 ---@field public lua_train LuaTrain? The most recent LuaTrain object representing this train. Note that this is a cached value and must ALWAYS be checked for validity before use.
 ---@field public lua_train_id Id? The id of the last known good LuaTrain object. Note that this is a cached value and persists even if the lua_train is expired/invalid.
+---@field public home_surface_index Id The index of the surface this train was created on.
 ---@field public stock LuaEntity? A rolling-stock entity for this train.
 ---@field public group string? Last known group assigned by the train sweep task.
 ---@field public volatile boolean? `true` if the `LuaTrain` associated to this train is unstable and may be invalidated at any time, eg for a train passing through a space elevator.

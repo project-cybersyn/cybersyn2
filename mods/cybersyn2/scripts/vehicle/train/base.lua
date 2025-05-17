@@ -123,6 +123,7 @@ function Train.new(lua_train)
 	train.stock = stock
 	train.lua_train_id = lua_train.id
 	train.topology_id = topology.id
+	train.home_surface_index = stock.surface_index
 	train.item_slot_capacity = 0
 	train.fluid_capacity = 0
 
