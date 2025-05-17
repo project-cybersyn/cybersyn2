@@ -27,3 +27,13 @@ commands.add_command(
 	{ "cybersyn2-commands.log-all-command-help" },
 	function() cs2.debug.set_strace(0, 0, nil) end
 )
+
+commands.add_command(
+	"cs2-migrate",
+	"cybersyn2-commands.migrate-command-help",
+	function(command)
+		-- Perform migration
+		cs2.migrate_from_cybersyn()
+		game.print("Migration from Cybersyn to Cybersyn2 completed")
+	end
+)

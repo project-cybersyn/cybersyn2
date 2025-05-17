@@ -31,12 +31,27 @@ local lib = {}
 ---@class Cybersyn.Combinator.Ephemeral
 ---@field public entity? LuaEntity The primary entity of the combinator OR its ghost.
 
+---@enum Cybersyn.CombinatorMode
+lib.CombinatorMode = {
+	Station = "station",
+	DT = "dt",
+	Channels = "channels",
+	Prio = "prio",
+	AllowList = "allow",
+	Manifest = "manifest",
+	Wagon = "wagon",
+	WagonContents = "wagon-contents",
+	SharedInventory = "shared-inventory",
+	Inventory = "inventory",
+	Deliveries = "deliveries",
+}
+
 ---An opaque reference to a fully realized and built combinator that has been indexed by Cybersyn and tracked in game state.
 ---@class Cybersyn.Combinator: Cybersyn.Combinator.Ephemeral
 ---@field public id UnitNumber The unique unit number of the combinator entity.
 ---@field public node_id? uint The id of the node this combinator is associated with, if any.
 ---@field public is_being_destroyed true? `true` if the combinator is being removed from state at this time.
----@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
+---@field public mode? Cybersyn.CombinatorMode The mode value set on this combinator, if known. Cached for performance reasons.
 ---@field public inputs? SignalCounts The most recent signals read from the combinator. This is a cached value and will be `nil` in various situations where the combinator hasn't been or can't be read.
 ---@field public red_inputs? SignalCounts As `inputs` but for only the red wire. Exists only for modes with `independent_input_wires` set.
 ---@field public green_inputs? SignalCounts As `inputs` but for only the green wire. Exists only for modes with `independent_input_wires` set.

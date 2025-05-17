@@ -154,7 +154,7 @@ end
 
 ---Get the first combinator associated with this node and having the given
 ---mode.
----@param mode string
+---@param mode Cybersyn.CombinatorMode
 ---@return Cybersyn.Combinator? #A combinator with the given mode associated to this node, if any.
 function Node:get_combinator_with_mode(mode)
 	for id in pairs(self.combinator_set) do
