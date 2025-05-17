@@ -55,6 +55,7 @@ require("scripts.combinator.modes.manifest")
 require("scripts.combinator.modes.wagon")
 require("scripts.combinator.modes.inventory")
 require("scripts.combinator.modes.shared-inventory")
+require("scripts.combinator.modes.deliveries")
 
 require("scripts.logistics.thread.base")
 require("scripts.logistics.thread.enum-nodes")

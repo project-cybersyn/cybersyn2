@@ -146,9 +146,44 @@ function _G.cs2.lib.find_associable_entities_for_combinator(combinator_entity)
 	return stop, rail
 end
 
+---Determine if a train parked at this stop is reversed relative to the stop.
+---@param lua_train LuaTrain
+---@return boolean #`true` if the train is parked backwards at this stop, `false` otherwise.
+function TrainStop:is_train_reversed(lua_train)
+	local back_end = lua_train.get_rail_end(defines.rail_direction.back)
+
+	if back_end and back_end.rail then
+		local back_pos = back_end.rail.position
+		local stop_pos = self.entity.position
+		if
+			abs(back_pos.x - stop_pos.x) < 3 and abs(back_pos.y - stop_pos.y) < 3
+		then
+			return true
+		end
+	end
+
+	return false
+end
+
 --------------------------------------------------------------------------------
 -- DELIVERIES AND QUEUES
 --------------------------------------------------------------------------------
+
+---Get all current and queued deliveries.
+---@return Cybersyn.TrainDelivery[] deliveries All deliveries. May contain state references; treat as immutable.
+function TrainStop:get_deliveries()
+	-- TODO: unified queue model
+	local result = {} --[[@as Cybersyn.TrainDelivery[] ]]
+	for delivery_id in pairs(self.deliveries) do
+		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		if delivery then result[#result + 1] = delivery end
+	end
+	for _, delivery_id in ipairs(self.delivery_queue) do
+		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		if delivery then result[#result + 1] = delivery end
+	end
+	return result
+end
 
 ---Force remove a delivery from a train stop. Generally used when delivery
 ---has failed.
@@ -168,7 +203,10 @@ function TrainStop:force_remove_delivery(delivery_id)
 end
 
 ---@param delivery_id Id
-function TrainStop:add_delivery(delivery_id) self.deliveries[delivery_id] = true end
+function TrainStop:add_delivery(delivery_id)
+	self.deliveries[delivery_id] = true
+	self:defer_notify_deliveries()
+end
 
 function TrainStop:train_arrived(train) end
 
@@ -186,6 +224,7 @@ function TrainStop:train_departed(train)
 		if delivery then delivery:notify_departed(self) end
 		-- Then try to opportunistically re-read the station's inventory.
 		self:update_inventory(true)
+		self:defer_notify_deliveries()
 	end
 	self:pop_queue()
 end
@@ -229,6 +268,7 @@ end
 function TrainStop:defer_pop_queue()
 	if self.deferred_pop_queue then return end
 	self.deferred_pop_queue = scheduler.at(game.tick + 1, "pop_stop_queue", self)
+	self:defer_notify_deliveries()
 end
 
 scheduler.register_handler("pop_stop_queue", function(task)
@@ -246,6 +286,7 @@ function TrainStop:fail_all_deliveries(reason)
 		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		if delivery then delivery:fail(reason) end
 	end
+	self:defer_notify_deliveries()
 end
 
 function TrainStop:fail_all_shared_deliveries(reason)
@@ -265,6 +306,7 @@ end
 ---@param delivery_id Id
 function TrainStop:enqueue(delivery_id)
 	self.delivery_queue[#self.delivery_queue + 1] = delivery_id
+	self:defer_notify_deliveries()
 end
 
 ---Gets the total number of deliveries, present and queued, for this stop.
@@ -281,25 +323,6 @@ function TrainStop:get_tekbox_equation()
 	local limit = math.max(self.entity.trains_limit, 1)
 	return table_size(self.deliveries)
 		+ (#self.delivery_queue * (limit + 1) / limit)
-end
-
----Determine if a train parked at this stop is reversed relative to the stop.
----@param lua_train LuaTrain
----@return boolean #`true` if the train is parked backwards at this stop, `false` otherwise.
-function TrainStop:is_train_reversed(lua_train)
-	local back_end = lua_train.get_rail_end(defines.rail_direction.back)
-
-	if back_end and back_end.rail then
-		local back_pos = back_end.rail.position
-		local stop_pos = self.entity.position
-		if
-			abs(back_pos.x - stop_pos.x) < 3 and abs(back_pos.y - stop_pos.y) < 3
-		then
-			return true
-		end
-	end
-
-	return false
 end
 
 --------------------------------------------------------------------------------

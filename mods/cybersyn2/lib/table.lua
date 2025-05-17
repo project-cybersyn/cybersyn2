@@ -341,6 +341,17 @@ function lib.filter_table_in_place(T, f)
 	return T
 end
 
+---Pairwise add a*T2 to T1, in-place.
+---@generic K, V
+---@param T1 table<K, V>
+---@param a V
+---@param T2 table<K, V>
+function lib.vector_add(T1, a, T2)
+	for k, v in pairs(T2) do
+		T1[k] = (T1[k] or 0) + a * v
+	end
+end
+
 ---Pairwise sum two tables whose values are numerical. Computes
 ---`a * T1 + b * T2`
 ---@generic K, V

@@ -7,6 +7,7 @@ local class = require("__cybersyn2__.lib.class").class
 local tlib = require("__cybersyn2__.lib.table")
 local stlib = require("__cybersyn2__.lib.strace")
 local signal = require("__cybersyn2__.lib.signal")
+local scheduler = require("__cybersyn2__.lib.scheduler")
 local cs2 = _G.cs2
 local Inventory = _G.cs2.Inventory
 local mod_settings = _G.cs2.mod_settings
@@ -206,6 +207,10 @@ function Node:is_item_match(n2, item)
 	return self:is_channel_match(n2, item) and self:is_network_match(n2)
 end
 
+--------------------------------------------------------------------------------
+-- Inventory
+--------------------------------------------------------------------------------
+
 ---Get the inbound and outbound thresholds for the given item.
 ---@param item SignalKey
 ---@return uint t_in Inbound threshold for the item
@@ -294,11 +299,6 @@ end
 ---@return Cybersyn.Inventory?
 function Node:get_inventory() return cs2.get_inventory(self.inventory_id) end
 
----Fail ALL deliveries pending for this node.
-function Node:fail_all_deliveries(reason)
-	-- NOTE: implemented in subclasses
-end
-
 ---Change the inventory of a node. If there are currently deliveries enroute
 ---they will be failed.
 ---@param id Id
@@ -327,3 +327,31 @@ function Node:set_inventory(id)
 	cs2.raise_node_data_changed(self)
 	return true
 end
+
+--------------------------------------------------------------------------------
+-- Deliveries
+--------------------------------------------------------------------------------
+
+---Get all deliveries pending for this node.
+---@return Cybersyn.Delivery[] deliveries All pending deliveries for this node. Treat as immutable.
+function Node:get_deliveries() return {} end
+
+---Fail ALL deliveries pending for this node.
+function Node:fail_all_deliveries(reason)
+	-- NOTE: implemented in subclasses
+end
+
+---Cause a delivery update event to fire on a subsequent tick.
+function Node:defer_notify_deliveries()
+	if self.deferred_notify_deliveries then return end
+	-- NOTE: 2 ticks used here because `defer_pop_queue` for train stops uses
+	-- 1 tick, and we need to ensure that the deliveries are notified after.
+	self.deferred_notify_deliveries =
+		scheduler.at(game.tick + 2, "notify_deliveries", self)
+end
+
+scheduler.register_handler("notify_deliveries", function(task)
+	local node = task.data --[[@as Cybersyn.Node]]
+	node.deferred_notify_deliveries = nil
+	cs2.raise_node_deliveries_changed(node)
+end)
