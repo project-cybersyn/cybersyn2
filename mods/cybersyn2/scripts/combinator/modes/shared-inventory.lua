@@ -2,6 +2,7 @@
 -- Shared inventory combinator
 --------------------------------------------------------------------------------
 
+local types = require("__cybersyn2__.lib.types")
 local tlib = require("__cybersyn2__.lib.table")
 local mlib = require("__cybersyn2__.lib.math")
 local relm = require("__cybersyn2__.lib.relm")
@@ -131,7 +132,7 @@ relm.define_element({
 --------------------------------------------------------------------------------
 
 cs2.register_combinator_mode({
-	name = "shared-inventory",
+	name = types.CombinatorMode.SharedInventory,
 	localized_string = "cybersyn2-combinator-modes.shared-inventory",
 	settings_element = "CombinatorGui.Mode.SharedInventory",
 	help_element = "CombinatorGui.Mode.SharedInventory.Help",
@@ -204,7 +205,7 @@ local function render_connection(player)
 	local source_combinator = cs2.get_combinator(csun)
 	local selected_combinator =
 		cs2.get_combinator(player.selected and player.selected.unit_number or nil)
-	if selected_combinator and selected_combinator.mode ~= "shared-inventory" then
+	if selected_combinator and selected_combinator.mode ~= types.CombinatorMode.SharedInventory then
 		selected_combinator = nil
 	end
 
@@ -216,7 +217,7 @@ local function render_connection(player)
 				local slave_stop = cs2.get_stop(slave_id)
 				if slave_stop then
 					local slave_combinator =
-						slave_stop:get_combinator_with_mode("shared-inventory")
+						slave_stop:get_combinator_with_mode(types.CombinatorMode.SharedInventory)
 					if slave_combinator then
 						draw_connection(
 							objects,
@@ -233,7 +234,7 @@ local function render_connection(player)
 			local master_stop = cs2.get_stop(stop.shared_inventory_master)
 			if master_stop then
 				local master_combinator =
-					master_stop:get_combinator_with_mode("shared-inventory")
+					master_stop:get_combinator_with_mode(types.CombinatorMode.SharedInventory)
 				if master_combinator then
 					draw_connection(
 						objects,
@@ -293,7 +294,7 @@ local function finish_connection(player, entity)
 		or nil
 	local source_combinator = cs2.get_combinator(csun)
 	if
-		not source_combinator or (source_combinator.mode ~= "shared-inventory")
+		not source_combinator or (source_combinator.mode ~= types.CombinatorMode.SharedInventory)
 	then
 		return
 	end
@@ -301,7 +302,7 @@ local function finish_connection(player, entity)
 	if not source_stop then return end
 
 	local target_combinator = cs2.get_combinator(entity.unit_number)
-	if not target_combinator or target_combinator.mode ~= "shared-inventory" then
+	if not target_combinator or target_combinator.mode ~= types.CombinatorMode.SharedInventory then
 		cs2_lib.flying_text(
 			player,
 			"Not a shared inventory combinator",
@@ -392,7 +393,7 @@ end
 
 ---@param stop Cybersyn.TrainStop
 local function stop_to_shared_inventory_comb_unit_number(stop)
-	local combinator = stop:get_combinator_with_mode("shared-inventory")
+	local combinator = stop:get_combinator_with_mode(types.CombinatorMode.SharedInventory)
 	if not combinator then return nil end
 	return combinator.entity.unit_number
 end
@@ -406,7 +407,7 @@ cs2.on_blueprint_setup(function(bpinfo)
 	local bp_to_comb = {}
 	for bp_index, entity in pairs(bp_to_world) do
 		local combinator = cs2.get_combinator(entity.unit_number, true)
-		if combinator and combinator.mode == "shared-inventory" then
+		if combinator and combinator.mode == types.CombinatorMode.SharedInventory then
 			bp_to_comb[bp_index] = combinator
 			un_to_bp[entity.unit_number] = bp_index
 		end
@@ -456,7 +457,7 @@ cs2.on_blueprint_built(function(bpinfo)
 	if not bp_entities then return end
 	local shared_inventory_combinators = {}
 	for ei, entity in pairs(bp_entities) do
-		if entity.tags and entity.tags.mode == "shared-inventory" then
+		if entity.tags and entity.tags.mode == types.CombinatorMode.SharedInventory then
 			shared_inventory_combinators[ei] = entity
 		end
 	end
@@ -574,13 +575,13 @@ local function try_identify(combinator_entity)
 end
 
 cs2.on_combinator_created(function(combinator)
-	if combinator.mode ~= "shared-inventory" then return end
+	if combinator.mode ~= types.CombinatorMode.SharedInventory then return end
 	try_identify(combinator.entity)
 	try_relink()
 end)
 
 cs2.on_node_combinator_set_changed(function(node)
-	local si_comb = node:get_combinator_with_mode("shared-inventory")
+	local si_comb = node:get_combinator_with_mode(types.CombinatorMode.SharedInventory)
 	if not si_comb then return end
 	try_relink()
 end)
@@ -595,13 +596,13 @@ cs2.on_reset(function(reset_data)
 			---@cast master Cybersyn.TrainStop
 			local slaves = master.shared_inventory_slaves
 			if slaves then
-				local master_comb = master:get_combinator_with_mode("shared-inventory")
+				local master_comb = master:get_combinator_with_mode(types.CombinatorMode.SharedInventory)
 				if not master_comb then goto continue end
 				for slave_id in pairs(slaves) do
 					local slave_stop = cs2.get_stop(slave_id)
 					if slave_stop then
 						local slave_comb =
-							slave_stop:get_combinator_with_mode("shared-inventory")
+							slave_stop:get_combinator_with_mode(types.CombinatorMode.SharedInventory)
 						if slave_comb then
 							inventory_links[#inventory_links + 1] = {
 								game.tick,

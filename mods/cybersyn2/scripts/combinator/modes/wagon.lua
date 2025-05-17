@@ -2,6 +2,7 @@
 -- Wagon manifest, formerly known as "wagon control"
 --------------------------------------------------------------------------------
 
+local types = require("__cybersyn2__.lib.types")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
@@ -99,7 +100,7 @@ relm.define_element({
 --------------------------------------------------------------------------------
 
 cs2.register_combinator_mode({
-	name = "wagon",
+	name = types.CombinatorMode.Wagon,
 	localized_string = "cybersyn2-combinator-modes.wagon",
 	settings_element = "CombinatorGui.Mode.Wagon",
 	help_element = "CombinatorGui.Mode.Wagon.Help",
@@ -120,7 +121,7 @@ local SCRIPT = defines.wire_origin.script
 ---@param force_destroy boolean?
 local function create_or_destroy_hidden_chest(combinator, force_destroy)
 	if
-		combinator.mode == "wagon"
+		combinator.mode == types.CombinatorMode.Wagon
 		and combinator:read_setting(combinator_settings.live_wagon_inventory)
 		and not force_destroy
 	then
@@ -190,7 +191,7 @@ end
 ---@param stop Cybersyn.TrainStop
 local function check_per_wagon_mode(stop)
 	local combs = stop:get_associated_combinators(
-		function(c) return c.mode == "wagon" end
+		function(c) return c.mode == types.CombinatorMode.Wagon end
 	)
 	local is_per_wagon = false
 	for _, comb in pairs(combs) do
@@ -216,7 +217,7 @@ end
 cs2.on_combinator_created(create_or_destroy_hidden_chest)
 
 cs2.on_combinator_node_associated(function(comb, new, prev)
-	if comb.mode == "wagon" then
+	if comb.mode == types.CombinatorMode.Wagon then
 		if new then check_per_wagon_mode(new) end
 		if prev then check_per_wagon_mode(prev) end
 	end
@@ -225,7 +226,7 @@ end)
 cs2.on_combinator_setting_changed(function(combinator, setting, new, prev)
 	if
 		setting == nil
-		or (setting == "mode" and (new == "wagon" or prev == "wagon"))
+		or (setting == "mode" and (new == types.CombinatorMode.Wagon or prev == types.CombinatorMode.Wagon))
 		or setting == "live_wagon_inventory"
 	then
 		local stop = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
@@ -242,7 +243,7 @@ cs2.on_combinator_destroyed(
 cs2.on_train_departed(function(train, cstrain, stop)
 	if not cstrain or not stop then return end
 	local combs = stop:get_associated_combinators(
-		function(c) return c.mode == "wagon" end
+		function(c) return c.mode == types.CombinatorMode.Wagon end
 	)
 	if #combs > 0 then
 		for _, comb in pairs(combs) do
@@ -583,7 +584,7 @@ end
 ---@param delivery Cybersyn.TrainDelivery
 local function set_producer_wagon_combs(cstrain, stop, delivery)
 	local combs = stop:get_associated_combinators(
-		function(c) return c.mode == "wagon" end
+		function(c) return c.mode == types.CombinatorMode.Wagon end
 	)
 	if #combs == 0 then return end
 	local manifests = create_wagon_manifests(cstrain, stop, delivery)
@@ -604,7 +605,7 @@ end
 ---@param delivery Cybersyn.TrainDelivery
 local function set_consumer_wagon_combs(cstrain, stop, delivery)
 	local combs = stop:get_associated_combinators(
-		function(c) return c.mode == "wagon" end
+		function(c) return c.mode == types.CombinatorMode.Wagon end
 	)
 	if #combs == 0 then return end
 	for _, comb in pairs(combs) do

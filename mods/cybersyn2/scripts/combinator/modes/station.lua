@@ -2,6 +2,7 @@
 -- Station combinator.
 --------------------------------------------------------------------------------
 
+local types = require("__cybersyn2__.lib.types")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
@@ -279,7 +280,7 @@ relm.define_element({
 --------------------------------------------------------------------------------
 
 cs2.register_combinator_mode({
-	name = "station",
+	name = types.CombinatorMode.Station,
 	localized_string = "cybersyn2-combinator-modes.station",
 	settings_element = "CombinatorGui.Mode.Station",
 	help_element = "CombinatorGui.Mode.Station.Help",
