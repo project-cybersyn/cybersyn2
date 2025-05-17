@@ -286,33 +286,50 @@ function Combinator:read_inputs()
 	end
 end
 
----Write the combinator's outputs from the given signal counts. `nil`
----clears all outputs.
----@param signal_counts SignalCounts?
----@param sign number Multiplier for signal counts, -1 to invert.
-function Combinator:write_outputs(signal_counts, sign)
+---Clear all the combinator's outputs.
+function Combinator:clear_outputs()
+	local entity = self.entity
+	if not entity or not entity.valid then return end
+
+	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
+	local param = beh.parameters
+	param.outputs = {}
+	beh.parameters = param
+end
+
+---Write the combinator's outputs from the given signal counts. Arguments are pairs of `SignalCounts` and
+---`int` values representing the signals to add to the output along
+---with a multiplier.
+function Combinator:write_outputs(...)
 	local entity = self.entity
 	if not entity or not entity.valid then return end
 
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
 	local outputs = {}
-	if signal_counts then
-		for key, count in pairs(signal_counts) do
-			local signal = key_to_signal(key)
-			if signal then
-				outputs[#param.outputs + 1] = {
-					signal = signal,
-					constant = count * sign,
-					copy_count_from_input = false,
-				}
+
+	for i = 1, select("#", ...), 2 do
+		local signal_counts = select(i, ...) --[[@as SignalCounts]]
+		local sign = select(i + 1, ...) --[[@as number]]
+		if signal_counts then
+			for key, count in pairs(signal_counts) do
+				local signal = key_to_signal(key)
+				if signal then
+					outputs[#outputs + 1] = {
+						signal = signal,
+						constant = count * sign,
+						copy_count_from_input = false,
+					}
+				end
 			end
 		end
 	end
+
 	param.outputs = outputs
 	beh.parameters = param
 end
 
+---Directly replace the combinator's raw outputs.
 ---@param outputs DeciderCombinatorOutput[]
 function Combinator:direct_write_outputs(outputs)
 	local entity = self.entity

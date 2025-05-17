@@ -40,6 +40,29 @@ function _G.cs2.gui.AnySignalPicker(combinator, setting)
 end
 
 ---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
+---combinator setting. Only allows virtual signals.
+function _G.cs2.gui.VirtualSignalPicker(combinator, setting, tooltip)
+	return ultros.SignalPicker({
+		tooltip = tooltip,
+		value = combinator:read_setting(setting),
+		on_change = function(_, signal, elem)
+			if not signal then return combinator:write_setting(setting, nil) end
+			if signal.type == "virtual" then
+				combinator:write_setting(setting, signal)
+			else
+				game.print("Invalid signal type. Please select a virtual signal.", {
+					color = { 255, 128, 0 },
+					skip = defines.print_skip.never,
+					sound = defines.print_sound.always,
+				})
+				elem.elem_value = nil
+				return
+			end
+		end,
+	})
+end
+
+---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
 ---combinator setting. Only allows valid network signals.
 function _G.cs2.gui.NetworkSignalPicker(combinator, setting)
 	return ultros.SignalPicker({
