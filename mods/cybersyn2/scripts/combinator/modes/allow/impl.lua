@@ -2,6 +2,7 @@
 -- Implementation of allow lists
 --------------------------------------------------------------------------------
 
+local types = require("__cybersyn2__.lib.types")
 local stlib = require("__cybersyn2__.lib.strace")
 local cs2 = _G.cs2
 local combinator_settings = _G.cs2.combinator_settings
@@ -157,7 +158,7 @@ end
 local function evaluate_stop(stop, changed_layout_id)
 	strace(TRACE, "message", "Re-evaluating allow list for stop", stop.id)
 	local allowlist_combs = stop:get_associated_combinators(
-		function(comb) return comb.mode == "allow" end
+		function(comb) return comb.mode == types.CombinatorMode.AllowList end
 	)
 	if #allowlist_combs > 1 then
 		make_default_allow_list(stop, changed_layout_id)
@@ -187,7 +188,7 @@ cs2.on_train_stop_pattern_changed(function(stop) evaluate_stop(stop) end)
 
 -- When an allowlist combinator is associated with a stop, update its stop.
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
-	if combinator.mode == "allow" then
+	if combinator.mode == types.CombinatorMode.AllowList then
 		if old_node and old_node.type == "stop" then evaluate_stop(old_node) end
 		if new_node and new_node.type == "stop" then evaluate_stop(new_node) end
 	end
@@ -197,8 +198,8 @@ end)
 cs2.on_combinator_setting_changed(
 	function(combinator, setting_name, _, old_value)
 		if
-			combinator.mode == "allow"
-			or (setting_name == "mode" and old_value == "allow")
+			combinator.mode == types.CombinatorMode.AllowList
+			or (setting_name == "mode" and old_value == types.CombinatorMode.AllowList)
 		then
 			local node = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
 			if node then evaluate_stop(node) end

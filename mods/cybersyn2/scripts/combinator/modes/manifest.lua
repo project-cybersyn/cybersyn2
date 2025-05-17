@@ -2,6 +2,7 @@
 -- Manifest output combinator
 --------------------------------------------------------------------------------
 
+local types = require("__cybersyn2__.lib.types")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
@@ -101,7 +102,7 @@ relm.define_element({
 --------------------------------------------------------------------------------
 
 cs2.register_combinator_mode({
-	name = "manifest",
+	name = types.CombinatorMode.Manifest,
 	localized_string = "cybersyn2-combinator-modes.manifest",
 	settings_element = "CombinatorGui.Mode.Manifest",
 	help_element = "CombinatorGui.Mode.Manifest.Help",
@@ -121,7 +122,7 @@ cs2.on_train_arrived(function(train, cstrain, stop)
 
 	-- Get train combs.
 	local combs = stop:get_associated_combinators(
-		function(c) return c.mode == "manifest" end
+		function(c) return c.mode == types.CombinatorMode.Manifest end
 	)
 	if not combs or #combs == 0 then return end
 
@@ -163,7 +164,7 @@ cs2.on_train_departed(function(train, cstrain, stop)
 	if not cstrain or not stop then return end
 	-- On train departure, clear all manifest combs.
 	local combs = stop:get_associated_combinators(
-		function(c) return c.mode == "manifest" end
+		function(c) return c.mode == types.CombinatorMode.Manifest end
 	)
 	if #combs > 0 then
 		local empty = {}

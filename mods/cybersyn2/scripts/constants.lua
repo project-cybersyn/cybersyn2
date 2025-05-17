@@ -1,6 +1,7 @@
 --------------------------------------------------------------------------------
 -- Global constants
 --------------------------------------------------------------------------------
+local types = require("__cybersyn2__.lib.types")
 
 _G.cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX = "[virtual-signal=cybersyn2]"
 _G.cs2.WINDOW_NAME = "cybersyn2-combinator-gui"
@@ -53,7 +54,7 @@ _G.cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET = {
 
 -- Default settings for a newly placed combinator with no tags.
 _G.cs2.DEFAULT_COMBINATOR_SETTINGS = {
-	mode = "station",
+	mode = types.CombinatorMode.Station,
 	network = "signal-A",
 	pr = 0,
 	inactivity_mode = 0,

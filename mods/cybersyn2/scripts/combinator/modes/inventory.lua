@@ -2,6 +2,7 @@
 -- Inventory input combinator
 --------------------------------------------------------------------------------
 
+local types = require("__cybersyn2__.lib.types")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
@@ -117,7 +118,7 @@ relm.define_element({
 --------------------------------------------------------------------------------
 
 cs2.register_combinator_mode({
-	name = "inventory",
+	name = types.CombinatorMode.Inventory,
 	localized_string = "cybersyn2-combinator-modes.inventory",
 	settings_element = "CombinatorGui.Mode.Inventory",
 	help_element = "CombinatorGui.Mode.Inventory.Help",
@@ -132,7 +133,7 @@ cs2.register_combinator_mode({
 local function check_true_inventory_mode(stop) stop:update_inventory_mode() end
 
 cs2.on_combinator_node_associated(function(comb, new, prev)
-	if comb.mode == "inventory" then
+	if comb.mode == types.CombinatorMode.Inventory then
 		if new then check_true_inventory_mode(new) end
 		if prev then check_true_inventory_mode(prev) end
 	end
@@ -141,7 +142,7 @@ end)
 cs2.on_combinator_setting_changed(function(comb, setting, new, prev)
 	if
 		setting == nil
-		or (setting == "mode" and (new == "inventory" or prev == "inventory"))
+		or (setting == "mode" and (new == types.CombinatorMode.Inventory or prev == types.CombinatorMode.Inventory))
 	then
 		local stop = comb:get_node("stop") --[[@as Cybersyn.TrainStop?]]
 		if stop then check_true_inventory_mode(stop) end

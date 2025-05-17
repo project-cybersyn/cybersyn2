@@ -1,3 +1,4 @@
+local types = require("__cybersyn2__.lib.types")
 local class = require("__cybersyn2__.lib.class").class
 local mlib = require("__cybersyn2__.lib.math")
 local slib = require("__cybersyn2__.lib.signal")
@@ -354,7 +355,7 @@ function TrainStop:update_inventory_mode()
 		return
 	end
 
-	local inv_comb = self:get_combinator_with_mode("inventory")
+	local inv_comb = self:get_combinator_with_mode(types.CombinatorMode.Inventory)
 	if not inv_comb then
 		-- Pseudoinventory case
 		if not inv.is_pseudoinventory then
@@ -450,7 +451,7 @@ function TrainStop:update_inventory(is_opportunistic)
 	if not inventory.is_pseudoinventory then
 		-- True inventory mode; read from Inventory combs.
 		local combs = self:get_associated_combinators(
-			function(c) return c.mode == "inventory" end
+			function(c) return c.mode == types.CombinatorMode.Inventory end
 		)
 		local read_inventory = false
 		local read_provide = false
@@ -495,7 +496,7 @@ function TrainStop:update_inventory(is_opportunistic)
 	else
 		-- Pseudoinventory mode; read from station combinator.
 		local combs = self:get_associated_combinators(
-			function(c) return c.mode == "station" end
+			function(c) return c.mode == types.CombinatorMode.Station end
 		)
 		if #combs == 1 then
 			local comb = combs[1]

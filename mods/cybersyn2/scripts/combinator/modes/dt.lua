@@ -2,6 +2,7 @@
 -- DT combinator
 --------------------------------------------------------------------------------
 
+local types = require("__cybersyn2__.lib.types")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local ultros = require("__cybersyn2__.lib.ultros")
@@ -96,7 +97,7 @@ relm.define_element({
 --------------------------------------------------------------------------------
 
 cs2.register_combinator_mode({
-	name = "dt",
+	name = types.CombinatorMode.DT,
 	localized_string = "cybersyn2-combinator-modes.dt",
 	settings_element = "CombinatorGui.Mode.DT",
 	help_element = "CombinatorGui.Mode.DT.Help",

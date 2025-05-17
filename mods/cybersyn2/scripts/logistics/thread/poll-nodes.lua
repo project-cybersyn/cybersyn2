@@ -4,6 +4,7 @@
 -- inputs and adding their items to the logistics arrays.
 --------------------------------------------------------------------------------
 
+local types = require("__cybersyn2__.lib.types")
 local stlib = require("__cybersyn2__.lib.strace")
 local tlib = require("__cybersyn2__.lib.table")
 local slib = require("__cybersyn2__.lib.signal")
@@ -103,7 +104,7 @@ end
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop_station_comb(stop)
 	local combs = stop:get_associated_combinators(
-		function(comb) return comb.mode == "station" end
+		function(comb) return comb.mode == types.CombinatorMode.Station end
 	)
 	local is_valid = stop:is_valid()
 	if #combs == 0 and is_valid then
@@ -169,8 +170,12 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	end
 	for k, v in pairs(inputs) do
 		if slib.key_is_virtual(k) then
-			if k == "cybersyn2-priority" then
+			if k == "cybersyn2-priority" or k == "cybersyn-priority" then
 				stop.priority = v
+			elseif k == "cybersyn-request-threshold" then
+				stop.threshold_item_in = v
+			elseif k == "cybersyn-fluid-request-threshold" then
+				stop.threshold_fluid_in = v
 			elseif k == "cybersyn2-all-items" then
 				stop.threshold_item_in = v
 				stop.threshold_item_out = v
@@ -226,7 +231,7 @@ function LogisticsThread:poll_dt_combs(stop)
 	stop.thresholds_in = nil
 	stop.thresholds_out = nil
 	local combs = stop:get_associated_combinators(
-		function(comb) return comb.mode == "dt" end
+		function(comb) return comb.mode == types.CombinatorMode.DT end
 	)
 	if #combs == 0 then return end
 	local thresholds_in = nil
@@ -263,7 +268,7 @@ end
 function LogisticsThread:poll_prio_combs(stop)
 	stop.priorities = nil
 	local combs = stop:get_associated_combinators(
-		function(comb) return comb.mode == "prio" end
+		function(comb) return comb.mode == types.CombinatorMode.Prio end
 	)
 	if #combs == 0 then return end
 	local priorities = nil
@@ -289,7 +294,7 @@ function LogisticsThread:poll_channels_combs(stop)
 	stop.channel = nil
 	-- Reread combs
 	local combs = stop:get_associated_combinators(
-		function(comb) return comb.mode == "channels" end
+		function(comb) return comb.mode == types.CombinatorMode.Channels end
 	)
 	if #combs == 0 then return end
 	local channels = nil
