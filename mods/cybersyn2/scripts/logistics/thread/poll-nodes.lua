@@ -169,8 +169,12 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	end
 	for k, v in pairs(inputs) do
 		if slib.key_is_virtual(k) then
-			if k == "cybersyn2-priority" then
+			if k == "cybersyn2-priority" or k == "cybersyn-priority" then
 				stop.priority = v
+			elseif k == "cybersyn-request-threshold" then
+				stop.threshold_item_in = v
+			elseif k == "cybersyn-fluid-request-threshold" then
+				stop.threshold_fluid_in = v
 			elseif k == "cybersyn2-all-items" then
 				stop.threshold_item_in = v
 				stop.threshold_item_out = v

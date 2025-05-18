@@ -36,7 +36,7 @@ _G.cs2.combinator_settings = {}
 --------------------------------------------------------------------------------
 
 ---@class (exact) Cybersyn.Combinator.ModeDefinition
----@field name string The name of the mode, which must be unique. Used as the internal storage key for the mode.
+---@field name Cybersyn.CombinatorMode The name of the mode, which must be unique. Used as the internal storage key for the mode.
 ---@field localized_string string The Factorio localized string for the mode.
 ---@field settings_element string? Name of a Relm element to use as the GUI settings element for this mode. Will be passed the active combinator as a `combinator` prop. If not provided, a noninteractive placeholder element will be rendered.
 ---@field help_element string? Name of a Relm element to use as the GUI help element for this mode. Will be passed the active combinator as a `combinator` prop. If not provided, a noninteractive placeholder element will be rendered.
