@@ -377,7 +377,7 @@ function TrueInventory:set_provides(counts)
 			if key_is_cargo(k) then provides[k] = count end
 		end
 	else
-		if self.provides and next(self.provides) then self.provides = {} end
+		self.provides = nil
 	end
 end
 
@@ -406,9 +406,9 @@ function TrueInventory:set_sinks(counts)
 end
 
 function TrueInventory:get_provided_qty(item)
-	local inv = self.inventory
+	local prov = self.provides or self.inventory
 	local of = self.outflow
-	return max((inv[item] or 0) - (of[item] or 0), 0)
+	return max((prov[item] or 0) - (of[item] or 0), 0)
 end
 
 function TrueInventory:get_pulled_qty(item)
@@ -439,16 +439,20 @@ end
 
 function TrueInventory:foreach_producible_item(f)
 	local inv = self.inventory
+	local has_prov = not not self.provides
+	local prov = self.provides or self.inventory
 	local of = self.outflow
 	local pushes = self.pushes or empty
 	for item, qty in pairs(inv) do
 		local net = max(qty - (of[item] or 0), 0)
+		local provided = net
+		if has_prov then provided = max((prov[item] or 0) - (of[item] or 0), 0) end
 		local pushes_item = pushes[item]
 		local pushed = 0
 		if pushes_item and pushes_item > 0 then
 			pushed = max(net - pushes_item, 0)
 		end
-		if net > 0 or pushed > 0 then f(item, net, pushed) end
+		if provided > 0 or pushed > 0 then f(item, provided, pushed) end
 	end
 end
 

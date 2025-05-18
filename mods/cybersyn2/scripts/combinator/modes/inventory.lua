@@ -51,6 +51,10 @@ relm.define_element({
 									key = "inventory",
 								},
 								{
+									caption = { "cybersyn2-combinator-mode-inventory.provides" },
+									key = "provide",
+								},
+								{
 									caption = { "cybersyn2-combinator-mode-inventory.requests" },
 									key = "pull",
 								},
@@ -98,7 +102,7 @@ relm.define_element({
 				type = "label",
 				font_color = { 255, 230, 192 },
 				font = "default-bold",
-				caption = "Signal Inputs",
+				caption = { "cybersyn2-combinator-modes-labels.signal-inputs" },
 			}),
 			Pr({ type = "line", direction = "horizontal" }),
 			Pr({
