@@ -38,6 +38,8 @@ local lib = {}
 ---@field public is_being_destroyed true? `true` if the combinator is being removed from state at this time.
 ---@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
 ---@field public inputs? SignalCounts The most recent signals read from the combinator. This is a cached value and will be `nil` in various situations where the combinator hasn't been or can't be read.
+---@field public red_inputs? SignalCounts As `inputs` but for only the red wire. Exists only for modes with `independent_input_wires` set.
+---@field public green_inputs? SignalCounts As `inputs` but for only the green wire. Exists only for modes with `independent_input_wires` set.
 ---@field public associated_entities table<string, LuaEntity>? Hidden or related entities that must be created or destroyed along with the combinator.
 ---@field public connected_rail LuaEntity? If this combinator was built next to a rail, this is that rail.
 

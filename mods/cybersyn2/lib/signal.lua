@@ -246,4 +246,16 @@ function lib.format_signal_count(count)
 	) or absv >= 1e3 and si_format(1e3, "k") or tostring(count)
 end
 
+---Convert an array of signals to a table of signal counts.
+---@param signals Signal[]
+---@return SignalCounts
+function lib.signals_to_signal_counts(signals)
+	local counts = {}
+	for i = 1, #signals do
+		local signal = signals[i]
+		counts[signal_to_key(signal.signal)] = signal.count
+	end
+	return counts
+end
+
 return lib

@@ -12,6 +12,7 @@ local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
 
 local signal_to_key = signal_lib.signal_to_key
 local key_to_signal = signal_lib.key_to_signal
+local signals_to_signal_counts = signal_lib.signals_to_signal_counts
 local distsq = mlib.pos_distsq
 
 --------------------------------------------------------------------------------
@@ -41,6 +42,7 @@ _G.cs2.combinator_settings = {}
 ---@field help_element string? Name of a Relm element to use as the GUI help element for this mode. Will be passed the active combinator as a `combinator` prop. If not provided, a noninteractive placeholder element will be rendered.
 ---@field is_input boolean? `true` if the input signals of a combinator in this mode should be read during `poll_combinators`.
 ---@field is_output boolean? `true` if this mode can set the output state of the combinator.
+---@field independent_input_wires boolean? If `true`, the red and green input wires will be read separately when examining the inputs of this combinator.
 
 ---@type {[string]: Cybersyn.Combinator.ModeDefinition}
 _G.cs2.combinator_modes = {}
@@ -266,23 +268,38 @@ function Combinator:read_inputs()
 	local mdef = modes[self.mode or ""]
 	if not mdef or not mdef.is_input then
 		self.inputs = nil
+		self.red_inputs = nil
+		self.green_inputs = nil
 		return
 	end
 	local entity = self.entity
 	if not entity or not entity.valid then return end
 
-	-- Read input sigs
-	local signals = entity.get_signals(RED_INPUTS, GREEN_INPUTS)
-	if signals then
-		---@type SignalCounts
-		local inputs = {}
-		for i = 1, #signals do
-			local signal = signals[i]
-			inputs[signal_to_key(signal.signal)] = signal.count
+	if mdef.independent_input_wires then
+		-- Read red and green inputs separately
+		local red_signals = entity.get_signals(RED_INPUTS)
+		if red_signals then
+			self.red_inputs = signals_to_signal_counts(red_signals)
+		else
+			self.red_inputs = {}
 		end
-		self.inputs = inputs
+
+		local green_signals = entity.get_signals(GREEN_INPUTS)
+		if green_signals then
+			self.green_inputs = signals_to_signal_counts(green_signals)
+		else
+			self.green_inputs = {}
+		end
+		self.inputs = nil
 	else
-		self.inputs = {}
+		local signals = entity.get_signals(RED_INPUTS, GREEN_INPUTS)
+		if signals then
+			self.inputs = signals_to_signal_counts(signals)
+		else
+			self.inputs = {}
+		end
+		self.red_inputs = nil
+		self.green_inputs = nil
 	end
 end
 
