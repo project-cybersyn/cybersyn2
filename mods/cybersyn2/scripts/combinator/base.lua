@@ -297,15 +297,11 @@ function Combinator:clear_outputs()
 	beh.parameters = param
 end
 
----Write the combinator's outputs from the given signal counts. Arguments are pairs of `SignalCounts` and
+---Encode arguments for later use with `direct_write_outputs`.
+---Arguments are pairs of `SignalCounts` and
 ---`int` values representing the signals to add to the output along
 ---with a multiplier.
-function Combinator:write_outputs(...)
-	local entity = self.entity
-	if not entity or not entity.valid then return end
-
-	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
-	local param = beh.parameters
+function Combinator:encode_outputs(...)
 	local outputs = {}
 
 	for i = 1, select("#", ...), 2 do
@@ -325,7 +321,19 @@ function Combinator:write_outputs(...)
 		end
 	end
 
-	param.outputs = outputs
+	return outputs
+end
+
+---Write the combinator's outputs from the given signal counts. Arguments are pairs of `SignalCounts` and
+---`int` values representing the signals to add to the output along
+---with a multiplier.
+function Combinator:write_outputs(...)
+	local entity = self.entity
+	if not entity or not entity.valid then return end
+
+	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
+	local param = beh.parameters
+	param.outputs = self:encode_outputs(...)
 	beh.parameters = param
 end
 

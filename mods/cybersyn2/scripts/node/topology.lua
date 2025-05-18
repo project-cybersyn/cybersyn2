@@ -17,8 +17,10 @@ _G.cs2.Topology = Topology
 ---Create a new topology.
 function Topology.new()
 	local id = counters.next("topology")
-	storage.topologies[id] =
-		setmetatable({ id = id, vehicle_type = "none" }, Topology)
+	storage.topologies[id] = setmetatable(
+		{ id = id, vehicle_type = "none", global_combinators = {} },
+		Topology
+	)
 	return storage.topologies[id]
 end
 
@@ -28,6 +30,26 @@ end
 local function get_topology(id) return storage.topologies[id or ""] end
 Topology.get = get_topology
 _G.cs2.get_topology = get_topology
+
+function Topology:add_global_combinator(comb)
+	if not self.global_combinators[comb.id] then
+		self.global_combinators[comb.id] = true
+	end
+end
+
+function Topology:remove_global_combinator(comb)
+	if self.global_combinators[comb.id] then
+		self.global_combinators[comb.id] = nil
+	end
+end
+
+---@return LuaEntity[]
+function Topology:get_combinator_entities()
+	if not self.surface_index then return {} end
+	return game.get_surface(self.surface_index).find_entities_filtered({
+		name = cs2.COMBINATOR_NAME,
+	})
+end
 
 ---Called to trigger the event indicating a topology's net inventory was
 ---computed by the logistics thread. Special handling must be taken to

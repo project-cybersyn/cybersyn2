@@ -104,6 +104,7 @@ lib.NodeNetworkOperation = {
 ---@field public pushed? SignalCounts Count of all items pushed by nodes in this topology. This is a cached value and is not updated in realtime.
 ---@field public pulled? SignalCounts Count of all items pulled by nodes in this topology. This is a cached value and is not updated in realtime.
 ---@field public sunk? SignalCounts Count of all items sunk by nodes in this topology. This is a cached value and is not updated in realtime.
+---@field public global_combinators IdSet Set of global combinators (e.g. inventory combinators) associated with this topology. This DOES NOT include per-node combinators.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
 ---@class Cybersyn.Node
