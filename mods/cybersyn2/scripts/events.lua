@@ -34,6 +34,11 @@ _G.cs2.on_configuration_changed, _G.cs2.raise_configuration_changed = event(
 _G.cs2.on_mod_settings_changed, _G.cs2.raise_mod_settings_changed =
 	event("mod_settings_changed", "StringOrNil", "nil", "nil", "nil", "nil")
 
+---Event raised before a reset is attempted. The `ResetData` object may be used to
+---indicate reasons why a reset should not proceed.
+_G.cs2.on_try_reset, _G.cs2.raise_try_reset =
+	event("try_reset", "Cybersyn.ResetData", "nil", "nil", "nil", "nil")
+
 ---Event raised immediately before wiping the global state. The `ResetData`
 ---object may be used to hand over information that needs to be re-copied
 ---into the new global state.

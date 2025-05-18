@@ -5,6 +5,12 @@
 local cs2 = _G.cs2
 
 commands.add_command(
+	"cs2-reset",
+	{ "cybersyn2-commands.reset-command-help" },
+	function() cs2.try_reset() end
+)
+
+commands.add_command(
 	"cs2-force-reset",
 	{ "cybersyn2-commands.force-reset-command-help" },
 	function() cs2.reset() end
