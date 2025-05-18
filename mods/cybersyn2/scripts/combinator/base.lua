@@ -263,7 +263,8 @@ local GREEN_INPUTS = defines.wire_connector_id.combinator_input_green
 
 ---If the combinator is in an input-supporting mode, read and cache its input
 ---signals.
-function Combinator:read_inputs()
+---@param which "red"|"green"|nil If given, and the combinator has independent input wires, read only the given wire. If `nil`, read both wires.
+function Combinator:read_inputs(which)
 	-- Sanity check
 	local mdef = modes[self.mode or ""]
 	if not mdef or not mdef.is_input then
@@ -277,19 +278,24 @@ function Combinator:read_inputs()
 
 	if mdef.independent_input_wires then
 		-- Read red and green inputs separately
-		local red_signals = entity.get_signals(RED_INPUTS)
-		if red_signals then
-			self.red_inputs = signals_to_signal_counts(red_signals)
-		else
-			self.red_inputs = {}
+		if which == "red" or which == nil then
+			local red_signals = entity.get_signals(RED_INPUTS)
+			if red_signals then
+				self.red_inputs = signals_to_signal_counts(red_signals)
+			else
+				self.red_inputs = {}
+			end
 		end
 
-		local green_signals = entity.get_signals(GREEN_INPUTS)
-		if green_signals then
-			self.green_inputs = signals_to_signal_counts(green_signals)
-		else
-			self.green_inputs = {}
+		if which == "green" or which == nil then
+			local green_signals = entity.get_signals(GREEN_INPUTS)
+			if green_signals then
+				self.green_inputs = signals_to_signal_counts(green_signals)
+			else
+				self.green_inputs = {}
+			end
 		end
+
 		self.inputs = nil
 	else
 		local signals = entity.get_signals(RED_INPUTS, GREEN_INPUTS)
@@ -371,6 +377,7 @@ local O_RED = defines.wire_connector_id.combinator_output_red
 local O_GREEN = defines.wire_connector_id.combinator_output_green
 local SCRIPT = defines.wire_origin.script
 
+---Perform dynamic cross-wiring between combinator input and output pins.
 ---@param state boolean `true` if wires should be crossed, `false` if uncrossed.
 function Combinator:cross_wires(state)
 	local combinator_entity = self.entity

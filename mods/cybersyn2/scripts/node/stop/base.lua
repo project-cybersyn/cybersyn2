@@ -20,6 +20,7 @@ local pos_get = mlib.pos_get
 local INF = math.huge
 local tremove = table.remove
 local abs = math.abs
+local empty = tlib.empty
 
 ---@class Cybersyn.TrainStop
 local TrainStop = class("TrainStop", Node)
@@ -482,30 +483,40 @@ function TrainStop:update_inventory(is_opportunistic)
 		local read_sink = false
 		local read_capacity = false
 		for _, comb in pairs(combs) do
-			local inv_mode = comb:read_setting(combinator_settings.inventory_mode)
-			if inv_mode == "inventory" then
-				if is_opportunistic then comb:read_inputs() end
-				read_inventory = true
-				inventory:set_base(comb.inputs)
-			elseif inv_mode == "provide" then
-				read_provide = true
-				inventory:set_provides(comb.inputs or {})
-			elseif inv_mode == "pull" then
-				read_pull = true
-				inventory:set_pulls(comb.inputs or {})
-			elseif inv_mode == "push" then
-				read_push = true
-				inventory:set_pushes(comb.inputs or {})
-			elseif inv_mode == "sink" then
-				read_sink = true
-				inventory:set_sinks(comb.inputs or {})
-			elseif inv_mode == "capacity" then
-				read_capacity = true
-				local inputs = comb.inputs or {}
-				inventory:set_capacities(
-					inputs["cybersyn2-all-items"] or 0,
-					inputs["cybersyn2-all-fluids"] or 0
-				)
+			-- Read both inputs from each combinator if they exist.
+			-- 1 = red wire, 2 = green wire
+			for i = 1, 2 do
+				local inv_mode = i == 1
+						and comb:read_setting(combinator_settings.inventory_mode)
+					or comb:read_setting(combinator_settings.inventory_green_mode)
+				-- Attempt to realtime-read inventory inputs in opportunistic mode.
+				if inv_mode == "inventory" and is_opportunistic then
+					comb:read_inputs(i == 1 and "red" or "green")
+				end
+				local inputs = (i == 1 and comb.red_inputs or comb.green_inputs)
+				if inv_mode == "inventory" then
+					read_inventory = true
+					inventory:set_base(inputs)
+				elseif inv_mode == "provide" then
+					read_provide = true
+					inventory:set_provides(inputs or empty)
+				elseif inv_mode == "pull" then
+					read_pull = true
+					inventory:set_pulls(inputs or empty)
+				elseif inv_mode == "push" then
+					read_push = true
+					inventory:set_pushes(inputs or empty)
+				elseif inv_mode == "sink" then
+					read_sink = true
+					inventory:set_sinks(inputs or empty)
+				elseif inv_mode == "capacity" then
+					read_capacity = true
+					local c_inputs = inputs or empty
+					inventory:set_capacities(
+						c_inputs["cybersyn2-all-items"] or 0,
+						c_inputs["cybersyn2-all-fluids"] or 0
+					)
+				end
 			end
 		end
 		-- Clear data for areas where the combinator is not present.
@@ -523,7 +534,7 @@ function TrainStop:update_inventory(is_opportunistic)
 		if #combs == 1 then
 			local comb = combs[1]
 			if is_opportunistic then comb:read_inputs() end
-			inventory:set_base(comb.inputs or {})
+			inventory:set_base(comb.inputs or empty)
 		end
 	end
 end

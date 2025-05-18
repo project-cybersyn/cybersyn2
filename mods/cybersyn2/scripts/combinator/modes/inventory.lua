@@ -21,13 +21,52 @@ local strace = stlib.strace
 -- Settings
 --------------------------------------------------------------------------------
 
+-- Mode controlled by the red input
 cs2.register_combinator_setting(
 	cs2.lib.make_raw_setting("inventory_mode", "inventory_mode")
+)
+
+-- Mode controlled by the green input
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("inventory_green_mode", "inventory_green_mode")
 )
 
 --------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
+
+local mode_dropdown_items = {
+	{
+		caption = { "cybersyn2-combinator-mode-inventory.inventory" },
+		key = "inventory",
+	},
+	{
+		caption = { "cybersyn2-combinator-mode-inventory.provides" },
+		key = "provide",
+	},
+	{
+		caption = { "cybersyn2-combinator-mode-inventory.requests" },
+		key = "pull",
+	},
+	{
+		caption = {
+			"cybersyn2-combinator-mode-inventory.push-thresholds",
+		},
+		key = "push",
+	},
+	{
+		caption = {
+			"cybersyn2-combinator-mode-inventory.sink-thresholds",
+		},
+		key = "sink",
+	},
+	{
+		caption = {
+			"cybersyn2-combinator-mode-inventory.capacity",
+		},
+		key = "capacity",
+	},
+}
 
 relm.define_element({
 	name = "CombinatorGui.Mode.Inventory",
@@ -35,57 +74,28 @@ relm.define_element({
 		return ultros.WellSection(
 			{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
 			{
-				gui.InnerHeading({
-					caption = { "cybersyn2-combinator-mode-inventory.input-modes" },
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-inventory.red-input" },
+					top_margin = 6,
+				}, {
+					gui.Dropdown(
+						nil,
+						props.combinator,
+						combinator_settings.inventory_mode,
+						mode_dropdown_items
+					),
 				}),
-				Pr(
-					{ type = "table", column_count = 2, horizontally_stretchable = true },
-					{
-						ultros.RadioButtons({
-							value = props.combinator:read_setting(
-								combinator_settings.inventory_mode
-							),
-							buttons = {
-								{
-									caption = { "cybersyn2-combinator-mode-inventory.inventory" },
-									key = "inventory",
-								},
-								{
-									caption = { "cybersyn2-combinator-mode-inventory.provides" },
-									key = "provide",
-								},
-								{
-									caption = { "cybersyn2-combinator-mode-inventory.requests" },
-									key = "pull",
-								},
-								{
-									caption = {
-										"cybersyn2-combinator-mode-inventory.push-thresholds",
-									},
-									key = "push",
-								},
-								{
-									caption = {
-										"cybersyn2-combinator-mode-inventory.sink-thresholds",
-									},
-									key = "sink",
-								},
-								{
-									caption = {
-										"cybersyn2-combinator-mode-inventory.capacity",
-									},
-									key = "capacity",
-								},
-							},
-							on_change = function(_, value)
-								props.combinator:write_setting(
-									combinator_settings.inventory_mode,
-									value
-								)
-							end,
-						}),
-					}
-				),
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-inventory.green-input" },
+					top_margin = 6,
+				}, {
+					gui.Dropdown(
+						nil,
+						props.combinator,
+						combinator_settings.inventory_green_mode,
+						mode_dropdown_items
+					),
+				}),
 			}
 		)
 	end,
@@ -126,6 +136,7 @@ cs2.register_combinator_mode({
 	settings_element = "CombinatorGui.Mode.Inventory",
 	help_element = "CombinatorGui.Mode.Inventory.Help",
 	is_input = true,
+	independent_input_wires = true,
 })
 
 --------------------------------------------------------------------------------
