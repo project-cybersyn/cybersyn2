@@ -27,9 +27,6 @@ cs2.register_combinator_setting(cs2.lib.make_raw_setting("pr", "pr"))
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("use_stack_thresholds", "station_flags", 0)
 )
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("dump", "station_flags", 4)
-)
 
 -- Departure conditions
 cs2.register_combinator_setting(
@@ -112,12 +109,6 @@ relm.define_element({
 						"If checked, all item delivery thresholds will be interpreted as stacks of items. If unchecked, all item delivery thresholds will be interpreted as individual items.",
 						props.combinator,
 						combinator_settings.use_stack_thresholds
-					),
-					gui.Checkbox(
-						{ "cybersyn2-combinator-mode-station.dump" },
-						{ "cybersyn2-combinator-mode-station.dump-tooltip" },
-						props.combinator,
-						combinator_settings.dump
 					),
 				}
 			),
@@ -284,4 +275,37 @@ cs2.register_combinator_mode({
 	settings_element = "CombinatorGui.Mode.Station",
 	help_element = "CombinatorGui.Mode.Station.Help",
 	is_input = true,
+	independent_input_wires = true,
 })
+
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+-- Rebuild inventory on station comb reassociation
+cs2.on_combinator_node_associated(function(combinator, from, to)
+	if combinator.mode == "station" then
+		if from then
+			---@cast from Cybersyn.Node
+			from:rebuild_inventory()
+		end
+		if to then
+			---@cast to Cybersyn.Node
+			to:rebuild_inventory()
+		end
+	end
+end)
+
+cs2.on_combinator_setting_changed(
+	function(combinator, setting, next_value, prev_value)
+		if
+			(
+				setting == "mode"
+				and (next_value == "station" or prev_value == "station")
+			) or setting == nil
+		then
+			local node = combinator:get_node()
+			if node then node:rebuild_inventory() end
+		end
+	end
+)

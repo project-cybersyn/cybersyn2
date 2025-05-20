@@ -34,6 +34,9 @@ function Node.new(type)
 		type = type or "generic", -- default type
 		combinator_set = {},
 		created_tick = game.tick,
+		last_consumed_tick = {},
+		-- TODO: is last_produced_tick needed?
+		last_produced_tick = {},
 	}, Node)
 
 	storage.nodes[id] = node
@@ -163,50 +166,6 @@ function Node:get_combinator_with_mode(mode)
 	end
 end
 
----Get the per-item priority of the given item for this node, defaulting
----to the node's general priority or 0.
----@param item SignalKey
----@return int
-function Node:get_item_priority(item)
-	local prios = self.priorities
-	local prio = self.priority or 0
-	return prios and (prios[item] or prio) or prio
-end
-
----Get this node's channel mask for an item
----@param item SignalKey
-function Node:get_channel_mask(item)
-	local channels = self.channels
-	local channel = self.channel or mod_settings.default_channel_mask
-	return channels and (channels[item] or channel) or channel
-end
-
----Determine if this node shares a network with the other.
----@param n2 Cybersyn.Node
-function Node:is_network_match(n2, mode)
-	local nets_1 = self.networks or empty
-	local nets_2 = n2.networks or empty
-	for k, v in pairs(nets_1) do
-		if band(v, nets_2[k] or 0) ~= 0 then return true end
-	end
-	return false
-end
-
----Determine if this node shares an item's channel with the other.
----@param self Cybersyn.Node
----@param n2 Cybersyn.Node
----@param item SignalKey
-function Node:is_channel_match(n2, item)
-	return band(self:get_channel_mask(item), n2:get_channel_mask(item)) ~= 0
-end
-
----Determine if two nodes can exchange a given item.
----@param n2 Cybersyn.Node
----@param item SignalKey
-function Node:is_item_match(n2, item)
-	return self:is_channel_match(n2, item) and self:is_network_match(n2)
-end
-
 --------------------------------------------------------------------------------
 -- Inventory
 --------------------------------------------------------------------------------
@@ -238,63 +197,8 @@ function Node:get_delivery_thresholds(item)
 	end
 end
 
----Determine how many of the given item the node can provide, accounting
----for thresholds and net inventory.
----@param item SignalKey
----@return integer #Providable quantity
----@return integer #Outbound DT, valid only if qty>0.
----@return Cybersyn.Inventory? #Node inventory
-function Node:get_provide(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, inv end
-	local has = inv:get_provided_qty(item)
-	if has <= 0 then return 0, 0, inv end
-	local _, out_t = self:get_delivery_thresholds(item)
-	if has < out_t then return 0, out_t, inv end
-	return has, out_t, inv
-end
-
----Determine how many of the given item the node can pull, accounting
----for thresholds and net inventory. Sign is flipped to positive.
----@return integer #Pullable quantity
----@return integer #Inbound DT, valid only if qty>0.
----@return Cybersyn.Inventory? #Node inventory
-function Node:get_pull(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, nil end
-	local has = inv:get_pulled_qty(item)
-	if has <= 0 then return 0, 0, inv end
-	local in_t = self:get_delivery_thresholds(item)
-	if has < in_t then return 0, in_t, inv end
-	return has, in_t, inv
-end
-
-function Node:get_push(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, nil end
-	local has = inv:get_pushed_qty(item)
-	if has <= 0 then return 0, 0, inv end
-	local _, out_t = self:get_delivery_thresholds(item)
-	if has < out_t then return 0, out_t, inv end
-	return has, out_t, inv
-end
-
-function Node:get_sink(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, nil end
-	local has = inv:get_sink_qty(item)
-	if has <= 0 then return 0, 0, inv end
-	local in_t = self:get_delivery_thresholds(item)
-	if has < in_t then return 0, in_t, inv end
-	return has, in_t, inv
-end
-
-function Node:get_dump(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, nil end
-	local in_t = self:get_delivery_thresholds(item)
-	return math.huge, in_t, inv
-end
+---@return Cybersyn.Order[] orders All orders for this node. Treat as immutable.
+function Node:get_orders() return {} end
 
 ---@return Cybersyn.Inventory?
 function Node:get_inventory() return cs2.get_inventory(self.inventory_id) end
@@ -305,15 +209,6 @@ function Node:get_inventory() return cs2.get_inventory(self.inventory_id) end
 ---@return boolean was_changed `true` if the inventory was changed, `false` if not.
 function Node:set_inventory(id)
 	if id == self.inventory_id then return false end
-	strace(
-		stlib.DEBUG,
-		"cs2",
-		"inventory",
-		"node",
-		self,
-		"message",
-		"Swapping node's inventory"
-	)
 	if not id then
 		self.inventory_id = nil
 		return true
@@ -321,12 +216,17 @@ function Node:set_inventory(id)
 	local inv = Inventory.get(id)
 	if not inv then
 		self.inventory_id = nil
-		return true
+	else
+		self.inventory_id = id
 	end
-	self.inventory_id = id
-	cs2.raise_node_data_changed(self)
+	self:rebuild_inventory()
 	return true
 end
+
+---Rebuild inventory for a node. Generally called when a structural change
+---happens such as an inventory combinator being added or removed, or a sharing
+---state change.
+function Node:rebuild_inventory() end
 
 --------------------------------------------------------------------------------
 -- Deliveries

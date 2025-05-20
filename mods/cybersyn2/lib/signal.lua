@@ -190,6 +190,22 @@ local function key_is_fluid(key)
 end
 lib.key_is_fluid = key_is_fluid
 
+---Classify keys relevant to Cybersyn input mechanisms.
+---@return "cargo"|"virtual"|nil genus Genus of the key
+---@return "item"|"fluid"|nil species For `cargo` keys, speciew of the cargo.
+local function classify_key(key)
+	if parameter_names[key] then return end
+	local sig = key_to_signal(key)
+	if sig then
+		if sig.type == "item" or sig.type == "fluid" then
+			return "cargo", sig.type --[[@as "item"|"fluid"]]
+		elseif sig.type == "virtual" then
+			return "virtual", nil
+		end
+	end
+end
+lib.classify_key = classify_key
+
 ---@param key SignalKey
 local function key_to_richtext(key)
 	local sig = key_to_signal(key)

@@ -62,11 +62,14 @@ end
 function LogisticsThread:enter_init() self.nodes = nil end
 
 function LogisticsThread:init()
-	if mod_settings.enable_logistics then
-		self:set_state("enum_nodes")
-	else
-		self:sleep_for(10 * 60) -- 10 sec
-	end
+	-- if mod_settings.enable_logistics then
+	-- 	self:set_state("enum_nodes")
+	-- else
+	-- 	self:sleep_for(10 * 60) -- 10 sec
+	-- end
+
+	-- XXX: REMOVE THIS
+	self:sleep_for(10 * 60) -- 10 sec
 end
 
 -- Start threads when topologies are created/destroyed.
