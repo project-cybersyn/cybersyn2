@@ -37,26 +37,9 @@ function LogisticsThread:enter_enum_nodes()
 		return
 	end
 
-	self.combinators = {}
+	-- Estimate thread workload based on number of nodes.
 	-- TODO: better workload calc
 	self.workload = n_nodes * 10
-	self:begin_async_loop(
-		self.nodes,
-		math.ceil(cs2.PERF_ENUM_NODES_WORKLOAD * mod_settings.work_factor)
-	)
 end
 
----@param node Cybersyn.Node
-function LogisticsThread:enum_node(node)
-	local combinators = self.combinators
-	for id in pairs(node.combinator_set or empty) do
-		combinators[#combinators + 1] = id
-	end
-end
-
-function LogisticsThread:enum_nodes()
-	self:step_async_loop(
-		self.enum_node,
-		function(thr) thr:set_state("poll_combinators") end
-	)
-end
+function LogisticsThread:enum_nodes() self:set_state("poll_nodes") end

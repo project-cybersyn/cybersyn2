@@ -289,7 +289,7 @@ function StopInventory:update(reread)
 		-- Clear existing order
 		if next(order.requests) then order.requests = {} end
 		if next(order.provides) then order.provides = {} end
-		if next(order.networks) then order.networks = nil end
+		if order.networks then order.networks = nil end
 		order.priority = nil
 		-- Rebuild order from its governing combinator
 		local comb = cs2.get_combinator(order.combinator_id, true)
