@@ -285,21 +285,10 @@ function LogisticsThread:alloc_item_to(item, requester)
 		return a.busy_value < b.busy_value
 	end)
 
-	game.print("alloc_item_to " .. stlib.prettify({
-		item = item,
-		request_qty = request_qty,
-		request_thresh = request_thresh,
-		providers = #providers,
-	}))
-
 	-- Allocate from providers until the requested amount is met
 	for i = 1, #providers do
 		local provider = providers[i]
 		local qty = min(request_qty, order_provided_qty(provider, item))
-		game.print("alloc_item_from_to" .. stlib.prettify({
-			provider = provider.node_id,
-			qty = qty,
-		}))
 		if qty > 0 then
 			local provider_stop = cs2.get_stop(provider.node_id, true)
 			if provider_stop then
@@ -355,8 +344,6 @@ function LogisticsThread:alloc_item(item)
 		return a.busy_value < b.busy_value
 	end)
 
-	game.print("alloc_item " .. item .. (stlib.stringify(requesters)))
-
 	-- Allocate to each requesting order
 	for _, requester in pairs(requesters) do
 		self:alloc_item_to(item, requester)
@@ -378,5 +365,5 @@ function LogisticsThread:enter_alloc()
 end
 
 function LogisticsThread:alloc()
-	self:step_async_loop(self.alloc_item, function(x) x:set_state("init") end)
+	self:step_async_loop(self.alloc_item, function(x) x:set_state("route") end)
 end

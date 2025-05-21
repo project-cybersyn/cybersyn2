@@ -238,6 +238,15 @@ end
 
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 function LogisticsThread:route_train_allocation(allocation, index)
+	-- If alloc below threshold, skip it.
+	if
+		allocation.qty < allocation.from_thresh
+		or allocation.qty < allocation.to_thresh
+	then
+		-- TODO: log at provider that stuff was reserved below threshold
+		return false
+	end
+
 	local from = allocation.from --[[@as Cybersyn.TrainStop]]
 	local to = allocation.to --[[@as Cybersyn.TrainStop]]
 	if (not from:is_valid()) or (not to:is_valid()) then return false end

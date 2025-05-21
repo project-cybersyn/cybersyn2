@@ -58,9 +58,7 @@ require("scripts.combinator.modes.surface")
 
 require("scripts.logistics.thread.base")
 require("scripts.logistics.thread.enum-nodes")
-require("scripts.logistics.thread.poll-combinators")
 require("scripts.logistics.thread.poll-nodes")
-require("scripts.logistics.thread.cull")
 require("scripts.logistics.thread.alloc")
 require("scripts.logistics.thread.route")
 
