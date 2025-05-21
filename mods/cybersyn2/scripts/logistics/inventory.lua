@@ -338,8 +338,8 @@ function StopInventory:update(reread)
 		if comb then
 			if reread then comb:read_inputs() end
 			if comb.mode == "station" then
-				-- Green wire of station = true inventory
-				self:set_base(comb.green_inputs)
+				-- Red wire of station = true inventory/control signals
+				self:set_base(comb.red_inputs)
 			end
 			local inputs = order.combinator_input == "green" and comb.green_inputs
 				or comb.red_inputs
@@ -410,9 +410,9 @@ function StopInventory:rebuild_orders()
 	if not controlling_stop then return end
 	local station_comb = controlling_stop:get_combinator_with_mode("station")
 	if not station_comb then return end
-	-- Red-wire order for station combinator
+	-- Green-wire order for station combinator
 	orders[#orders + 1] =
-		create_blank_order(self, station_comb.id, controlling_stop.id, "red")
+		create_blank_order(self, station_comb.id, controlling_stop.id, "green")
 	-- Green- and red-wire orders for each inventory comb
 	local inventory_combs = controlling_stop:get_associated_combinators(
 		function(c) return c.mode == "inventory" end

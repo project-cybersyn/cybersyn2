@@ -89,7 +89,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	if not is_valid then return false end
 	local comb = combs[1]
 	comb:read_inputs()
-	local inputs = comb.green_inputs
+	local inputs = comb.red_inputs
 	if not inputs then
 		strace(WARN, "message", "Couldn't read station comb inputs", stop.entity)
 		return false
