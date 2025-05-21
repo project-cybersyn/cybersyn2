@@ -7,32 +7,20 @@ local thread_lib = require("__cybersyn2__.lib.thread")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
----@alias Cybersyn.LogisticsThreadState "init"|"enum_nodes"|"poll_combinators"|"poll_nodes"|"cull"|"alloc"|"route"
+---@alias Cybersyn.LogisticsThreadState "init"|"enum_nodes"|"poll_nodes"|"alloc"|"route"
 
----@class Cybersyn.LogisticsThread: StatefulThread
----@field state Cybersyn.LogisticsThreadState State of the task.
----@field paused boolean? `true` if loop is paused
----@field stepped boolean? `true` if user wants to execute one step
----@field topology_id Id Id of topology being serviced by this thread.
----@field combinators UnitNumber[]? Combinators to iterate
----@field nodes Cybersyn.Node[]? Nodes found within topology.
----@field providers table<SignalKey, IdSet>? Idset of nodes providing the given product
----@field provided_qty SignalCounts? Total quantity of items provided by all providers
----@field providers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped providers
----@field pushers table<SignalKey, IdSet>? Ids of nodes pushing the given product
----@field pushed_qty SignalCounts? Total quantity of items pushed by all pushers
----@field pushers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped pushers
----@field pullers table<SignalKey, IdSet>? Ids of nodes pulling the given product
----@field pulled_qty SignalCounts? Total quantity of items pulled by all pullers
----@field pullers_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped pullers
----@field sinks table<SignalKey, IdSet>? Ids of nodes that are sinks for the given product
----@field sunk_qty SignalCounts? Total quantity of items sunk by all sinks
----@field sinks_p table<SignalKey, [Cybersyn.Node, integer][][]>? p-grouped sinks
----@field dumps Cybersyn.Node[]? Nodes that are dumps
----@field seen_cargo table<SignalKey, true>? Items we've seen and need to iterate over.
----@field allocations Cybersyn.Internal.LogisticsAllocation[]?
----@field cargo SignalKey[]? List of cargo.
----@field avail_trains table<Id, Cybersyn.Train>? Available trains
+---@class (exact) Cybersyn.LogisticsThread: StatefulThread
+---@field public state Cybersyn.LogisticsThreadState State of the task.
+---@field public paused boolean? `true` if loop is paused
+---@field public stepped boolean? `true` if user wants to execute one step
+---@field public topology_id Id Id of topology being serviced by this thread.
+---@field public nodes Cybersyn.Node[]? Nodes found within topology.
+---@field public providers? {[SignalKey]: Cybersyn.Order[]} Orders providing a given item.
+---@field public requesters? {[SignalKey]: Cybersyn.Order[]} Orders requesting a given item.
+---@field public request_all? Cybersyn.Order[] Orders requesting any item.
+---@field public allocations Cybersyn.Internal.LogisticsAllocation[]?
+---@field public allocs_from {[Id]: Cybersyn.Internal.LogisticsAllocation[]} Allocations from the given stop, ordered. Used for multi-item.
+---@field public avail_trains table<Id, Cybersyn.Train>? Available trains
 local LogisticsThread = class("LogisticsThread", cs2.StatefulThread)
 _G.cs2.LogisticsThread = LogisticsThread
 

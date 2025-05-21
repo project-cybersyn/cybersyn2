@@ -21,41 +21,39 @@ local key_is_cargo = slib.key_is_cargo
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
----@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
----@param node Cybersyn.Node
----@param item SignalKey
-function LogisticsThread:add_to_logisics_set(logistics_type, node, item)
-	local nodes = self[logistics_type][item]
-	if not nodes then
-		nodes = {}
-		self[logistics_type][item] = nodes
-	end
-	nodes[node.id] = true
-end
-
----@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
----@param node_id Id
----@param item SignalKey
-function LogisticsThread:is_in_logistics_set(logistics_type, node_id, item)
-	local set = self[logistics_type][item]
-	return set and set[node_id]
-end
-
----@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
----@param node_id Id
----@param item SignalKey
-function LogisticsThread:remove_from_logistics_set(
-	logistics_type,
-	node_id,
-	item
-)
-	local set = self[logistics_type][item]
-	if set then set[node_id] = nil end
-end
-
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:classify_inventory(stop)
-	--
+	local orders = stop:get_orders()
+	for _, order in pairs(orders) do
+		if stop.is_producer then
+			for item in pairs(order.provides) do
+				local providers = self.providers[item]
+				if not providers then
+					providers = {}
+					self.providers[item] = providers
+				end
+				providers[#providers + 1] = order
+			end
+		end
+		if stop.is_consumer then
+			for item in pairs(order.requests) do
+				local requesters = self.requesters[item]
+				if not requesters then
+					requesters = {}
+					self.requesters[item] = requesters
+				end
+				requesters[#requesters + 1] = order
+			end
+			if order.request_all then
+				local request_all = self.request_all
+				if not request_all then
+					request_all = {}
+					self.request_all = request_all
+				end
+				request_all[#request_all + 1] = order
+			end
+		end
+	end
 end
 
 ---@param stop Cybersyn.TrainStop
@@ -226,15 +224,8 @@ end
 
 function LogisticsThread:enter_poll_nodes()
 	self.providers = {}
-	self.provided_qty = {}
-	self.pushers = {}
-	self.pushed_qty = {}
-	self.pullers = {}
-	self.pulled_qty = {}
-	self.sinks = {}
-	self.sunk_qty = {}
-	self.dumps = {}
-	self.seen_cargo = {}
+	self.requesters = {}
+	self.request_all = {}
 	self:begin_async_loop(
 		self.nodes,
 		math.ceil(cs2.PERF_NODE_POLL_WORKLOAD * mod_settings.work_factor)
@@ -254,10 +245,5 @@ function LogisticsThread:exit_poll_nodes()
 end
 
 function LogisticsThread:poll_nodes()
-	self:step_async_loop(self.poll_node, function(thr)
-		-- XXX: debug
-		--thr:set_state("cull")
-
-		thr:set_state("init")
-	end)
+	self:step_async_loop(self.poll_node, function(thr) thr:set_state("alloc") end)
 end

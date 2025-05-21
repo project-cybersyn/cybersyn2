@@ -131,7 +131,6 @@ lib.NodeNetworkOperation = {
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
 ---@field public last_consumed_tick SignalCounts The last tick a delivery of the given item was scheduled to this node.
----@field public last_produced_tick SignalCounts The last tick a delivery of the given item was scheduled from this node.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
@@ -179,9 +178,13 @@ lib.NodeNetworkOperation = {
 ---@field public combinator_input? "red"|"green" Input wire this order was read from on its governing combinator.
 ---@field public requests SignalCounts The requested items for this order.
 ---@field public provides SignalCounts The provided items for this order.
----@field public networks? SignalSet The networks this order is associated with.
----@field public priority? int The priority of this order.
+---@field public thresholds_in SignalCounts Inbound thresholds for this order.
+---@field public thresholds_out SignalCounts Outbound thresholds for this order.
+---@field public networks SignalSet The computed networks of this order.
+---@field public last_consumed_tick SignalCounts Last consumed ticks for the order's associated inventory.
+---@field public priority int The computed priority of this order.
 ---@field public request_all boolean? `true` if this order should request all items in the network.
+---@field public busy_value number Cached value computed at poll time regarding how busy the associated node is.
 
 ---@class Cybersyn.Inventory
 ---@field public id Id

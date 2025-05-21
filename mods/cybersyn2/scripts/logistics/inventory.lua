@@ -250,6 +250,37 @@ function Inventory:is_volatile() return false end
 function Inventory:update(reread) return false end
 
 --------------------------------------------------------------------------------
+-- Fast inventory accessors
+--------------------------------------------------------------------------------
+
+---@param inventory Cybersyn.Inventory
+---@param item SignalKey
+function _G.cs2.inventory_avail_qty(inventory, item)
+	return max(
+		(inventory.inventory[item] or 0) - (inventory.outflow[item] or 0),
+		0
+	)
+end
+
+---@param order Cybersyn.Order
+---@param item SignalKey
+function _G.cs2.order_provided_qty(order, item)
+	local inv = order.inventory
+	local base = min(order.provides[item] or 0, inv.inventory[item] or 0)
+	return max(base - (inv.outflow[item] or 0), 0)
+end
+
+---@param order Cybersyn.Order
+---@param item SignalKey
+function _G.cs2.order_requested_qty(order, item)
+	local inv = order.inventory
+	local deficit = (order.requests[item] or 0)
+		- (inv.inventory[item] or 0)
+		- (inv.inflow[item] or 0)
+	return max(deficit, 0)
+end
+
+--------------------------------------------------------------------------------
 -- StopInventory
 --------------------------------------------------------------------------------
 
@@ -286,11 +317,22 @@ end
 function StopInventory:update(reread)
 	if self:is_volatile() then return false end
 	for _, order in pairs(self.orders) do
+		local stop = cs2.get_stop(order.node_id, true)
+		if not stop then return false end
 		-- Clear existing order
 		if next(order.requests) then order.requests = {} end
 		if next(order.provides) then order.provides = {} end
-		if order.networks then order.networks = nil end
-		order.priority = nil
+		if next(order.networks) then order.networks = {} end
+		if next(order.thresholds_in) then order.thresholds_in = {} end
+		if next(order.thresholds_out) then order.thresholds_out = {} end
+		order.priority = stop.priority or 0
+		order.request_all = nil
+		-- Copy stop data
+		-- TODO: move last_consumed_tick to inventory
+		order.last_consumed_tick = stop.last_consumed_tick or {}
+		-- TODO: tekbox equation?
+		order.busy_value = stop:get_occupancy()
+
 		-- Rebuild order from its governing combinator
 		local comb = cs2.get_combinator(order.combinator_id, true)
 		if comb then
@@ -306,33 +348,62 @@ function StopInventory:update(reread)
 				if genus == "cargo" then
 					if count < 0 then
 						order.requests[signal_key] = -count
+						order.thresholds_in[signal_key] =
+							stop:get_inbound_threshold(signal_key)
 					elseif count > 0 then
 						order.provides[signal_key] = count
+						order.thresholds_out[signal_key] =
+							stop:get_outbound_threshold(signal_key)
 					end
 				elseif genus == "virtual" then
 					if signal_key == "cybersyn2-priority" then
 						order.priority = count
-					elseif signal_key == "cybersyn2-all-items" then
+					elseif signal_key == "cybersyn2-all-items" and count < 0 then
+						order.request_all = true
 					elseif cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal_key] then
 						-- no CS2 config signals as networks
 					else
-						-- virtual signals = network names
-						if order.networks then
-							order.networks[signal_key] = true
-						else
-							order.networks = { [signal_key] = true }
-						end
+						order.networks[signal_key] = true
 					end
 				end
 			end
+			-- Default network if no networks are set.
+			if not next(order.networks) and stop.item_network then
+				order.networks[stop.item_network] = true
+			end
 		else
+			-- Order has no governing combinator.
 		end
 	end
 	return true
 end
 
+---@param inv Cybersyn.Inventory
+---@param comb_id Id
+---@param node_id Id
+---@param comb_input "green"|"red"
+local function create_blank_order(inv, comb_id, node_id, comb_input)
+	---@type Cybersyn.Order
+	local order = {
+		inventory = inv,
+		combinator_id = comb_id,
+		node_id = node_id,
+		combinator_input = comb_input,
+		requests = {},
+		provides = {},
+		networks = {},
+		thresholds_in = {},
+		thresholds_out = {},
+		last_consumed_tick = {},
+		priority = 0,
+		busy_value = 0,
+	}
+	return order
+end
+
 ---Destroy and rebuild all orders for this inventory.
 function StopInventory:rebuild_orders()
+	---@type Cybersyn.Order[]
 	local orders = {}
 	self.orders = orders
 	local controlling_stop = cs2.get_stop(self.created_for_node_id)
@@ -340,45 +411,18 @@ function StopInventory:rebuild_orders()
 	local station_comb = controlling_stop:get_combinator_with_mode("station")
 	if not station_comb then return end
 	-- Red-wire order for station combinator
-	local station_order = {
-		inventory = self,
-		combinator_id = station_comb.id,
-		node_id = controlling_stop.id,
-		combinator_input = "red",
-		requests = {},
-		provides = {},
-		networks = nil,
-		priority = 0,
-	}
-	orders[#orders + 1] = station_order
+	orders[#orders + 1] =
+		create_blank_order(self, station_comb.id, controlling_stop.id, "red")
 	-- Green- and red-wire orders for each inventory comb
 	local inventory_combs = controlling_stop:get_associated_combinators(
 		function(c) return c.mode == "inventory" end
 	)
 	for _, comb in pairs(inventory_combs) do
-		local green_order = {
-			inventory = self,
-			combinator_id = comb.id,
-			node_id = controlling_stop.id,
-			combinator_input = "green",
-			requests = {},
-			provides = {},
-			networks = nil,
-			priority = 0,
-		}
-		orders[#orders + 1] = green_order
+		orders[#orders + 1] =
+			create_blank_order(self, comb.id, controlling_stop.id, "green")
 
-		local red_order = {
-			inventory = self,
-			combinator_id = comb.id,
-			node_id = controlling_stop.id,
-			combinator_input = "red",
-			requests = {},
-			provides = {},
-			networks = nil,
-			priority = 0,
-		}
-		orders[#orders + 1] = red_order
+		orders[#orders + 1] =
+			create_blank_order(self, comb.id, controlling_stop.id, "red")
 	end
 	-- TODO: shared slaves?
 end

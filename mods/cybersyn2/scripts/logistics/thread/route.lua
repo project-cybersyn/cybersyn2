@@ -159,13 +159,33 @@ local function route_train(data, train, allocation, index)
 		manifest = {},
 	}
 
+	local allocations_from = data.allocs_from[from.id]
+	if not allocations_from then
+		strace(
+			stlib.ERROR,
+			"cs2",
+			"route",
+			"message",
+			"Inconsistent logistics thread state (alloc without alloc_from)"
+		)
+		return false
+	end
+
 	-- Attempt to tack on as many future point-to-point allocations as possible
-	local allocations = data.allocations --[[@as Cybersyn.Internal.LogisticsAllocation[] ]]
-	for i = index, from.produce_single_item and index or #allocations do
-		local future_alloc = allocations[i]
+	local found_self = false
+	for i = 1, #allocations_from do
+		local future_alloc = allocations_from[i]
+		if future_alloc == allocation then found_self = true end
+		if not found_self then goto continue end
 		if not try_allocation(data, allocation, future_alloc, cargo_state) then
 			break
 		end
+		if from.produce_single_item then
+			-- If we are producing a single item, we can stop after the
+			-- primary allocation completes.
+			break
+		end
+		::continue::
 	end
 
 	-- Verify that we have a manifest
@@ -183,8 +203,7 @@ local function route_train(data, train, allocation, index)
 	end
 
 	-- Mark consumer as receiving a delivery
-	allocation.to.last_consumer_tick = game.tick
-	allocation.from.last_producer_tick = game.tick
+	allocation.to.last_consumed_tick[allocation.item] = game.tick
 	-- Remove from avail_trains
 	data.avail_trains[train.id] = nil
 	-- Create delivery

@@ -35,8 +35,6 @@ function Node.new(type)
 		combinator_set = {},
 		created_tick = game.tick,
 		last_consumed_tick = {},
-		-- TODO: is last_produced_tick needed?
-		last_produced_tick = {},
 	}, Node)
 
 	storage.nodes[id] = node
@@ -170,6 +168,42 @@ end
 -- Inventory
 --------------------------------------------------------------------------------
 
+---@param item SignalKey
+---@return uint t_in Inbound threshold for the item
+function Node:get_inbound_threshold(item)
+	local ins = self.thresholds_in
+	local is_fluid = key_is_fluid(item)
+	if is_fluid then
+		local tin = self.threshold_fluid_in or 1
+		return ins and (ins[item] or tin) or tin
+	else
+		local mul = 1
+		if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
+		local base_tin = self.threshold_item_in
+		local tin = base_tin and base_tin * mul or 1
+		local item_in = ins and ins[item]
+		return item_in and (item_in * mul) or tin
+	end
+end
+
+---@param item SignalKey
+---@return uint t_out Outbound threshold for the item
+function Node:get_outbound_threshold(item)
+	local outs = self.thresholds_out
+	local is_fluid = key_is_fluid(item)
+	if is_fluid then
+		local tout = self.threshold_fluid_out or 1
+		return outs and (outs[item] or tout) or tout
+	else
+		local mul = 1
+		if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
+		local base_tout = self.threshold_item_out
+		local tout = base_tout and base_tout * mul or 1
+		local item_out = outs and outs[item]
+		return item_out and (item_out * mul) or tout
+	end
+end
+
 ---Get the inbound and outbound thresholds for the given item.
 ---@param item SignalKey
 ---@return uint t_in Inbound threshold for the item
@@ -197,11 +231,15 @@ function Node:get_delivery_thresholds(item)
 	end
 end
 
----@return Cybersyn.Order[] orders All orders for this node. Treat as immutable.
-function Node:get_orders() return {} end
-
 ---@return Cybersyn.Inventory?
 function Node:get_inventory() return cs2.get_inventory(self.inventory_id) end
+
+---@return Cybersyn.Order[] orders All orders for this node. Treat as immutable.
+function Node:get_orders()
+	local inv = self:get_inventory()
+	if not inv then return empty end
+	return inv.orders
+end
 
 ---Change the inventory of a node. If there are currently deliveries enroute
 ---they will be failed.

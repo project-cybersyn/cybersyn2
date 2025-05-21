@@ -236,6 +236,14 @@ lib.BoldLabel = function(caption)
 		caption = caption,
 	})
 end
+lib.RtBoldLabel = function(caption)
+	return Pr({
+		type = "label",
+		rich_text_setting = defines.rich_text_setting.enabled,
+		font = "default-bold",
+		caption = caption,
+	})
+end
 lib.RtLabel = function(caption)
 	return Pr({
 		type = "label",
