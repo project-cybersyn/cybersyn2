@@ -24,6 +24,10 @@ local LogisticsThread = _G.cs2.LogisticsThread
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:classify_inventory(stop)
 	local orders = stop:get_orders()
+	if not orders then
+		strace(stlib.ERROR, "message", "No orders found for stop", stop)
+		return false
+	end
 	for _, order in pairs(orders) do
 		if stop.is_producer then
 			for item in pairs(order.provides) do

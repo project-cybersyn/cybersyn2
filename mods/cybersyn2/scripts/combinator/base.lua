@@ -276,7 +276,7 @@ function Combinator:read_inputs(which)
 	end
 	-- Don't read inputs more than once per tick.
 	local now = game.tick
-	if now - self.last_read_tick < 1 then return end
+	if now - (self.last_read_tick or 0) < 1 then return end
 	self.last_read_tick = now
 	-- Don't read invalid entities
 	local entity = self.entity

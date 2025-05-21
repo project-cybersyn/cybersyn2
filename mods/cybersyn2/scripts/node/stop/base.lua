@@ -388,7 +388,9 @@ function TrainStop:update_inventory(is_opportunistic)
 	end
 
 	local inventory = self:get_inventory()
-	if not inventory then
+	-- XXX: the or condition here is just for preventing a migration
+	-- crash during alpha.
+	if not inventory or not inventory.update then
 		strace(
 			stlib.ERROR,
 			"cs2",
