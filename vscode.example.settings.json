@@ -1,0 +1,29 @@
+{
+  "factorio.versions": [
+    {
+      "name": "Steam",
+      "factorioPath": "d:\\SteamLibrary\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe"
+    },
+    {
+      "name": "Steam2",
+      "factorioPath": "d:\\SteamLibrary\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe",
+      "active": true
+    }
+  ],
+  "Lua.workspace.userThirdParty": [
+    "c:\\Users\\wcjoh\\AppData\\Roaming\\Code\\User\\workspaceStorage\\ff0daf09ac565b7c3b8c8421f5530089\\justarandomgeek.factoriomod-debug\\sumneko-3rd"
+  ],
+  "Lua.workspace.checkThirdParty": "ApplyInMemory",
+  "Lua.language.fixIndent": false,
+  "Lua.diagnostics.neededFileStatus": { "global-element": "Any" },
+  "Lua.workspace.library": [
+    "c:\\Users\\wcjoh\\AppData\\Roaming\\Code\\User\\workspaceStorage\\ff0daf09ac565b7c3b8c8421f5530089\\justarandomgeek.factoriomod-debug\\sumneko-3rd",
+    "C:\\Users\\wcjoh\\.vscode\\extensions\\sumneko.lua-1.4.0\\types\\",
+    "C:\\Users\\wcjoh\\AppData\\Roaming\\Factorio\\mods\\bplib\\"
+  ],
+  "[lua]": {
+    "editor.defaultFormatter": "JohnnyMorganz.stylua",
+    "editor.formatOnSave": true
+  },
+  "stylua.targetReleaseVersion": "latest"
+}
