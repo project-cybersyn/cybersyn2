@@ -17,6 +17,7 @@ local strace = stlib.strace
 local TRACE = stlib.TRACE
 local WARN = stlib.WARN
 local key_is_cargo = slib.key_is_cargo
+local key_is_virtual = slib.key_is_virtual
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -116,8 +117,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		stop.is_consumer = true
 		stop.is_producer = false
 	end
-	local network_signal = comb:read_setting(combinator_settings.network_signal)
-	stop.item_network = network_signal
+	local default_networks = {}
 	for k, v in pairs(inputs) do
 		if k == "cybersyn2-priority" then
 			stop.priority = v
@@ -127,8 +127,15 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		elseif k == "cybersyn2-all-fluids" then
 			stop.threshold_fluid_in = v
 			stop.threshold_fluid_out = v
+		elseif key_is_virtual(k) then
+			default_networks[k] = true
 		end
 	end
+	if not next(default_networks) then
+		local network_signal = comb:read_setting(combinator_settings.network_signal)
+		default_networks = { [network_signal] = true }
+	end
+	stop.default_networks = default_networks
 	stop.allow_departure_signal =
 		comb:read_setting(combinator_settings.allow_departure_signal)
 	stop.force_departure_signal =

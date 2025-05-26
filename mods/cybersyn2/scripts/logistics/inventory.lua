@@ -368,8 +368,8 @@ function StopInventory:update(reread)
 				end
 			end
 			-- Default network if no networks are set.
-			if not next(order.networks) and stop.item_network then
-				order.networks[stop.item_network] = true
+			if not next(order.networks) and stop.default_networks then
+				order.networks = stop.default_networks
 			end
 		else
 			-- Order has no governing combinator.

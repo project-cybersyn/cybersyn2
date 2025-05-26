@@ -122,7 +122,7 @@ lib.NodeNetworkOperation = {
 ---@field public is_producer boolean? `true` if the node can send deliveries
 ---@field public is_consumer boolean? `true` if the node can receive deliveries
 ---@field public priority int? Default priority of the node.
----@field public item_network string? Default item network of the node.
+---@field public default_networks SignalSet? Default item networks of the node.
 ---@field public threshold_item_in uint? General inbound item threshold
 ---@field public threshold_fluid_in uint? General inbound fluid threshold
 ---@field public threshold_item_out uint? General outbound item threshold
