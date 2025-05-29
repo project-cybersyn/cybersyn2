@@ -6,6 +6,9 @@ _G.cs2 = {
 	remote_api = {},
 	gui = {},
 	lib = {},
+	---All combinator setting definitions.
+	---@type {[string]: Cybersyn.Combinator.SettingDefinition}
+	combinator_settings = {},
 	---Debug APIs, do not use.
 	debug = {},
 }

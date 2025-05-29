@@ -24,6 +24,7 @@ local ceil = math.ceil
 local assign = tlib.assign
 local empty = tlib.empty
 local table_add = tlib.vector_add
+local combinator_settings = _G.cs2.combinator_settings
 
 ---@param base table<string,int>
 ---@param addend table<string,int>
@@ -338,8 +339,12 @@ function StopInventory:update(reread)
 		if comb then
 			if reread then comb:read_inputs() end
 			if comb.mode == "station" then
-				-- Red wire of station = true inventory/control signals
-				self:set_base(comb.red_inputs)
+				local primary_wire = comb:read_setting(combinator_settings.primary_wire)
+				if primary_wire == "green" then
+					self:set_base(comb.green_inputs)
+				else
+					self:set_base(comb.red_inputs)
+				end
 			end
 			local inputs = order.combinator_input == "green" and comb.green_inputs
 				or comb.red_inputs
@@ -410,9 +415,17 @@ function StopInventory:rebuild_orders()
 	if not controlling_stop then return end
 	local station_comb = controlling_stop:get_combinator_with_mode("station")
 	if not station_comb then return end
-	-- Green-wire order for station combinator
-	orders[#orders + 1] =
-		create_blank_order(self, station_comb.id, controlling_stop.id, "green")
+	local primary_wire =
+		station_comb:read_setting(combinator_settings.primary_wire)
+	local opposite_wire = primary_wire == "green" and "red" or "green"
+	game.print({ "", opposite_wire })
+	-- Opposite wire on station comb treated as an order.
+	orders[#orders + 1] = create_blank_order(
+		self,
+		station_comb.id,
+		controlling_stop.id,
+		opposite_wire
+	)
 	-- Green- and red-wire orders for each inventory comb
 	local inventory_combs = controlling_stop:get_associated_combinators(
 		function(c) return c.mode == "inventory" end

@@ -89,8 +89,12 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	end
 	if not is_valid then return false end
 	local comb = combs[1]
+
+	-- Read primary input wire
+	local primary_wire = comb:read_setting(combinator_settings.primary_wire)
 	comb:read_inputs()
 	local inputs = comb.red_inputs
+	if primary_wire == "green" then inputs = comb.green_inputs end
 	if not inputs then
 		strace(WARN, "message", "Couldn't read station comb inputs", stop.entity)
 		return false

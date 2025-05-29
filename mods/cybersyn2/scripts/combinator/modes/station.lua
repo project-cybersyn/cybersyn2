@@ -27,6 +27,10 @@ cs2.register_combinator_setting(cs2.lib.make_raw_setting("pr", "pr"))
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("use_stack_thresholds", "station_flags", 0)
 )
+-- Which input wire the primary/true inventory input is on.
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("primary_wire", "primary_wire", "red")
+)
 
 -- Departure conditions
 cs2.register_combinator_setting(
@@ -68,6 +72,11 @@ cs2.register_combinator_setting(
 -- Relm gui for station combinator
 --------------------------------------------------------------------------------
 
+local wire_dropdown_items = {
+	{ key = "red", caption = { "cybersyn2-combinator-mode-station.red" } },
+	{ key = "green", caption = { "cybersyn2-combinator-mode-station.green" } },
+}
+
 relm.define_element({
 	name = "CombinatorGui.Mode.Station",
 	render = function(props)
@@ -94,13 +103,19 @@ relm.define_element({
 							),
 						}
 					),
-					If(
-						props.combinator:read_setting(combinator_settings.network_signal)
-							== nil,
-						ultros.RtLabel(
-							"[font=default-bold]Warning:[/font] No network signal selected."
-						)
-					),
+					ultros.Labeled({
+						caption = {
+							"cybersyn2-combinator-mode-station.primary-input-wire",
+						},
+						top_margin = 6,
+					}, {
+						gui.Dropdown(
+							nil,
+							props.combinator,
+							combinator_settings.primary_wire,
+							wire_dropdown_items
+						),
+					}),
 					gui.InnerHeading({
 						caption = "Flags",
 					}),
@@ -302,7 +317,9 @@ cs2.on_combinator_setting_changed(
 			(
 				setting == "mode"
 				and (next_value == "station" or prev_value == "station")
-			) or setting == nil
+			)
+			or setting == "primary_wire"
+			or setting == nil
 		then
 			local node = combinator:get_node()
 			if node then node:rebuild_inventory() end

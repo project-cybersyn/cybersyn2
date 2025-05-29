@@ -27,10 +27,6 @@ local distsq = mlib.pos_distsq
 ---@field public reader Cybersyn.Combinator.SettingReader The function used to read this setting from a combinator.
 ---@field public writer Cybersyn.Combinator.SettingWriter? The function used to write this setting to a combinator.
 
----Global table of combinator settings definitions
----@type table<string, Cybersyn.Combinator.SettingDefinition>
-_G.cs2.combinator_settings = {}
-
 --------------------------------------------------------------------------------
 -- Modes
 --------------------------------------------------------------------------------
