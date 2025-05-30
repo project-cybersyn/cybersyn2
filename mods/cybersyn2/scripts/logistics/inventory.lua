@@ -447,7 +447,21 @@ function StopInventory:rebuild_orders()
 		orders[#orders + 1] =
 			create_blank_order(self, comb.id, controlling_stop.id, "red")
 	end
-	-- TODO: shared slaves?
+	-- Copy orders for slaves
+	if controlling_stop.shared_inventory_slaves then
+		local n_orders_to_copy = #orders
+		for slave_id in pairs(controlling_stop.shared_inventory_slaves) do
+			local slave = cs2.get_stop(slave_id)
+			if slave then
+				for i = 1, n_orders_to_copy do
+					local old_order = orders[i]
+					local new_order = assign({}, old_order) --[[@as Cybersyn.Order]]
+					new_order.node_id = slave.id
+					orders[#orders + 1] = new_order
+				end
+			end
+		end
+	end
 end
 
 --------------------------------------------------------------------------------

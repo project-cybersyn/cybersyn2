@@ -363,9 +363,13 @@ function TrainStop:update_inventory_sharing()
 		self:fail_all_deliveries("INVENTORY_CHANGED")
 		failed_deliveries = true
 	end
+
+	self:rebuild_inventory()
 end
 
 function TrainStop:rebuild_inventory()
+	-- If shared inventory, master handles generating slave orders.
+	if self.shared_inventory_master then return end
 	local inventory = self:get_inventory()
 	if inventory then
 		---@cast inventory Cybersyn.StopInventory

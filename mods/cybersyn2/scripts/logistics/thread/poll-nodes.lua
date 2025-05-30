@@ -24,6 +24,8 @@ local LogisticsThread = _G.cs2.LogisticsThread
 
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:classify_inventory(stop)
+	-- Inventory is classified at shared master, so skip this step for slaves.
+	if stop.shared_inventory_master then return true end
 	local orders = stop:get_orders()
 	if not orders then
 		strace(stlib.ERROR, "message", "No orders found for stop", stop)
