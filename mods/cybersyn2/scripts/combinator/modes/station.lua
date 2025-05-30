@@ -24,12 +24,17 @@ cs2.register_combinator_setting(
 -- Whether the station should provide, request, or both.
 -- 0 = p/r, 1 = p, 2 = r
 cs2.register_combinator_setting(cs2.lib.make_raw_setting("pr", "pr"))
+-- Whether the station should interpret minimum delivery sizes as stacks or items.
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("use_stack_thresholds", "station_flags", 0)
 )
 -- Which input wire the primary/true inventory input is on.
 cs2.register_combinator_setting(
 	cs2.lib.make_raw_setting("primary_wire", "primary_wire", "red")
+)
+-- Whether the station's primary order should provide the whole inventory or a subset.
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("provide_subset", "station_flags", 4)
 )
 
 -- Departure conditions
@@ -95,11 +100,15 @@ relm.define_element({
 						),
 					}),
 					ultros.Labeled(
-						{ caption = { "cybersyn2-gui.network" }, top_margin = 6 },
+						{
+							caption = { "cybersyn2-combinator-mode-station.network" },
+							top_margin = 6,
+						},
 						{
 							gui.NetworkSignalPicker(
 								props.combinator,
-								combinator_settings.network_signal
+								combinator_settings.network_signal,
+								{ "cybersyn2-combinator-mode-station.network-tooltip" }
 							),
 						}
 					),
@@ -124,6 +133,13 @@ relm.define_element({
 						"If checked, all item delivery thresholds will be interpreted as stacks of items. If unchecked, all item delivery thresholds will be interpreted as individual items.",
 						props.combinator,
 						combinator_settings.use_stack_thresholds
+					),
+					gui.Checkbox(
+						{ "cybersyn2-combinator-mode-station.provide-all" },
+						{ "cybersyn2-combinator-mode-station.provide-all-tooltip" },
+						props.combinator,
+						combinator_settings.provide_subset,
+						true
 					),
 				}
 			),

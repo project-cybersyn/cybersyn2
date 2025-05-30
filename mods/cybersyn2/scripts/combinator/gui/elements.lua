@@ -64,8 +64,9 @@ end
 
 ---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
 ---combinator setting. Only allows valid network signals.
-function _G.cs2.gui.NetworkSignalPicker(combinator, setting)
+function _G.cs2.gui.NetworkSignalPicker(combinator, setting, tooltip)
 	return ultros.SignalPicker({
+		tooltip = tooltip,
 		virtual_signal = combinator:read_setting(setting),
 		on_change = function(_, signal, elem)
 			if not signal then return combinator:write_setting(setting, nil) end

@@ -338,12 +338,20 @@ function StopInventory:update(reread)
 		local comb = cs2.get_combinator(order.combinator_id, true)
 		if comb then
 			if reread then comb:read_inputs() end
+			-- Station combinator has a single unique order associated to it.
 			if comb.mode == "station" then
 				local primary_wire = comb:read_setting(combinator_settings.primary_wire)
 				if primary_wire == "green" then
 					self:set_base(comb.green_inputs)
 				else
 					self:set_base(comb.red_inputs)
+				end
+				-- Implement auto-provide setting.
+				if
+					stop.is_producer
+					and not comb:read_setting(combinator_settings.provide_subset)
+				then
+					assign(order.provides, self.inventory or empty)
 				end
 			end
 			local inputs = order.combinator_input == "green" and comb.green_inputs
