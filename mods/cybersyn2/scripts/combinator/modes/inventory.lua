@@ -48,6 +48,20 @@ relm.define_element({
 			}, {
 				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.signal" }),
 				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.effect" }),
+				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-station.order-signals",
+				}),
+				ultros.RtLabel(
+					"[virtual-signal=signal-A][virtual-signal=signal-green][virtual-signal=signal-fuel]..."
+				),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-inventory.network-signals",
+				}),
+				ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-inventory.priority-signal",
+				}),
 			}),
 		})
 	end,
