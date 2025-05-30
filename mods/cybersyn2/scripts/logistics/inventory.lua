@@ -418,7 +418,6 @@ function StopInventory:rebuild_orders()
 	local primary_wire =
 		station_comb:read_setting(combinator_settings.primary_wire)
 	local opposite_wire = primary_wire == "green" and "red" or "green"
-	game.print({ "", opposite_wire })
 	-- Opposite wire on station comb treated as an order.
 	orders[#orders + 1] = create_blank_order(
 		self,
