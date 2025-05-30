@@ -352,6 +352,9 @@ function StopInventory:update(reread)
 					and not comb:read_setting(combinator_settings.provide_subset)
 				then
 					assign(order.provides, self.inventory or empty)
+					for cargo in pairs(order.provides) do
+						order.thresholds_out[cargo] = stop:get_outbound_threshold(cargo)
+					end
 				end
 			end
 			local inputs = order.combinator_input == "green" and comb.green_inputs
