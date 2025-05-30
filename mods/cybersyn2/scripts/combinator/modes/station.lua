@@ -74,7 +74,7 @@ cs2.register_combinator_setting(
 )
 
 --------------------------------------------------------------------------------
--- Relm gui for station combinator
+-- GUI
 --------------------------------------------------------------------------------
 
 local wire_dropdown_items = {
@@ -99,19 +99,16 @@ relm.define_element({
 							combinator_settings.pr
 						),
 					}),
-					ultros.Labeled(
-						{
-							caption = { "cybersyn2-combinator-mode-station.network" },
-							top_margin = 6,
-						},
-						{
-							gui.NetworkSignalPicker(
-								props.combinator,
-								combinator_settings.network_signal,
-								{ "cybersyn2-combinator-mode-station.network-tooltip" }
-							),
-						}
-					),
+					ultros.Labeled({
+						caption = { "cybersyn2-combinator-mode-station.network" },
+						top_margin = 6,
+					}, {
+						gui.NetworkSignalPicker(
+							props.combinator,
+							combinator_settings.network_signal,
+							{ "cybersyn2-combinator-mode-station.network-tooltip" }
+						),
+					}),
 					ultros.Labeled({
 						caption = {
 							"cybersyn2-combinator-mode-station.primary-input-wire",
@@ -258,9 +255,70 @@ relm.define_element({
 	end,
 })
 
+--------------------------------------------------------------------------------
+-- Help
+--------------------------------------------------------------------------------
+
+local MainWireHelp = relm.define_element({
+	name = "CombinatorGui.Mode.Station.Help.MainWire",
+	render = function(props)
+		return {
+			ultros.RtBoldLabel({
+				"",
+				"[color=" .. props.wire_color .. "]",
+				{ "cybersyn2-combinator-modes-labels.signal" },
+				"[/color]",
+			}),
+			ultros.RtBoldLabel({
+				"cybersyn2-combinator-modes-labels.effect",
+			}),
+			ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.true-inventory-signals",
+			}),
+			ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.priority-signal",
+			}),
+			ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.all-items-signal",
+			}),
+			ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.all-fluids-signal",
+			}),
+		}
+	end,
+})
+
+local OrderWireHelp = relm.define_element({
+	name = "CombinatorGui.Mode.Station.Help.OrderWire",
+	render = function(props)
+		return {
+			ultros.RtBoldLabel({
+				"",
+				"[color=" .. props.wire_color .. "]",
+				{ "cybersyn2-combinator-modes-labels.signal" },
+				"[/color]",
+			}),
+			ultros.RtBoldLabel({
+				"cybersyn2-combinator-modes-labels.effect",
+			}),
+			ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.order-signals",
+			}),
+		}
+	end,
+})
+
 relm.define_element({
 	name = "CombinatorGui.Mode.Station.Help",
 	render = function(props)
+		local primary_wire =
+			props.combinator:read_setting(combinator_settings.primary_wire)
+		local opposite_wire = primary_wire == "red" and "green" or "red"
 		return VF({
 			Pr({
 				type = "label",
@@ -273,24 +331,12 @@ relm.define_element({
 				type = "table",
 				column_count = 2,
 			}, {
-				ultros.BoldLabel("Signal"),
-				ultros.BoldLabel("Effect"),
-				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
-				ultros.RtMultilineLabel(
-					"Set station inventory. Positive values indicate available cargo, while negative values indicate requested cargo. If an [font=default-bold]Inventory[/font] combinator is present, inventory from that combinator overrides this one."
-				),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
-				ultros.RtMultilineLabel(
-					"Set the priority for all items at this station."
-				),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
-				ultros.RtMultilineLabel(
-					"Set the inbound and outbound delivery size for all items at this station."
-				),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
-				ultros.RtMultilineLabel(
-					"Set the inbound and outbound delivery size for all fluids at this station."
-				),
+				MainWireHelp({
+					wire_color = primary_wire,
+				}),
+				OrderWireHelp({
+					wire_color = opposite_wire,
+				}),
 			}),
 		})
 	end,
