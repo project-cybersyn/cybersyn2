@@ -87,8 +87,12 @@ local function rt_item_icon(key) return signal.key_to_richtext(key) end
 local renderers = {
 	topologies = rt(rt_array(rt_field("id"), DISPLAYED_LIMIT)),
 	nodes = rt(rt_array(rt_field("id"), DISPLAYED_LIMIT)),
-	providers = rt(rt_kv(rt_item_icon, rt_set(rt_val, DISPLAYED_LIMIT))),
-	requesters = rt(rt_kv(rt_item_icon, rt_set(rt_val, DISPLAYED_LIMIT))),
+	providers = rt(
+		rt_kv(rt_item_icon, rt_array(rt_field("node_id"), DISPLAYED_LIMIT))
+	),
+	requesters = rt(
+		rt_kv(rt_item_icon, rt_array(rt_field("node_id"), DISPLAYED_LIMIT))
+	),
 	allocations = rt(
 		rt_array(
 			rt_fields(
