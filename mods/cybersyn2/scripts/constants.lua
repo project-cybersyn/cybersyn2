@@ -51,6 +51,16 @@ _G.cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET = {
 	["cybersyn2-all-fluids"] = true,
 }
 
+-- Set of virtual signals that are invalid for network names.
+_G.cs2.INVALID_NETWORK_SIGNAL_SET = {
+	["signal-everything"] = true,
+	["signal-anything"] = true,
+	["signal-each"] = true,
+	["cybersyn2-priority"] = true,
+	["cybersyn2-all-items"] = true,
+	["cybersyn2-all-fluids"] = true,
+}
+
 -- Default settings for a newly placed combinator with no tags.
 _G.cs2.DEFAULT_COMBINATOR_SETTINGS = {
 	mode = "station",

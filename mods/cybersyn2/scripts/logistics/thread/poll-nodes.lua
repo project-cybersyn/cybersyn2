@@ -139,7 +139,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	end
 	if not next(default_networks) then
 		local network_signal = comb:read_setting(combinator_settings.network_signal)
-		default_networks = { [network_signal] = true }
+		if network_signal then default_networks = { [network_signal] = true } end
 	end
 	stop.default_networks = default_networks
 	stop.allow_departure_signal =
