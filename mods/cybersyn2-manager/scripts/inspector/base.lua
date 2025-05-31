@@ -89,8 +89,8 @@ local function entity_to_entries(entity)
 			if stop.inventory_id then
 				entries[#entries + 1] = {
 					key = "inv" .. stop.inventory_id,
-					type = "InspectorItem.Generic",
-					query = { type = "inventories", ids = { stop.inventory_id } },
+					type = "InspectorItem.Inventory",
+					inventory_id = stop.inventory_id,
 					caption = "Inventory " .. stop.inventory_id,
 				}
 			end

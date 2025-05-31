@@ -179,7 +179,6 @@ local function update_stop_overlay(stop)
 			"[item=train-stop]",
 			stop.id,
 			stop.per_wagon_mode and "[item=cargo-wagon]" or "",
-			(not inventory.is_pseudoinventory) and "[item=buffer-chest]" or "",
 			"[item=steel-chest]",
 			stop.inventory_id,
 		}),

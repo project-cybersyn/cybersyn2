@@ -24,11 +24,17 @@ cs2.register_combinator_setting(
 -- Whether the station should provide, request, or both.
 -- 0 = p/r, 1 = p, 2 = r
 cs2.register_combinator_setting(cs2.lib.make_raw_setting("pr", "pr"))
+-- Whether the station should interpret minimum delivery sizes as stacks or items.
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("use_stack_thresholds", "station_flags", 0)
 )
+-- Which input wire the primary/true inventory input is on.
 cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("dump", "station_flags", 4)
+	cs2.lib.make_raw_setting("primary_wire", "primary_wire", "red")
+)
+-- Whether the station's primary order should provide the whole inventory or a subset.
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("provide_subset", "station_flags", 4)
 )
 
 -- Departure conditions
@@ -68,8 +74,13 @@ cs2.register_combinator_setting(
 )
 
 --------------------------------------------------------------------------------
--- Relm gui for station combinator
+-- GUI
 --------------------------------------------------------------------------------
+
+local wire_dropdown_items = {
+	{ key = "red", caption = { "cybersyn2-combinator-mode-station.red" } },
+	{ key = "green", caption = { "cybersyn2-combinator-mode-station.green" } },
+}
 
 relm.define_element({
 	name = "CombinatorGui.Mode.Station",
@@ -88,22 +99,29 @@ relm.define_element({
 							combinator_settings.pr
 						),
 					}),
-					ultros.Labeled(
-						{ caption = { "cybersyn2-gui.network" }, top_margin = 6 },
-						{
-							gui.NetworkSignalPicker(
-								props.combinator,
-								combinator_settings.network_signal
-							),
-						}
-					),
-					If(
-						props.combinator:read_setting(combinator_settings.network_signal)
-							== nil,
-						ultros.RtLabel(
-							"[font=default-bold]Warning:[/font] No network signal selected."
-						)
-					),
+					ultros.Labeled({
+						caption = { "cybersyn2-combinator-mode-station.network" },
+						top_margin = 6,
+					}, {
+						gui.NetworkSignalPicker(
+							props.combinator,
+							combinator_settings.network_signal,
+							{ "cybersyn2-combinator-mode-station.network-tooltip" }
+						),
+					}),
+					ultros.Labeled({
+						caption = {
+							"cybersyn2-combinator-mode-station.primary-input-wire",
+						},
+						top_margin = 6,
+					}, {
+						gui.Dropdown(
+							nil,
+							props.combinator,
+							combinator_settings.primary_wire,
+							wire_dropdown_items
+						),
+					}),
 					gui.InnerHeading({
 						caption = "Flags",
 					}),
@@ -114,10 +132,11 @@ relm.define_element({
 						combinator_settings.use_stack_thresholds
 					),
 					gui.Checkbox(
-						{ "cybersyn2-combinator-mode-station.dump" },
-						{ "cybersyn2-combinator-mode-station.dump-tooltip" },
+						{ "cybersyn2-combinator-mode-station.provide-all" },
+						{ "cybersyn2-combinator-mode-station.provide-all-tooltip" },
 						props.combinator,
-						combinator_settings.dump
+						combinator_settings.provide_subset,
+						true
 					),
 				}
 			),
@@ -236,9 +255,70 @@ relm.define_element({
 	end,
 })
 
+--------------------------------------------------------------------------------
+-- Help
+--------------------------------------------------------------------------------
+
+local MainWireHelp = relm.define_element({
+	name = "CombinatorGui.Mode.Station.Help.MainWire",
+	render = function(props)
+		return {
+			ultros.RtBoldLabel({
+				"",
+				"[color=" .. props.wire_color .. "]",
+				{ "cybersyn2-combinator-modes-labels.signal" },
+				"[/color]",
+			}),
+			ultros.RtBoldLabel({
+				"cybersyn2-combinator-modes-labels.effect",
+			}),
+			ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.true-inventory-signals",
+			}),
+			ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.priority-signal",
+			}),
+			ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.all-items-signal",
+			}),
+			ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.all-fluids-signal",
+			}),
+		}
+	end,
+})
+
+local OrderWireHelp = relm.define_element({
+	name = "CombinatorGui.Mode.Station.Help.OrderWire",
+	render = function(props)
+		return {
+			ultros.RtBoldLabel({
+				"",
+				"[color=" .. props.wire_color .. "]",
+				{ "cybersyn2-combinator-modes-labels.signal" },
+				"[/color]",
+			}),
+			ultros.RtBoldLabel({
+				"cybersyn2-combinator-modes-labels.effect",
+			}),
+			ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.order-signals",
+			}),
+		}
+	end,
+})
+
 relm.define_element({
 	name = "CombinatorGui.Mode.Station.Help",
 	render = function(props)
+		local primary_wire =
+			props.combinator:read_setting(combinator_settings.primary_wire)
+		local opposite_wire = primary_wire == "red" and "green" or "red"
 		return VF({
 			Pr({
 				type = "label",
@@ -251,24 +331,12 @@ relm.define_element({
 				type = "table",
 				column_count = 2,
 			}, {
-				ultros.BoldLabel("Signal"),
-				ultros.BoldLabel("Effect"),
-				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
-				ultros.RtMultilineLabel(
-					"Set station inventory. Positive values indicate available cargo, while negative values indicate requested cargo. If an [font=default-bold]Inventory[/font] combinator is present, inventory from that combinator overrides this one."
-				),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
-				ultros.RtMultilineLabel(
-					"Set the priority for all items at this station."
-				),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
-				ultros.RtMultilineLabel(
-					"Set the inbound and outbound delivery size for all items at this station."
-				),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
-				ultros.RtMultilineLabel(
-					"Set the inbound and outbound delivery size for all fluids at this station."
-				),
+				MainWireHelp({
+					wire_color = primary_wire,
+				}),
+				OrderWireHelp({
+					wire_color = opposite_wire,
+				}),
 			}),
 		})
 	end,
@@ -284,4 +352,39 @@ cs2.register_combinator_mode({
 	settings_element = "CombinatorGui.Mode.Station",
 	help_element = "CombinatorGui.Mode.Station.Help",
 	is_input = true,
+	independent_input_wires = true,
 })
+
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+-- Rebuild inventory on station comb reassociation
+cs2.on_combinator_node_associated(function(combinator, from, to)
+	if combinator.mode == "station" then
+		if from then
+			---@cast from Cybersyn.Node
+			from:rebuild_inventory()
+		end
+		if to then
+			---@cast to Cybersyn.Node
+			to:rebuild_inventory()
+		end
+	end
+end)
+
+cs2.on_combinator_setting_changed(
+	function(combinator, setting, next_value, prev_value)
+		if
+			(
+				setting == "mode"
+				and (next_value == "station" or prev_value == "station")
+			)
+			or setting == "primary_wire"
+			or setting == nil
+		then
+			local node = combinator:get_node()
+			if node then node:rebuild_inventory() end
+		end
+	end
+)

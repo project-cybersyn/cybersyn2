@@ -27,10 +27,6 @@ local distsq = mlib.pos_distsq
 ---@field public reader Cybersyn.Combinator.SettingReader The function used to read this setting from a combinator.
 ---@field public writer Cybersyn.Combinator.SettingWriter? The function used to write this setting to a combinator.
 
----Global table of combinator settings definitions
----@type table<string, Cybersyn.Combinator.SettingDefinition>
-_G.cs2.combinator_settings = {}
-
 --------------------------------------------------------------------------------
 -- Modes
 --------------------------------------------------------------------------------
@@ -216,7 +212,7 @@ function Combinator.new(entity)
 		error("Bad or duplicate combinator creation.")
 	end
 	storage.combinators[id] =
-		setmetatable({ id = id, entity = entity }, Combinator)
+		setmetatable({ id = id, entity = entity, last_read_tick = 0 }, Combinator)
 	return storage.combinators[id]
 end
 
@@ -265,7 +261,8 @@ local GREEN_INPUTS = defines.wire_connector_id.combinator_input_green
 ---signals.
 ---@param which "red"|"green"|nil If given, and the combinator has independent input wires, read only the given wire. If `nil`, read both wires.
 function Combinator:read_inputs(which)
-	-- Sanity check
+	-- Sanity checks
+	-- Verify input mode
 	local mdef = modes[self.mode or ""]
 	if not mdef or not mdef.is_input then
 		self.inputs = nil
@@ -273,6 +270,11 @@ function Combinator:read_inputs(which)
 		self.green_inputs = nil
 		return
 	end
+	-- Don't read inputs more than once per tick.
+	local now = game.tick
+	if now - (self.last_read_tick or 0) < 1 then return end
+	self.last_read_tick = now
+	-- Don't read invalid entities
 	local entity = self.entity
 	if not entity or not entity.valid then return end
 

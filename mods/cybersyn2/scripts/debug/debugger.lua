@@ -87,11 +87,12 @@ local function rt_item_icon(key) return signal.key_to_richtext(key) end
 local renderers = {
 	topologies = rt(rt_array(rt_field("id"), DISPLAYED_LIMIT)),
 	nodes = rt(rt_array(rt_field("id"), DISPLAYED_LIMIT)),
-	providers = rt(rt_kv(rt_item_icon, rt_set(rt_val, DISPLAYED_LIMIT))),
-	pushers = rt(rt_kv(rt_item_icon, rt_set(rt_val, DISPLAYED_LIMIT))),
-	pullers = rt(rt_kv(rt_item_icon, rt_set(rt_val, DISPLAYED_LIMIT))),
-	sinks = rt(rt_kv(rt_item_icon, rt_set(rt_val, DISPLAYED_LIMIT))),
-	seen_cargo = rt(rt_set(rt_item_icon, DISPLAYED_LIMIT)),
+	providers = rt(
+		rt_kv(rt_item_icon, rt_array(rt_field("node_id"), DISPLAYED_LIMIT))
+	),
+	requesters = rt(
+		rt_kv(rt_item_icon, rt_array(rt_field("node_id"), DISPLAYED_LIMIT))
+	),
 	allocations = rt(
 		rt_array(
 			rt_fields(
@@ -108,32 +109,12 @@ local renderers = {
 			)
 		)
 	),
-	pullers_p = rt(
+	allocs_from = rt(
 		rt_kv(
-			rt_item_icon,
-			rt_array(rt_array(function(np) return (np[1].id .. "p" .. np[2]) end))
+			rt_val,
+			rt_array(rt_fields("item", rt_item_icon, "qty", rt_val), DISPLAYED_LIMIT)
 		)
 	),
-	sinks_p = rt(
-		rt_kv(
-			rt_item_icon,
-			rt_array(rt_array(function(np) return (np[1].id .. "p" .. np[2]) end))
-		)
-	),
-	providers_p = rt(
-		rt_kv(
-			rt_item_icon,
-			rt_array(rt_array(function(np) return (np[1].id .. "p" .. np[2]) end))
-		)
-	),
-	pushers_p = rt(
-		rt_kv(
-			rt_item_icon,
-			rt_array(rt_array(function(np) return (np[1].id .. "p" .. np[2]) end))
-		)
-	),
-	cargo = rt(rt_array(rt_item_icon, DISPLAYED_LIMIT)),
-	all_vehicles = rt(rt_array(rt_field("id"), DISPLAYED_LIMIT)),
 	avail_trains = rt(rt_set(rt_val, DISPLAYED_LIMIT)),
 }
 

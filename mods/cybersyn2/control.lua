@@ -6,6 +6,9 @@ _G.cs2 = {
 	remote_api = {},
 	gui = {},
 	lib = {},
+	---All combinator setting definitions.
+	---@type {[string]: Cybersyn.Combinator.SettingDefinition}
+	combinator_settings = {},
 	---Debug APIs, do not use.
 	debug = {},
 }
@@ -49,8 +52,6 @@ require("scripts.combinator.modes.station")
 require("scripts.combinator.modes.allow.base")
 require("scripts.combinator.modes.allow.impl")
 require("scripts.combinator.modes.dt")
-require("scripts.combinator.modes.channels")
-require("scripts.combinator.modes.prio")
 require("scripts.combinator.modes.manifest")
 require("scripts.combinator.modes.wagon")
 require("scripts.combinator.modes.inventory")
@@ -60,9 +61,7 @@ require("scripts.combinator.modes.surface")
 
 require("scripts.logistics.thread.base")
 require("scripts.logistics.thread.enum-nodes")
-require("scripts.logistics.thread.poll-combinators")
 require("scripts.logistics.thread.poll-nodes")
-require("scripts.logistics.thread.cull")
 require("scripts.logistics.thread.alloc")
 require("scripts.logistics.thread.route")
 

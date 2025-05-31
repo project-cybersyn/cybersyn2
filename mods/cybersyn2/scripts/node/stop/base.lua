@@ -332,13 +332,13 @@ end
 
 ---Based on the combinators present at the station and its sharing state,
 ---update the inventory of the station as needed.
-function TrainStop:update_inventory_mode()
+function TrainStop:update_inventory_sharing()
 	strace(
 		stlib.DEBUG,
 		"cs2",
 		"inventory",
 		"message",
-		"Updating inventory mode for stop",
+		"Updating inventory sharing mode for stop",
 		self
 	)
 
@@ -364,101 +364,37 @@ function TrainStop:update_inventory_mode()
 		failed_deliveries = true
 	end
 
-	local inv = self:get_inventory()
-	if not inv then
-		strace(
-			stlib.ERROR,
-			"cs2",
-			"inventory",
-			"stop",
-			self,
-			"message",
-			"Train stop has no inventory."
-		)
-		return
-	end
-
-	local inv_comb = self:get_combinator_with_mode("inventory")
-	if not inv_comb then
-		-- Pseudoinventory case
-		if not inv.is_pseudoinventory then
-			if not failed_deliveries then
-				self:fail_all_shared_deliveries("INVENTORY_CHANGED")
-				failed_deliveries = true
-			end
-			inv:convert_to_pseudoinventory()
-		end
-	else
-		if inv.is_pseudoinventory then
-			if not failed_deliveries then
-				self:fail_all_shared_deliveries("INVENTORY_CHANGED")
-				failed_deliveries = true
-			end
-			inv:convert_to_true_inventory()
-		end
-	end
-
-	-- Update inventory mode for all slaves
-	-- TODO: don't think this is needed anymore
-	if self.shared_inventory_slaves then
-		for slave_id in pairs(self.shared_inventory_slaves) do
-			local slave = cs2.get_stop(slave_id)
-			if slave then slave:update_inventory_mode() end
-		end
-	end
+	self:rebuild_inventory()
 end
 
----Determine if the inventory associated with this trainstop is volatile.
----(eg. changing because a train is there being loaded/unloaded)
-function TrainStop:is_inventory_volatile()
-	if self.shared_inventory_master then
-		local master = TrainStop.get(self.shared_inventory_master)
-		if master then
-			return master:is_inventory_volatile()
-		else
-			return not not self.entity.get_stopped_train()
-		end
-	elseif self.shared_inventory_slaves then
-		for slave_id in pairs(self.shared_inventory_slaves) do
-			local slave = TrainStop.get(slave_id)
-			if slave and slave.entity.get_stopped_train() then return true end
-		end
-		return not not self.entity.get_stopped_train()
-	else
-		return not not self.entity.get_stopped_train()
+function TrainStop:rebuild_inventory()
+	-- If shared inventory, master handles generating slave orders.
+	if self.shared_inventory_master then return end
+	local inventory = self:get_inventory()
+	if inventory then
+		---@cast inventory Cybersyn.StopInventory
+		inventory:rebuild_orders()
 	end
 end
 
 ---Update this stop's inventory
----@param is_opportunistic boolean? `true` when updating inventory opportunistically (e.g. when train leaving stop), causes combinator inputs to be reread on-the-fly.
+---@param is_opportunistic boolean? If `true`, this is an opportunistic update outside the main loop, e.g. when a train leaves a stop.
 function TrainStop:update_inventory(is_opportunistic)
 	-- If shared inventory, forward to master when relevant.
 	if self.shared_inventory_master then
 		-- Opportunistic reread at a slave station should forward to master.
 		if is_opportunistic then
 			local master = cs2.get_stop(self.shared_inventory_master)
-			if master then return master:update_inventory(is_opportunistic) end
+			if master then return master:update_inventory(true) end
 		end
 		-- Otherwise, no need to read inventory at a slave station.
 		return
 	end
 
-	-- Don't read volatile inventories
-	if self:is_inventory_volatile() then
-		strace(
-			TRACE,
-			"cs2",
-			"inventory",
-			"stop",
-			self,
-			"message",
-			"Inventory is volatile, not updating."
-		)
-		return
-	end
-
 	local inventory = self:get_inventory()
-	if not inventory then
+	-- XXX: the or condition here is just for preventing a migration
+	-- crash during alpha.
+	if not inventory or not inventory.update then
 		strace(
 			stlib.ERROR,
 			"cs2",
@@ -471,72 +407,7 @@ function TrainStop:update_inventory(is_opportunistic)
 		return
 	end
 
-	if not inventory.is_pseudoinventory then
-		-- True inventory mode; read from Inventory combs.
-		local combs = self:get_associated_combinators(
-			function(c) return c.mode == "inventory" end
-		)
-		local read_inventory = false
-		local read_provide = false
-		local read_pull = false
-		local read_push = false
-		local read_sink = false
-		local read_capacity = false
-		for _, comb in pairs(combs) do
-			-- Read both inputs from each combinator if they exist.
-			-- 1 = red wire, 2 = green wire
-			for i = 1, 2 do
-				local inv_mode = i == 1
-						and comb:read_setting(combinator_settings.inventory_mode)
-					or comb:read_setting(combinator_settings.inventory_green_mode)
-				-- Attempt to realtime-read inventory inputs in opportunistic mode.
-				if inv_mode == "inventory" and is_opportunistic then
-					comb:read_inputs(i == 1 and "red" or "green")
-				end
-				local inputs = (i == 1 and comb.red_inputs or comb.green_inputs)
-				if inv_mode == "inventory" then
-					read_inventory = true
-					inventory:set_base(inputs)
-				elseif inv_mode == "provide" then
-					read_provide = true
-					inventory:set_provides(inputs or empty)
-				elseif inv_mode == "pull" then
-					read_pull = true
-					inventory:set_pulls(inputs or empty)
-				elseif inv_mode == "push" then
-					read_push = true
-					inventory:set_pushes(inputs or empty)
-				elseif inv_mode == "sink" then
-					read_sink = true
-					inventory:set_sinks(inputs or empty)
-				elseif inv_mode == "capacity" then
-					read_capacity = true
-					local c_inputs = inputs or empty
-					inventory:set_capacities(
-						c_inputs["cybersyn2-all-items"] or 0,
-						c_inputs["cybersyn2-all-fluids"] or 0
-					)
-				end
-			end
-		end
-		-- Clear data for areas where the combinator is not present.
-		if not read_inventory then inventory:set_base(nil) end
-		if not read_provide then inventory:set_provides(nil) end
-		if not read_pull then inventory:set_pulls(nil) end
-		if not read_push then inventory:set_pushes(nil) end
-		if not read_sink then inventory:set_sinks(nil) end
-		if not read_capacity then inventory:set_capacities(nil, nil) end
-	else
-		-- Pseudoinventory mode; read from station combinator.
-		local combs = self:get_associated_combinators(
-			function(c) return c.mode == "station" end
-		)
-		if #combs == 1 then
-			local comb = combs[1]
-			if is_opportunistic then comb:read_inputs() end
-			inventory:set_base(comb.inputs or empty)
-		end
-	end
+	inventory:update(true)
 end
 
 function TrainStop:is_sharing_inventory()
@@ -622,5 +493,5 @@ end)
 
 -- Shared inventory recalcs
 cs2.on_train_stop_shared_inventory_changed(
-	function(stop) stop:update_inventory_mode() end
+	function(stop) stop:update_inventory_sharing() end
 )

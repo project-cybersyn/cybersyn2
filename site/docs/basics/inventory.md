@@ -38,7 +38,7 @@ A single station cannot both request and provide the same item.
 
 From the point of view of Cybersyn, a station's inventory is considered a single bucket of items and/or fluids. Even when wagon control is employed, there is no way to direct particular items to particular train cars.
 
-This means that all train cars at the station must have access to the station's entire advertised inventory. For this purpose, it can be convenient to use a "merging chest" or "warehouse" mod.
+This means that all train cars at the station must have access to the station's entire advertised inventory. For this purpose, it can be convenient to use a merging chest or warehouse mod.
 
 :::
 
@@ -49,6 +49,6 @@ This means that all train cars at the station must have access to the station's 
 - For performance reasons, station inventory is not processed in realtime. Station inventories are updated periodically in the background. In saves with very large number of stations, this can result in any one station taking quite some time to update its inventory.
 This can be mitigated if necessary by changing Cybersyn's performance settings.
 
-- A station's inventory will not be updated while a train is at the station, as this will result in the delivery of that train being unaccounted for. Instead, the station will update its inventory as the train leaves.
+- A station's inventory will not be updated while a train is at the station, as this will result in the delivery of that train being unaccounted for. Instead, the station will update its inventory opportunistically as the train leaves.
 
 :::

@@ -17,86 +17,56 @@ local strace = stlib.strace
 local TRACE = stlib.TRACE
 local WARN = stlib.WARN
 local key_is_cargo = slib.key_is_cargo
+local key_is_virtual = slib.key_is_virtual
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
----@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
----@param node Cybersyn.Node
----@param item SignalKey
-function LogisticsThread:add_to_logisics_set(logistics_type, node, item)
-	local nodes = self[logistics_type][item]
-	if not nodes then
-		nodes = {}
-		self[logistics_type][item] = nodes
+local function append_order(state, list_name, order)
+	local list = state[list_name]
+	if not list then
+		list = {}
+		state[list_name] = list
 	end
-	nodes[node.id] = true
-end
-
----@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
----@param node_id Id
----@param item SignalKey
-function LogisticsThread:is_in_logistics_set(logistics_type, node_id, item)
-	local set = self[logistics_type][item]
-	return set and set[node_id]
-end
-
----@param logistics_type "providers" | "pushers" | "pullers" | "sinks"
----@param node_id Id
----@param item SignalKey
-function LogisticsThread:remove_from_logistics_set(
-	logistics_type,
-	node_id,
-	item
-)
-	local set = self[logistics_type][item]
-	if set then set[node_id] = nil end
+	list[#list + 1] = order
 end
 
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:classify_inventory(stop)
-	local inventory = stop:get_inventory()
-	if not inventory then return end
-	-- Ignore slave stops when counting inventory qty to avoid double counting
-	local count_inventory = not stop:is_sharing_slave()
-	if stop.is_producer then
-		inventory:foreach_producible_item(function(item, provide_qty, push_qty)
-			if count_inventory and provide_qty > 0 then
-				self.provided_qty[item] = (self.provided_qty[item] or 0) + provide_qty
-			end
-			if count_inventory and push_qty > 0 then
-				self.pushed_qty[item] = (self.pushed_qty[item] or 0) + push_qty
-			end
-			local _, out_t = stop:get_delivery_thresholds(item)
-			if provide_qty >= out_t then
-				self:add_to_logisics_set("providers", stop, item)
-				self.seen_cargo[item] = true
-			end
-			if push_qty >= out_t then
-				self:add_to_logisics_set("pushers", stop, item)
-				self.seen_cargo[item] = true
-			end
-		end)
+	-- Inventory is classified at shared master, so skip this step for slaves.
+	if stop.shared_inventory_master then return true end
+	local orders = stop:get_orders()
+	if not orders then
+		strace(stlib.ERROR, "message", "No orders found for stop", stop)
+		return false
 	end
-	if stop.is_consumer then
-		inventory:foreach_consumable_item(function(item, pull_qty, sink_qty)
-			if count_inventory and pull_qty > 0 then
-				self.pulled_qty[item] = (self.pulled_qty[item] or 0) + pull_qty
+	for _, order in pairs(orders) do
+		if stop.is_producer then
+			for item in pairs(order.provides) do
+				local providers = self.providers[item]
+				if not providers then
+					providers = {}
+					self.providers[item] = providers
+				end
+				providers[#providers + 1] = order
 			end
-			if count_inventory and sink_qty > 0 then
-				self.sunk_qty[item] = (self.sunk_qty[item] or 0) + sink_qty
+		end
+		if stop.is_consumer then
+			for item in pairs(order.requests) do
+				local requesters = self.requesters[item]
+				if not requesters then
+					requesters = {}
+					self.requesters[item] = requesters
+				end
+				requesters[#requesters + 1] = order
 			end
-			local in_t = stop:get_delivery_thresholds(item)
-			if pull_qty >= in_t then
-				self:add_to_logisics_set("pullers", stop, item)
-				self.seen_cargo[item] = true
+			if order.request_all_items then
+				append_order(self, "request_all_items", order)
 			end
-			if sink_qty >= in_t then
-				self:add_to_logisics_set("sinks", stop, item)
-				self.seen_cargo[item] = true
+			if order.request_all_fluids then
+				append_order(self, "request_all_fluids", order)
 			end
-		end)
-		if stop.is_dump then table.insert(self.dumps, stop) end
+		end
 	end
 end
 
@@ -128,14 +98,14 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	end
 	if not is_valid then return false end
 	local comb = combs[1]
-	local inputs = comb.inputs
+
+	-- Read primary input wire
+	local primary_wire = comb:read_setting(combinator_settings.primary_wire)
+	comb:read_inputs()
+	local inputs = comb.red_inputs
+	if primary_wire == "green" then inputs = comb.green_inputs end
 	if not inputs then
-		strace(
-			WARN,
-			"message",
-			"Station hasn't been polled for inputs",
-			stop.entity
-		)
+		strace(WARN, "message", "Couldn't read station comb inputs", stop.entity)
 		return false
 	end
 
@@ -160,31 +130,25 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		stop.is_consumer = true
 		stop.is_producer = false
 	end
-	stop.is_dump = comb:read_setting(combinator_settings.dump)
-	local network_signal = comb:read_setting(combinator_settings.network_signal)
-	local is_each = network_signal == "signal-each"
-	local networks = {}
-	if network_signal and not is_each then
-		networks[network_signal] = mod_settings.default_network_mask
-	end
+	local default_networks = {}
 	for k, v in pairs(inputs) do
-		if slib.key_is_virtual(k) then
-			if k == "cybersyn2-priority" then
-				stop.priority = v
-			elseif k == "cybersyn2-all-items" then
-				stop.threshold_item_in = v
-				stop.threshold_item_out = v
-			elseif k == "cybersyn2-all-fluids" then
-				stop.threshold_fluid_in = v
-				stop.threshold_fluid_out = v
-			elseif is_each or k == network_signal then
-				networks[k] = v
-			end
+		if k == "cybersyn2-priority" then
+			stop.priority = v
+		elseif k == "cybersyn2-all-items" then
+			stop.threshold_item_in = v
+			stop.threshold_item_out = v
+		elseif k == "cybersyn2-all-fluids" then
+			stop.threshold_fluid_in = v
+			stop.threshold_fluid_out = v
+		elseif key_is_virtual(k) then
+			default_networks[k] = true
 		end
 	end
-	stop.networks = networks
-	-- TODO: implement network operations
-	stop.network_operation = 1
+	if not next(default_networks) then
+		local network_signal = comb:read_setting(combinator_settings.network_signal)
+		if network_signal then default_networks = { [network_signal] = true } end
+	end
+	stop.default_networks = default_networks
 	stop.allow_departure_signal =
 		comb:read_setting(combinator_settings.allow_departure_signal)
 	stop.force_departure_signal =
@@ -260,55 +224,6 @@ function LogisticsThread:poll_dt_combs(stop)
 end
 
 ---@param stop Cybersyn.TrainStop
-function LogisticsThread:poll_prio_combs(stop)
-	stop.priorities = nil
-	local combs = stop:get_associated_combinators(
-		function(comb) return comb.mode == "prio" end
-	)
-	if #combs == 0 then return end
-	local priorities = nil
-	for _, comb in pairs(combs) do
-		local inputs = comb.inputs
-		if not inputs then return end
-		for k, v in pairs(inputs) do
-			if k == "cybersyn2-priority" then
-				stop.priority = v
-			elseif key_is_cargo(k) then
-				if not priorities then priorities = {} end
-				priorities[k] = v
-			end
-		end
-	end
-	stop.priorities = priorities
-end
-
----@param stop Cybersyn.TrainStop
-function LogisticsThread:poll_channels_combs(stop)
-	-- Impose defaults
-	stop.channels = nil
-	stop.channel = nil
-	-- Reread combs
-	local combs = stop:get_associated_combinators(
-		function(comb) return comb.mode == "channels" end
-	)
-	if #combs == 0 then return end
-	local channels = nil
-	for _, comb in pairs(combs) do
-		local inputs = comb.inputs
-		if not inputs then return end
-		for k, v in pairs(inputs) do
-			if k == "cybersyn2-all-items" then
-				stop.channel = v
-			elseif key_is_cargo(k) then
-				if not channels then channels = {} end
-				channels[k] = v
-			end
-		end
-	end
-	stop.channels = channels
-end
-
----@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop(stop)
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
@@ -320,10 +235,6 @@ function LogisticsThread:poll_train_stop(stop)
 	stop:update_inventory(false)
 	-- Get delivery thresholds
 	self:poll_dt_combs(stop)
-	-- Get priorities
-	self:poll_prio_combs(stop)
-	-- Get channels
-	self:poll_channels_combs(stop)
 	-- Classify inventory of stop
 	return self:classify_inventory(stop)
 end
@@ -337,15 +248,9 @@ end
 
 function LogisticsThread:enter_poll_nodes()
 	self.providers = {}
-	self.provided_qty = {}
-	self.pushers = {}
-	self.pushed_qty = {}
-	self.pullers = {}
-	self.pulled_qty = {}
-	self.sinks = {}
-	self.sunk_qty = {}
-	self.dumps = {}
-	self.seen_cargo = {}
+	self.requesters = {}
+	self.request_all_items = {}
+	self.request_all_fluids = {}
 	self:begin_async_loop(
 		self.nodes,
 		math.ceil(cs2.PERF_NODE_POLL_WORKLOAD * mod_settings.work_factor)
@@ -356,10 +261,8 @@ function LogisticsThread:exit_poll_nodes()
 	-- Shallow copy net inventory signal counts to the topology.
 	local topology = cs2.get_topology(self.topology_id)
 	if not topology then return end
-	topology.provided = tlib.assign({}, self.provided_qty)
-	topology.pushed = tlib.assign({}, self.pushed_qty)
-	topology.pulled = tlib.assign({}, self.pulled_qty)
-	topology.sunk = tlib.assign({}, self.sunk_qty)
+	-- TODO: net inventory stats
+
 	-- Fire mass inventory update event for the topology.
 	-- TODO: this should be defered to a unique state at the end of the thread
 	-- so all statistics can be updated at once.
@@ -367,5 +270,5 @@ function LogisticsThread:exit_poll_nodes()
 end
 
 function LogisticsThread:poll_nodes()
-	self:step_async_loop(self.poll_node, function(thr) thr:set_state("cull") end)
+	self:step_async_loop(self.poll_node, function(thr) thr:set_state("alloc") end)
 end

@@ -81,8 +81,10 @@ function lib.concat(...)
 	local A = {}
 	for i = 1, select("#", ...) do
 		local B = select(i, ...)
-		for j = 1, #B do
-			A[#A + 1] = B[j]
+		if B ~= nil then
+			for j = 1, #B do
+				A[#A + 1] = B[j]
+			end
 		end
 	end
 	return A

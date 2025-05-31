@@ -17,11 +17,14 @@ local signal_to_key = signal_keys.signal_to_key
 local key_to_stacksize = signal_keys.key_to_stacksize
 local key_is_cargo = signal_keys.key_is_cargo
 local key_is_fluid = signal_keys.key_is_fluid
+local classify_key = signal_keys.classify_key
 local min = math.min
 local max = math.max
 local ceil = math.ceil
 local assign = tlib.assign
 local empty = tlib.empty
+local table_add = tlib.vector_add
+local combinator_settings = _G.cs2.combinator_settings
 
 ---@param base table<string,int>
 ---@param addend table<string,int>
@@ -34,16 +37,6 @@ local function table_add_positive(base, addend, sign)
 		else
 			base[k] = nil
 		end
-	end
-end
-
----@param base table<string,int>
----@param addend table<string,int>
----@param sign int
-local function table_add(base, addend, sign)
-	for k, v in pairs(addend) do
-		local net = (base[k] or 0) + sign * v
-		base[k] = net
 	end
 end
 
@@ -64,6 +57,7 @@ function Inventory:new()
 		inventory = {},
 		inflow = {},
 		outflow = {},
+		orders = {},
 	}, self)
 	local inv = storage.inventories[id]
 
@@ -132,7 +126,7 @@ end
 ---@param sign number
 function Inventory:add_inflow_rebate(counts, sign)
 	if not self.inflow_rebate then self.inflow_rebate = {} end
-	return table_add(self.inflow_rebate, counts, sign)
+	return table_add(self.inflow_rebate, sign, counts)
 end
 
 ---@param item SignalKey
@@ -159,7 +153,7 @@ end
 ---@param sign number
 function Inventory:add_outflow_rebate(counts, sign)
 	if not self.outflow_rebate then self.outflow_rebate = {} end
-	return table_add(self.outflow_rebate, counts, sign)
+	return table_add(self.outflow_rebate, sign, counts)
 end
 
 ---@param item SignalKey
@@ -174,44 +168,10 @@ function Inventory:add_single_item_outflow(item, qty)
 	end
 end
 
----Get amount of the given item provided by this Inventory.
-function Inventory:get_provided_qty(item) return 0 end
-
----Get the amount of the given item pulled by this Inventory.
-function Inventory:get_pulled_qty(item) return 0 end
-
-function Inventory:get_pushed_qty(item) return 0 end
-
-function Inventory:get_sink_qty(item) return 0 end
-
----Iterate over items this inventory could conceivably produce.
----@param f fun(item: SignalKey, provide_qty: integer, push_qty: integer)
-function Inventory:foreach_producible_item(f) end
-
----Iterate over items this inventory could conceivably consume.
----@param f fun(item: SignalKey, pull_qty: integer, sink_qty: integer)
-function Inventory:foreach_consumable_item(f) end
-
----Set pulls for this inventory.
----@param counts SignalCounts|nil
-function Inventory:set_pulls(counts) end
-
----Set push thresholds for this inventory.
----@param counts SignalCounts|nil
-function Inventory:set_pushes(counts) end
-
----Set provides for this inventory.
----@param counts SignalCounts|nil
-function Inventory:set_provides(counts) end
-
----Set sink thresholds for this inventory.
----@param counts SignalCounts|nil
-function Inventory:set_sinks(counts) end
-
 ---Compute used capacity of this inventory, in stacks (for items) and units
 ---(for fluids).
----@return uint
----@return uint
+---@return uint used_item_stack_capacity
+---@return uint used_fluid_capacity
 function Inventory:get_used_capacities()
 	if self.used_item_stack_capacity then
 		return self.used_item_stack_capacity, self.used_fluid_capacity
@@ -264,14 +224,6 @@ function Inventory:get_capacities()
 	return self.item_stack_capacity, self.fluid_capacity
 end
 
----Convert this inventory in place to a pseudoinventory.
----@return boolean was_converted `true` if the inventory was converted, `false` if it was already a pseudoinventory.
-function Inventory:convert_to_pseudoinventory() return false end
-
----Convert this inventory in place to a true inventory.
----@return boolean was_converted `true` if the inventory was converted, `false` if it was already a true inventory.
-function Inventory:convert_to_true_inventory() return false end
-
 function Inventory:clear()
 	self.inventory = {}
 	self.inflow = {}
@@ -284,212 +236,239 @@ function Inventory:clear()
 	self.used_fluid_capacity = nil
 end
 
+---Determine if this inventory is volatile. A volatile inventory is one whose
+---value cannot be correctly read from current combinator state because of
+---unreliable data. An example of this is a train stop inventory while a train
+---is parked and loading or unloading, in which case the inventory measured
+---at the combinators will be wrong until the train completes the delivery.
+---@return boolean
+function Inventory:is_volatile() return false end
+
+---Attempt to update the inventory using best available data. Does nothing
+---when inventory is volatile.
+---@param reread boolean `true` if the inventory's base data should be reread immediately from combinators. `false` if cached combinator reads should be used.
+---@return boolean #`true` if the inventory was updated.
+function Inventory:update(reread) return false end
+
 --------------------------------------------------------------------------------
--- Pseudoinventory
+-- Fast inventory accessors
 --------------------------------------------------------------------------------
 
----A pseudoinventory is an inventory that can have negative base content
----representing requests.
----@class Cybersyn.Pseudoinventory: Cybersyn.Inventory
-local Pseudoinventory = class("Pseudoinventory", Inventory)
-_G.cs2.Pseudoinventory = Pseudoinventory
+---@param inventory Cybersyn.Inventory
+---@param item SignalKey
+function _G.cs2.inventory_avail_qty(inventory, item)
+	return max(
+		(inventory.inventory[item] or 0) - (inventory.outflow[item] or 0),
+		0
+	)
+end
 
-function Pseudoinventory:new()
+---@param order Cybersyn.Order
+---@param item SignalKey
+function _G.cs2.order_provided_qty(order, item)
+	local inv = order.inventory
+	local base = min(order.provides[item] or 0, inv.inventory[item] or 0)
+	return max(base - (inv.outflow[item] or 0), 0)
+end
+
+---@param order Cybersyn.Order
+---@param item SignalKey
+function _G.cs2.order_requested_qty(order, item)
+	local inv = order.inventory
+	local deficit = (order.requests[item] or 0)
+		- (inv.inventory[item] or 0)
+		- (inv.inflow[item] or 0)
+	return max(deficit, 0)
+end
+
+--------------------------------------------------------------------------------
+-- StopInventory
+--------------------------------------------------------------------------------
+
+---Inventory associated with a train stop.
+---@class Cybersyn.StopInventory: Cybersyn.Inventory
+local StopInventory = class("StopInventory", Inventory)
+_G.cs2.StopInventory = StopInventory
+
+function StopInventory:new()
 	local inv = Inventory.new(self)
-	inv.is_pseudoinventory = true
-	return inv
+	return inv --[[@as Cybersyn.StopInventory]]
 end
 
-function Pseudoinventory:get_provided_qty(item)
-	local inv = self.inventory
-	local of = self.outflow
-	return max((inv[item] or 0) - (of[item] or 0), 0)
-end
+function StopInventory:is_volatile()
+	local controlling_stop = cs2.get_stop(self.created_for_node_id)
+	if not controlling_stop then
+		error(
+			"StopInventory without associated controlling stop, should be impossible"
+		)
+	end
 
-function Pseudoinventory:get_pulled_qty(item)
-	local inv = self.inventory
-	local inf = self.inflow
-	return max(-((inv[item] or 0) + (inf[item] or 0)), 0)
-end
-
-function Pseudoinventory:foreach_producible_item(f)
-	local inv = self.inventory
-	local of = self.outflow
-	for item, qty in pairs(inv) do
-		local net = max(qty - (of[item] or 0), 0)
-		if net > 0 then f(item, net, 0) end
+	if controlling_stop.shared_inventory_slaves then
+		-- A shared inventory is volatile if any of its slaves has a parked train
+		for slave_id in pairs(controlling_stop.shared_inventory_slaves) do
+			local slave = cs2.get_stop(slave_id)
+			if slave and slave.entity.get_stopped_train() then return true end
+		end
+		return not not controlling_stop.entity.get_stopped_train()
+	else
+		return not not controlling_stop.entity.get_stopped_train()
 	end
 end
 
-function Pseudoinventory:foreach_consumable_item(f)
-	local inv = self.inventory
-	local inf = self.inflow
-	for item, qty in pairs(inv) do
-		local net = max(-(qty + (inf[item] or 0)), 0)
-		if net > 0 then f(item, net, 0) end
-	end
-end
+function StopInventory:update(reread)
+	if self:is_volatile() then return false end
+	self.item_stack_capacity = nil
+	self.fluid_capacity = nil
+	for _, order in pairs(self.orders) do
+		local stop = cs2.get_stop(order.node_id, true)
+		if not stop then return false end
+		-- Clear existing order
+		if next(order.requests) then order.requests = {} end
+		if next(order.provides) then order.provides = {} end
+		if next(order.networks) then order.networks = {} end
+		if next(order.thresholds_in) then order.thresholds_in = {} end
+		if next(order.thresholds_out) then order.thresholds_out = {} end
+		order.priority = stop.priority or 0
+		order.request_all_items = nil
+		order.request_all_fluids = nil
+		-- Copy stop data
+		-- TODO: move last_consumed_tick to inventory
+		order.last_consumed_tick = stop.last_consumed_tick or {}
+		-- TODO: tekbox equation?
+		order.busy_value = stop:get_occupancy()
 
-function Pseudoinventory:convert_to_true_inventory()
-	self:clear()
-	setmetatable(self, cs2.TrueInventory)
-	self.is_pseudoinventory = false
+		-- Rebuild order from its governing combinator
+		local comb = cs2.get_combinator(order.combinator_id, true)
+		if comb then
+			if reread then comb:read_inputs() end
+			-- Station combinator has a single unique order associated to it.
+			if comb.mode == "station" then
+				local primary_wire = comb:read_setting(combinator_settings.primary_wire)
+				if primary_wire == "green" then
+					self:set_base(comb.green_inputs)
+				else
+					self:set_base(comb.red_inputs)
+				end
+				-- Implement auto-provide setting.
+				if
+					stop.is_producer
+					and not comb:read_setting(combinator_settings.provide_subset)
+				then
+					assign(order.provides, self.inventory or empty)
+					for cargo in pairs(order.provides) do
+						order.thresholds_out[cargo] = stop:get_outbound_threshold(cargo)
+					end
+				end
+			end
+			local inputs = order.combinator_input == "green" and comb.green_inputs
+				or comb.red_inputs
+			for signal_key, count in pairs(inputs or empty) do
+				local genus = classify_key(signal_key)
+				if genus == "cargo" then
+					if count < 0 then
+						order.requests[signal_key] = -count
+						order.thresholds_in[signal_key] =
+							stop:get_inbound_threshold(signal_key)
+					elseif count > 0 then
+						order.provides[signal_key] = count
+						order.thresholds_out[signal_key] =
+							stop:get_outbound_threshold(signal_key)
+					end
+				elseif genus == "virtual" then
+					if signal_key == "cybersyn2-priority" then
+						order.priority = count
+					elseif signal_key == "cybersyn2-all-items" and count < 0 then
+						order.request_all_items = true
+						self.item_stack_capacity = max(-count, 0)
+					elseif signal_key == "cybersyn2-all-fluids" and count < 0 then
+						order.request_all_fluids = true
+						self.fluid_capacity = max(-count, 0)
+					elseif cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal_key] then
+						-- no CS2 config signals as networks
+					else
+						order.networks[signal_key] = true
+					end
+				end
+			end
+			-- Default network if no networks are set.
+			if not next(order.networks) and stop.default_networks then
+				order.networks = stop.default_networks
+			end
+		else
+			-- Order has no governing combinator.
+		end
+	end
 	return true
 end
 
---------------------------------------------------------------------------------
--- TrueInventory
---------------------------------------------------------------------------------
-
----A true inventory is an inventory that can only have positive base content
----representing actual inventory. Requests and thresholds are set separately.
----@class Cybersyn.TrueInventory: Cybersyn.Inventory
----@field public provides SignalCounts?
----@field public pulls SignalCounts?
----@field public pushes SignalCounts?
----@field public sinks SignalCounts?
-local TrueInventory = class("TrueInventory", Inventory)
-_G.cs2.TrueInventory = TrueInventory
-
-function TrueInventory:new()
-	local inv = Inventory.new(self)
-	inv.is_pseudoinventory = false
-	return inv
+---@param inv Cybersyn.Inventory
+---@param comb_id Id
+---@param node_id Id
+---@param comb_input "green"|"red"
+local function create_blank_order(inv, comb_id, node_id, comb_input)
+	---@type Cybersyn.Order
+	local order = {
+		inventory = inv,
+		combinator_id = comb_id,
+		node_id = node_id,
+		combinator_input = comb_input,
+		requests = {},
+		provides = {},
+		networks = {},
+		thresholds_in = {},
+		thresholds_out = {},
+		last_consumed_tick = {},
+		priority = 0,
+		busy_value = 0,
+	}
+	return order
 end
 
-function TrueInventory:set_pulls(counts)
-	if counts then
-		local pulls = {}
-		self.pulls = pulls
-		for k, count in pairs(counts) do
-			if key_is_cargo(k) then pulls[k] = count end
-		end
-	else
-		if self.pulls and next(self.pulls) then self.pulls = {} end
+---Destroy and rebuild all orders for this inventory.
+function StopInventory:rebuild_orders()
+	---@type Cybersyn.Order[]
+	local orders = {}
+	self.orders = orders
+	local controlling_stop = cs2.get_stop(self.created_for_node_id)
+	if not controlling_stop then return end
+	local station_comb = controlling_stop:get_combinator_with_mode("station")
+	if not station_comb then return end
+	local primary_wire =
+		station_comb:read_setting(combinator_settings.primary_wire)
+	local opposite_wire = primary_wire == "green" and "red" or "green"
+	-- Opposite wire on station comb treated as an order.
+	orders[#orders + 1] = create_blank_order(
+		self,
+		station_comb.id,
+		controlling_stop.id,
+		opposite_wire
+	)
+	-- Green- and red-wire orders for each inventory comb
+	local inventory_combs = controlling_stop:get_associated_combinators(
+		function(c) return c.mode == "inventory" end
+	)
+	for _, comb in pairs(inventory_combs) do
+		orders[#orders + 1] =
+			create_blank_order(self, comb.id, controlling_stop.id, "green")
+
+		orders[#orders + 1] =
+			create_blank_order(self, comb.id, controlling_stop.id, "red")
 	end
-end
-
-function TrueInventory:set_provides(counts)
-	if counts then
-		local provides = {}
-		self.provides = provides
-		for k, count in pairs(counts) do
-			if key_is_cargo(k) then provides[k] = count end
-		end
-	else
-		self.provides = nil
-	end
-end
-
-function TrueInventory:set_pushes(counts)
-	if counts then
-		local pushes = {}
-		self.pushes = pushes
-		for k, count in pairs(counts) do
-			if key_is_cargo(k) then pushes[k] = count end
-		end
-	else
-		if self.pushes and next(self.pushes) then self.pushes = {} end
-	end
-end
-
-function TrueInventory:set_sinks(counts)
-	if counts then
-		local sinks = {}
-		self.sinks = sinks
-		for k, count in pairs(counts) do
-			if key_is_cargo(k) then sinks[k] = count end
-		end
-	else
-		if self.sinks and next(self.sinks) then self.sinks = {} end
-	end
-end
-
-function TrueInventory:get_provided_qty(item)
-	local prov = self.provides or self.inventory
-	local of = self.outflow
-	return max((prov[item] or 0) - (of[item] or 0), 0)
-end
-
-function TrueInventory:get_pulled_qty(item)
-	local pulls = self.pulls
-	if not pulls then return 0 end
-	local inv = self.inventory
-	local inf = self.inflow
-	return max((pulls[item] or 0) - ((inv[item] or 0) + (inf[item] or 0)), 0)
-end
-
-function TrueInventory:get_pushed_qty(item)
-	local pushes = self.pushes
-	if not pushes then return 0 end
-	local pushes_item = pushes[item]
-	if (not pushes_item) or pushes_item <= 0 then return 0 end
-	local inv = self.inventory
-	local of = self.outflow
-	return max(((inv[item] or 0) - (of[item] or 0)) - pushes_item, 0)
-end
-
-function TrueInventory:get_sink_qty(item)
-	local sinks = self.sinks
-	if not sinks then return 0 end
-	local inv = self.inventory
-	local inf = self.inflow
-	return max((sinks[item] or 0) - ((inv[item] or 0) + (inf[item] or 0)), 0)
-end
-
-function TrueInventory:foreach_producible_item(f)
-	local inv = self.inventory
-	local has_prov = not not self.provides
-	local prov = self.provides or self.inventory
-	local of = self.outflow
-	local pushes = self.pushes or empty
-	for item, qty in pairs(inv) do
-		local net = max(qty - (of[item] or 0), 0)
-		local provided = net
-		if has_prov then provided = max((prov[item] or 0) - (of[item] or 0), 0) end
-		local pushes_item = pushes[item]
-		local pushed = 0
-		if pushes_item and pushes_item > 0 then
-			pushed = max(net - pushes_item, 0)
-		end
-		if provided > 0 or pushed > 0 then f(item, provided, pushed) end
-	end
-end
-
-function TrueInventory:foreach_consumable_item(f)
-	local inv = self.inventory
-	local inf = self.inflow
-	local pulls = self.pulls or empty
-	local sinks = self.sinks or empty
-
-	for item, qty in pairs(pulls) do
-		local net = (inv[item] or 0) + (inf[item] or 0)
-		local pulled = max(qty - net, 0)
-		local sunk = max((sinks[item] or 0) - net, 0)
-		if pulled > 0 or sunk > 0 then f(item, pulled, sunk) end
-	end
-	for item, qty in pairs(sinks) do
-		if not pulls[item] then
-			local net = (inv[item] or 0) + (inf[item] or 0)
-			local sunk = max(qty - net, 0)
-			if sunk > 0 then f(item, 0, sunk) end
+	-- Copy orders for slaves
+	if controlling_stop.shared_inventory_slaves then
+		local n_orders_to_copy = #orders
+		for slave_id in pairs(controlling_stop.shared_inventory_slaves) do
+			local slave = cs2.get_stop(slave_id)
+			if slave then
+				for i = 1, n_orders_to_copy do
+					local old_order = orders[i]
+					local new_order = assign({}, old_order) --[[@as Cybersyn.Order]]
+					new_order.node_id = slave.id
+					orders[#orders + 1] = new_order
+				end
+			end
 		end
 	end
-end
-
-function TrueInventory:clear()
-	Inventory.clear(self)
-	self.provides = nil
-	self.pulls = nil
-	self.pushes = nil
-	self.sinks = nil
-end
-
-function TrueInventory:convert_to_pseudoinventory()
-	self:clear()
-	setmetatable(self, cs2.Pseudoinventory)
-	self.is_pseudoinventory = true
-	return true
 end
 
 --------------------------------------------------------------------------------
@@ -500,16 +479,15 @@ end
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
 		---@cast node Cybersyn.TrainStop
-		local inv = Pseudoinventory:new()
-		node.inventory_id = inv.id
+		local inv = StopInventory:new()
 		node.created_inventory_id = inv.id
 		inv.created_for_node_id = node.id
-		inv.surface_index = node.entity.surface_index
 		cs2.raise_inventory_created(inv)
+		node:set_inventory(inv.id)
 	end
 end, true)
 
 cs2.on_node_destroyed(function(node)
-	local inv = Inventory.get(node.created_inventory_id)
+	local inv = cs2.get_inventory(node.created_inventory_id)
 	if inv then inv:destroy() end
 end)
