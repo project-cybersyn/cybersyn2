@@ -214,6 +214,7 @@ function LogisticsThread:poll_dt_combs(stop)
 	local thresholds_in = nil
 	local thresholds_out = nil
 	for _, comb in pairs(combs) do
+		comb:read_inputs()
 		local inputs = comb.inputs
 		if not inputs then return end
 		local is_in = comb:read_setting(combinator_settings.dt_inbound)
