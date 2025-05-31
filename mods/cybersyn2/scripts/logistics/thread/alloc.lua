@@ -20,6 +20,7 @@ local t_map_a = tlib.t_map_a
 local filter = tlib.filter
 local concat = tlib.concat
 local min = math.min
+local max = math.max
 local pos_get = mlib.pos_get
 local sqrt = math.sqrt
 local key_is_fluid = siglib.key_is_fluid
@@ -48,83 +49,6 @@ local LogisticsThread = _G.cs2.LogisticsThread
 --------------------------------------------------------------------------------
 -- Util
 --------------------------------------------------------------------------------
-
----@param self Cybersyn.LogisticsThread
----@param item SignalKey
----@param producer Cybersyn.Node
----@param producer_logistics_type string
----@param consumer Cybersyn.Node
----@param consumer_logistics_type string
----@param consumer_prio integer
----@param get_production_info fun(node: Cybersyn.Node, item: SignalKey): integer, integer, Cybersyn.Inventory?
----@param get_consumption_info fun(node: Cybersyn.Node, item: SignalKey): integer, integer, Cybersyn.Inventory?
-local function alloc_item_generic(
-	self,
-	item,
-	producer,
-	producer_logistics_type,
-	consumer,
-	consumer_logistics_type,
-	consumer_prio,
-	get_production_info,
-	get_consumption_info
-)
-	-- Verify consumer wants item
-	local consumed, consumer_in_t, consumer_inv =
-		get_consumption_info(consumer, item)
-	if consumed == 0 or not consumer_inv then
-		return self:remove_from_logistics_set(
-			consumer_logistics_type,
-			consumer.id,
-			item
-		)
-	end
-
-	-- Verify producer has item
-	local avail, producer_out_t, producer_inv =
-		get_production_info(producer, item)
-	if avail == 0 or not producer_inv then
-		return self:remove_from_logistics_set(
-			producer_logistics_type,
-			producer.id,
-			item
-		)
-	end
-
-	-- Honor consumer capacity.
-	local item_stack_capacity, fluid_capacity = consumer_inv:get_capacities()
-	if item_stack_capacity or fluid_capacity then
-		-- Rare case; capacity should not be used often.
-		local is_fluid = key_is_fluid(item)
-		if is_fluid and fluid_capacity then
-			local _, used_fluid_capacity = consumer_inv:get_used_capacities()
-			local avail_fluid_capacity = fluid_capacity - used_fluid_capacity
-			consumed = min(consumed, avail_fluid_capacity)
-		elseif not is_fluid and item_stack_capacity then
-			local used_item_stack_capacity = consumer_inv:get_used_capacities()
-			local avail_item_capacity = (
-				item_stack_capacity - used_item_stack_capacity
-			) * (key_to_stacksize(item) or 0)
-			consumed = min(consumed, avail_item_capacity)
-		end
-	end
-
-	local qty = min(consumed, avail)
-
-	if qty >= producer_out_t and qty >= consumer_in_t then
-		return self:allocate(
-			producer,
-			producer_inv,
-			producer_out_t,
-			consumer,
-			consumer_inv,
-			consumer_in_t,
-			item,
-			qty,
-			consumer_prio
-		)
-	end
-end
 
 ---@param to Cybersyn.TrainStop
 local function make_distance_busy_score_calculator(to)
@@ -186,19 +110,6 @@ function LogisticsThread:allocate(
 		is_fluid = is_fluid,
 		stack_size = is_fluid and 1 or (key_to_stacksize(item) or 1),
 	}
-	-- strace(
-	-- 	DEBUG,
-	-- 	"cs2",
-	-- 	"alloc",
-	-- 	"message",
-	-- 	item,
-	-- 	"from",
-	-- 	from_node.id,
-	-- 	"to",
-	-- 	to_node.id,
-	-- 	"qty",
-	-- 	qty
-	-- )
 	self.allocations[#self.allocations + 1] = allocation
 	local from_id = from_node.id
 	local from_allocs = self.allocs_from[from_id]
@@ -233,7 +144,8 @@ end
 
 ---@param item SignalKey
 ---@param requester Cybersyn.Order
-function LogisticsThread:alloc_item_to(item, requester)
+---@param is_fluid boolean?
+function LogisticsThread:alloc_item_to(item, requester, is_fluid)
 	local providers = self.providers[item]
 	if not providers or #providers == 0 then
 		-- This shouldn't happen since the list of items is generated based on
@@ -244,8 +156,27 @@ function LogisticsThread:alloc_item_to(item, requester)
 	local requester_stop = cs2.get_stop(requester.node_id)
 	if not requester_stop then return end
 	local requester_x, requester_y = pos_get(requester_stop.entity.position)
+
+	-- Compute threshold and quantity for the request.
+	-- Complicated by the fact that it could be a "Request-all" order.
 	local request_thresh = requester.thresholds_in[item]
-	local request_qty = order_requested_qty(requester, item)
+		or requester_stop:get_inbound_threshold(item)
+	local request_qty
+	if requester.request_all_items and not is_fluid then
+		local item_stack_capacity = requester.inventory.item_stack_capacity or 0
+		local used_item_stack_capacity = requester.inventory:get_used_capacities()
+		local remaining_item_capacity = (
+			item_stack_capacity - used_item_stack_capacity
+		) * (key_to_stacksize(item) or 0)
+		request_qty = max(remaining_item_capacity, 0)
+	elseif requester.request_all_fluids and is_fluid then
+		local fluid_capacity = requester.inventory.fluid_capacity or 0
+		local _, used_fluid_capacity = requester.inventory:get_used_capacities()
+		local remaining_fluid_capacity = fluid_capacity - used_fluid_capacity
+		request_qty = max(remaining_fluid_capacity, 0)
+	else
+		request_qty = order_requested_qty(requester, item)
+	end
 
 	-- Filter for providers that still have inventory. Optimize by replacing
 	-- overall list of providers.
@@ -292,8 +223,6 @@ function LogisticsThread:alloc_item_to(item, requester)
 		if qty > 0 then
 			local provider_stop = cs2.get_stop(provider.node_id, true)
 			if provider_stop then
-				-- TODO: honor requester capacity (See above)
-
 				self:allocate(
 					provider_stop,
 					provider.inventory,
@@ -316,7 +245,14 @@ end
 function LogisticsThread:alloc_item(item)
 	---@type Cybersyn.Order[]
 	local requesters = self.requesters[item]
-	local request_all = self.request_all
+	local is_fluid = key_is_fluid(item)
+	local request_all = nil
+	if is_fluid then
+		request_all = self.request_all_fluids
+	else
+		request_all = self.request_all_items
+	end
+
 	-- Early cull if nobody is interested in this item.
 	if
 		(not requesters or #requesters == 0)
@@ -346,7 +282,7 @@ function LogisticsThread:alloc_item(item)
 
 	-- Allocate to each requesting order
 	for _, requester in pairs(requesters) do
-		self:alloc_item_to(item, requester)
+		self:alloc_item_to(item, requester, is_fluid)
 	end
 end
 

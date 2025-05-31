@@ -22,6 +22,15 @@ local key_is_virtual = slib.key_is_virtual
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
+local function append_order(state, list_name, order)
+	local list = state[list_name]
+	if not list then
+		list = {}
+		state[list_name] = list
+	end
+	list[#list + 1] = order
+end
+
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:classify_inventory(stop)
 	-- Inventory is classified at shared master, so skip this step for slaves.
@@ -51,13 +60,11 @@ function LogisticsThread:classify_inventory(stop)
 				end
 				requesters[#requesters + 1] = order
 			end
-			if order.request_all then
-				local request_all = self.request_all
-				if not request_all then
-					request_all = {}
-					self.request_all = request_all
-				end
-				request_all[#request_all + 1] = order
+			if order.request_all_items then
+				append_order(self, "request_all_items", order)
+			end
+			if order.request_all_fluids then
+				append_order(self, "request_all_fluids", order)
 			end
 		end
 	end
@@ -242,7 +249,8 @@ end
 function LogisticsThread:enter_poll_nodes()
 	self.providers = {}
 	self.requesters = {}
-	self.request_all = {}
+	self.request_all_items = {}
+	self.request_all_fluids = {}
 	self:begin_async_loop(
 		self.nodes,
 		math.ceil(cs2.PERF_NODE_POLL_WORKLOAD * mod_settings.work_factor)

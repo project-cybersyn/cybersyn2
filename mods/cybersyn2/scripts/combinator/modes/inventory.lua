@@ -62,6 +62,14 @@ relm.define_element({
 				ultros.RtMultilineLabel({
 					"cybersyn2-combinator-mode-inventory.priority-signal",
 				}),
+				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-inventory.all-items-signal",
+				}),
+				ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-inventory.all-fluids-signal",
+				}),
 			}),
 		})
 	end,

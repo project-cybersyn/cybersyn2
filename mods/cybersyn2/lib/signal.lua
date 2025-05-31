@@ -183,6 +183,7 @@ local function key_is_cargo(key)
 end
 lib.key_is_cargo = key_is_cargo
 
+---Determine if this signal key represents a fluid signal.
 ---@param key SignalKey
 local function key_is_fluid(key)
 	local s = key_to_signal(key)

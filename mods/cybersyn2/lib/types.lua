@@ -183,7 +183,8 @@ lib.NodeNetworkOperation = {
 ---@field public networks SignalSet The computed networks of this order.
 ---@field public last_consumed_tick SignalCounts Last consumed ticks for the order's associated inventory.
 ---@field public priority int The computed priority of this order.
----@field public request_all boolean? `true` if this order should request all items in the network.
+---@field public request_all_items boolean? `true` if this order should request all items in the network.
+---@field public request_all_fluids boolean? `true` if this order should request all fluids in the network.
 ---@field public busy_value number Cached value computed at poll time regarding how busy the associated node is.
 
 ---@class Cybersyn.Inventory

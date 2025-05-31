@@ -17,7 +17,8 @@ local mod_settings = _G.cs2.mod_settings
 ---@field public nodes Cybersyn.Node[]? Nodes found within topology.
 ---@field public providers? {[SignalKey]: Cybersyn.Order[]} Orders providing a given item.
 ---@field public requesters? {[SignalKey]: Cybersyn.Order[]} Orders requesting a given item.
----@field public request_all? Cybersyn.Order[] Orders requesting any item.
+---@field public request_all_items? Cybersyn.Order[] Orders requesting any item.
+---@field public request_all_fluids? Cybersyn.Order[] Orders requesting any fluid.
 ---@field public allocations Cybersyn.Internal.LogisticsAllocation[]?
 ---@field public allocs_from {[Id]: Cybersyn.Internal.LogisticsAllocation[]} Allocations from the given stop, ordered. Used for multi-item.
 ---@field public avail_trains table<Id, Cybersyn.Train>? Available trains

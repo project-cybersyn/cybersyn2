@@ -170,8 +170,8 @@ end
 
 ---Compute used capacity of this inventory, in stacks (for items) and units
 ---(for fluids).
----@return uint
----@return uint
+---@return uint used_item_stack_capacity
+---@return uint used_fluid_capacity
 function Inventory:get_used_capacities()
 	if self.used_item_stack_capacity then
 		return self.used_item_stack_capacity, self.used_fluid_capacity
@@ -317,6 +317,8 @@ end
 
 function StopInventory:update(reread)
 	if self:is_volatile() then return false end
+	self.item_stack_capacity = nil
+	self.fluid_capacity = nil
 	for _, order in pairs(self.orders) do
 		local stop = cs2.get_stop(order.node_id, true)
 		if not stop then return false end
@@ -327,7 +329,8 @@ function StopInventory:update(reread)
 		if next(order.thresholds_in) then order.thresholds_in = {} end
 		if next(order.thresholds_out) then order.thresholds_out = {} end
 		order.priority = stop.priority or 0
-		order.request_all = nil
+		order.request_all_items = nil
+		order.request_all_fluids = nil
 		-- Copy stop data
 		-- TODO: move last_consumed_tick to inventory
 		order.last_consumed_tick = stop.last_consumed_tick or {}
@@ -375,7 +378,11 @@ function StopInventory:update(reread)
 					if signal_key == "cybersyn2-priority" then
 						order.priority = count
 					elseif signal_key == "cybersyn2-all-items" and count < 0 then
-						order.request_all = true
+						order.request_all_items = true
+						self.item_stack_capacity = max(-count, 0)
+					elseif signal_key == "cybersyn2-all-fluids" and count < 0 then
+						order.request_all_fluids = true
+						self.fluid_capacity = max(-count, 0)
 					elseif cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal_key] then
 						-- no CS2 config signals as networks
 					else
