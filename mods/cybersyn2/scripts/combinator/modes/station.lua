@@ -7,6 +7,7 @@ local ultros = require("__cybersyn2__.lib.ultros")
 local cs2 = _G.cs2
 local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
+local mod_settings = _G.cs2.mod_settings
 
 local Pr = relm.Primitive
 local VF = ultros.VFlow
@@ -35,6 +36,14 @@ cs2.register_combinator_setting(
 -- Whether the station's primary order should provide the whole inventory or a subset.
 cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("provide_subset", "station_flags", 4)
+)
+-- Whether to disable auto thresholds
+cs2.register_combinator_setting(
+	cs2.lib.make_flag_setting("disable_auto_thresholds", "station_flags", 5)
+)
+-- Auto threshold percentage
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("auto_threshold_percent", "auto_threshold_percent")
 )
 
 -- Departure conditions
@@ -122,6 +131,7 @@ relm.define_element({
 							wire_dropdown_items
 						),
 					}),
+
 					gui.InnerHeading({
 						caption = "Flags",
 					}),
@@ -138,6 +148,30 @@ relm.define_element({
 						combinator_settings.provide_subset,
 						true
 					),
+					HF({ vertical_align = "center" }, {
+						gui.Checkbox(
+							{ "cybersyn2-combinator-mode-station.auto-mds" },
+							{ "cybersyn2-combinator-mode-station.auto-mds-tooltip" },
+							props.combinator,
+							combinator_settings.disable_auto_thresholds,
+							true
+						),
+						HF({ horizontally_stretchable = true }, {}),
+						gui.Input({
+							tooltip = {
+								"cybersyn2-combinator-mode-station.auto-mds-percent-tooltip",
+							},
+							combinator = props.combinator,
+							setting = combinator_settings.auto_threshold_percent,
+							displayed_default_value = math.floor(
+								mod_settings.default_auto_threshold_fraction * 100
+							),
+							width = 75,
+							numeric = true,
+							allow_decimal = false,
+							allow_negative = false,
+						}),
+					}),
 				}
 			),
 			ultros.WellFold({ caption = "Departure Conditions" }, {

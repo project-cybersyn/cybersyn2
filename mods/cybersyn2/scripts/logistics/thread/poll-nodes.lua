@@ -117,20 +117,31 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	stop.threshold_item_in = nil
 	stop.threshold_item_out = nil
 
-	-- Compute max autothresholds
+	-- Autothresholds
 	stop.threshold_auto_fluid_max = nil
 	stop.threshold_auto_item_max = nil
-	for layout_id in pairs(stop.allowed_layouts) do
-		local layout = storage.train_layouts[layout_id]
-		if layout then
-			local fluid_cap = layout.min_fluid_capacity
-			local item_cap = layout.min_item_slot_capacity
-			if fluid_cap and fluid_cap < (stop.threshold_auto_fluid_max or INF) then
-				stop.threshold_auto_fluid_max = fluid_cap
+	local disable_auto_thresholds =
+		comb:read_setting(combinator_settings.disable_auto_thresholds)
+	stop.disable_auto_thresholds = disable_auto_thresholds
+	if not disable_auto_thresholds then
+		for layout_id in pairs(stop.allowed_layouts) do
+			local layout = storage.train_layouts[layout_id]
+			if layout then
+				local fluid_cap = layout.min_fluid_capacity
+				local item_cap = layout.min_item_slot_capacity
+				if fluid_cap and fluid_cap < (stop.threshold_auto_fluid_max or INF) then
+					stop.threshold_auto_fluid_max = fluid_cap
+				end
+				if item_cap and item_cap < (stop.threshold_auto_item_max or INF) then
+					stop.threshold_auto_item_max = item_cap
+				end
 			end
-			if item_cap and item_cap < (stop.threshold_auto_item_max or INF) then
-				stop.threshold_auto_item_max = item_cap
-			end
+		end
+		stop.auto_threshold_fraction = mod_settings.default_auto_threshold_fraction
+		local auto_threshold_percent =
+			comb:read_setting(combinator_settings.auto_threshold_percent)
+		if auto_threshold_percent then
+			stop.auto_threshold_fraction = auto_threshold_percent / 100
 		end
 	end
 
