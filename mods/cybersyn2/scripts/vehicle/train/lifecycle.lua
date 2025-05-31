@@ -24,6 +24,7 @@ local INF = math.huge
 ---@field state "init"|"enum_luatrains"|"enum_cstrains" State of the task.
 ---@field trains LuaTrain[] Extant luatrains at beginning of sweep.
 ---@field seen_groups table<string, true> Cybersyn groups seen by sweep.
+---@field seen_layouts IdSet Cybersyn train layouts seen by sweep.
 ---@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
 ---@field layout_min_item_caps table<Id, number> Minimum item capacity for each train layout.
 ---@field layout_min_fluid_caps table<Id, number> Minimum fluid capacity for each train layout.
@@ -120,6 +121,7 @@ end
 function TrainMonitor:enter_enum_cstrains()
 	self.layout_min_fluid_caps = {}
 	self.layout_min_item_caps = {}
+	self.seen_layouts = {}
 	self:begin_async_loop(
 		tlib.t_map_a(Vehicle.all(), function(veh)
 			if veh.type == "train" then return veh.id end
@@ -141,21 +143,31 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 		train:destroy()
 		return
 	end
+
 	---@cast train Cybersyn.Train
+
+	local layout_id = train.layout_id
+	if not layout_id then
+		-- Train has no layout, nothing to do.
+		strace(stlib.WARN, "message", "enum_cstrain: train had no layout", train)
+		return
+	end
+
+	self.seen_layouts[layout_id] = true
 	-- Capacity computations
 	local fluid_capacity = train.fluid_capacity or 0
 	local item_capacity = train.item_slot_capacity or 0
 	if
 		fluid_capacity > 0
-		and fluid_capacity < (self.layout_min_fluid_caps[train.layout_id] or INF)
+		and fluid_capacity < (self.layout_min_fluid_caps[layout_id] or INF)
 	then
-		self.layout_min_fluid_caps[train.layout_id] = fluid_capacity
+		self.layout_min_fluid_caps[layout_id] = fluid_capacity
 	end
 	if
 		item_capacity > 0
-		and item_capacity < (self.layout_min_item_caps[train.layout_id] or INF)
+		and item_capacity < (self.layout_min_item_caps[layout_id] or INF)
 	then
-		self.layout_min_item_caps[train.layout_id] = item_capacity
+		self.layout_min_item_caps[layout_id] = item_capacity
 	end
 end
 
@@ -167,14 +179,33 @@ function TrainMonitor:enum_cstrains()
 end
 
 function TrainMonitor:exit_enum_cstrains()
-	-- For each train layout known to storage, assign its capacity as computed
-	-- during the enumeration.
+	-- Update data for known train layouts.
+	local layouts_deleted = false
 	for layout_id, train_layout in pairs(storage.train_layouts) do
-		local min_item_cap = self.layout_min_item_caps[layout_id]
-		local min_fluid_cap = self.layout_min_fluid_caps[layout_id]
-		train_layout.min_item_slot_capacity = min_item_cap
-		train_layout.min_fluid_capacity = min_fluid_cap
+		if not self.seen_layouts[layout_id] then
+			-- Layout is no longer in use, delete it.
+			strace(
+				stlib.INFO,
+				"message",
+				"Train layout no longer in use, deleting",
+				train_layout
+			)
+			storage.train_layouts[layout_id] = nil
+			layouts_deleted = true
+		else
+			local min_item_cap = self.layout_min_item_caps[layout_id]
+			local min_fluid_cap = self.layout_min_fluid_caps[layout_id]
+			train_layout.min_item_slot_capacity = min_item_cap
+			train_layout.min_fluid_capacity = min_fluid_cap
+		end
 	end
+
+	if layouts_deleted then cs2.raise_train_layouts_destroyed() end
+
+	-- Cleanup
+	self.layout_min_fluid_caps = nil
+	self.layout_min_item_caps = nil
+	self.seen_layouts = nil
 end
 
 -- Start thread on startup.
