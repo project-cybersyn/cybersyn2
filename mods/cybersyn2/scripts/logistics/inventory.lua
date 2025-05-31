@@ -25,6 +25,7 @@ local assign = tlib.assign
 local empty = tlib.empty
 local table_add = tlib.vector_add
 local combinator_settings = _G.cs2.combinator_settings
+local mod_settings = _G.cs2.mod_settings
 
 ---@param base table<string,int>
 ---@param addend table<string,int>
@@ -321,8 +322,11 @@ end
 ---@param request_qty uint
 ---@return uint
 local function compute_auto_threshold(stop, item, species, request_qty)
-	-- TODO: world setting for default threshold fraction
-	local thresh = request_qty * (stop.auto_threshold_fraction or 0.5)
+	local thresh = request_qty
+		* (
+			stop.auto_threshold_fraction
+			or mod_settings.default_auto_threshold_fraction
+		)
 	if species == "fluid" then
 		return min(ceil(thresh), stop.threshold_auto_fluid_max or 1)
 	elseif species == "item" then
