@@ -250,10 +250,10 @@ function LogisticsThread:poll_train_stop(stop)
 	end
 	-- Get station comb info
 	if not self:poll_train_stop_station_comb(stop) then return end
-	-- Get inventory
-	stop:update_inventory(false)
 	-- Get delivery thresholds
 	self:poll_dt_combs(stop)
+	-- Get inventory
+	stop:update_inventory(false)
 	-- Classify inventory of stop
 	return self:classify_inventory(stop)
 end
