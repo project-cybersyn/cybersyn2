@@ -193,7 +193,7 @@ lib.key_is_fluid = key_is_fluid
 
 ---Classify keys relevant to Cybersyn input mechanisms.
 ---@return "cargo"|"virtual"|nil genus Genus of the key
----@return "item"|"fluid"|nil species For `cargo` keys, speciew of the cargo.
+---@return "item"|"fluid"|nil species For `cargo` keys, species of the cargo.
 local function classify_key(key)
 	if parameter_names[key] then return end
 	local sig = key_to_signal(key)

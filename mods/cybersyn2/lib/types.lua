@@ -135,6 +135,8 @@ lib.NodeNetworkOperation = {
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
 ---@field public last_consumed_tick SignalCounts The last tick a delivery of the given item was scheduled to this node.
+---@field public disable_auto_thresholds boolean? `true` if the node should not automatically set thresholds based on its requests.
+---@field public auto_threshold_fraction? number Fraction of requests to use for auto-thresholding.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
