@@ -14,6 +14,7 @@ local TrainStop = _G.cs2.TrainStop
 local ALL_TRAINS_FILTER = {}
 local strace = stlib.strace
 local WARN = stlib.WARN
+local INF = math.huge
 
 --------------------------------------------------------------------------------
 -- Train group monitor background thread
@@ -24,6 +25,8 @@ local WARN = stlib.WARN
 ---@field trains LuaTrain[] Extant luatrains at beginning of sweep.
 ---@field seen_groups table<string, true> Cybersyn groups seen by sweep.
 ---@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
+---@field layout_min_item_caps table<Id, number> Minimum item capacity for each train layout.
+---@field layout_min_fluid_caps table<Id, number> Minimum fluid capacity for each train layout.
 local TrainMonitor = class("TrainMonitor", cs2.StatefulThread)
 
 function TrainMonitor:new()
@@ -115,6 +118,8 @@ function TrainMonitor:enum_luatrains()
 end
 
 function TrainMonitor:enter_enum_cstrains()
+	self.layout_min_fluid_caps = {}
+	self.layout_min_item_caps = {}
 	self:begin_async_loop(
 		tlib.t_map_a(Vehicle.all(), function(veh)
 			if veh.type == "train" then return veh.id end
@@ -134,6 +139,23 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 			train
 		)
 		train:destroy()
+		return
+	end
+	---@cast train Cybersyn.Train
+	-- Capacity computations
+	local fluid_capacity = train.fluid_capacity or 0
+	local item_capacity = train.item_slot_capacity or 0
+	if
+		fluid_capacity > 0
+		and fluid_capacity < (self.layout_min_fluid_caps[train.layout_id] or INF)
+	then
+		self.layout_min_fluid_caps[train.layout_id] = fluid_capacity
+	end
+	if
+		item_capacity > 0
+		and item_capacity < (self.layout_min_item_caps[train.layout_id] or INF)
+	then
+		self.layout_min_item_caps[train.layout_id] = item_capacity
 	end
 end
 
@@ -142,6 +164,17 @@ function TrainMonitor:enum_cstrains()
 		self.enum_cstrain,
 		function(thr) thr:set_state("init") end
 	)
+end
+
+function TrainMonitor:exit_enum_cstrains()
+	-- For each train layout known to storage, assign its capacity as computed
+	-- during the enumeration.
+	for layout_id, train_layout in pairs(cs2.storage.train_layouts) do
+		local min_item_cap = self.layout_min_item_caps[layout_id]
+		local min_fluid_cap = self.layout_min_fluid_caps[layout_id]
+		train_layout.min_item_capacity = min_item_cap
+		train_layout.min_fluid_capacity = min_fluid_cap
+	end
 end
 
 -- Start thread on startup.
@@ -172,6 +205,7 @@ cs2.on_luatrain_changed_state(function(event)
 				and TrainStop.get_stop_from_unit_number(stop_entity.unit_number)
 			or nil
 		if cstrain then cstrain.stopped_at = stop_entity end
+		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_train_arrived(luatrain, cstrain, stop)
 	elseif old_state == WAIT_STATION then
 		-- Train just left station
@@ -183,6 +217,7 @@ cs2.on_luatrain_changed_state(function(event)
 			end
 			cstrain.stopped_at = nil
 		end
+		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_train_departed(luatrain, cstrain, stop)
 	end
 end)

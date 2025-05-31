@@ -91,6 +91,8 @@ lib.CarriageType = {
 ---@field public bidirectional boolean `true` if the train has locomotives allowing it to move both directions.
 ---@field public n_cargo_wagons uint Number of cargo wagons in the train.
 ---@field public n_fluid_wagons uint Number of fluid wagons in the train.
+---@field public min_item_slot_capacity? uint Minimum item slot capacity of all trains matching this layout, if known.
+---@field public min_fluid_capacity? uint Minimum fluid capacity of all trains matching this layout, if known.
 
 ---@enum Cybersyn.Node.NetworkOperation
 lib.NodeNetworkOperation = {
