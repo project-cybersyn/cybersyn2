@@ -18,6 +18,7 @@ local TRACE = stlib.TRACE
 local WARN = stlib.WARN
 local key_is_cargo = slib.key_is_cargo
 local key_is_virtual = slib.key_is_virtual
+local INF = math.huge
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -115,6 +116,23 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	stop.threshold_fluid_out = nil
 	stop.threshold_item_in = nil
 	stop.threshold_item_out = nil
+
+	-- Compute max autothresholds
+	stop.threshold_auto_fluid_max = nil
+	stop.threshold_auto_item_max = nil
+	for layout_id in pairs(stop.allowed_layouts) do
+		local layout = storage.train_layouts[layout_id]
+		if layout then
+			local fluid_cap = layout.min_fluid_capacity
+			local item_cap = layout.min_item_slot_capacity
+			if fluid_cap and fluid_cap < (stop.threshold_auto_fluid_max or INF) then
+				stop.threshold_auto_fluid_max = fluid_cap
+			end
+			if item_cap and item_cap < (stop.threshold_auto_item_max or INF) then
+				stop.threshold_auto_item_max = item_cap
+			end
+		end
+	end
 
 	-- Read configuration values
 	stop.stack_thresholds =

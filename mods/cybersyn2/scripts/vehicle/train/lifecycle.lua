@@ -169,10 +169,10 @@ end
 function TrainMonitor:exit_enum_cstrains()
 	-- For each train layout known to storage, assign its capacity as computed
 	-- during the enumeration.
-	for layout_id, train_layout in pairs(cs2.storage.train_layouts) do
+	for layout_id, train_layout in pairs(storage.train_layouts) do
 		local min_item_cap = self.layout_min_item_caps[layout_id]
 		local min_fluid_cap = self.layout_min_fluid_caps[layout_id]
-		train_layout.min_item_capacity = min_item_cap
+		train_layout.min_item_slot_capacity = min_item_cap
 		train_layout.min_fluid_capacity = min_fluid_cap
 	end
 end

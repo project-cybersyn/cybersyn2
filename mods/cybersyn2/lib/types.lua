@@ -129,6 +129,8 @@ lib.NodeNetworkOperation = {
 ---@field public threshold_fluid_in uint? General inbound fluid threshold
 ---@field public threshold_item_out uint? General outbound item threshold
 ---@field public threshold_fluid_out uint? General outbound fluid threshold
+---@field public threshold_auto_item_max? uint Maximum item threshold for auto-thresholding (stacks)
+---@field public threshold_auto_fluid_max? uint Maximum fluid threshold for auto-thresholding
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
