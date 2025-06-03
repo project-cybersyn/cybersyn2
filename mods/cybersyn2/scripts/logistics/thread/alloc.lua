@@ -28,6 +28,7 @@ local key_to_stacksize = siglib.key_to_stacksize
 local empty = tlib.empty
 local order_provided_qty = cs2.order_provided_qty
 local order_requested_qty = cs2.order_requested_qty
+local band = bit32.band
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -133,11 +134,11 @@ end
 -- Neoinventory
 --------------------------------------------------------------------------------
 
----@param networks1 SignalSet
----@param networks2 SignalSet
+---@param networks1 SignalCounts
+---@param networks2 SignalCounts
 local function network_match(networks1, networks2)
-	for name in pairs(networks1 or empty) do
-		if (networks2 or empty)[name] then return true end
+	for name, mask in pairs(networks1 or empty) do
+		if band(mask, (networks2 or empty)[name] or 0) ~= 0 then return true end
 	end
 	return false
 end

@@ -421,7 +421,7 @@ function StopInventory:update(reread)
 					elseif cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal_key] then
 						-- no CS2 config signals as networks
 					else
-						order.networks[signal_key] = true
+						order.networks[signal_key] = count
 					end
 				end
 			end

@@ -170,12 +170,12 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 			stop.threshold_fluid_in = v
 			stop.threshold_fluid_out = v
 		elseif key_is_virtual(k) then
-			default_networks[k] = true
+			default_networks[k] = v
 		end
 	end
 	if not next(default_networks) then
 		local network_signal = comb:read_setting(combinator_settings.network_signal)
-		if network_signal then default_networks = { [network_signal] = true } end
+		if network_signal then default_networks = { [network_signal] = -1 } end
 	end
 	stop.default_networks = default_networks
 	stop.allow_departure_signal =
