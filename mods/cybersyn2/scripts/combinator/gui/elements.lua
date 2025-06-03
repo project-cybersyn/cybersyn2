@@ -127,6 +127,9 @@ _G.cs2.gui.Input = relm.define_element({
 	render = function(props, state)
 		local dirty = not not (state and state.dirty)
 		local value = props.combinator:read_setting(props.setting)
+		if not value and props.displayed_default_value then
+			value = props.displayed_default_value
+		end
 		local tf_props = ultros.assign({
 			value = value,
 			on_change = "on_change",

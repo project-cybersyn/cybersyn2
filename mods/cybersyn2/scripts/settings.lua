@@ -8,6 +8,7 @@ local cs2 = _G.cs2
 ---@field public warmup_time number Warmup time in seconds.
 ---@field public vehicle_warmup_time number Warmup time in seconds for vehicles.
 ---@field public queue_limit uint Max trains in a queue, 0 = no limit.
+---@field public default_auto_threshold_fraction number Default auto threshold for trains, expressed as a fraction (0.0 to 1.0).
 
 ---@type Cybersyn.ModSettings
 ---@diagnostic disable-next-line: missing-fields
@@ -30,6 +31,8 @@ local function update_mod_settings()
 		settings.global["cybersyn2-setting-vehicle-warmup-time"].value --[[@as number]]
 	mod_settings.queue_limit =
 		settings.global["cybersyn2-setting-queue-limit"].value --[[@as uint]]
+	mod_settings.default_auto_threshold_fraction = settings.global["cybersyn2-setting-default-auto-threshold-percent"].value --[[@as uint]]
+		/ 100.0
 end
 _G.cs2.update_mod_settings = update_mod_settings
 

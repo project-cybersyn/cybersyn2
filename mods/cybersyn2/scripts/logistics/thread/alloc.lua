@@ -210,7 +210,10 @@ function LogisticsThread:alloc_item_to(item, requester, is_fluid)
 		if a_can_deliver and not b_can_deliver then return true end
 		if not a_can_deliver and b_can_deliver then return false end
 		-- Priority
-		if a.priority > b.priority then return true end
+		local a_prio = a.priority
+		local b_prio = b.priority
+		if a_prio > b_prio then return true end
+		if a_prio < b_prio then return false end
 		-- Distance-busy equation
 		-- TODO: distance
 		return a.busy_value < b.busy_value
@@ -271,12 +274,15 @@ function LogisticsThread:alloc_item(item)
 	-- Sort requesters by descending priority, then by when they have last
 	-- received this item, then by how busy they are
 	tsort(requesters, function(a, b)
-		if a.priority > b.priority then return true end
-		if
-			(a.last_consumed_tick[item] or 0) < (b.last_consumed_tick[item] or 0)
-		then
-			return true
-		end
+		local a_prio, b_prio = a.priority, b.priority
+		if a_prio > b_prio then return true end
+		if a_prio < b_prio then return false end
+		-- If priorities are equal, sort by last consumed tick
+		local a_last = a.last_consumed_tick[item] or 0
+		local b_last = b.last_consumed_tick[item] or 0
+		if a_last < b_last then return true end
+		if a_last > b_last then return false end
+		-- If last consumed ticks are equal, sort by busy value
 		return a.busy_value < b.busy_value
 	end)
 

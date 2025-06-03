@@ -25,6 +25,7 @@ local assign = tlib.assign
 local empty = tlib.empty
 local table_add = tlib.vector_add
 local combinator_settings = _G.cs2.combinator_settings
+local mod_settings = _G.cs2.mod_settings
 
 ---@param base table<string,int>
 ---@param addend table<string,int>
@@ -315,6 +316,29 @@ function StopInventory:is_volatile()
 	end
 end
 
+---@param stop Cybersyn.TrainStop
+---@param item SignalKey
+---@param species "fluid"|"item"|nil
+---@param request_qty uint
+---@return uint
+local function compute_auto_threshold(stop, item, species, request_qty)
+	local thresh = request_qty
+		* (
+			stop.auto_threshold_fraction
+			or mod_settings.default_auto_threshold_fraction
+		)
+	if species == "fluid" then
+		return min(ceil(thresh), stop.threshold_auto_fluid_max or 1)
+	elseif species == "item" then
+		local max_thresh = (stop.threshold_auto_item_max or 1)
+			* (key_to_stacksize(item) or 1)
+		return min(ceil(thresh), max_thresh)
+	else
+		-- TODO: error log here
+		return 1
+	end
+end
+
 function StopInventory:update(reread)
 	if self:is_volatile() then return false end
 	self.item_stack_capacity = nil
@@ -363,12 +387,23 @@ function StopInventory:update(reread)
 			local inputs = order.combinator_input == "green" and comb.green_inputs
 				or comb.red_inputs
 			for signal_key, count in pairs(inputs or empty) do
-				local genus = classify_key(signal_key)
+				local genus, species = classify_key(signal_key)
 				if genus == "cargo" then
 					if count < 0 then
 						order.requests[signal_key] = -count
-						order.thresholds_in[signal_key] =
-							stop:get_inbound_threshold(signal_key)
+						if not stop.disable_auto_thresholds then
+							local explicit_threshold =
+								stop:get_explicit_inbound_threshold(signal_key)
+							if explicit_threshold then
+								order.thresholds_in[signal_key] = explicit_threshold
+							else
+								order.thresholds_in[signal_key] =
+									compute_auto_threshold(stop, signal_key, species, -count)
+							end
+						else
+							order.thresholds_in[signal_key] =
+								stop:get_inbound_threshold(signal_key)
+						end
 					elseif count > 0 then
 						order.provides[signal_key] = count
 						order.thresholds_out[signal_key] =

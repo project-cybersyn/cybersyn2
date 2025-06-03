@@ -187,6 +187,29 @@ function Node:get_inbound_threshold(item)
 end
 
 ---@param item SignalKey
+---@return uint? t_in Inbound threshold for the item, or `nil` if not explicitly set
+function Node:get_explicit_inbound_threshold(item)
+	local ins = self.thresholds_in
+	local is_fluid = key_is_fluid(item)
+	if is_fluid then
+		if ins and ins[item] then
+			return ins[item]
+		elseif self.threshold_fluid_in then
+			return self.threshold_fluid_in
+		end
+	else
+		local mul = 1
+		if ins and ins[item] then
+			if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
+			return ins[item] * mul
+		elseif self.threshold_item_in then
+			if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
+			return self.threshold_item_in * mul
+		end
+	end
+end
+
+---@param item SignalKey
 ---@return uint t_out Outbound threshold for the item
 function Node:get_outbound_threshold(item)
 	local outs = self.thresholds_out

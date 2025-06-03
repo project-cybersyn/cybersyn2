@@ -18,6 +18,7 @@ local TRACE = stlib.TRACE
 local WARN = stlib.WARN
 local key_is_cargo = slib.key_is_cargo
 local key_is_virtual = slib.key_is_virtual
+local INF = math.huge
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -116,6 +117,34 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	stop.threshold_item_in = nil
 	stop.threshold_item_out = nil
 
+	-- Autothresholds
+	stop.threshold_auto_fluid_max = nil
+	stop.threshold_auto_item_max = nil
+	local disable_auto_thresholds =
+		comb:read_setting(combinator_settings.disable_auto_thresholds)
+	stop.disable_auto_thresholds = disable_auto_thresholds
+	if not disable_auto_thresholds then
+		for layout_id in pairs(stop.allowed_layouts) do
+			local layout = storage.train_layouts[layout_id]
+			if layout then
+				local fluid_cap = layout.min_fluid_capacity
+				local item_cap = layout.min_item_slot_capacity
+				if fluid_cap and fluid_cap < (stop.threshold_auto_fluid_max or INF) then
+					stop.threshold_auto_fluid_max = fluid_cap
+				end
+				if item_cap and item_cap < (stop.threshold_auto_item_max or INF) then
+					stop.threshold_auto_item_max = item_cap
+				end
+			end
+		end
+		stop.auto_threshold_fraction = mod_settings.default_auto_threshold_fraction
+		local auto_threshold_percent =
+			comb:read_setting(combinator_settings.auto_threshold_percent)
+		if auto_threshold_percent then
+			stop.auto_threshold_fraction = auto_threshold_percent / 100
+		end
+	end
+
 	-- Read configuration values
 	stop.stack_thresholds =
 		not not comb:read_setting(combinator_settings.use_stack_thresholds)
@@ -196,6 +225,7 @@ function LogisticsThread:poll_dt_combs(stop)
 	local thresholds_in = nil
 	local thresholds_out = nil
 	for _, comb in pairs(combs) do
+		comb:read_inputs()
 		local inputs = comb.inputs
 		if not inputs then return end
 		local is_in = comb:read_setting(combinator_settings.dt_inbound)
@@ -231,10 +261,10 @@ function LogisticsThread:poll_train_stop(stop)
 	end
 	-- Get station comb info
 	if not self:poll_train_stop_station_comb(stop) then return end
-	-- Get inventory
-	stop:update_inventory(false)
 	-- Get delivery thresholds
 	self:poll_dt_combs(stop)
+	-- Get inventory
+	stop:update_inventory(false)
 	-- Classify inventory of stop
 	return self:classify_inventory(stop)
 end

@@ -91,6 +91,8 @@ lib.CarriageType = {
 ---@field public bidirectional boolean `true` if the train has locomotives allowing it to move both directions.
 ---@field public n_cargo_wagons uint Number of cargo wagons in the train.
 ---@field public n_fluid_wagons uint Number of fluid wagons in the train.
+---@field public min_item_slot_capacity? uint Minimum item slot capacity of all trains matching this layout, if known.
+---@field public min_fluid_capacity? uint Minimum fluid capacity of all trains matching this layout, if known.
 
 ---@enum Cybersyn.Node.NetworkOperation
 lib.NodeNetworkOperation = {
@@ -127,10 +129,14 @@ lib.NodeNetworkOperation = {
 ---@field public threshold_fluid_in uint? General inbound fluid threshold
 ---@field public threshold_item_out uint? General outbound item threshold
 ---@field public threshold_fluid_out uint? General outbound fluid threshold
+---@field public threshold_auto_item_max? uint Maximum item threshold for auto-thresholding (stacks)
+---@field public threshold_auto_fluid_max? uint Maximum fluid threshold for auto-thresholding
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
 ---@field public last_consumed_tick SignalCounts The last tick a delivery of the given item was scheduled to this node.
+---@field public disable_auto_thresholds boolean? `true` if the node should not automatically set thresholds based on its requests.
+---@field public auto_threshold_fraction? number Fraction of requests to use for auto-thresholding.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node

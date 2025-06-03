@@ -59,4 +59,13 @@ data:extend({
 		minimum_value = 0,
 		maximum_value = 100,
 	},
+	{
+		type = "int-setting",
+		name = "cybersyn2-setting-default-auto-threshold-percent",
+		order = "bd",
+		setting_type = "runtime-global",
+		default_value = 50,
+		minimum_value = 1,
+		maximum_value = 100,
+	},
 })

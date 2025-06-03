@@ -15,6 +15,7 @@ local function render_counts(counts)
 	})
 end
 
+---@param order Cybersyn.Order
 local function render_order(order)
 	return Pr({
 		type = "table",
@@ -32,9 +33,13 @@ local function render_order(order)
 			signal_counts = order.networks,
 			button_style = "flib_slot_button_grey",
 		}),
-		order.priority and mgr.SignalCountsButtons({
-			signal_counts = { ["cybersyn2-priority"] = order.priority },
+		mgr.SignalCountsButtons({
+			signal_counts = { ["cybersyn2-priority"] = order.priority or 0 },
 			button_style = "flib_slot_button_grey",
+		}),
+		mgr.SignalCountsButtons({
+			signal_counts = order.thresholds_in,
+			button_style = "flib_slot_button_cyan",
 		}),
 	})
 end
