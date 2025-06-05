@@ -24,12 +24,39 @@ _G.cs2.NetInventoryView = NetInventoryView
 function NetInventoryView:new()
 	local view = cs2.View.new(self) --[[@as Cybersyn.NetInventoryView]]
 	view.skip_node = true
+	view.provides = {}
+	view.requests = {}
+	view.needed = {}
+	view.inventory = {}
+	view.n_prov = {}
+	view.n_req = {}
+	view.n_needed = {}
 	cs2.raise_view_created(self)
 	return view
 end
 
 function NetInventoryView:set_filter(filter)
 	self.topology_id = filter.topology_id
+end
+
+function NetInventoryView:snapshot()
+	local top = cs2.get_topology(self.topology_id)
+	if not top then return end
+	self:enter_nodes(top)
+	for _, node in pairs(storage.nodes) do
+		if node.topology_id == self.topology_id then
+			self:enter_node(node)
+			local inv = node:get_inventory()
+			if inv then
+				for _, order in pairs(inv.orders) do
+					self:enter_order(order, node)
+					self:exit_order(order, node)
+				end
+			end
+			self:exit_node(node)
+		end
+	end
+	self:exit_nodes(top)
 end
 
 function NetInventoryView:read()

@@ -13,19 +13,26 @@ function View:new()
 	return storage.views[id]
 end
 
+---Set filter and configuration information for a view.
 ---@param filter table
 function View:set_filter(filter) end
+
+---Take an immediate snapshot of the view from current gamestate.
+function View:snapshot() self:update() end
 
 ---Determine if the view is valid.
 function View:is_valid() return storage.views[self.id] ~= nil end
 
+---Destroy the view.
 function View:destroy()
 	storage.views[self.id] = nil
 	cs2.raise_view_destroyed(self)
 end
 
+---Notify consumers that the view has been updated.
 function View:update() return cs2.raise_view_updated(self) end
 
+---Read current contents of the view.
 function View:read() end
 
 ---@param topology Cybersyn.Topology

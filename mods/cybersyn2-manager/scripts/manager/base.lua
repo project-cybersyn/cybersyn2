@@ -107,12 +107,13 @@ local InventoryTab = relm.define_element({
 					"net-inventory",
 					{ topology_id = top }
 				)
-				relm.set_state(
-					me,
-					function(current_state)
-						return tlib.assign(current_state or {}, { view_id = id })
-					end
-				)
+				if not id then return 0 end
+				local snapshot = remote.call("cybersyn2", "read_view", id) or empty
+				relm.set_state(me, function(current_state)
+					local x = tlib.assign(current_state, { view_id = id })
+					tlib.assign(x, snapshot)
+					return x
+				end)
 				return id
 			end,
 			function(view_id) remote.call("cybersyn2", "destroy_view", view_id) end

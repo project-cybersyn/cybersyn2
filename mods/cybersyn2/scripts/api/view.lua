@@ -7,6 +7,7 @@ function _G.cs2.remote_api.create_view(type, initial_filter)
 	if type == "net-inventory" then
 		local view = cs2.NetInventoryView:new()
 		view:set_filter(initial_filter)
+		view:snapshot()
 		return view.id
 	else
 		return nil
