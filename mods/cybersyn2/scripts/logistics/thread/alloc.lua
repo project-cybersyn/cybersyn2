@@ -29,6 +29,7 @@ local empty = tlib.empty
 local order_provided_qty = cs2.order_provided_qty
 local order_requested_qty = cs2.order_requested_qty
 local band = bit32.band
+local network_match = siglib.network_match_or
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -133,15 +134,6 @@ end
 --------------------------------------------------------------------------------
 -- Neoinventory
 --------------------------------------------------------------------------------
-
----@param networks1 SignalCounts
----@param networks2 SignalCounts
-local function network_match(networks1, networks2)
-	for name, mask in pairs(networks1 or empty) do
-		if band(mask, (networks2 or empty)[name] or 0) ~= 0 then return true end
-	end
-	return false
-end
 
 ---@param item SignalKey
 ---@param requester Cybersyn.Order

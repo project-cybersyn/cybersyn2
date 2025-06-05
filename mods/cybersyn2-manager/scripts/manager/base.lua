@@ -98,20 +98,37 @@ local InventoryColumn = relm.define_element({
 local InventoryTab = relm.define_element({
 	name = "Cybersyn.Manager.InventoryTab",
 	render = function(props, state)
-		relm_helpers.use_timer(240, "update")
-		local provided = state.provided or empty
-		local pushed = state.pushed or empty
-		local pulled = state.pulled or empty
-		local sunk = state.sunk or empty
+		relm.use_effect(
+			1,
+			function(me, top)
+				local id = remote.call(
+					"cybersyn2",
+					"create_view",
+					"net-inventory",
+					{ topology_id = top }
+				)
+				relm.set_state(
+					me,
+					function(current_state)
+						return tlib.assign(current_state or {}, { view_id = id })
+					end
+				)
+				return id
+			end,
+			function(view_id) remote.call("cybersyn2", "destroy_view", view_id) end
+		)
+		relm_helpers.use_event("on_view_updated")
+		local provided = state.provides or empty
+		local needed = state.needed or empty
 		local deficit = tlib.filter_table_in_place(
-			tlib.vector_sum(1, provided, -1, pulled),
+			tlib.vector_sum(1, provided, -1, needed),
 			function(_, v) return v < 0 end
 		)
 		return Pr({
 			type = "table",
 			vertically_stretchable = true,
 			horizontally_stretchable = true,
-			column_count = 5,
+			column_count = 3,
 		}, {
 			InventoryColumn({
 				caption = "Provided",
@@ -119,8 +136,8 @@ local InventoryTab = relm.define_element({
 				column_count = 8,
 			}),
 			InventoryColumn({
-				caption = "Pulled",
-				signal_counts = pulled,
+				caption = "Needed",
+				signal_counts = needed,
 				button_style = "flib_slot_button_yellow",
 				column_count = 6,
 			}),
@@ -130,27 +147,26 @@ local InventoryTab = relm.define_element({
 				button_style = "flib_slot_button_red",
 				column_count = 3,
 			}),
-			InventoryColumn({
-				caption = "Pushed",
-				signal_counts = pushed,
-				column_count = 4,
-			}),
-			InventoryColumn({
-				caption = "Sunk",
-				signal_counts = sunk,
-				button_style = "flib_slot_button_yellow",
-				column_count = 4,
-			}),
 		})
 	end,
-	message = function(me, payload, props)
-		if payload.key == "update" then
-			local result = remote.call("cybersyn2", "query", { type = "topologies" })
-			local first_result = (result.data or empty)[1]
-			if first_result then relm.set_state(me, first_result) end
+	message = function(me, payload, props, state)
+		if payload.key == "on_view_updated" then
+			local updated_view = payload[1]
+			local view_id = state.view_id
+			if not view_id or view_id ~= updated_view then return true end
+			local view_data = remote.call("cybersyn2", "read_view", view_id)
+			if view_data then
+				relm.set_state(
+					me,
+					function(current_state)
+						return tlib.assign(current_state or {}, view_data)
+					end
+				)
+			end
 			return true
+		else
+			return false
 		end
-		return false
 	end,
 	state = function() return {} end,
 })

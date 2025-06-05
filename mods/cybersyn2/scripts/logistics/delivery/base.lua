@@ -156,6 +156,9 @@ function DeliveryMonitor:enter_enum_deliveries()
 		tlib.keys(storage.deliveries),
 		math.ceil(cs2.PERF_DELIVERY_MONITOR_WORKLOAD * mod_settings.work_factor)
 	)
+	for _, view in pairs(storage.views) do
+		view:enter_deliveries()
+	end
 end
 
 function DeliveryMonitor:enum_delivery(delivery_id)
@@ -171,6 +174,11 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 	then
 		return delivery:destroy()
 	end
+
+	for _, view in pairs(storage.views) do
+		view:enter_delivery(delivery)
+		view:exit_delivery(delivery)
+	end
 end
 
 function DeliveryMonitor:enum_deliveries()
@@ -180,7 +188,13 @@ function DeliveryMonitor:enum_deliveries()
 	)
 end
 
-function DeliveryMonitor:exit_enum_deliveries() self.delivery_ids = nil end
+function DeliveryMonitor:exit_enum_deliveries()
+	self.delivery_ids = nil
+
+	for _, view in pairs(storage.views) do
+		view:exit_deliveries()
+	end
+end
 
 -- Start delivery monitor thread on startup.
 cs2.on_startup(function() DeliveryMonitor:new() end)

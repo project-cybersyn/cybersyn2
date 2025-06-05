@@ -8,6 +8,9 @@ if ... ~= "__cybersyn2__.lib.signal" then
 	return require("__cybersyn2__.lib.signal")
 end
 
+local tlib = require("__cybersyn2__.lib.table")
+
+local empty = tlib.empty
 local strsub = string.sub
 local strfind = string.find
 local strformat = string.format
@@ -15,6 +18,7 @@ local type = _G.type
 local abs = math.abs
 local floor = math.floor
 local tostring = _G.tostring
+local band = bit32.band
 
 local lib = {}
 
@@ -273,6 +277,17 @@ function lib.signals_to_signal_counts(signals)
 		counts[signal_to_key(signal.signal)] = signal.count
 	end
 	return counts
+end
+
+---Given collections of signal counts treated as network masks, determine
+---if they match. Uses OR for the outer operation.
+---@param networks1 SignalCounts
+---@param networks2 SignalCounts
+function lib.network_match_or(networks1, networks2)
+	for name, mask in pairs(networks1 or empty) do
+		if band(mask, (networks2 or empty)[name] or 0) ~= 0 then return true end
+	end
+	return false
 end
 
 return lib

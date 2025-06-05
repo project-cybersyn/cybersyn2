@@ -128,6 +128,9 @@ function TrainMonitor:enter_enum_cstrains()
 		end),
 		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
 	)
+	for _, view in pairs(storage.views) do
+		view:enter_vehicles()
+	end
 end
 
 function TrainMonitor:enum_cstrain(vehicle_id)
@@ -169,6 +172,12 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 	then
 		self.layout_min_item_caps[layout_id] = item_capacity
 	end
+
+	-- View vehicle visitors
+	for _, view in pairs(storage.views) do
+		view:enter_vehicle(train)
+		view:exit_vehicle(train)
+	end
 end
 
 function TrainMonitor:enum_cstrains()
@@ -201,6 +210,10 @@ function TrainMonitor:exit_enum_cstrains()
 	end
 
 	if layouts_deleted then cs2.raise_train_layouts_destroyed() end
+
+	for _, view in pairs(storage.views) do
+		view:exit_vehicles()
+	end
 
 	-- Cleanup
 	self.layout_min_fluid_caps = nil

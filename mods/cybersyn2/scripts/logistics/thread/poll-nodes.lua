@@ -34,14 +34,28 @@ end
 
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:classify_inventory(stop)
+	for _, view in pairs(storage.views) do
+		view:enter_node(stop)
+	end
 	-- Inventory is classified at shared master, so skip this step for slaves.
-	if stop.shared_inventory_master then return true end
+	if stop.shared_inventory_master then
+		for _, view in pairs(storage.views) do
+			view:exit_node(stop)
+		end
+		return true
+	end
 	local orders = stop:get_orders()
 	if not orders then
 		strace(stlib.ERROR, "message", "No orders found for stop", stop)
+		for _, view in pairs(storage.views) do
+			view:exit_node(stop)
+		end
 		return false
 	end
 	for _, order in pairs(orders) do
+		for _, view in pairs(storage.views) do
+			view:enter_order(order, stop)
+		end
 		if stop.is_producer then
 			for item in pairs(order.provides) do
 				local providers = self.providers[item]
@@ -68,6 +82,12 @@ function LogisticsThread:classify_inventory(stop)
 				append_order(self, "request_all_fluids", order)
 			end
 		end
+		for _, view in pairs(storage.views) do
+			view:exit_order(order, stop)
+		end
+	end
+	for _, view in pairs(storage.views) do
+		view:exit_node(stop)
 	end
 end
 
@@ -285,18 +305,21 @@ function LogisticsThread:enter_poll_nodes()
 		self.nodes,
 		math.ceil(cs2.PERF_NODE_POLL_WORKLOAD * mod_settings.work_factor)
 	)
+	local topology = cs2.get_topology(self.topology_id)
+	if topology then
+		for _, view in pairs(storage.views) do
+			view:enter_nodes(topology)
+		end
+	end
 end
 
 function LogisticsThread:exit_poll_nodes()
-	-- Shallow copy net inventory signal counts to the topology.
 	local topology = cs2.get_topology(self.topology_id)
-	if not topology then return end
-	-- TODO: net inventory stats
-
-	-- Fire mass inventory update event for the topology.
-	-- TODO: this should be defered to a unique state at the end of the thread
-	-- so all statistics can be updated at once.
-	topology:raise_inventory_updated()
+	if topology then
+		for _, view in pairs(storage.views) do
+			view:exit_nodes(topology)
+		end
+	end
 end
 
 function LogisticsThread:poll_nodes()

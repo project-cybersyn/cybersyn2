@@ -30,9 +30,7 @@ local function bind(event_name)
 end
 
 ---Initialize the binding system. MUST be called in the mod's `on_init` handler.
-function lib.init()
-	storage._dynbind = { id = 0, events = {}, id_key = {} }
-end
+function lib.init() storage._dynbind = { id = 0, events = {}, id_key = {} } end
 
 ---Restore dynamic bindings across save barriers. MUST be called in the mod's
 ---`on_load` handler to avoid desyncs.
@@ -55,7 +53,7 @@ function lib.dispatch(event_name, ...)
 	if not event then return end
 	for _, binding in pairs(event) do
 		local handler = handlers[binding[1]]
-		if handler then handler(event_name, binding[2], binding[3], ...) end
+		if handler then handler(event_name, binding[2], ...) end
 	end
 end
 

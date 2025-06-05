@@ -380,3 +380,16 @@ _G.cs2.on_topology_inventory_updated, _G.cs2.raise_topology_inventory_updated =
 		"nil",
 		"nil"
 	)
+
+--------------------------------------------------------------------------------
+-- Views
+--------------------------------------------------------------------------------
+
+_G.cs2.on_view_created, _G.cs2.raise_view_created =
+	event("view_created", "Cybersyn.View", "nil", "nil", "nil", "nil")
+
+_G.cs2.on_view_destroyed, _G.cs2.raise_view_destroyed =
+	event("view_destroyed", "Cybersyn.View", "nil", "nil", "nil", "nil")
+
+_G.cs2.on_view_updated, _G.cs2.raise_view_updated =
+	event("view_updated", "Cybersyn.View", "nil", "nil", "nil", "nil")

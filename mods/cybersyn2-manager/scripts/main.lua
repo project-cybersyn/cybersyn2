@@ -82,3 +82,12 @@ script.on_event(defines.events.on_lua_shortcut, function(event)
 end)
 
 commands.add_command("cs2-manager-reset", nil, function() mgr.raise_init() end)
+
+--------------------------------------------------------------------------------
+-- CS2 custom events
+--------------------------------------------------------------------------------
+
+script.on_event("cybersyn2-view-updated", function(event)
+	if not event.id then return end
+	mgr.raise_view_updated(event.id)
+end)
