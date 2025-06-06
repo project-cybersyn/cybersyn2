@@ -9,8 +9,35 @@ end
 local relm = require("__cybersyn2__.lib.relm")
 local db = require("__cybersyn2__.lib.dynamic-binding")
 local scheduler = require("__cybersyn2__.lib.scheduler")
+local tlib = require("__cybersyn2__.lib.table")
 
 local lib = {}
+
+--------------------------------------------------------------------------------
+-- Util
+--------------------------------------------------------------------------------
+
+---@param handle Relm.Handle
+---@param new_state table
+function lib.assign_state(handle, new_state)
+	relm.set_state(handle, function(current_state)
+		---@cast current_state table
+		local x = tlib.assign({}, current_state)
+		return tlib.assign(x, new_state)
+	end)
+end
+
+---@param handle Relm.Handle
+---@param key string
+---@param value any
+function lib.set_state_key(handle, key, value)
+	relm.set_state(handle, function(current_state)
+		---@cast current_state table
+		local x = tlib.assign({}, current_state)
+		x[key] = value
+		return x
+	end)
+end
 
 --------------------------------------------------------------------------------
 -- Events -> Relm

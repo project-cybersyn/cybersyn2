@@ -37,3 +37,54 @@ _G.mgr.SignalCountsButtons = relm.define_element({
 		end)
 	end,
 })
+
+---@param handle Relm.Handle
+local function view_effect(handle, filter)
+	local view_id = remote.call("cybersyn2", "create_view", filter.type, filter)
+	if not view_id then return 0 end
+	local snapshot = remote.call("cybersyn2", "read_view", view_id) or empty
+	relm.set_state(handle, function(current_state)
+		---@cast current_state table
+		local x = tlib.assign(current_state, { view_id = view_id })
+		tlib.assign(x, snapshot)
+		return x
+	end)
+	return view_id
+end
+
+---@param view_id Id
+local function view_cleanup(view_id)
+	if view_id then remote.call("cybersyn2", "destroy_view", view_id) end
+end
+
+_G.mgr.ViewWrapper = relm.define_element({
+	name = "Cybersyn.Manager.ViewWrapper",
+	render = function(props, state)
+		---@cast state table
+		relm.use_effect(props.filter or 0, view_effect, view_cleanup)
+		relm_helpers.use_event("on_view_updated")
+		local child = props.child
+		local next_props = tlib.assign({}, child.props)
+		tlib.assign(next_props, state)
+		child.props = next_props
+		return child
+	end,
+	state = function() return {} end,
+	message = function(me, payload, props, state)
+		---@cast state table
+		if payload.key == "on_view_updated" then
+			local updated_view_id = payload[1]
+			local view_id = state.view_id
+			if updated_view_id == view_id then
+				local snapshot = remote.call("cybersyn2", "read_view", view_id) or empty
+				relm.set_state(me, function(current_state)
+					---@cast current_state table
+					return tlib.assign(current_state, snapshot)
+				end)
+			end
+			return true
+		else
+			return false
+		end
+	end,
+})

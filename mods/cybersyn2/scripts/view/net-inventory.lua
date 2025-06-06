@@ -6,6 +6,7 @@ local cs2 = _G.cs2
 local max = math.max
 local network_match_or = siglib.network_match_or
 local order_requested_qty = _G.cs2.order_requested_qty
+local item_filter_any_quality_OR = siglib.item_filter_any_quality_OR
 
 ---@class Cybersyn.NetInventoryView: Cybersyn.View
 ---@field public provides SignalCounts Net provides across all matching nodes
@@ -17,6 +18,7 @@ local order_requested_qty = _G.cs2.order_requested_qty
 ---@field public n_needed SignalCounts
 ---@field public topology_id Id
 ---@field public network_filter? SignalCounts
+---@field public item_filter? SignalSet
 ---@field public skip_node boolean
 local NetInventoryView = class("NetInventoryView", cs2.View)
 _G.cs2.NetInventoryView = NetInventoryView
@@ -37,6 +39,8 @@ end
 
 function NetInventoryView:set_filter(filter)
 	self.topology_id = filter.topology_id
+	self.network_filter = filter.network_filter
+	self.item_filter = filter.item_filter
 end
 
 function NetInventoryView:snapshot()
@@ -111,17 +115,21 @@ function NetInventoryView:enter_order(order, node)
 	if node.is_producer then
 		local n_prov = self.n_prov
 		for item, qty in pairs(order.provides) do
-			local n = max(n_prov[item] or 0, qty)
-			if n > 0 then n_prov[item] = n end
+			if item_filter_any_quality_OR(item, self.item_filter) then
+				local n = max(n_prov[item] or 0, qty)
+				if n > 0 then n_prov[item] = n end
+			end
 		end
 	end
 	if node.is_consumer then
 		local n_req = self.n_req
 		local n_needed = self.n_needed
 		for item, qty in pairs(order.requests) do
-			n_req[item] = max(n_req[item] or 0, qty)
-			local n = order_requested_qty(order, item)
-			if n > 0 then n_needed[item] = n end
+			if item_filter_any_quality_OR(item, self.item_filter) then
+				n_req[item] = max(n_req[item] or 0, qty)
+				local n = order_requested_qty(order, item)
+				if n > 0 then n_needed[item] = n end
+			end
 		end
 	end
 end

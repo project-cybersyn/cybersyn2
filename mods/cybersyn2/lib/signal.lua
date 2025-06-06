@@ -290,4 +290,18 @@ function lib.network_match_or(networks1, networks2)
 	return false
 end
 
+---Given a signal key and an item filter, determine if the key passes the
+---filter. The filter is interpreted as `OR` and quality is ignored.
+---@param key SignalKey
+---@param item_filter SignalSet
+function lib.item_filter_any_quality_OR(key, item_filter)
+	if not item_filter then return true end
+	local sig = key_to_signal(key)
+	if not sig then return false end
+	if sig.type == "item" or sig.type == "fluid" then
+		return item_filter[sig.name] ~= nil
+	end
+	return false
+end
+
 return lib

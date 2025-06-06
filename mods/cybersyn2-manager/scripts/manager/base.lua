@@ -11,6 +11,7 @@ local Pr = relm.Primitive
 local VF = ultros.VFlow
 local HF = ultros.HFlow
 local empty = tlib.empty
+local ViewWrapper = _G.mgr.ViewWrapper
 
 _G.mgr.manager = {}
 _G.mgr.MANAGER_WINDOW_NAME = "cybersyn2-manager"
@@ -74,8 +75,23 @@ local InventoryColumn = relm.define_element({
 	render = function(props, state)
 		local cols = props.column_count or 5
 		return VF({
-			Pr({ type = "label", caption = props.caption }),
-			Pr({ type = "frame", style = "deep_frame_in_shallow_frame" }, {
+			Pr({
+				type = "frame",
+				style = "deep_frame_in_shallow_frame",
+				direction = "vertical",
+			}, {
+				Pr({
+					type = "frame",
+					style = "subheader_frame",
+					horizontally_stretchable = true,
+					bottom_margin = 4,
+				}, {
+					Pr({
+						type = "label",
+						style = "subheader_caption_label",
+						caption = props.caption,
+					}),
+				}),
 				Pr({
 					type = "scroll-pane",
 					width = 40 * cols + 20,
@@ -95,32 +111,11 @@ local InventoryColumn = relm.define_element({
 	end,
 })
 
-local InventoryTab = relm.define_element({
-	name = "Cybersyn.Manager.InventoryTab",
-	render = function(props, state)
-		relm.use_effect(
-			1,
-			function(me, top)
-				local id = remote.call(
-					"cybersyn2",
-					"create_view",
-					"net-inventory",
-					{ topology_id = top }
-				)
-				if not id then return 0 end
-				local snapshot = remote.call("cybersyn2", "read_view", id) or empty
-				relm.set_state(me, function(current_state)
-					local x = tlib.assign(current_state, { view_id = id })
-					tlib.assign(x, snapshot)
-					return x
-				end)
-				return id
-			end,
-			function(view_id) remote.call("cybersyn2", "destroy_view", view_id) end
-		)
-		relm_helpers.use_event("on_view_updated")
-		local provided = state.provides or empty
-		local needed = state.needed or empty
+local InventoryTabInternal = relm.define_element({
+	name = "Cybersyn.Manager.InventoryTabInternal",
+	render = function(props)
+		local provided = props.provides or empty
+		local needed = props.needed or empty
 		local deficit = tlib.filter_table_in_place(
 			tlib.vector_sum(1, provided, -1, needed),
 			function(_, v) return v < 0 end
@@ -150,26 +145,86 @@ local InventoryTab = relm.define_element({
 			}),
 		})
 	end,
-	message = function(me, payload, props, state)
-		if payload.key == "on_view_updated" then
-			local updated_view = payload[1]
-			local view_id = state.view_id
-			if not view_id or view_id ~= updated_view then return true end
-			local view_data = remote.call("cybersyn2", "read_view", view_id)
-			if view_data then
-				relm.set_state(
-					me,
-					function(current_state)
-						return tlib.assign(current_state or {}, view_data)
-					end
-				)
+})
+
+local InventoryTab = relm.define_element({
+	name = "Cybersyn.Manager.InventoryTab",
+	---@param state table
+	render = function(props, state)
+		local res = remote.call("cybersyn2", "query", { type = "topologies" })
+		local options = {}
+		for _, top in pairs(res.data or empty) do
+			options[#options + 1] = {
+				caption = top.name or "(unknown)",
+				key = top.id,
+			}
+		end
+		local network_filter = nil
+		if state.network_key then network_filter = { [state.network_key] = -1 } end
+		local item_filter = nil
+		if state.item_signal then
+			item_filter = {
+				[state.item_signal.name] = true,
+			}
+		end
+		return VF({
+			HF({ vertical_align = "center" }, {
+				ultros.Label("Topology"),
+				ultros.Dropdown({
+					value = state.topology_id,
+					options = options,
+					on_change = "topology_changed",
+				}),
+				ultros.Label("Network filter"),
+				ultros.SignalPicker({
+					on_change = "network_filter_changed",
+					virtual_signal = state.network_key,
+				}),
+				ultros.Label("Item filter"),
+				ultros.SignalPicker({
+					on_change = "item_filter_changed",
+					value = state.item_signal,
+				}),
+			}),
+			ViewWrapper({
+				filter = {
+					type = "net-inventory",
+					topology_id = state.topology_id,
+					network_filter = network_filter,
+					item_filter = item_filter,
+				},
+				child = InventoryTabInternal({}),
+			}),
+		})
+	end,
+	message = function(me, payload, props)
+		if payload.key == "topology_changed" then
+			relm_helpers.assign_state(me, { topology_id = payload.value })
+			return true
+		elseif payload.key == "network_filter_changed" then
+			if payload.value and payload.value.type == "virtual" then
+				relm_helpers.assign_state(me, { network_key = payload.value.name })
+			else
+				relm_helpers.set_state_key(me, "network_key", nil)
+			end
+			return true
+		elseif payload.key == "item_filter_changed" then
+			if
+				payload.value
+				and (payload.value.type == "item" or payload.value.type == "fluid")
+			then
+				relm_helpers.assign_state(me, { item_signal = payload.value })
+			else
+				relm_helpers.set_state_key(me, "item_signal", nil)
 			end
 			return true
 		else
 			return false
 		end
 	end,
-	state = function() return {} end,
+	state = function(initial_props)
+		return { topology_id = 1, network_key = nil, item_signal = nil }
+	end,
 })
 
 local Tabs = relm.define_element({
