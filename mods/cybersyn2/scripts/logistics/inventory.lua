@@ -376,6 +376,7 @@ function StopInventory:update(reread)
 				-- Implement auto-provide setting.
 				if
 					stop.is_producer
+					and not stop.is_consumer
 					and not comb:read_setting(combinator_settings.provide_subset)
 				then
 					assign(order.provides, self.inventory or empty)

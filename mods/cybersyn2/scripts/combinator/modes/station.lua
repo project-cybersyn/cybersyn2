@@ -146,7 +146,8 @@ relm.define_element({
 						{ "cybersyn2-combinator-mode-station.provide-all-tooltip" },
 						props.combinator,
 						combinator_settings.provide_subset,
-						true
+						true,
+						props.combinator:read_setting(combinator_settings.pr) ~= 1
 					),
 					HF({ vertical_align = "center" }, {
 						gui.Checkbox(

@@ -12,13 +12,26 @@ local HF = ultros.HFlow
 ---setting automatically.
 ---@param caption LocalisedString
 ---@param tooltip LocalisedString?
-function _G.cs2.gui.Checkbox(caption, tooltip, combinator, setting, inverse)
+---@param combinator Cybersyn.Combinator.Ephemeral
+---@param setting Cybersyn.Combinator.SettingDefinition
+---@param inverse boolean? If true, the checkbox will be inverted (checked when the setting is false).
+---@param disabled true? If true, the checkbox will be disabled and not interactable.
+function _G.cs2.gui.Checkbox(
+	caption,
+	tooltip,
+	combinator,
+	setting,
+	inverse,
+	disabled
+)
 	local value = combinator:read_setting(setting)
 	if inverse then value = not value end
+	local enabled = not disabled
 	return ultros.Checkbox({
 		caption = caption,
 		tooltip = tooltip,
 		value = value,
+		enabled = enabled,
 		on_change = function(_, state)
 			local new_state = state
 			if inverse then new_state = not state end
