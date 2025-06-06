@@ -279,6 +279,13 @@ function lib.signals_to_signal_counts(signals)
 	return counts
 end
 
+---@param signal_id SignalID|nil
+function lib.signal_is_cargo(signal_id)
+	if not signal_id then return false end
+	local ty = signal_id.type
+	return (ty == nil or ty == "item" or ty == "fluid")
+end
+
 ---Given collections of signal counts treated as network masks, determine
 ---if they match. Uses OR for the outer operation.
 ---@param networks1 SignalCounts

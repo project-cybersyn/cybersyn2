@@ -209,10 +209,7 @@ local InventoryTab = relm.define_element({
 			end
 			return true
 		elseif payload.key == "item_filter_changed" then
-			if
-				payload.value
-				and (payload.value.type == "item" or payload.value.type == "fluid")
-			then
+			if siglib.signal_is_cargo(payload.value) then
 				relm_helpers.assign_state(me, { item_signal = payload.value })
 			else
 				relm_helpers.set_state_key(me, "item_signal", nil)
