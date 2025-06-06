@@ -25,6 +25,7 @@ local key_is_fluid = signal.key_is_fluid
 local LogisticsThread = _G.cs2.LogisticsThread
 
 ---@class (exact) Cybersyn.Internal.TrainCargoState
+---@field public total_item_slots uint Total item slots. Locked slots already subtracted.
 ---@field public remaining_item_slots uint Remaining item slots. Locked slots already subtracted.
 ---@field public fluid_capacity uint Train fluid capacity. Reserved cap already subtracted.
 ---@field public seen_items table<SignalKey, boolean> Seen items.
@@ -106,6 +107,11 @@ local function try_allocation(
 	if remaining_item_slots < 1 then return true end
 	local stack_size = allocation.stack_size
 	local spillover = cargo_state.item_spillover
+	-- TODO: locked slots and spillover should not count against receiver
+	-- threshold.
+	-- Allow grace for locked slots on receiver threshold
+	to_thresh =
+		min(to_thresh, cargo_state.total_item_slots * allocation.stack_size)
 	-- Figure out the most we could put on to the train, accounting for spillover
 	-- and remaining slots. If below threshold, abort.
 	local remaining_item_capacity = (remaining_item_slots * stack_size)
@@ -143,12 +149,12 @@ local function route_train(data, train, allocation, index)
 	local reserved_capacity = from.reserved_capacity or 0
 	local spillover = from.spillover or 0
 
+	local total_item_slots =
+		max(train.item_slot_capacity - (n_cargo_wagons * reserved_slots), 0)
 	---@type Cybersyn.Internal.TrainCargoState
 	local cargo_state = {
-		remaining_item_slots = max(
-			train.item_slot_capacity - (n_cargo_wagons * reserved_slots),
-			0
-		),
+		total_item_slots = total_item_slots,
+		remaining_item_slots = total_item_slots,
 		fluid_capacity = max(
 			train.fluid_capacity - (n_fluid_wagons * reserved_capacity),
 			0
