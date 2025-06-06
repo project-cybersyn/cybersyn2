@@ -25,6 +25,7 @@
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
 ---@field public inventory_links Cybersyn.Internal.StoredLink[] State of blueprinted inventory links between shared inventory combinators
 ---@field public views {[Id]: Cybersyn.View} All views currently active, indexed by id
+---@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events.
 storage = {}
 
 ---Per-player global state.
@@ -79,4 +80,5 @@ _G.cs2.on_startup(function()
 	storage.alerts_by_entity = {}
 	storage.inventory_links = {}
 	storage.views = {}
+	storage.entities_being_destroyed = {}
 end, true)
