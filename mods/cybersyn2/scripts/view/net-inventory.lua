@@ -134,4 +134,6 @@ function NetInventoryView:enter_order(order, node)
 	end
 end
 
-function NetInventoryView:exit_nodes(topology) self:update() end
+function NetInventoryView:exit_nodes(topology)
+	if topology.id == self.topology_id then self:update() end
+end
