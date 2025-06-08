@@ -137,6 +137,11 @@ local Pr = relm.Primitive
 local ModePicker = relm.define_element({
 	name = "CombinatorGui.ModePicker",
 	render = function(props)
+		if (not props.combinator) or (not props.combinator:is_valid()) then
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
+			})
+		end
 		local desired_mode_name =
 			props.combinator:read_setting(combinator_settings.mode)
 		local options = tlib.t_map_a(
@@ -174,6 +179,11 @@ local ModePicker = relm.define_element({
 local ModeSettings = relm.define_element({
 	name = "CombinatorGui.ModeSettings",
 	render = function(props)
+		if (not props.combinator) or (not props.combinator:is_valid()) then
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
+			})
+		end
 		local desired_mode_name =
 			props.combinator:read_setting(combinator_settings.mode)
 		local mode = combinator_modes[desired_mode_name]
@@ -201,6 +211,11 @@ local ModeSettings = relm.define_element({
 local Status = relm.define_element({
 	name = "CombinatorGui.StatusArea",
 	render = function(props)
+		if (not props.combinator) or (not props.combinator:is_valid()) then
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
+			})
+		end
 		local entity = props.combinator.entity
 		return VF({
 			Pr({
@@ -237,6 +252,11 @@ local Status = relm.define_element({
 local Help = relm.define_element({
 	name = "CombinatorGui.Help",
 	render = function(props)
+		if (not props.combinator) or (not props.combinator:is_valid()) then
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
+			})
+		end
 		local desired_mode_name =
 			props.combinator:read_setting(combinator_settings.mode)
 		local mode = combinator_modes[desired_mode_name]
@@ -247,7 +267,7 @@ local Help = relm.define_element({
 			})
 		else
 			return VF({
-				Pr({ type = "label", caption = { "cybersyn2-gui.no-settings" } }),
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-help" } }),
 			})
 		end
 	end,
