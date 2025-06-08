@@ -290,7 +290,7 @@ local LeftCol = relm.define_element({
 			direction = "vertical",
 			vertically_stretchable = true,
 			width = 400,
-			minimal_height = 400,
+			minimal_height = 600,
 		}, {
 			Pr({
 				type = "scroll-pane",
@@ -349,16 +349,27 @@ relm.define_element({
 			cs2.lib.close_combinator_gui(props.player_index)
 			return true
 		elseif payload.key == "toggle_info" then
-			relm.set_state(
-				me,
-				function(prev) return { show_info = not (prev or {}).show_info } end
-			)
+			local player_state = cs2.get_or_create_player_state(props.player_index)
+			if player_state.hide_help then
+				player_state.hide_help = false
+			else
+				player_state.hide_help = true
+			end
+			local show = not player_state.hide_help
+			relm.set_state(me, { show_info = show })
 			return true
 		else
 			return false
 		end
 	end,
-	state = function() return { show_info = false } end,
+	state = function(props)
+		local player_state = cs2.get_player_state(props.player_index)
+		if player_state and player_state.hide_help then
+			return { show_info = false }
+		else
+			return { show_info = true }
+		end
+	end,
 })
 
 --------------------------------------------------------------------------------
