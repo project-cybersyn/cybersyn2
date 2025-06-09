@@ -35,6 +35,7 @@ function Node.new(type)
 		combinator_set = {},
 		created_tick = game.tick,
 		last_consumed_tick = {},
+		deliveries = {},
 	}, Node)
 
 	storage.nodes[id] = node
@@ -293,13 +294,48 @@ function Node:rebuild_inventory() end
 -- Deliveries
 --------------------------------------------------------------------------------
 
----Get all deliveries pending for this node.
----@return Cybersyn.Delivery[] deliveries All pending deliveries for this node. Treat as immutable.
-function Node:get_deliveries() return {} end
+---Get all deliveries involving this node.
+---@return IdSet deliveries All pending deliveries for this node. Treat as immutable.
+function Node:get_deliveries() return self.deliveries end
+
+function Node:get_num_deliveries() return table_size(self.deliveries) end
+
+---@param delivery_id Id?
+---@return boolean success `true` if the delivery was added, `false` if it already exists.
+function Node:add_delivery(delivery_id)
+	if not delivery_id then return false end
+	if self.deliveries[delivery_id] then
+		strace(
+			stlib.WARN,
+			"message",
+			"Node:add_delivery() called with existing delivery",
+			delivery_id
+		)
+		return false
+	end
+	self.deliveries[delivery_id] = true
+	self:defer_notify_deliveries()
+	return true
+end
+
+---Remove a delivery from this node.
+---@param delivery_id Id?
+---@return boolean success `true` if the delivery was removed, `false` if it did not exist.
+function Node:remove_delivery(delivery_id)
+	if not delivery_id then return false end
+	if not self.deliveries[delivery_id] then return false end
+	self.deliveries[delivery_id] = nil
+	self:defer_notify_deliveries()
+	return true
+end
 
 ---Fail ALL deliveries pending for this node.
 function Node:fail_all_deliveries(reason)
-	-- NOTE: implemented in subclasses
+	for delivery_id in pairs(self.deliveries) do
+		local delivery = cs2.get_delivery(delivery_id, true)
+		if delivery then delivery:fail(reason) end
+	end
+	self:defer_notify_deliveries()
 end
 
 ---Cause a delivery update event to fire on a subsequent tick.

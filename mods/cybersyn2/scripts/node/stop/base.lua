@@ -8,8 +8,6 @@ local cs2 = _G.cs2
 local Node = _G.cs2.Node
 local Topology = _G.cs2.Topology
 local Delivery = _G.cs2.Delivery
-local Inventory = _G.cs2.Inventory
-local TrueInventory = _G.cs2.TrueInventory
 local mod_settings = _G.cs2.mod_settings
 local combinator_settings = _G.cs2.combinator_settings
 
@@ -21,6 +19,7 @@ local INF = math.huge
 local tremove = table.remove
 local abs = math.abs
 local empty = tlib.empty
+local min = math.min
 
 ---@class Cybersyn.TrainStop
 local TrainStop = class("TrainStop", Node)
@@ -38,7 +37,6 @@ function TrainStop.new(stop_entity)
 	node.entity_id = stop_id
 	node.allowed_groups = {}
 	node.allowed_layouts = {}
-	node.deliveries = {}
 	node.delivery_queue = {}
 	cs2.raise_node_created(node)
 	return node
@@ -170,43 +168,49 @@ end
 -- DELIVERIES AND QUEUES
 --------------------------------------------------------------------------------
 
----Get all current and queued deliveries.
----@return Cybersyn.TrainDelivery[] deliveries All deliveries. May contain state references; treat as immutable.
-function TrainStop:get_deliveries()
-	-- TODO: unified queue model
-	local result = {} --[[@as Cybersyn.TrainDelivery[] ]]
-	for delivery_id in pairs(self.deliveries) do
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-		if delivery then result[#result + 1] = delivery end
-	end
-	for _, delivery_id in ipairs(self.delivery_queue) do
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-		if delivery then result[#result + 1] = delivery end
-	end
-	return result
-end
-
----Force remove a delivery from a train stop. Generally used when delivery
----has failed.
+---Enqueue a delivery to travel to this stop. Delivery must already have been
+---added via `add_delivery`.
 ---@param delivery_id Id
-function TrainStop:force_remove_delivery(delivery_id)
-	self.deliveries[delivery_id] = nil
-	local queue = self.delivery_queue
-	if #queue > 0 then
-		self.delivery_queue = tlib.filter(
-			queue,
-			function(id) return id ~= delivery_id end
+function TrainStop:enqueue(delivery_id)
+	if not delivery_id or not self.deliveries[delivery_id] then
+		strace(
+			stlib.ERROR,
+			"cs2",
+			"train_stop",
+			self,
+			"message",
+			"Enqueued nonexistent delivery.",
+			delivery_id
 		)
+		return false
 	end
-	-- Defer pop queue in case of multiple force removals, e.g. station
-	-- deconstruction or inventory change.
-	self:defer_pop_queue()
+	self.delivery_queue[#self.delivery_queue + 1] = delivery_id
+	self:defer_process_queue()
 end
 
+---Remove a delivery from the train stop.
 ---@param delivery_id Id
-function TrainStop:add_delivery(delivery_id)
-	self.deliveries[delivery_id] = true
-	self:defer_notify_deliveries()
+function TrainStop:remove_delivery(delivery_id)
+	local queue = self.delivery_queue
+	local n_queue = #queue
+	if n_queue > 0 then
+		if queue[1] == delivery_id then
+			-- Inline most common cases for performance.
+			if n_queue == 1 then
+				queue[1] = nil
+			else
+				tremove(queue, 1)
+			end
+		else
+			-- General case
+			self.delivery_queue = tlib.filter(
+				queue,
+				function(id) return id ~= delivery_id end
+			)
+		end
+	end
+	Node.remove_delivery(self, delivery_id)
+	self:defer_process_queue()
 end
 
 function TrainStop:train_arrived(train) end
@@ -214,59 +218,42 @@ function TrainStop:train_arrived(train) end
 ---@param train Cybersyn.Train
 function TrainStop:train_departed(train)
 	local delivery_id = train.delivery_id
+	if not delivery_id or not self.deliveries[delivery_id] then return end
 	-- When a train makes a delivery...
-	if delivery_id and self.deliveries[delivery_id] then
-		-- Clear the delivery...
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-		self.deliveries[delivery_id] = nil
-		-- TODO: consider using the event bus here.
-		-- NOTE: notify_departed adds inventory charge rebates so that hopefully
-		-- update_inventory can clear them optimistcally.
-		if delivery then delivery:notify_departed(self) end
-		-- Then try to opportunistically re-read the station's inventory.
-		self:update_inventory(true)
-		self:defer_notify_deliveries()
-	end
-	self:pop_queue()
-end
-
----Determine if net inbound trains equal or exceed limit.
----@return boolean
-function TrainStop:is_full()
-	local limit = self.entity.trains_limit or 1000
-	if limit == 0 then
-		cs2.create_alert(
-			self.entity,
-			"train_stop_limit_zero",
-			cs2.CS2_ICON_SIGNAL_ID,
-			{
-				"cybersyn2-alerts.train-stop-limit-zero",
-			},
-			600
-		)
-	end
-	return table_size(self.deliveries) >= limit
+	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+	-- Clear the delivery. This will also defer queue processing.
+	self:remove_delivery(delivery_id)
+	-- TODO: consider using the event bus here.
+	-- NOTE: notify_departed adds inventory charge rebates so that hopefully
+	-- update_inventory can clear them optimistcally.
+	if delivery then delivery:notify_departed(self) end
+	-- Then try to opportunistically re-read the station's inventory.
+	self:update_inventory(true)
 end
 
 ---Determine if the queue of this train stop exceeds the user-set global limit.
 ---@return boolean
 function TrainStop:is_queue_full()
-	local limit = mod_settings.queue_limit
+	local tlimit = self.entity.trains_limit
+	local limit = tlimit and mod_settings.queue_limit + tlimit
+		or mod_settings.queue_limit
 	if limit == 0 then return false end
 	return #self.delivery_queue >= limit
 end
 
----If deliveries < limit, pop the queue.
-function TrainStop:pop_queue()
-	while not self:is_full() and #self.delivery_queue > 0 do
-		local delivery_id = tremove(self.delivery_queue, 1)
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+---Signal all deliveries below the station limit that they can come to the station.
+function TrainStop:process_queue()
+	local queue = self.delivery_queue
+	local n = min(self.entity.trains_limit or 1000, #queue)
+	for i = 1, n do
+		local delivery_id = queue[i]
+		local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		if delivery then delivery:notify_queue(self) end
 	end
 end
 
----Defer popping queue until next frame.
-function TrainStop:defer_pop_queue()
+---Defer processing the queue until next frame.
+function TrainStop:defer_process_queue()
 	if self.deferred_pop_queue then return end
 	self.deferred_pop_queue = scheduler.at(game.tick + 1, "pop_stop_queue", self)
 	self:defer_notify_deliveries()
@@ -275,20 +262,8 @@ end
 scheduler.register_handler("pop_stop_queue", function(task)
 	local stop = task.data --[[@as Cybersyn.TrainStop]]
 	stop.deferred_pop_queue = nil
-	if stop:is_valid() then stop:pop_queue() end
+	if stop:is_valid() then stop:process_queue() end
 end)
-
-function TrainStop:fail_all_deliveries(reason)
-	for _, delivery_id in ipairs(self.delivery_queue) do
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-		if delivery then delivery:fail(reason) end
-	end
-	for delivery_id in pairs(self.deliveries) do
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-		if delivery then delivery:fail(reason) end
-	end
-	self:defer_notify_deliveries()
-end
 
 function TrainStop:fail_all_shared_deliveries(reason)
 	if self.shared_inventory_master then
@@ -304,19 +279,9 @@ function TrainStop:fail_all_shared_deliveries(reason)
 	self:fail_all_deliveries(reason)
 end
 
----@param delivery_id Id
-function TrainStop:enqueue(delivery_id)
-	self.delivery_queue[#self.delivery_queue + 1] = delivery_id
-	self:defer_notify_deliveries()
-end
-
 ---Gets the total number of deliveries, present and queued, for this stop.
 ---@return uint
-function TrainStop:get_occupancy()
-	return table_size(self.deliveries) + #self.delivery_queue
-end
-
-function TrainStop:get_num_deliveries() return table_size(self.deliveries) end
+function TrainStop:get_occupancy() return table_size(self.deliveries) end
 
 function TrainStop:get_queue_size() return #self.delivery_queue end
 
