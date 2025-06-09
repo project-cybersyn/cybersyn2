@@ -124,7 +124,15 @@ local function create_or_destroy_hidden_chest(combinator, force_destroy)
 		and combinator:read_setting(combinator_settings.live_wagon_inventory)
 		and not force_destroy
 	then
-		if (not combinator.proxy_chest) or not combinator.proxy_chest.valid then
+		local assoc_entities = combinator.associated_entities
+		if not assoc_entities then
+			combinator.associated_entities = {}
+			assoc_entities = combinator.associated_entities
+		end
+		---@cast assoc_entities table<string, LuaEntity>
+		if
+			not assoc_entities.proxy_chest or not assoc_entities.proxy_chest.valid
+		then
 			local combinator_entity = combinator.entity --[[@as LuaEntity]]
 
 			local chest = combinator_entity.surface.create_entity({
@@ -160,12 +168,14 @@ local function create_or_destroy_hidden_chest(combinator, force_destroy)
 				"Created hidden proxy chest entity"
 			)
 
-			combinator.proxy_chest = chest
+			assoc_entities.proxy_chest = chest
 		end
 	else
-		if combinator.proxy_chest then
-			if combinator.proxy_chest.valid then combinator.proxy_chest.destroy() end
-			combinator.proxy_chest = nil
+		local chest = combinator.associated_entities
+			and combinator.associated_entities.proxy_chest
+		if chest then
+			if chest.valid then chest.destroy() end
+			combinator.associated_entities.proxy_chest = nil
 			strace(
 				stlib.DEBUG,
 				"cs2",
@@ -237,8 +247,10 @@ cs2.on_train_departed(function(train, cstrain, stop)
 	if #combs > 0 then
 		for _, comb in pairs(combs) do
 			-- Clear all wagon inventory signals
-			if comb.proxy_chest and comb.proxy_chest.valid then
-				comb.proxy_chest.proxy_target_entity = nil
+			local chest = comb.associated_entities
+				and comb.associated_entities.proxy_chest
+			if chest and chest.valid then
+				chest.proxy_target_entity = nil
 				strace(
 					stlib.DEBUG,
 					"cs2",
@@ -250,19 +262,18 @@ cs2.on_train_departed(function(train, cstrain, stop)
 			comb:direct_write_outputs(empty)
 		end
 	end
-	-- TODO: remove when final decision of no filters is reached
 	-- Clear wagon inventory filters
-	-- if cstrain.is_filtered then
-	-- 	cstrain.is_filtered = nil
-	-- 	for _, carriage in pairs(train.cargo_wagons) do
-	-- 		local inv = carriage.get_inventory(defines.inventory.cargo_wagon)
-	-- 		if inv then
-	-- 			for j = 1, #inv do
-	-- 				inv.set_filter(j, nil)
-	-- 			end
-	-- 		end
-	-- 	end
-	-- end
+	if cstrain.is_filtered then
+		cstrain.is_filtered = nil
+		for _, carriage in pairs(train.cargo_wagons) do
+			local inv = carriage.get_inventory(defines.inventory.cargo_wagon)
+			if inv then
+				for j = 1, #inv do
+					inv.set_filter(j, nil)
+				end
+			end
+		end
+	end
 end)
 
 --------------------------------------------------------------------------------
@@ -318,19 +329,18 @@ local function lock_item_slots(cw_manifests, n_slots, item, count, stack_size)
 	if n_slots == 0 then return true end
 	local target_slots_per_wagon = ceil(n_slots / #cw_manifests)
 
-	-- XXX: removed item filtering from wagon control
 	---@type ItemFilter?
-	-- local item_filter = nil
-	-- if item then
-	-- 	local sig = key_to_signal(item)
-	-- 	if sig then
-	-- 		item_filter = {
-	-- 			name = sig.name,
-	-- 			quality = sig.quality,
-	-- 			comparator = "=",
-	-- 		}
-	-- 	end
-	-- end
+	local item_filter = nil
+	if item then
+		local sig = key_to_signal(item)
+		if sig then
+			item_filter = {
+				name = sig.name,
+				quality = sig.quality,
+				comparator = "=",
+			}
+		end
+	end
 
 	-- Attempt to distribute the slots evenly over all the cargo wagons,
 	-- accounting for variant capacities etc.
@@ -349,16 +359,17 @@ local function lock_item_slots(cw_manifests, n_slots, item, count, stack_size)
 					count = count - n_distributed
 					cw_manifest.manifest[item] = (cw_manifest.manifest[item] or 0)
 						+ n_distributed
-					-- XXX: removed item filters from wagon control
-					-- if item_filter then
-					-- 	for i = 1, slots_to_distribute do
-					-- 		cw_manifest.inv.set_filter(
-					-- 			cw_manifest.slot_filter_index,
-					-- 			item_filter
-					-- 		)
-					-- 		cw_manifest.slot_filter_index = cw_manifest.slot_filter_index + 1
-					-- 	end
-					-- end
+
+					-- Set the filter for the slots we just allocated
+					if item_filter then
+						for i = 1, slots_to_distribute do
+							cw_manifest.inv.set_filter(
+								cw_manifest.slot_filter_index,
+								item_filter
+							)
+							cw_manifest.slot_filter_index = cw_manifest.slot_filter_index + 1
+						end
+					end
 				end
 				distributed_some = true
 			end
@@ -472,8 +483,7 @@ local function create_wagon_manifests(train, stop, delivery)
 			) - n_slots
 			-- Distribute item slots + set filters
 			lock_item_slots(cw_manifests, n_slots, item, qty, stack_size)
-			-- TODO: remove when final decision of no filters is reached
-			-- train.is_filtered = true
+			train.is_filtered = true
 			-- Distribute spillover_slots
 			lock_item_slots(cw_manifests, spillover_slots, nil, nil, nil)
 		end
@@ -541,10 +551,12 @@ end
 ---@param comb Cybersyn.Combinator
 ---@param wagon LuaEntity
 local function set_proxy_chest_inventory(comb, wagon)
-	if comb.proxy_chest and comb.proxy_chest.valid then
+	local chest = comb.associated_entities
+		and comb.associated_entities.proxy_chest
+	if chest and chest.valid then
 		if wagon and wagon.type == "cargo-wagon" then
-			comb.proxy_chest.proxy_target_entity = wagon
-			comb.proxy_chest.proxy_target_inventory = defines.inventory.cargo_wagon
+			chest.proxy_target_entity = wagon
+			chest.proxy_target_inventory = defines.inventory.cargo_wagon
 			strace(
 				stlib.DEBUG,
 				"cs2",
@@ -554,7 +566,7 @@ local function set_proxy_chest_inventory(comb, wagon)
 				wagon
 			)
 		else
-			comb.proxy_chest.proxy_target_entity = nil
+			chest.proxy_target_entity = nil
 			strace(
 				stlib.DEBUG,
 				"cs2",
@@ -580,9 +592,7 @@ local function set_producer_wagon_combs(cstrain, stop, delivery)
 		if wagon then
 			local index = get_wagon_index(cstrain, wagon)
 			if index and manifests[index] then
-				comb:direct_write_outputs(
-					cs2.lib.create_manifest_outputs(manifests[index], -1)
-				)
+				comb:write_outputs(manifests[index], -1)
 			end
 			set_proxy_chest_inventory(comb, wagon)
 		end

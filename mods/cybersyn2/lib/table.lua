@@ -81,8 +81,10 @@ function lib.concat(...)
 	local A = {}
 	for i = 1, select("#", ...) do
 		local B = select(i, ...)
-		for j = 1, #B do
-			A[#A + 1] = B[j]
+		if B ~= nil then
+			for j = 1, #B do
+				A[#A + 1] = B[j]
+			end
 		end
 	end
 	return A
@@ -231,11 +233,13 @@ end
 ---Fisher-Yates shuffle an array in place.
 ---@generic T
 ---@param A T[]
+---@return T[] A The shuffled array.
 function lib.shuffle(A)
 	for i = #A, 2, -1 do
 		local j = random(i)
 		A[i], A[j] = A[j], A[i]
 	end
+	return A
 end
 
 ---Generates a stateless iterator for use with `for` that iterates over
@@ -325,6 +329,47 @@ function lib.filter_in_place(A, f)
 	for i = #A, j, -1 do
 		A[i] = nil
 	end
+end
+
+---Filter a table in place.
+---@generic K, V
+---@param T table<K, V>
+---@param f fun(key: K, value: V): boolean?
+---@return table<K, V> T The filtered table.
+function lib.filter_table_in_place(T, f)
+	for k, v in pairs(T) do
+		if not f(k, v) then T[k] = nil end
+	end
+	return T
+end
+
+---Pairwise add a*T2 to T1, in-place.
+---@generic K, V
+---@param T1 table<K, V>
+---@param a V
+---@param T2 table<K, V>
+function lib.vector_add(T1, a, T2)
+	for k, v in pairs(T2) do
+		T1[k] = (T1[k] or 0) + a * v
+	end
+end
+
+---Pairwise sum two tables whose values are numerical. Computes
+---`a * T1 + b * T2`
+---@generic K, V
+---@param a V
+---@param T1 table<K, V>
+---@param b V
+---@param T2 table<K, V>
+function lib.vector_sum(a, T1, b, T2)
+	local result = {}
+	for k, v in pairs(T1) do
+		result[k] = a * v + b * (T2[k] or 0)
+	end
+	for k, v in pairs(T2) do
+		if not T1[k] then result[k] = b * v end
+	end
+	return result
 end
 
 return lib

@@ -15,6 +15,8 @@ local QueryType = {
 	["combinators"] = "combinators",
 	["stops"] = "stops",
 	["vehicles"] = "vehicles",
+	["inventories"] = "inventories",
+	["topologies"] = "topologies",
 }
 lib.QueryType = QueryType
 
@@ -83,5 +85,13 @@ lib.QueryType = QueryType
 
 ---@class Cybersyn.Query.Vehicles.Result: Cybersyn.QueryResult
 ---@field public data Cybersyn.Vehicle[]
+
+---@class Cybersyn.Query.Topologies.Input: Cybersyn.QueryInput
+---@field public type "topologies"
+---@field public ids Id[]? List of topology IDs to query.
+---@field public surface_index Id[]? List of surface indices to query.
+
+---@class Cybersyn.Query.Topologies.Result: Cybersyn.QueryResult
+---@field public data Cybersyn.Topology[]
 
 return lib

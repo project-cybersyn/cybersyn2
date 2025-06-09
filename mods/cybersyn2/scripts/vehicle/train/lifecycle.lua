@@ -14,6 +14,7 @@ local TrainStop = _G.cs2.TrainStop
 local ALL_TRAINS_FILTER = {}
 local strace = stlib.strace
 local WARN = stlib.WARN
+local INF = math.huge
 
 --------------------------------------------------------------------------------
 -- Train group monitor background thread
@@ -23,12 +24,18 @@ local WARN = stlib.WARN
 ---@field state "init"|"enum_luatrains"|"enum_cstrains" State of the task.
 ---@field trains LuaTrain[] Extant luatrains at beginning of sweep.
 ---@field seen_groups table<string, true> Cybersyn groups seen by sweep.
+---@field seen_layouts IdSet Cybersyn train layouts seen by sweep.
 ---@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
+---@field layout_min_item_caps table<Id, number> Minimum item capacity for each train layout.
+---@field layout_min_fluid_caps table<Id, number> Minimum fluid capacity for each train layout.
 local TrainMonitor = class("TrainMonitor", cs2.StatefulThread)
 
-function TrainMonitor.new()
-	local thread = setmetatable({}, TrainMonitor) --[[@as Cybersyn.Internal.TrainMonitor]]
+function TrainMonitor:new()
+	local thread = cs2.StatefulThread.new(self) --[[@as Cybersyn.Internal.TrainMonitor]]
+	thread.friendly_name = "train_monitor"
+	thread.workload = 20
 	thread:set_state("init")
+	thread:wake()
 	return thread
 end
 
@@ -37,11 +44,11 @@ function TrainMonitor:init()
 end
 
 function TrainMonitor:enter_enum_luatrains()
-	self.stride =
-		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
-	self.index = 1
 	self.seen_groups = {}
-	self.trains = game.train_manager.get_trains(ALL_TRAINS_FILTER)
+	self:begin_async_loop(
+		game.train_manager.get_trains(ALL_TRAINS_FILTER),
+		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
+	)
 end
 
 ---@param luatrain LuaTrain
@@ -105,19 +112,25 @@ function TrainMonitor:enum_luatrain(luatrain)
 end
 
 function TrainMonitor:enum_luatrains()
-	self:async_loop(
-		self.trains,
+	self:step_async_loop(
 		self.enum_luatrain,
 		function(thr) thr:set_state("enum_cstrains") end
 	)
 end
 
 function TrainMonitor:enter_enum_cstrains()
-	self.index = 1
-	self.trains = nil
-	self.train_ids = tlib.t_map_a(Vehicle.all(), function(veh)
-		if veh.type == "train" then return veh.id end
-	end)
+	self.layout_min_fluid_caps = {}
+	self.layout_min_item_caps = {}
+	self.seen_layouts = {}
+	self:begin_async_loop(
+		tlib.t_map_a(Vehicle.all(), function(veh)
+			if veh.type == "train" then return veh.id end
+		end),
+		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
+	)
+	for _, view in pairs(storage.views) do
+		view:enter_vehicles()
+	end
 end
 
 function TrainMonitor:enum_cstrain(vehicle_id)
@@ -131,24 +144,85 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 			train
 		)
 		train:destroy()
+		return
+	end
+
+	---@cast train Cybersyn.Train
+
+	local layout_id = train.layout_id
+	if not layout_id then
+		-- Train has no layout, nothing to do.
+		strace(stlib.WARN, "message", "enum_cstrain: train had no layout", train)
+		return
+	end
+
+	self.seen_layouts[layout_id] = true
+	-- Capacity computations
+	local fluid_capacity = train.fluid_capacity or 0
+	local item_capacity = train.item_slot_capacity or 0
+	if
+		fluid_capacity > 0
+		and fluid_capacity < (self.layout_min_fluid_caps[layout_id] or INF)
+	then
+		self.layout_min_fluid_caps[layout_id] = fluid_capacity
+	end
+	if
+		item_capacity > 0
+		and item_capacity < (self.layout_min_item_caps[layout_id] or INF)
+	then
+		self.layout_min_item_caps[layout_id] = item_capacity
+	end
+
+	-- View vehicle visitors
+	for _, view in pairs(storage.views) do
+		view:enter_vehicle(train)
+		view:exit_vehicle(train)
 	end
 end
 
 function TrainMonitor:enum_cstrains()
-	self:async_loop(
-		self.train_ids,
+	self:step_async_loop(
 		self.enum_cstrain,
 		function(thr) thr:set_state("init") end
 	)
 end
 
-function TrainMonitor:exit_enum_cstrains() self.train_ids = nil end
+function TrainMonitor:exit_enum_cstrains()
+	-- Update data for known train layouts.
+	local layouts_deleted = false
+	for layout_id, train_layout in pairs(storage.train_layouts) do
+		if not self.seen_layouts[layout_id] then
+			-- Layout is no longer in use, delete it.
+			strace(
+				stlib.INFO,
+				"message",
+				"Train layout no longer in use, deleting",
+				train_layout
+			)
+			storage.train_layouts[layout_id] = nil
+			layouts_deleted = true
+		else
+			local min_item_cap = self.layout_min_item_caps[layout_id]
+			local min_fluid_cap = self.layout_min_fluid_caps[layout_id]
+			train_layout.min_item_slot_capacity = min_item_cap
+			train_layout.min_fluid_capacity = min_fluid_cap
+		end
+	end
 
-cs2.schedule_thread(
-	"train_group_monitor",
-	1,
-	function() return TrainMonitor.new() end
-)
+	if layouts_deleted then cs2.raise_train_layouts_destroyed() end
+
+	for _, view in pairs(storage.views) do
+		view:exit_vehicles()
+	end
+
+	-- Cleanup
+	self.layout_min_fluid_caps = nil
+	self.layout_min_item_caps = nil
+	self.seen_layouts = nil
+end
+
+-- Start thread on startup.
+cs2.on_startup(function() TrainMonitor:new() end)
 
 --------------------------------------------------------------------------------
 -- Handle trains arriving/leaving at stops
@@ -175,6 +249,7 @@ cs2.on_luatrain_changed_state(function(event)
 				and TrainStop.get_stop_from_unit_number(stop_entity.unit_number)
 			or nil
 		if cstrain then cstrain.stopped_at = stop_entity end
+		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_train_arrived(luatrain, cstrain, stop)
 	elseif old_state == WAIT_STATION then
 		-- Train just left station
@@ -186,6 +261,7 @@ cs2.on_luatrain_changed_state(function(event)
 			end
 			cstrain.stopped_at = nil
 		end
+		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_train_departed(luatrain, cstrain, stop)
 	end
 end)

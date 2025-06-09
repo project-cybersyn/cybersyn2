@@ -6,9 +6,7 @@
 --------------------------------------------------------------------------------
 
 local stlib = require("__cybersyn2__.lib.strace")
-local log = require("__cybersyn2__.lib.logging")
 local tlib = require("__cybersyn2__.lib.table")
-local bplib = require("__cybersyn2__.lib.blueprint")
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local EphemeralCombinator = _G.cs2.EphemeralCombinator
@@ -48,34 +46,9 @@ local NO_NETWORKS = { red = false, green = false }
 -- Combinator lifecycle events.
 --------------------------------------------------------------------------------
 
-cs2.on_built_combinator(function(combinator_entity, tags)
-	local comb_id = combinator_entity.unit_number --[[@as UnitNumber]]
-	local comb = Combinator.get(comb_id, true)
-	if comb then
-		-- Should be impossible
-		return strace(
-			ERROR,
-			"cs2",
-			"combinator",
-			"message",
-			"Duplicate combinator unit number, should be impossible.",
-			comb_id
-		)
-	end
-	comb = Combinator.new(combinator_entity)
-
-	strace(
-		TRACE,
-		"cs2",
-		"combinator",
-		"message",
-		"combinator created with tags",
-		tags
-	)
-
-	-- Store settings in cache
-	storage.combinator_settings_cache[comb.id] =
-		tlib.deep_copy(tags or cs2.DEFAULT_COMBINATOR_SETTINGS, true)
+---@param combinator_entity LuaEntity
+local function create_combinator(combinator_entity)
+	local comb = Combinator.new(combinator_entity)
 
 	-- Add LHS conditions. First is so we can control what displays in the
 	-- combinator's window, second is generic "always-true"
@@ -103,6 +76,42 @@ cs2.on_built_combinator(function(combinator_entity, tags)
 	}
 
 	cs2.raise_combinator_created(comb)
+end
+
+---@param comb Cybersyn.Combinator
+---@param is_reset boolean
+local function destroy_combinator(comb, is_reset)
+	comb.is_being_destroyed = true
+
+	cs2.raise_combinator_destroyed(comb, is_reset)
+
+	if comb.associated_entities then
+		for _, entity in pairs(comb.associated_entities) do
+			if entity.valid then entity.destroy() end
+		end
+	end
+end
+
+cs2.on_built_combinator(function(combinator_entity, tags)
+	local comb_id = combinator_entity.unit_number --[[@as UnitNumber]]
+	local comb = Combinator.get(comb_id, true)
+	if comb then
+		-- Should be impossible
+		return strace(
+			ERROR,
+			"cs2",
+			"combinator",
+			"message",
+			"Duplicate combinator unit number, should be impossible.",
+			comb_id
+		)
+	end
+
+	-- Copy settings from tags to cache
+	storage.combinator_settings_cache[comb_id] =
+		tlib.deep_copy(tags or cs2.DEFAULT_COMBINATOR_SETTINGS, true)
+
+	create_combinator(combinator_entity)
 end)
 
 cs2.on_built_combinator_ghost(function(ghost)
@@ -115,15 +124,7 @@ end)
 cs2.on_broken_combinator(function(combinator_entity)
 	local comb = Combinator.get(combinator_entity.unit_number, true)
 	if not comb then return end
-	comb.is_being_destroyed = true
-
-	cs2.raise_combinator_destroyed(comb)
-
-	if comb.associated_entities then
-		for _, entity in pairs(comb.associated_entities) do
-			if entity.valid then entity.destroy() end
-		end
-	end
+	destroy_combinator(comb, false)
 
 	-- Clear settings cache
 	storage.combinator_settings_cache[comb.id] = nil
@@ -152,7 +153,8 @@ local function bp_combinator_filter(bp_entity)
 end
 
 cs2.on_blueprint_built(function(bpinfo)
-	local overlap_map = bpinfo:get_overlap(bp_combinator_filter)
+	local overlap_map =
+		bpinfo:map_blueprint_indices_to_overlapping_entities(bp_combinator_filter)
 	if overlap_map and next(overlap_map) then
 		local bp_entities = bpinfo:get_entities() --[[@as BlueprintEntity[] ]]
 		for i, entity in pairs(overlap_map) do
@@ -216,7 +218,7 @@ cs2.on_blueprint_setup(function(bpinfo)
 	-- if changed then bpinfo:set_entities(bp_entities) end
 
 	-- Save config tags into blueprint
-	local bp_to_world = bpinfo:get_bp_to_world()
+	local bp_to_world = bpinfo:map_blueprint_indices_to_world_entities()
 	if not bp_to_world then return end
 	for bpid, entity in pairs(bp_to_world) do
 		if entity_is_combinator_or_ghost(entity) then
@@ -244,4 +246,40 @@ end
 cs2.on_combinator_created(hotwire_combinator)
 cs2.on_combinator_setting_changed(function(combinator, setting)
 	if setting == "mode" or setting == nil then hotwire_combinator(combinator) end
+end)
+
+--------------------------------------------------------------------------------
+-- Reset
+--------------------------------------------------------------------------------
+cs2.on_reset(function(reset_data)
+	-- Need to hand off combinator settings so they can be restored after reset.
+	reset_data.combinator_settings_cache = storage.combinator_settings_cache
+
+	-- Must destroy all hidden associated entities, otherwise they will
+	-- be double-created.
+	for _, comb in pairs(storage.combinators) do
+		if comb.associated_entities then
+			for _, entity in pairs(comb.associated_entities) do
+				if entity.valid then entity.destroy() end
+			end
+		end
+	end
+end)
+
+cs2.on_startup(function(reset_data)
+	-- Restore combinator settings after reset.
+	if reset_data.combinator_settings_cache then
+		storage.combinator_settings_cache = reset_data.combinator_settings_cache
+	end
+
+	-- Recreate all combinators in the world.
+	for _, surface in pairs(game.surfaces) do
+		for _, comb_entity in
+			pairs(surface.find_entities_filtered({ name = COMBINATOR_NAME }))
+		do
+			if not storage.combinators[comb_entity.unit_number] then
+				create_combinator(comb_entity)
+			end
+		end
+	end
 end)

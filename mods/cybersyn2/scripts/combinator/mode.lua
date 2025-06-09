@@ -32,7 +32,13 @@ function _G.cs2.get_combinator_mode(name) return modes[name or ""] end
 
 cs2.on_combinator_setting_changed(function(combinator, setting)
 	if (not setting) or setting == "mode" then
-		combinator.mode = combinator:get_raw_setting("mode") --[[@as string?]]
+		local prev_mode = combinator.mode
+		local new_mode = combinator:get_raw_setting("mode") --[[@as string?]]
+		if prev_mode ~= new_mode then
+			combinator.mode = new_mode
+			combinator:clear_outputs()
+			-- TODO: specific mode change event?
+		end
 	end
 end, true)
 

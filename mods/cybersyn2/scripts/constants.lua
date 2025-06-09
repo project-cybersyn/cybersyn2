@@ -18,16 +18,19 @@ _G.cs2.MAX_RAILS_TO_SEARCH = 112
 _G.cs2.LONGEST_INSERTER_REACH = 2
 
 -- Base number of trains to examine per iteration of the train group monitor.
-_G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 5
+_G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 4
+-- Base number of nodes to examine per `enum_nodes` iteration.
+_G.cs2.PERF_ENUM_NODES_WORKLOAD = 10
 -- Base number of combinators to examine per `poll_combinators` iteration.
--- TODO: all these are set to 1 for debugging convenience, adjust later
-_G.cs2.PERF_COMB_POLL_WORKLOAD = 1
+_G.cs2.PERF_POLL_COMBINATORS_WORKLOAD = 6
 -- Base number of nodes to examine per `poll_nodes` iteration
-_G.cs2.PERF_NODE_POLL_WORKLOAD = 1
+_G.cs2.PERF_NODE_POLL_WORKLOAD = 4
+-- Base number of items to examine per `cull` iteration.
+_G.cs2.PERF_CULL_WORKLOAD = 20
 -- Base number of items to examine per `alloc` iteration.
 _G.cs2.PERF_ALLOC_ITEM_WORKLOAD = 1
 -- Number of deliveries to examine per delivery monitor iteration.
-_G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 10
+_G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 5
 
 -- Expiration time in ticks for a finished delivery to be deleted from storage.
 -- TODO: possibly make this a setting
@@ -37,12 +40,22 @@ _G.cs2.DELIVERY_EXPIRATION_TICKS = 3600 * 15 -- 15 minutes
 -- keep the hypothetical link in storage for this many ticks. (This gives
 -- bots time to build the appropriate stations.)
 -- If link is not restored after this time, it will be deleted from storage.
-_G.cs2.SHARED_INVENTORY_RELINK_ATTEMPT_TICKS = 3600 * 5 -- 5 minutes
+_G.cs2.SHARED_INVENTORY_RELINK_ATTEMPT_TICKS = 3600 * 15 -- 15 minutes
 
 -- Set of virtual signals considered configuration signals; these can't
 -- be used as network names.
 _G.cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET = {
 	["cybersyn2"] = true,
+	["cybersyn2-priority"] = true,
+	["cybersyn2-all-items"] = true,
+	["cybersyn2-all-fluids"] = true,
+}
+
+-- Set of virtual signals that are invalid for network names.
+_G.cs2.INVALID_NETWORK_SIGNAL_SET = {
+	["signal-everything"] = true,
+	["signal-anything"] = true,
+	["signal-each"] = true,
 	["cybersyn2-priority"] = true,
 	["cybersyn2-all-items"] = true,
 	["cybersyn2-all-fluids"] = true,

@@ -9,8 +9,35 @@ end
 local relm = require("__cybersyn2__.lib.relm")
 local db = require("__cybersyn2__.lib.dynamic-binding")
 local scheduler = require("__cybersyn2__.lib.scheduler")
+local tlib = require("__cybersyn2__.lib.table")
 
 local lib = {}
+
+--------------------------------------------------------------------------------
+-- Util
+--------------------------------------------------------------------------------
+
+---@param handle Relm.Handle
+---@param new_state table
+function lib.assign_state(handle, new_state)
+	relm.set_state(handle, function(current_state)
+		---@cast current_state table
+		local x = tlib.assign({}, current_state)
+		return tlib.assign(x, new_state)
+	end)
+end
+
+---@param handle Relm.Handle
+---@param key string
+---@param value any
+function lib.set_state_key(handle, key, value)
+	relm.set_state(handle, function(current_state)
+		---@cast current_state table
+		local x = tlib.assign({}, current_state)
+		x[key] = value
+		return x
+	end)
+end
 
 --------------------------------------------------------------------------------
 -- Events -> Relm
@@ -67,6 +94,9 @@ end
 
 local function use_timer_unbinder(id) scheduler.stop(id) end
 
+---Send the given message to the component every `period` ticks.
+---@param period uint The period in ticks to send the message.
+---@param msg string The message to send to the component. The message will be sent with the key `msg`.
 function lib.use_timer(period, msg)
 	relm.use_effect({ period, msg }, use_timer_binder, use_timer_unbinder)
 end

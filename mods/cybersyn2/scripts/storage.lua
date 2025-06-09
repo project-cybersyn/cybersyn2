@@ -23,6 +23,9 @@
 ---@field public surface_index_to_train_topology table<uint,Id> Map from planetary surfaces to associated train topologies
 ---@field public alerts {[Id]: Cybersyn.Alert} Currently displayed alerts
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
+---@field public inventory_links Cybersyn.Internal.StoredLink[] State of blueprinted inventory links between shared inventory combinators
+---@field public views {[Id]: Cybersyn.View} All views currently active, indexed by id
+---@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events.
 storage = {}
 
 ---Per-player global state.
@@ -33,6 +36,7 @@ storage = {}
 ---@field public combinator_gui_root? int The Relm root id of the open combinator gui.
 ---@field public connection_render_objects? LuaRenderObject[] The render objects used to visualize connections in the player's UI.
 ---@field public connection_source? LuaEntity The combinator entity that is the source of the connection the user is creating in the UI.
+---@field public hide_help? boolean Whether the player has hidden the help oane
 
 ---Get the player state for a player, creating it if it doesn't exist.
 ---@param player_index PlayerIndex
@@ -55,7 +59,7 @@ local function get_player_state(player_index)
 end
 _G.cs2.get_player_state = get_player_state
 
-_G.cs2.on_init(function()
+_G.cs2.on_startup(function()
 	storage.players = {}
 	storage.vehicles = {}
 	storage.combinators = {}
@@ -75,4 +79,7 @@ _G.cs2.on_init(function()
 	storage.surface_index_to_train_topology = {}
 	storage.alerts = {}
 	storage.alerts_by_entity = {}
+	storage.inventory_links = {}
+	storage.views = {}
+	storage.entities_being_destroyed = {}
 end, true)

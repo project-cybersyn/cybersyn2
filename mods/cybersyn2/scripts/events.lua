@@ -19,7 +19,6 @@ _G.cs2.on_init, _G.cs2.raise_init =
 _G.cs2.on_load, _G.cs2.raise_load =
 	event("load", "nil", "nil", "nil", "nil", "nil")
 
----Event corresponding to Factorio's `on_configuration_changed`.
 _G.cs2.on_configuration_changed, _G.cs2.raise_configuration_changed = event(
 	"configuration_changed",
 	"ConfigurationChangedData",
@@ -34,6 +33,24 @@ _G.cs2.on_configuration_changed, _G.cs2.raise_configuration_changed = event(
 --- * Arg 1 - string|nil - The name of the setting that was changed, or `nil` if unknown. When `nil` you must assume any/all settings have changed.
 _G.cs2.on_mod_settings_changed, _G.cs2.raise_mod_settings_changed =
 	event("mod_settings_changed", "StringOrNil", "nil", "nil", "nil", "nil")
+
+---Event raised before a reset is attempted. The `ResetData` object may be used to
+---indicate reasons why a reset should not proceed.
+_G.cs2.on_try_reset, _G.cs2.raise_try_reset =
+	event("try_reset", "Cybersyn.ResetData", "nil", "nil", "nil", "nil")
+
+---Event raised immediately before wiping the global state. The `ResetData`
+---object may be used to hand over information that needs to be re-copied
+---into the new global state.
+--- * Arg 1 - `Cybersyn.ResetData` - The reset data object. This is a table that can be used to store information that needs to be copied into the new global state.
+_G.cs2.on_reset, _G.cs2.raise_reset =
+	event("reset", "Cybersyn.ResetData", "nil", "nil", "nil", "nil")
+
+---Event raised on startup or after clearing the global state.
+---* Arg 1 - `Cybersyn.ResetData` - The reset data object. May contain handoff
+---information if called after a reset.
+_G.cs2.on_startup, _G.cs2.raise_startup =
+	event("startup", "Cybersyn.ResetData", "nil", "nil", "nil", "nil")
 
 --------------------------------------------------------------------------------
 -- Factorio world events
@@ -114,30 +131,17 @@ _G.cs2.on_luatrain_changed_state, _G.cs2.raise_luatrain_changed_state = event(
 )
 
 ---Event raised when a blueprint is pasted into the world.
-_G.cs2.on_blueprint_built, _G.cs2.raise_blueprint_built = event(
-	"blueprint_built",
-	"BlueprintLib.BlueprintInfo",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
+_G.cs2.on_blueprint_built, _G.cs2.raise_blueprint_built =
+	event("blueprint_built", "bplib.BlueprintBuild", "nil", "nil", "nil", "nil")
 
-_G.cs2.on_blueprint_setup, _G.cs2.raise_blueprint_setup = event(
-	"blueprint_setup",
-	"BlueprintLib.BlueprintInfo",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
+_G.cs2.on_blueprint_setup, _G.cs2.raise_blueprint_setup =
+	event("blueprint_setup", "bplib.BlueprintSetup", "nil", "nil", "nil", "nil")
 
 ---Event raised when a relevant entity is "selected" as defined by
 ---Factorio.
 _G.cs2.on_selected, _G.cs2.raise_selected =
 	event("selected", "LuaEntity", "LuaEntity", "LuaPlayer", "nil", "nil")
 
----Event raised when a player clears his cursor.
 _G.cs2.on_cursor_cleared, _G.cs2.raise_cursor_cleared =
 	event("cursor_cleared", "LuaPlayer", "nil", "nil", "nil", "nil")
 
@@ -159,6 +163,11 @@ _G.cs2.on_train_layout_created, _G.cs2.raise_train_layout_created = event(
 	"nil",
 	"nil"
 )
+
+---Event raised when train layouts are destroyed. This is a bulk event and
+---a list of particular destroyed layouts is not provided.
+_G.cs2.on_train_layouts_destroyed, _G.cs2.raise_train_layouts_destroyed =
+	event("train_layouts_destroyed", "nil", "nil", "nil", "nil", "nil")
 
 ---@alias Cybersyn.TrainOrNil Cybersyn.Train|nil
 ---@alias Cybersyn.TrainStopOrNil Cybersyn.TrainStop|nil
@@ -190,10 +199,13 @@ _G.cs2.on_train_departed, _G.cs2.raise_train_departed = event(
 _G.cs2.on_combinator_created, _G.cs2.raise_combinator_created =
 	event("combinator_created", "Cybersyn.Combinator", "nil", "nil", "nil", "nil")
 
+---Event raised when a combinator is destroyed.
+---* Arg 1 - `Cybersyn.Combinator` - The combinator.
+---* Arg 2 - `boolean` - `true` if this is the result of a reset, `false` if it is the result of actual combinator destruction.
 _G.cs2.on_combinator_destroyed, _G.cs2.raise_combinator_destroyed = event(
 	"combinator_destroyed",
 	"Cybersyn.Combinator",
-	"nil",
+	"boolean",
 	"nil",
 	"nil",
 	"nil"
@@ -352,3 +364,32 @@ _G.cs2.on_delivery_state_changed, _G.cs2.raise_delivery_state_changed = event(
 	"nil",
 	"nil"
 )
+
+---Event raised when the collection of deliveries targeting a node changes.
+_G.cs2.on_node_deliveries_changed, _G.cs2.raise_node_deliveries_changed =
+	event("node_deliveries_changed", "Cybersyn.Node", "nil", "nil", "nil", "nil")
+
+---Event raised when the logistics thread has finished computing net inventory
+---for an entire topology.
+_G.cs2.on_topology_inventory_updated, _G.cs2.raise_topology_inventory_updated =
+	event(
+		"topology_inventory_updated",
+		"Cybersyn.Topology",
+		"nil",
+		"nil",
+		"nil",
+		"nil"
+	)
+
+--------------------------------------------------------------------------------
+-- Views
+--------------------------------------------------------------------------------
+
+_G.cs2.on_view_created, _G.cs2.raise_view_created =
+	event("view_created", "Cybersyn.View", "nil", "nil", "nil", "nil")
+
+_G.cs2.on_view_destroyed, _G.cs2.raise_view_destroyed =
+	event("view_destroyed", "Cybersyn.View", "nil", "nil", "nil", "nil")
+
+_G.cs2.on_view_updated, _G.cs2.raise_view_updated =
+	event("view_updated", "Cybersyn.View", "nil", "nil", "nil", "nil")

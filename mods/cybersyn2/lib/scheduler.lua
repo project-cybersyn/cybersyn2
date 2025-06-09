@@ -53,12 +53,10 @@ function lib.register_handler(name, handler) handlers[name] = handler end
 
 ---Initialize the scheduler system. Must be called in the mod's `on_init` handler.
 function lib.init()
-	if not storage._sched then
-		storage._sched = {
-			tasks = {},
-			at = {},
-		}
-	end
+	storage._sched = {
+		tasks = {},
+		at = {},
+	}
 end
 
 local function do_at(tick, task_id)

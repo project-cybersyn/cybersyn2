@@ -7,6 +7,7 @@ local class = require("__cybersyn2__.lib.class").class
 local tlib = require("__cybersyn2__.lib.table")
 local stlib = require("__cybersyn2__.lib.strace")
 local signal = require("__cybersyn2__.lib.signal")
+local scheduler = require("__cybersyn2__.lib.scheduler")
 local cs2 = _G.cs2
 local Inventory = _G.cs2.Inventory
 local mod_settings = _G.cs2.mod_settings
@@ -18,6 +19,7 @@ local pairs = _G.pairs
 local key_is_fluid = signal.key_is_fluid
 local key_to_stacksize = signal.key_to_stacksize
 local Combinator = _G.cs2.Combinator
+local empty = tlib.empty
 
 ---@class Cybersyn.Node
 local Node = class("Node")
@@ -32,6 +34,8 @@ function Node.new(type)
 		type = type or "generic", -- default type
 		combinator_set = {},
 		created_tick = game.tick,
+		last_consumed_tick = {},
+		deliveries = {},
 	}, Node)
 
 	storage.nodes[id] = node
@@ -161,48 +165,67 @@ function Node:get_combinator_with_mode(mode)
 	end
 end
 
----Get the per-item priority of the given item for this node, defaulting
----to the node's general priority or 0.
----@param item SignalKey
----@return int
-function Node:get_item_priority(item)
-	local prios = self.priorities
-	local prio = self.priority or 0
-	return prios and (prios[item] or prio) or prio
-end
+--------------------------------------------------------------------------------
+-- Inventory
+--------------------------------------------------------------------------------
 
----Get this node's channel mask for an item
 ---@param item SignalKey
-function Node:get_channel_mask(item)
-	local channels = self.channels
-	local channel = self.channel or mod_settings.default_channel_mask
-	return channels and (channels[item] or channel) or channel
-end
-
----Determine if this node shares a network with the other.
----@param n2 Cybersyn.Node
-function Node:is_network_match(n2, mode)
-	local nets_1 = self.networks or {}
-	local nets_2 = n2.networks or {}
-	for k, v in pairs(nets_1) do
-		if band(v, nets_2[k] or 0) ~= 0 then return true end
+---@return uint t_in Inbound threshold for the item
+function Node:get_inbound_threshold(item)
+	local ins = self.thresholds_in
+	local is_fluid = key_is_fluid(item)
+	if is_fluid then
+		local tin = self.threshold_fluid_in or 1
+		return ins and (ins[item] or tin) or tin
+	else
+		local mul = 1
+		if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
+		local base_tin = self.threshold_item_in
+		local tin = base_tin and base_tin * mul or 1
+		local item_in = ins and ins[item]
+		return item_in and (item_in * mul) or tin
 	end
-	return false
 end
 
----Determine if this node shares an item's channel with the other.
----@param self Cybersyn.Node
----@param n2 Cybersyn.Node
 ---@param item SignalKey
-function Node:is_channel_match(n2, item)
-	return band(self:get_channel_mask(item), n2:get_channel_mask(item)) ~= 0
+---@return uint? t_in Inbound threshold for the item, or `nil` if not explicitly set
+function Node:get_explicit_inbound_threshold(item)
+	local ins = self.thresholds_in
+	local is_fluid = key_is_fluid(item)
+	if is_fluid then
+		if ins and ins[item] then
+			return ins[item]
+		elseif self.threshold_fluid_in then
+			return self.threshold_fluid_in
+		end
+	else
+		local mul = 1
+		if ins and ins[item] then
+			if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
+			return ins[item] * mul
+		elseif self.threshold_item_in then
+			if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
+			return self.threshold_item_in * mul
+		end
+	end
 end
 
----Determine if two nodes can exchange a given item.
----@param n2 Cybersyn.Node
 ---@param item SignalKey
-function Node:is_item_match(n2, item)
-	return self:is_channel_match(n2, item) and self:is_network_match(n2)
+---@return uint t_out Outbound threshold for the item
+function Node:get_outbound_threshold(item)
+	local outs = self.thresholds_out
+	local is_fluid = key_is_fluid(item)
+	if is_fluid then
+		local tout = self.threshold_fluid_out or 1
+		return outs and (outs[item] or tout) or tout
+	else
+		local mul = 1
+		if self.stack_thresholds then mul = key_to_stacksize(item) or 1 end
+		local base_tout = self.threshold_item_out
+		local tout = base_tout and base_tout * mul or 1
+		local item_out = outs and outs[item]
+		return item_out and (item_out * mul) or tout
+	end
 end
 
 ---Get the inbound and outbound thresholds for the given item.
@@ -232,96 +255,100 @@ function Node:get_delivery_thresholds(item)
 	end
 end
 
----Determine how many of the given item the node can provide, accounting
----for thresholds and net inventory.
----@param item SignalKey
----@return integer #Providable quantity
----@return integer #Outbound DT, valid only if qty>0.
----@return Cybersyn.Inventory? #Node inventory
-function Node:get_provide(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, inv end
-	local has = inv:get_provided_qty(item)
-	if has <= 0 then return 0, 0, inv end
-	local _, out_t = self:get_delivery_thresholds(item)
-	if has < out_t then return 0, out_t, inv end
-	return has, out_t, inv
-end
-
----Determine how many of the given item the node can pull, accounting
----for thresholds and net inventory. Sign is flipped to positive.
----@return integer #Pullable quantity
----@return integer #Inbound DT, valid only if qty>0.
----@return Cybersyn.Inventory? #Node inventory
-function Node:get_pull(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, nil end
-	local has = inv:get_pulled_qty(item)
-	if has <= 0 then return 0, 0, inv end
-	local in_t = self:get_delivery_thresholds(item)
-	if has < in_t then return 0, in_t, inv end
-	return has, in_t, inv
-end
-
-function Node:get_push(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, nil end
-	local has = inv:get_pushed_qty(item)
-	if has <= 0 then return 0, 0, inv end
-	local _, out_t = self:get_delivery_thresholds(item)
-	if has < out_t then return 0, out_t, inv end
-	return has, out_t, inv
-end
-
-function Node:get_sink(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, nil end
-	local has = inv:get_sink_qty(item)
-	if has <= 0 then return 0, 0, inv end
-	local in_t = self:get_delivery_thresholds(item)
-	if has < in_t then return 0, in_t, inv end
-	return has, in_t, inv
-end
-
-function Node:get_dump(item)
-	local inv = Inventory.get(self.inventory_id)
-	if not inv then return 0, 0, nil end
-	local in_t = self:get_delivery_thresholds(item)
-	return math.huge, in_t, inv
-end
-
 ---@return Cybersyn.Inventory?
-function Node:get_inventory() return Inventory.get(self.inventory_id) end
+function Node:get_inventory() return cs2.get_inventory(self.inventory_id) end
 
----Fail ALL deliveries pending for this node.
-function Node:fail_all_deliveries(reason)
-	-- NOTE: implemented in subclasses
+---@return Cybersyn.Order[] orders All orders for this node. Treat as immutable.
+function Node:get_orders()
+	local inv = self:get_inventory()
+	if not inv then return empty end
+	return inv.orders
 end
 
 ---Change the inventory of a node. If there are currently deliveries enroute
 ---they will be failed.
 ---@param id Id
+---@return boolean was_changed `true` if the inventory was changed, `false` if not.
 function Node:set_inventory(id)
-	if id == self.inventory_id then return end
-	strace(
-		stlib.DEBUG,
-		"cs2",
-		"inventory",
-		"node",
-		self,
-		"message",
-		"Swapping inventory and failing all deliveries"
-	)
-	self:fail_all_deliveries()
+	if id == self.inventory_id then return false end
 	if not id then
 		self.inventory_id = nil
-		return
+		return true
 	end
 	local inv = Inventory.get(id)
 	if not inv then
 		self.inventory_id = nil
-		return
+	else
+		self.inventory_id = id
 	end
-	self.inventory_id = id
-	cs2.raise_node_data_changed(self)
+	self:rebuild_inventory()
+	return true
 end
+
+---Rebuild inventory for a node. Generally called when a structural change
+---happens such as an inventory combinator being added or removed, or a sharing
+---state change.
+function Node:rebuild_inventory() end
+
+--------------------------------------------------------------------------------
+-- Deliveries
+--------------------------------------------------------------------------------
+
+---Get all deliveries involving this node.
+---@return IdSet deliveries All pending deliveries for this node. Treat as immutable.
+function Node:get_deliveries() return self.deliveries end
+
+function Node:get_num_deliveries() return table_size(self.deliveries) end
+
+---@param delivery_id Id?
+---@return boolean success `true` if the delivery was added, `false` if it already exists.
+function Node:add_delivery(delivery_id)
+	if not delivery_id then return false end
+	if self.deliveries[delivery_id] then
+		strace(
+			stlib.WARN,
+			"message",
+			"Node:add_delivery() called with existing delivery",
+			delivery_id
+		)
+		return false
+	end
+	self.deliveries[delivery_id] = true
+	self:defer_notify_deliveries()
+	return true
+end
+
+---Remove a delivery from this node.
+---@param delivery_id Id?
+---@return boolean success `true` if the delivery was removed, `false` if it did not exist.
+function Node:remove_delivery(delivery_id)
+	if not delivery_id then return false end
+	if not self.deliveries[delivery_id] then return false end
+	self.deliveries[delivery_id] = nil
+	self:defer_notify_deliveries()
+	return true
+end
+
+---Fail ALL deliveries pending for this node.
+function Node:fail_all_deliveries(reason)
+	for delivery_id in pairs(self.deliveries) do
+		local delivery = cs2.get_delivery(delivery_id, true)
+		if delivery then delivery:fail(reason) end
+	end
+	self:defer_notify_deliveries()
+end
+
+---Cause a delivery update event to fire on a subsequent tick.
+function Node:defer_notify_deliveries()
+	if self.deferred_notify_deliveries then return end
+	-- NOTE: 2 ticks used here because `defer_pop_queue` for train stops uses
+	-- 1 tick, and we need to ensure that the deliveries are notified after.
+	self.deferred_notify_deliveries =
+		scheduler.at(game.tick + 2, "notify_deliveries", self)
+end
+
+scheduler.register_handler("notify_deliveries", function(task)
+	local node = task.data --[[@as Cybersyn.Node]]
+	node.deferred_notify_deliveries = nil
+	cs2.raise_node_deliveries_changed(node)
+end)

@@ -7,31 +7,39 @@
 
 local counters = require("__cybersyn2__.lib.counters")
 local scheduler = require("__cybersyn2__.lib.scheduler")
+local thread = require("__cybersyn2__.lib.thread")
 local tlib = require("__cybersyn2__.lib.table")
 local relm = require("__cybersyn2__.lib.relm")
 local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
-local bplib = require("__cybersyn2__.lib.blueprint")
+local bplib = require("__bplib__.blueprint")
 local cs2 = _G.cs2
 local cs2_lib = _G.cs2.lib
 
 local db_dispatch = dynamic_binding.dispatch
-local BlueprintInfo = bplib.BlueprintInfo
 local COMBINATOR_NAME = cs2.COMBINATOR_NAME
+local BlueprintBuild = bplib.BlueprintBuild
+local BlueprintSetup = bplib.BlueprintSetup
 
 --------------------------------------------------------------------------------
 -- Required library event bindings
 --------------------------------------------------------------------------------
 
-cs2.on_init(counters.init, true)
+cs2.on_startup(counters.init, true)
 
-cs2.on_init(scheduler.init, true)
+cs2.on_startup(scheduler.init, true)
 
-cs2.on_init(relm.init, true)
+cs2.on_startup(thread.init, true)
+
+cs2.on_startup(relm.init, true)
 cs2.on_load(relm.on_load)
 relm.install_event_handlers()
+cs2.on_reset(function()
+	-- On reset, we must destroy all Relm roots.
+	relm.root_foreach(function(_, root_id) relm.root_destroy(root_id) end)
+end)
 
 -- Connect `dynamic_binding` to cs2 event backplane
-cs2.on_init(dynamic_binding.init, true)
+cs2.on_startup(dynamic_binding.init, true)
 cs2.on_load(dynamic_binding.on_load)
 dynamic_binding.on_event_bound(function(event_name)
 	if _G.cs2[event_name] and string.sub(event_name, 1, 3) == "on_" then
@@ -44,14 +52,18 @@ end)
 --------------------------------------------------------------------------------
 
 script.on_init(cs2.raise_init)
+cs2.on_init(function() cs2.raise_startup({}) end, true)
 script.on_load(cs2.raise_load)
 script.on_configuration_changed(cs2.raise_configuration_changed)
-script.on_event(
-	defines.events.on_runtime_mod_setting_changed,
-	cs2.handle_runtime_mod_setting_changed
-)
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
+	cs2.update_mod_settings()
+	cs2.raise_mod_settings_changed(event.setting)
+end)
 script.on_nth_tick(nil)
-script.on_nth_tick(1, scheduler.tick)
+script.on_nth_tick(1, function(data)
+	scheduler.tick(data)
+	thread.tick(data)
+end)
 
 --------------------------------------------------------------------------------
 -- LuaTrains
@@ -175,13 +187,15 @@ script.on_event(
 --------------------------------------------------------------------------------
 
 script.on_event(defines.events.on_player_setup_blueprint, function(event)
-	local bpinfo = BlueprintInfo:create_from_setup_event(event)
-	if bpinfo then cs2.raise_blueprint_setup(bpinfo) end
+	local bp_setup = BlueprintSetup:new(event)
+	if not bp_setup then return end
+	cs2.raise_blueprint_setup(bp_setup)
 end)
 
 script.on_event(defines.events.on_pre_build, function(event)
-	local bpinfo = BlueprintInfo:create_from_pre_build_event(event)
-	if bpinfo then cs2.raise_blueprint_built(bpinfo) end
+	local bp_build = BlueprintBuild:new(event)
+	if not bp_build then return end
+	cs2.raise_blueprint_built(bp_build)
 end)
 
 --------------------------------------------------------------------------------

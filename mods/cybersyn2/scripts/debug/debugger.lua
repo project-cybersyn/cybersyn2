@@ -17,12 +17,14 @@ local Pr = relm.Primitive
 local VF = ultros.VFlow
 local HF = ultros.HFlow
 
+local DISPLAYED_LIMIT = 1000
+
 local function rt_kv(kt, vt, limit)
 	return function(tbl)
 		local entries = {}
 		local i = 1
 		for k, v in pairs(tbl) do
-			if i > (limit or 10) then break end
+			if i > (limit or DISPLAYED_LIMIT) then break end
 			i = i + 1
 			entries[#entries + 1] = kt(k) .. ": " .. vt(v)
 		end
@@ -34,7 +36,7 @@ local function rt_array(et, limit)
 	return function(arr)
 		local entries = {}
 		for i = 1, #arr do
-			if i > (limit or 10) then break end
+			if i > (limit or DISPLAYED_LIMIT) then break end
 			entries[#entries + 1] = et(arr[i])
 		end
 		return "[" .. tconcat(entries, ", ") .. "]"
@@ -46,7 +48,7 @@ local function rt_set(et, limit)
 		local entries = {}
 		local i = 1
 		for elt, _ in pairs(set) do
-			if i > (limit or 10) then break end
+			if i > (limit or DISPLAYED_LIMIT) then break end
 			i = i + 1
 			entries[#entries + 1] = et(elt)
 		end
@@ -83,13 +85,14 @@ end
 local function rt_item_icon(key) return signal.key_to_richtext(key) end
 
 local renderers = {
-	topologies = rt(rt_array(rt_field("id"), 10)),
-	nodes = rt(rt_array(rt_field("id"), 10)),
-	providers = rt(rt_kv(rt_item_icon, rt_set(rt_val, 10))),
-	pushers = rt(rt_kv(rt_item_icon, rt_set(rt_val, 10))),
-	pullers = rt(rt_kv(rt_item_icon, rt_set(rt_val, 10))),
-	sinks = rt(rt_kv(rt_item_icon, rt_set(rt_val, 10))),
-	seen_cargo = rt(rt_set(rt_item_icon, 10)),
+	topologies = rt(rt_array(rt_field("id"), DISPLAYED_LIMIT)),
+	nodes = rt(rt_array(rt_field("id"), DISPLAYED_LIMIT)),
+	providers = rt(
+		rt_kv(rt_item_icon, rt_array(rt_field("node_id"), DISPLAYED_LIMIT))
+	),
+	requesters = rt(
+		rt_kv(rt_item_icon, rt_array(rt_field("node_id"), DISPLAYED_LIMIT))
+	),
 	allocations = rt(
 		rt_array(
 			rt_fields(
@@ -106,33 +109,13 @@ local renderers = {
 			)
 		)
 	),
-	pullers_p = rt(
+	allocs_from = rt(
 		rt_kv(
-			rt_item_icon,
-			rt_array(rt_array(function(np) return (np[1].id .. "p" .. np[2]) end))
+			rt_val,
+			rt_array(rt_fields("item", rt_item_icon, "qty", rt_val), DISPLAYED_LIMIT)
 		)
 	),
-	sinks_p = rt(
-		rt_kv(
-			rt_item_icon,
-			rt_array(rt_array(function(np) return (np[1].id .. "p" .. np[2]) end))
-		)
-	),
-	providers_p = rt(
-		rt_kv(
-			rt_item_icon,
-			rt_array(rt_array(function(np) return (np[1].id .. "p" .. np[2]) end))
-		)
-	),
-	pushers_p = rt(
-		rt_kv(
-			rt_item_icon,
-			rt_array(rt_array(function(np) return (np[1].id .. "p" .. np[2]) end))
-		)
-	),
-	cargo = rt(rt_array(rt_item_icon, 10)),
-	all_vehicles = rt(rt_array(rt_field("id"), 10)),
-	avail_trains = rt(rt_set(rt_val, 10)),
+	avail_trains = rt(rt_set(rt_val, DISPLAYED_LIMIT)),
 }
 
 local function default_renderer(k, v)
@@ -143,6 +126,7 @@ local LoopState = relm.define_element({
 	name = "LogisticsLoopDebugger.State",
 	render = function(props, state)
 		relm_helpers.use_event("on_debug_loop")
+		-- TODO: factor logistics thread id up to a prop
 		local data = cs2.debug.get_logistics_thread()
 		if not data then return nil end
 		local tstate = data.state
@@ -195,6 +179,7 @@ local LoopDebugger = relm.define_element({
 		})
 	end,
 	message = function(me, payload, props)
+		-- TODO: factor logistics thread id up to a prop
 		local data = cs2.debug.get_logistics_thread() or {}
 		if payload.key == "pause" then
 			data.paused = not data.paused

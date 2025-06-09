@@ -137,6 +137,11 @@ local Pr = relm.Primitive
 local ModePicker = relm.define_element({
 	name = "CombinatorGui.ModePicker",
 	render = function(props)
+		if (not props.combinator) or (not props.combinator:is_valid()) then
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
+			})
+		end
 		local desired_mode_name =
 			props.combinator:read_setting(combinator_settings.mode)
 		local options = tlib.t_map_a(
@@ -174,6 +179,11 @@ local ModePicker = relm.define_element({
 local ModeSettings = relm.define_element({
 	name = "CombinatorGui.ModeSettings",
 	render = function(props)
+		if (not props.combinator) or (not props.combinator:is_valid()) then
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
+			})
+		end
 		local desired_mode_name =
 			props.combinator:read_setting(combinator_settings.mode)
 		local mode = combinator_modes[desired_mode_name]
@@ -201,6 +211,11 @@ local ModeSettings = relm.define_element({
 local Status = relm.define_element({
 	name = "CombinatorGui.StatusArea",
 	render = function(props)
+		if (not props.combinator) or (not props.combinator:is_valid()) then
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
+			})
+		end
 		local entity = props.combinator.entity
 		return VF({
 			Pr({
@@ -237,6 +252,11 @@ local Status = relm.define_element({
 local Help = relm.define_element({
 	name = "CombinatorGui.Help",
 	render = function(props)
+		if (not props.combinator) or (not props.combinator:is_valid()) then
+			return VF({
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
+			})
+		end
 		local desired_mode_name =
 			props.combinator:read_setting(combinator_settings.mode)
 		local mode = combinator_modes[desired_mode_name]
@@ -247,7 +267,7 @@ local Help = relm.define_element({
 			})
 		else
 			return VF({
-				Pr({ type = "label", caption = { "cybersyn2-gui.no-settings" } }),
+				Pr({ type = "label", caption = { "cybersyn2-gui.no-help" } }),
 			})
 		end
 	end,
@@ -270,7 +290,7 @@ local LeftCol = relm.define_element({
 			direction = "vertical",
 			vertically_stretchable = true,
 			width = 400,
-			minimal_height = 400,
+			minimal_height = 600,
 		}, {
 			Pr({
 				type = "scroll-pane",
@@ -329,16 +349,27 @@ relm.define_element({
 			cs2.lib.close_combinator_gui(props.player_index)
 			return true
 		elseif payload.key == "toggle_info" then
-			relm.set_state(
-				me,
-				function(prev) return { show_info = not (prev or {}).show_info } end
-			)
+			local player_state = cs2.get_or_create_player_state(props.player_index)
+			if player_state.hide_help then
+				player_state.hide_help = false
+			else
+				player_state.hide_help = true
+			end
+			local show = not player_state.hide_help
+			relm.set_state(me, { show_info = show })
 			return true
 		else
 			return false
 		end
 	end,
-	state = function() return { show_info = false } end,
+	state = function(props)
+		local player_state = cs2.get_player_state(props.player_index)
+		if player_state and player_state.hide_help then
+			return { show_info = false }
+		else
+			return { show_info = true }
+		end
+	end,
 })
 
 --------------------------------------------------------------------------------

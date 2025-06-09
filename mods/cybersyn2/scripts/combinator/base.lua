@@ -12,6 +12,7 @@ local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
 
 local signal_to_key = signal_lib.signal_to_key
 local key_to_signal = signal_lib.key_to_signal
+local signals_to_signal_counts = signal_lib.signals_to_signal_counts
 local distsq = mlib.pos_distsq
 
 --------------------------------------------------------------------------------
@@ -26,10 +27,6 @@ local distsq = mlib.pos_distsq
 ---@field public reader Cybersyn.Combinator.SettingReader The function used to read this setting from a combinator.
 ---@field public writer Cybersyn.Combinator.SettingWriter? The function used to write this setting to a combinator.
 
----Global table of combinator settings definitions
----@type table<string, Cybersyn.Combinator.SettingDefinition>
-_G.cs2.combinator_settings = {}
-
 --------------------------------------------------------------------------------
 -- Modes
 --------------------------------------------------------------------------------
@@ -41,6 +38,7 @@ _G.cs2.combinator_settings = {}
 ---@field help_element string? Name of a Relm element to use as the GUI help element for this mode. Will be passed the active combinator as a `combinator` prop. If not provided, a noninteractive placeholder element will be rendered.
 ---@field is_input boolean? `true` if the input signals of a combinator in this mode should be read during `poll_combinators`.
 ---@field is_output boolean? `true` if this mode can set the output state of the combinator.
+---@field independent_input_wires boolean? If `true`, the red and green input wires will be read separately when examining the inputs of this combinator.
 
 ---@type {[string]: Cybersyn.Combinator.ModeDefinition}
 _G.cs2.combinator_modes = {}
@@ -214,7 +212,7 @@ function Combinator.new(entity)
 		error("Bad or duplicate combinator creation.")
 	end
 	storage.combinators[id] =
-		setmetatable({ id = id, entity = entity }, Combinator)
+		setmetatable({ id = id, entity = entity, last_read_tick = 0 }, Combinator)
 	return storage.combinators[id]
 end
 
@@ -261,58 +259,110 @@ local GREEN_INPUTS = defines.wire_connector_id.combinator_input_green
 
 ---If the combinator is in an input-supporting mode, read and cache its input
 ---signals.
-function Combinator:read_inputs()
-	-- Sanity check
+---@param which "red"|"green"|nil If given, and the combinator has independent input wires, read only the given wire. If `nil`, read both wires.
+function Combinator:read_inputs(which)
+	-- Sanity checks
+	-- Verify input mode
 	local mdef = modes[self.mode or ""]
 	if not mdef or not mdef.is_input then
 		self.inputs = nil
+		self.red_inputs = nil
+		self.green_inputs = nil
 		return
 	end
+	-- Don't read inputs more than once per tick.
+	local now = game.tick
+	if now - (self.last_read_tick or 0) < 1 then return end
+	self.last_read_tick = now
+	-- Don't read invalid entities
 	local entity = self.entity
 	if not entity or not entity.valid then return end
 
-	-- Read input sigs
-	local signals = entity.get_signals(RED_INPUTS, GREEN_INPUTS)
-	if signals then
-		---@type SignalCounts
-		local inputs = {}
-		for i = 1, #signals do
-			local signal = signals[i]
-			inputs[signal_to_key(signal.signal)] = signal.count
+	if mdef.independent_input_wires then
+		-- Read red and green inputs separately
+		if which == "red" or which == nil then
+			local red_signals = entity.get_signals(RED_INPUTS)
+			if red_signals then
+				self.red_inputs = signals_to_signal_counts(red_signals)
+			else
+				self.red_inputs = {}
+			end
 		end
-		self.inputs = inputs
+
+		if which == "green" or which == nil then
+			local green_signals = entity.get_signals(GREEN_INPUTS)
+			if green_signals then
+				self.green_inputs = signals_to_signal_counts(green_signals)
+			else
+				self.green_inputs = {}
+			end
+		end
+
+		self.inputs = nil
 	else
-		self.inputs = {}
+		local signals = entity.get_signals(RED_INPUTS, GREEN_INPUTS)
+		if signals then
+			self.inputs = signals_to_signal_counts(signals)
+		else
+			self.inputs = {}
+		end
+		self.red_inputs = nil
+		self.green_inputs = nil
 	end
 end
 
----Write the combinator's outputs from the given signal counts. `nil`
----clears all outputs.
----@param signal_counts SignalCounts?
----@param sign number Multiplier for signal counts, -1 to invert.
-function Combinator:write_outputs(signal_counts, sign)
+---Clear all the combinator's outputs.
+function Combinator:clear_outputs()
 	local entity = self.entity
 	if not entity or not entity.valid then return end
 
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
-	local outputs = {}
-	if signal_counts then
-		for key, count in pairs(signal_counts) do
-			local signal = key_to_signal(key)
-			if signal then
-				outputs[#param.outputs + 1] = {
-					signal = signal,
-					constant = count * sign,
-					copy_count_from_input = false,
-				}
-			end
-		end
-	end
-	param.outputs = outputs
+	param.outputs = {}
 	beh.parameters = param
 end
 
+---Encode arguments for later use with `direct_write_outputs`.
+---Arguments are pairs of `SignalCounts` and
+---`int` values representing the signals to add to the output along
+---with a multiplier.
+function Combinator:encode_outputs(...)
+	local outputs = {}
+
+	for i = 1, select("#", ...), 2 do
+		local signal_counts = select(i, ...) --[[@as SignalCounts]]
+		local sign = select(i + 1, ...) --[[@as number]]
+		if signal_counts then
+			for key, count in pairs(signal_counts) do
+				local signal = key_to_signal(key)
+				if signal then
+					outputs[#outputs + 1] = {
+						signal = signal,
+						constant = count * sign,
+						copy_count_from_input = false,
+					}
+				end
+			end
+		end
+	end
+
+	return outputs
+end
+
+---Write the combinator's outputs from the given signal counts. Arguments are pairs of `SignalCounts` and
+---`int` values representing the signals to add to the output along
+---with a multiplier.
+function Combinator:write_outputs(...)
+	local entity = self.entity
+	if not entity or not entity.valid then return end
+
+	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
+	local param = beh.parameters
+	param.outputs = self:encode_outputs(...)
+	beh.parameters = param
+end
+
+---Directly replace the combinator's raw outputs.
 ---@param outputs DeciderCombinatorOutput[]
 function Combinator:direct_write_outputs(outputs)
 	local entity = self.entity
@@ -329,6 +379,7 @@ local O_RED = defines.wire_connector_id.combinator_output_red
 local O_GREEN = defines.wire_connector_id.combinator_output_green
 local SCRIPT = defines.wire_origin.script
 
+---Perform dynamic cross-wiring between combinator input and output pins.
 ---@param state boolean `true` if wires should be crossed, `false` if uncrossed.
 function Combinator:cross_wires(state)
 	local combinator_entity = self.entity

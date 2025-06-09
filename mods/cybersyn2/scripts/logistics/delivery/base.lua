@@ -61,13 +61,6 @@ end
 ---Fail this delivery.
 function Delivery:fail(reason)
 	if self.state == "completed" or self.state == "failed" then
-		strace(
-			WARN,
-			"delivery",
-			self,
-			"message",
-			"Attempt to fail a delivery that is already completed or failed"
-		)
 		return
 	else
 		self:set_state("failed")
@@ -113,17 +106,44 @@ function Delivery:is_in_final_state()
 end
 
 --------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+cs2.on_vehicle_destroyed(function(vehicle)
+	local delivery = get_delivery(vehicle.delivery_id, true)
+	if delivery then delivery:fail("vehicle_destroyed") end
+end)
+
+cs2.on_try_reset(function(state)
+	for _, delivery in pairs(storage.deliveries) do
+		if not delivery:is_in_final_state() then
+			table.insert(
+				state.reasons,
+				"Reset not recommended while deliveries are in progress. Disable logistics in game settings and wait for all vehicles to be idle."
+			)
+			return
+		end
+	end
+end)
+
+--------------------------------------------------------------------------------
 -- Delivery monitor thread
+--
+-- Clears expired completed deliveries from storage and warns about deliveries
+-- that may be taking too long to complete.
 --------------------------------------------------------------------------------
 
 ---@class Cybersyn.Internal.DeliveryMonitor: StatefulThread
 ---@field state "init"|"enum_deliveries" State of the task.
----@field delivery_ids Id[] Extant Cybersyn delivery IDs at beginning of sweep.
 local DeliveryMonitor = class("DeliveryMonitor", cs2.StatefulThread)
 
-function DeliveryMonitor.new()
-	local thread = setmetatable({}, DeliveryMonitor) --[[@as Cybersyn.Internal.DeliveryMonitor]]
+function DeliveryMonitor:new()
+	local thread = cs2.StatefulThread.new(self) --[[@as Cybersyn.Internal.DeliveryMonitor]]
+	thread.friendly_name = "delivery_monitor"
+	-- TODO: better workload measurement
+	thread.workload = 10
 	thread:set_state("init")
+	thread:wake()
 	return thread
 end
 
@@ -132,10 +152,13 @@ function DeliveryMonitor:init()
 end
 
 function DeliveryMonitor:enter_enum_deliveries()
-	self.stride =
+	self:begin_async_loop(
+		tlib.keys(storage.deliveries),
 		math.ceil(cs2.PERF_DELIVERY_MONITOR_WORKLOAD * mod_settings.work_factor)
-	self.index = 1
-	self.delivery_ids = tlib.keys(storage.deliveries)
+	)
+	for _, view in pairs(storage.views) do
+		view:enter_deliveries()
+	end
 end
 
 function DeliveryMonitor:enum_delivery(delivery_id)
@@ -151,20 +174,27 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 	then
 		return delivery:destroy()
 	end
+
+	for _, view in pairs(storage.views) do
+		view:enter_delivery(delivery)
+		view:exit_delivery(delivery)
+	end
 end
 
 function DeliveryMonitor:enum_deliveries()
-	self:async_loop(
-		self.delivery_ids,
+	self:step_async_loop(
 		self.enum_delivery,
 		function(thr) thr:set_state("init") end
 	)
 end
 
-function DeliveryMonitor:exit_enum_deliveries() self.delivery_ids = nil end
+function DeliveryMonitor:exit_enum_deliveries()
+	self.delivery_ids = nil
 
-cs2.schedule_thread(
-	"delivery_monitor",
-	2,
-	function() return DeliveryMonitor.new() end
-)
+	for _, view in pairs(storage.views) do
+		view:exit_deliveries()
+	end
+end
+
+-- Start delivery monitor thread on startup.
+cs2.on_startup(function() DeliveryMonitor:new() end)

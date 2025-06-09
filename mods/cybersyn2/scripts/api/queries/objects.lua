@@ -9,6 +9,7 @@ local Combinator = _G.cs2.Combinator
 local Vehicle = _G.cs2.Vehicle
 local Train = _G.cs2.Train
 local TrainStop = _G.cs2.TrainStop
+local Topology = _G.cs2.Topology
 
 local comb_list_datatype = {
 	true,
@@ -67,6 +68,12 @@ function _G.cs2.query_handlers.inventories(arg)
 	return { data = res or {}, type = inv_list_datatype }
 end
 
+local veh_list_datatype = {
+	true,
+	ContainerType.list,
+	PrimitiveType["Cybersyn.Vehicle"],
+}
+
 ---@param arg Cybersyn.Query.Vehicles.Input
 ---@return Cybersyn.Query.Vehicles.Result
 function _G.cs2.query_handlers.vehicles(arg)
@@ -86,5 +93,29 @@ function _G.cs2.query_handlers.vehicles(arg)
 			if veh then res[#res + 1] = veh end
 		end
 	end
-	return { data = res or {}, type = inv_list_datatype }
+	return { data = res or {}, type = veh_list_datatype }
+end
+
+local top_list_datatype = {
+	true,
+	ContainerType.list,
+	PrimitiveType["Cybersyn.Topology"],
+}
+
+---@param arg Cybersyn.Query.Topologies.Input
+---@return Cybersyn.Query.Topologies.Result
+function _G.cs2.query_handlers.topologies(arg)
+	---@type Cybersyn.Topology[]
+	local res = nil
+	if arg.ids then
+		res = map(arg.ids, function(id) return Topology.get(id) end)
+	elseif arg.surface_index then
+		res = map(
+			arg.surface_index,
+			function(surface_index) return Topology.get_train_topology(surface_index) end
+		)
+	else
+		res = tlib.t_map_a(storage.topologies, function(t) return t end)
+	end
+	return { data = res or {}, type = top_list_datatype }
 end
