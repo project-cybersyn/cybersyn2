@@ -124,10 +124,11 @@ local function update_delivery_combinator(node, comb)
 
 	---@type SignalCounts
 	local signals = {}
-	for _, delivery in pairs(deliveries) do
-		if delivery.from_id == node.id and not exclude_outbound then
+	for delivery_id in pairs(deliveries) do
+		local delivery = cs2.get_delivery(delivery_id, true)
+		if delivery and delivery.from_id == node.id and not exclude_outbound then
 			tlib.vector_add(signals, -1, delivery.manifest)
-		elseif delivery.to_id == node.id and not exclude_inbound then
+		elseif delivery and delivery.to_id == node.id and not exclude_inbound then
 			tlib.vector_add(signals, 1, delivery.manifest)
 		end
 	end

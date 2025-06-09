@@ -121,6 +121,7 @@ lib.NodeNetworkOperation = {
 ---@field public is_being_destroyed true? `true` if the node is in the process of being removed from game state.
 ---@field public inventory_id Id? Inventory of this node. This is what the logistics algorithm uses to determine node contents.
 ---@field public created_inventory_id Id? The id of the inventory automatically created for this node if any.
+---@field public deliveries IdSet Set of all active deliveries involving this node, both inbound and outbound.
 ---@field public is_producer boolean? `true` if the node can send deliveries
 ---@field public is_consumer boolean? `true` if the node can receive deliveries
 ---@field public priority int? Default priority of the node.
@@ -145,8 +146,7 @@ lib.NodeNetworkOperation = {
 ---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
 ---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
----@field public deliveries IdSet All deliveries currently inbound to this stop.
----@field public delivery_queue Id[] Queue of deliveries waiting for station limit to clear.
+---@field public delivery_queue Id[] All deliveries currently enroute for this stop, in order. The lowest index in the queue is the next delivery to be processed.
 ---@field public allow_departure_signal SignalID? The signal key that will allow a train to depart this stop.
 ---@field public force_departure_signal SignalID? The signal key that will force a train to depart this stop.
 ---@field public inactivity_timeout uint? The number of ticks for the inactivity timeout

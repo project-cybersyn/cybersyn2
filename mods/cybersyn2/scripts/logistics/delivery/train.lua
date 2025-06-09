@@ -73,7 +73,10 @@ function TrainDelivery.new(
 	delivery.vehicle_id = train.id
 	train:set_delivery(delivery)
 
-	cs2.enqueue_delivery_operation(delivery, "goto_from")
+	from:add_delivery(delivery.id)
+	to:add_delivery(delivery.id)
+	delivery:set_state("wait_from")
+	from:enqueue(delivery.id)
 
 	cs2.raise_delivery_created(delivery)
 	return delivery
@@ -102,9 +105,9 @@ function TrainDelivery:force_clear()
 	self:clear_to_charge()
 	self:clear_from_charge()
 	local from_stop = TrainStop.get(self.from_id)
-	if from_stop then from_stop:force_remove_delivery(self.id) end
+	if from_stop then from_stop:remove_delivery(self.id) end
 	local to_stop = TrainStop.get(self.to_id)
-	if to_stop then to_stop:force_remove_delivery(self.id) end
+	if to_stop then to_stop:remove_delivery(self.id) end
 	local train = Train.get(self.vehicle_id)
 	if train then train:fail_delivery(self.id) end
 end
@@ -237,22 +240,16 @@ function TrainDelivery:goto_from()
 	local train = Train.get(self.vehicle_id)
 	local from = TrainStop.get(self.from_id)
 	if not train or not from then return self:fail() end
-	if from:is_full() then
-		-- Queue up in the stop's delivery queue
-		from:enqueue(self.id)
-		self:set_state("wait_from")
+	if self.state == "to_from" then return end
+	if
+		train:schedule(
+			coordinate_entry(from.entity),
+			pickup_entry(from, self.manifest)
+		)
+	then
+		self:set_state("to_from")
 	else
-		if
-			train:schedule(
-				coordinate_entry(from.entity),
-				pickup_entry(from, self.manifest)
-			)
-		then
-			from:add_delivery(self.id)
-			self:set_state("to_from")
-		else
-			self:set_state("interrupted_from")
-		end
+		self:set_state("interrupted_from")
 	end
 end
 
@@ -261,17 +258,11 @@ function TrainDelivery:goto_to()
 	local to = TrainStop.get(self.to_id)
 	if not train or not to then return self:fail() end
 	self:clear_from_charge()
-	if to:is_full() then
-		-- Queue up in the stop's delivery queue
-		to:enqueue(self.id)
-		self:set_state("wait_to")
+	if self.state == "to_to" then return end
+	if train:schedule(coordinate_entry(to.entity), dropoff_entry(to)) then
+		self:set_state("to_to")
 	else
-		if train:schedule(coordinate_entry(to.entity), dropoff_entry(to)) then
-			to:add_delivery(self.id)
-			self:set_state("to_to")
-		else
-			self:set_state("interrupted_to")
-		end
+		self:set_state("interrupted_to")
 	end
 end
 
@@ -288,7 +279,10 @@ end
 function TrainDelivery:notify_departed(stop)
 	if self.state == "to_from" and stop.id == self.from_id then
 		self:clear_from_charge()
-		cs2.enqueue_delivery_operation(self, "goto_to")
+		local to = TrainStop.get(self.to_id)
+		if not to then return self:fail() end
+		self:set_state("wait_to")
+		to:enqueue(self.id)
 	elseif self.state == "to_to" and stop.id == self.to_id then
 		self:complete()
 	else
@@ -309,27 +303,17 @@ end
 ---@param stop Cybersyn.TrainStop
 function TrainDelivery:notify_queue(stop)
 	if self.state == "wait_from" and stop.id == self.from_id then
-		self:goto_from()
+		cs2.enqueue_delivery_operation(self, "goto_from")
 	elseif self.state == "wait_to" and stop.id == self.to_id then
-		self:goto_to()
-	else
-		strace(
-			stlib.WARN,
-			"cs2",
-			"delivery_queue",
-			"delivery",
-			self,
-			"message",
-			"notify_queue() was called while we weren't supposed to be queued."
-		)
+		cs2.enqueue_delivery_operation(self, "goto_to")
 	end
 end
 
 function TrainDelivery:notify_interrupted()
 	if self.state == "interrupted_from" then
-		self:goto_from()
+		cs2.enqueue_delivery_operation(self, "goto_from")
 	elseif self.state == "interrupted_to" then
-		self:goto_to()
+		cs2.enqueue_delivery_operation(self, "goto_to")
 	end
 end
 
@@ -381,7 +365,7 @@ cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 	if renamed_type ~= "train-stop" then return end
 	local stop = TrainStop.get_stop_from_unit_number(entity.unit_number)
 	if not stop then return end
-	for delivery_id in pairs(stop.deliveries or empty) do
+	for _, delivery_id in pairs(stop.delivery_queue or empty) do
 		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		if delivery then
 			local train = Train.get(delivery.vehicle_id)
