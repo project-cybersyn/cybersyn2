@@ -8,8 +8,6 @@ local cs2 = _G.cs2
 local Node = _G.cs2.Node
 local Topology = _G.cs2.Topology
 local Delivery = _G.cs2.Delivery
-local Inventory = _G.cs2.Inventory
-local TrueInventory = _G.cs2.TrueInventory
 local mod_settings = _G.cs2.mod_settings
 local combinator_settings = _G.cs2.combinator_settings
 
@@ -20,6 +18,8 @@ local pos_get = mlib.pos_get
 local INF = math.huge
 local tremove = table.remove
 local abs = math.abs
+local empty = tlib.empty
+local min = math.min
 
 ---@class Cybersyn.TrainStop
 local TrainStop = class("TrainStop", Node)
@@ -37,7 +37,6 @@ function TrainStop.new(stop_entity)
 	node.entity_id = stop_id
 	node.allowed_groups = {}
 	node.allowed_layouts = {}
-	node.deliveries = {}
 	node.delivery_queue = {}
 	cs2.raise_node_created(node)
 	return node
@@ -146,129 +145,6 @@ function _G.cs2.lib.find_associable_entities_for_combinator(combinator_entity)
 	return stop, rail
 end
 
---------------------------------------------------------------------------------
--- DELIVERIES AND QUEUES
---------------------------------------------------------------------------------
-
----Force remove a delivery from a train stop. Generally used when delivery
----has failed.
----@param delivery_id Id
-function TrainStop:force_remove_delivery(delivery_id)
-	self.deliveries[delivery_id] = nil
-	local queue = self.delivery_queue
-	if #queue > 0 then
-		self.delivery_queue = tlib.filter(
-			queue,
-			function(id) return id ~= delivery_id end
-		)
-	end
-	-- Defer pop queue in case of multiple force removals, e.g. station
-	-- deconstruction or inventory change.
-	self:defer_pop_queue()
-end
-
----@param delivery_id Id
-function TrainStop:add_delivery(delivery_id) self.deliveries[delivery_id] = true end
-
-function TrainStop:train_arrived(train) end
-
----@param train Cybersyn.Train
-function TrainStop:train_departed(train)
-	local delivery_id = train.delivery_id
-	-- When a train makes a delivery...
-	if delivery_id and self.deliveries[delivery_id] then
-		-- Clear the delivery...
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-		self.deliveries[delivery_id] = nil
-		-- TODO: consider using the event bus here.
-		-- NOTE: notify_departed adds inventory charge rebates so that hopefully
-		-- update_inventory can clear them optimistcally.
-		if delivery then delivery:notify_departed(self) end
-		-- Then try to opportunistically re-read the station's inventory.
-		self:update_inventory(true)
-	end
-	self:pop_queue()
-end
-
----Determine if net inbound trains equal or exceed limit.
----@return boolean
-function TrainStop:is_full()
-	local limit = self.entity.trains_limit or 1000
-	if limit == 0 then
-		cs2.create_alert(
-			self.entity,
-			"train_stop_limit_zero",
-			cs2.CS2_ICON_SIGNAL_ID,
-			{
-				"cybersyn2-alerts.train-stop-limit-zero",
-			},
-			600
-		)
-	end
-	return table_size(self.deliveries) >= limit
-end
-
----Determine if the queue of this train stop exceeds the user-set global limit.
----@return boolean
-function TrainStop:is_queue_full()
-	local limit = mod_settings.queue_limit
-	if limit == 0 then return false end
-	return #self.delivery_queue >= limit
-end
-
----If deliveries < limit, pop the queue.
-function TrainStop:pop_queue()
-	while not self:is_full() and #self.delivery_queue > 0 do
-		local delivery_id = tremove(self.delivery_queue, 1)
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-		if delivery then delivery:notify_queue(self) end
-	end
-end
-
----Defer popping queue until next frame.
-function TrainStop:defer_pop_queue()
-	if self.deferred_pop_queue then return end
-	self.deferred_pop_queue = scheduler.at(game.tick + 1, "pop_stop_queue", self)
-end
-
-scheduler.register_handler("pop_stop_queue", function(task)
-	local stop = task.data --[[@as Cybersyn.TrainStop]]
-	stop.deferred_pop_queue = nil
-	if stop:is_valid() then stop:pop_queue() end
-end)
-
-function TrainStop:fail_all_deliveries(reason)
-	for _, delivery_id in ipairs(self.delivery_queue) do
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-		if delivery then delivery:fail(reason) end
-	end
-	for delivery_id in pairs(self.deliveries) do
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-		if delivery then delivery:fail(reason) end
-	end
-end
-
----@param delivery_id Id
-function TrainStop:enqueue(delivery_id)
-	self.delivery_queue[#self.delivery_queue + 1] = delivery_id
-end
-
----Gets the total number of deliveries, present and queued, for this stop.
----@return uint
-function TrainStop:get_occupancy()
-	return table_size(self.deliveries) + #self.delivery_queue
-end
-
-function TrainStop:get_num_deliveries() return table_size(self.deliveries) end
-
-function TrainStop:get_queue_size() return #self.delivery_queue end
-
-function TrainStop:get_tekbox_equation()
-	local limit = math.max(self.entity.trains_limit, 1)
-	return table_size(self.deliveries)
-		+ (#self.delivery_queue * (limit + 1) / limit)
-end
-
 ---Determine if a train parked at this stop is reversed relative to the stop.
 ---@param lua_train LuaTrain
 ---@return boolean #`true` if the train is parked backwards at this stop, `false` otherwise.
@@ -289,204 +165,214 @@ function TrainStop:is_train_reversed(lua_train)
 end
 
 --------------------------------------------------------------------------------
+-- DELIVERIES AND QUEUES
+--------------------------------------------------------------------------------
+
+---Enqueue a delivery to travel to this stop. Delivery must already have been
+---added via `add_delivery`.
+---@param delivery_id Id
+function TrainStop:enqueue(delivery_id)
+	if not delivery_id or not self.deliveries[delivery_id] then
+		strace(
+			stlib.ERROR,
+			"cs2",
+			"train_stop",
+			self,
+			"message",
+			"Enqueued nonexistent delivery.",
+			delivery_id
+		)
+		return false
+	end
+	self.delivery_queue[#self.delivery_queue + 1] = delivery_id
+	self:defer_process_queue()
+end
+
+---Remove a delivery from the train stop.
+---@param delivery_id Id
+function TrainStop:remove_delivery(delivery_id)
+	local queue = self.delivery_queue
+	local n_queue = #queue
+	if n_queue > 0 then
+		if queue[1] == delivery_id then
+			-- Inline most common cases for performance.
+			if n_queue == 1 then
+				queue[1] = nil
+			else
+				tremove(queue, 1)
+			end
+		else
+			-- General case
+			self.delivery_queue = tlib.filter(
+				queue,
+				function(id) return id ~= delivery_id end
+			)
+		end
+	end
+	Node.remove_delivery(self, delivery_id)
+	self:defer_process_queue()
+end
+
+function TrainStop:train_arrived(train) end
+
+---@param train Cybersyn.Train
+function TrainStop:train_departed(train)
+	local delivery_id = train.delivery_id
+	if not delivery_id or not self.deliveries[delivery_id] then return end
+	-- When a train makes a delivery...
+	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+	-- Clear the delivery. This will also defer queue processing.
+	self:remove_delivery(delivery_id)
+	-- TODO: consider using the event bus here.
+	-- NOTE: notify_departed adds inventory charge rebates so that hopefully
+	-- update_inventory can clear them optimistcally.
+	if delivery then delivery:notify_departed(self) end
+	-- Then try to opportunistically re-read the station's inventory.
+	self:update_inventory(true)
+end
+
+---Determine if the queue of this train stop exceeds the user-set global limit.
+---@return boolean
+function TrainStop:is_queue_full()
+	local tlimit = self.entity.trains_limit
+	local limit = tlimit and mod_settings.queue_limit + tlimit
+		or mod_settings.queue_limit
+	if limit == 0 then return false end
+	return #self.delivery_queue >= limit
+end
+
+---Signal all deliveries below the station limit that they can come to the station.
+function TrainStop:process_queue()
+	local queue = self.delivery_queue
+	local n = min(self.entity.trains_limit or 1000, #queue)
+	for i = 1, n do
+		local delivery_id = queue[i]
+		local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		if delivery then delivery:notify_queue(self) end
+	end
+end
+
+---Defer processing the queue until next frame.
+function TrainStop:defer_process_queue()
+	if self.deferred_pop_queue then return end
+	self.deferred_pop_queue = scheduler.at(game.tick + 1, "pop_stop_queue", self)
+	self:defer_notify_deliveries()
+end
+
+scheduler.register_handler("pop_stop_queue", function(task)
+	local stop = task.data --[[@as Cybersyn.TrainStop]]
+	stop.deferred_pop_queue = nil
+	if stop:is_valid() then stop:process_queue() end
+end)
+
+function TrainStop:fail_all_shared_deliveries(reason)
+	if self.shared_inventory_master then
+		local master = cs2.get_stop(self.shared_inventory_master)
+		if master then return master:fail_all_shared_deliveries(reason) end
+	end
+	if self.shared_inventory_slaves then
+		for slave_id in pairs(self.shared_inventory_slaves) do
+			local slave = cs2.get_stop(slave_id)
+			if slave then slave:fail_all_deliveries(reason) end
+		end
+	end
+	self:fail_all_deliveries(reason)
+end
+
+---Gets the total number of deliveries, present and queued, for this stop.
+---@return uint
+function TrainStop:get_occupancy() return table_size(self.deliveries) end
+
+function TrainStop:get_queue_size() return #self.delivery_queue end
+
+function TrainStop:get_tekbox_equation()
+	local limit = math.max(self.entity.trains_limit, 1)
+	return table_size(self.deliveries)
+		+ (#self.delivery_queue * (limit + 1) / limit)
+end
+
+--------------------------------------------------------------------------------
 -- INVENTORY
 --------------------------------------------------------------------------------
 
 ---Based on the combinators present at the station and its sharing state,
 ---update the inventory of the station as needed.
-function TrainStop:update_inventory_mode()
+function TrainStop:update_inventory_sharing()
 	strace(
 		stlib.DEBUG,
 		"cs2",
 		"inventory",
 		"message",
-		"Updating inventory mode for stop",
+		"Updating inventory sharing mode for stop",
 		self
 	)
 
 	-- If slave station, set inventory to master stop
 	if self.shared_inventory_master then
 		local master = cs2.get_stop(self.shared_inventory_master)
-		if master then self:set_inventory(master.inventory_id) end
+		if master then
+			if self:set_inventory(master.inventory_id) then
+				self:fail_all_deliveries("INVENTORY_CHANGED")
+			end
+		end
 		return
 	end
-	-- TODO: use get_combinator_with_mode
-	local combs = self:get_associated_combinators(
-		function(c) return c.mode == "inventory" end
-	)
-	if #combs == 0 then
-		-- Return stop to its internal pseudoinventory
-		self:set_inventory(self.created_inventory_id)
-		-- Destroy created true inventory
-		if self.true_inventory_id then
-			local inv = Inventory.get(self.true_inventory_id)
-			if inv then
-				strace(
-					stlib.DEBUG,
-					"cs2",
-					"inventory",
-					"message",
-					"Destroying true inventory at stop",
-					self.id
-				)
-				inv:destroy()
-			end
-			self.true_inventory_id = nil
-		end
-	else
-		-- Create true inventory if needed
-		if not self.true_inventory_id then
-			strace(
-				stlib.DEBUG,
-				"cs2",
-				"inventory",
-				"message",
-				"Creating true inventory at stop",
-				self.id
-			)
-			local inv = TrueInventory:new()
-			self.true_inventory_id = inv.id
-		end
-		-- Swap stop to true inventory
-		self:set_inventory(self.true_inventory_id)
+
+	local failed_deliveries = false
+
+	-- Reset to internal inventory if we don't have a master. No-op if already
+	-- set.
+	if
+		self:set_inventory(self.created_inventory_id) and not failed_deliveries
+	then
+		self:fail_all_deliveries("INVENTORY_CHANGED")
+		failed_deliveries = true
 	end
-	-- Update inventory for all slaves
-	if self.shared_inventory_slaves then
-		for slave_id in pairs(self.shared_inventory_slaves) do
-			local slave = cs2.get_stop(slave_id)
-			if slave then slave:update_inventory_mode() end
-		end
-	end
+
+	self:rebuild_inventory()
 end
 
----Determine if the inventory associated with this trainstop is volatile.
----(eg. changing because a train is there being loaded/unloaded)
-function TrainStop:is_inventory_volatile()
-	if self.shared_inventory_master then
-		local master = TrainStop.get(self.shared_inventory_master)
-		if master then
-			return master:is_inventory_volatile()
-		else
-			return not not self.entity.get_stopped_train()
-		end
-	elseif self.shared_inventory_slaves then
-		for slave_id in pairs(self.shared_inventory_slaves) do
-			local slave = TrainStop.get(slave_id)
-			if slave and slave.entity.get_stopped_train() then return true end
-		end
-		return not not self.entity.get_stopped_train()
-	else
-		return not not self.entity.get_stopped_train()
+function TrainStop:rebuild_inventory()
+	-- If shared inventory, master handles generating slave orders.
+	if self.shared_inventory_master then return end
+	local inventory = self:get_inventory()
+	if inventory then
+		---@cast inventory Cybersyn.StopInventory
+		inventory:rebuild_orders()
 	end
 end
 
 ---Update this stop's inventory
----@param is_opportunistic boolean? `true` when updating inventory opportunistically (e.g. when train leaving stop), causes combinator inputs to be reread on-the-fly.
+---@param is_opportunistic boolean? If `true`, this is an opportunistic update outside the main loop, e.g. when a train leaves a stop.
 function TrainStop:update_inventory(is_opportunistic)
+	-- If shared inventory, forward to master when relevant.
 	if self.shared_inventory_master then
 		-- Opportunistic reread at a slave station should forward to master.
 		if is_opportunistic then
-			local master = TrainStop.get(self.shared_inventory_master)
-			if master then return master:update_inventory(is_opportunistic) end
+			local master = cs2.get_stop(self.shared_inventory_master)
+			if master then return master:update_inventory(true) end
 		end
 		-- Otherwise, no need to read inventory at a slave station.
 		return
 	end
-	-- Can't read volatile inventories
-	if self:is_inventory_volatile() then
+
+	local inventory = self:get_inventory()
+	-- XXX: the or condition here is just for preventing a migration
+	-- crash during alpha.
+	if not inventory or not inventory.update then
 		strace(
-			TRACE,
+			stlib.ERROR,
 			"cs2",
 			"inventory",
 			"stop",
 			self,
 			"message",
-			"Inventory is volatile, not updating."
+			"Train stop has no inventory."
 		)
 		return
 	end
-	if self.true_inventory_id then
-		local inventory = Inventory.get(self.true_inventory_id)
-		if not inventory then
-			strace(
-				TRACE,
-				"cs2",
-				"inventory",
-				"stop",
-				self,
-				"message",
-				"True inventory is missing, not updating."
-			)
-			return
-		end
-		-- True inventory mode; read from Inventory combs.
-		local combs = self:get_associated_combinators(
-			function(c) return c.mode == "inventory" end
-		)
-		local read_inventory = false
-		local read_provide = false
-		local read_pull = false
-		local read_push = false
-		local read_sink = false
-		local read_capacity = false
-		for _, comb in pairs(combs) do
-			local inv_mode = comb:read_setting(combinator_settings.inventory_mode)
-			if inv_mode == "inventory" then
-				if is_opportunistic then comb:read_inputs() end
-				read_inventory = true
-				inventory:set_base(comb.inputs)
-			elseif inv_mode == "provide" then
-				read_provide = true
-				inventory:set_provides(comb.inputs or {})
-			elseif inv_mode == "pull" then
-				read_pull = true
-				inventory:set_pulls(comb.inputs or {})
-			elseif inv_mode == "push" then
-				read_push = true
-				inventory:set_pushes(comb.inputs or {})
-			elseif inv_mode == "sink" then
-				read_sink = true
-				inventory:set_sinks(comb.inputs or {})
-			elseif inv_mode == "capacity" then
-				read_capacity = true
-				local inputs = comb.inputs or {}
-				inventory:set_capacities(
-					inputs["cybersyn2-all-items"] or 0,
-					inputs["cybersyn2-all-fluids"] or 0
-				)
-			end
-		end
-		-- Clear data for areas where the combinator is not present.
-		if not read_inventory then inventory:set_base(nil) end
-		if not read_provide then inventory:set_provides(nil) end
-		if not read_pull then inventory:set_pulls(nil) end
-		if not read_push then inventory:set_pushes(nil) end
-		if not read_sink then inventory:set_sinks(nil) end
-		if not read_capacity then inventory:set_capacities(nil, nil) end
-	else
-		-- Pseudoinventory mode; read from Station comb.
-		local inventory = Inventory.get(self.created_inventory_id)
-		if not inventory then
-			strace(
-				TRACE,
-				"cs2",
-				"inventory",
-				"stop",
-				self,
-				"message",
-				"Pseudoinventory is missing, not updating."
-			)
-			return
-		end
-		local combs = self:get_associated_combinators(
-			function(c) return c.mode == "station" end
-		)
-		if #combs == 1 then
-			local comb = combs[1]
-			if is_opportunistic then comb:read_inputs() end
-			inventory:set_base(comb.inputs or {})
-		end
-	end
+
+	inventory:update(true)
 end
 
 function TrainStop:is_sharing_inventory()
@@ -499,6 +385,14 @@ end
 
 function TrainStop:is_sharing_master()
 	if self.shared_inventory_slaves then
+		return true
+	else
+		return false
+	end
+end
+
+function TrainStop:is_sharing_slave()
+	if self.shared_inventory_master then
 		return true
 	else
 		return false
@@ -564,5 +458,5 @@ end)
 
 -- Shared inventory recalcs
 cs2.on_train_stop_shared_inventory_changed(
-	function(stop) stop:update_inventory_mode() end
+	function(stop) stop:update_inventory_sharing() end
 )

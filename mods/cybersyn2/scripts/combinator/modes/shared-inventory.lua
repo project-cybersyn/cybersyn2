@@ -398,7 +398,7 @@ local function stop_to_shared_inventory_comb_unit_number(stop)
 end
 
 cs2.on_blueprint_setup(function(bpinfo)
-	local bp_to_world = bpinfo:get_bp_to_world()
+	local bp_to_world = bpinfo:map_blueprint_indices_to_world_entities()
 	if not bp_to_world then return end
 
 	-- Map shared-inventory combinators to and from their blueprint index
@@ -448,14 +448,7 @@ end)
 
 ---@alias Cybersyn.Internal.StoredLink [uint, MapPosition, MapPosition, UnitNumber, UnitNumber]
 
-local function get_link_storage()
-	local links = storage.inventory_links
-	if not links then
-		links = {}
-		storage.inventory_links = links
-	end
-	return links --[[@as Cybersyn.Internal.StoredLink[] ]]
-end
+local function get_link_storage() return storage.inventory_links end
 
 cs2.on_blueprint_built(function(bpinfo)
 	-- Index all combinators in the blueprint that are in shared-inventory mode.
@@ -471,7 +464,8 @@ cs2.on_blueprint_built(function(bpinfo)
 	-- Early out if no shared inv combs
 	if not next(shared_inventory_combinators) then return end
 
-	local pos = bpinfo:get_bp_to_world_pos()
+	-- Get worldspace pos of all built BP entities
+	local pos = bpinfo:map_blueprint_indices_to_world_positions()
 	if not pos then return end
 
 	-- Create re-linking data in storage based on the worldspace positions of
@@ -485,12 +479,6 @@ cs2.on_blueprint_built(function(bpinfo)
 				pos[shared_master_index],
 				pos[ei],
 			}
-			strace(
-				stlib.DEBUG,
-				"message",
-				"Scheduling blueprinted link for restoration",
-				link
-			)
 			links[#links + 1] = link
 		end
 	end
@@ -594,5 +582,47 @@ end)
 cs2.on_node_combinator_set_changed(function(node)
 	local si_comb = node:get_combinator_with_mode("shared-inventory")
 	if not si_comb then return end
+	try_relink()
+end)
+
+-- On reset, store all existing shared inventory pairs as StoredLinks
+cs2.on_reset(function(reset_data)
+	local inventory_links = get_link_storage() or {}
+	reset_data.inventory_links = inventory_links
+	-- TODO: impl
+	for _, master in pairs(storage.nodes) do
+		if master.type == "stop" and master:is_valid() then
+			---@cast master Cybersyn.TrainStop
+			local slaves = master.shared_inventory_slaves
+			if slaves then
+				local master_comb = master:get_combinator_with_mode("shared-inventory")
+				if not master_comb then goto continue end
+				for slave_id in pairs(slaves) do
+					local slave_stop = cs2.get_stop(slave_id)
+					if slave_stop then
+						local slave_comb =
+							slave_stop:get_combinator_with_mode("shared-inventory")
+						if slave_comb then
+							inventory_links[#inventory_links + 1] = {
+								game.tick,
+								nil,
+								nil,
+								master_comb.id,
+								slave_comb.id,
+							}
+						end
+					end
+				end
+			end
+		end
+		::continue::
+	end
+end)
+
+-- On startup, restore StoredLinks and try to relink.
+cs2.on_startup(function(reset_data)
+	if reset_data.inventory_links then
+		storage.inventory_links = reset_data.inventory_links
+	end
 	try_relink()
 end)

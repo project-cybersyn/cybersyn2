@@ -2,10 +2,21 @@
 -- Train delivery controller
 --------------------------------------------------------------------------------
 
+-- States:
+-- init: Virtual charges against source and dest inventory
+-- wait_from: Check for open slot at source and enter queue
+-- to_from: Add schedule for source
+-- interrupted_from: Train was interrupted while trying to get to `from`, reschedule to `from` when it hits depot.
+-- wait_to: Clear virtual charge from source inventory, check for open slot at dest and enter queue
+-- to_to: Add schedule for dest.
+-- completed: Clear virtual charge from dest
+-- failed: Clear any virtual charges, remove from any queue slots
+
 local class = require("__cybersyn2__.lib.class").class
 local siglib = require("__cybersyn2__.lib.signal")
 local stlib = require("__cybersyn2__.lib.strace")
 local tlib = require("__cybersyn2__.lib.table")
+local thread_lib = require("__cybersyn2__.lib.thread")
 
 local empty = tlib.empty
 local strace = stlib.strace
@@ -15,6 +26,7 @@ local Delivery = _G.cs2.Delivery
 local Inventory = _G.cs2.Inventory
 local TrainStop = _G.cs2.TrainStop
 local Train = _G.cs2.Train
+local Thread = thread_lib.Thread
 
 ---@class Cybersyn.TrainDelivery
 local TrainDelivery = class("TrainDelivery", Delivery)
@@ -61,8 +73,10 @@ function TrainDelivery.new(
 	delivery.vehicle_id = train.id
 	train:set_delivery(delivery)
 
-	-- Immediately start the delivery
-	delivery:goto_from()
+	from:add_delivery(delivery.id)
+	to:add_delivery(delivery.id)
+	delivery:set_state("wait_from")
+	from:enqueue(delivery.id)
 
 	cs2.raise_delivery_created(delivery)
 	return delivery
@@ -91,9 +105,9 @@ function TrainDelivery:force_clear()
 	self:clear_to_charge()
 	self:clear_from_charge()
 	local from_stop = TrainStop.get(self.from_id)
-	if from_stop then from_stop:force_remove_delivery(self.id) end
+	if from_stop then from_stop:remove_delivery(self.id) end
 	local to_stop = TrainStop.get(self.to_id)
-	if to_stop then to_stop:force_remove_delivery(self.id) end
+	if to_stop then to_stop:remove_delivery(self.id) end
 	local train = Train.get(self.vehicle_id)
 	if train then train:fail_delivery(self.id) end
 end
@@ -226,22 +240,16 @@ function TrainDelivery:goto_from()
 	local train = Train.get(self.vehicle_id)
 	local from = TrainStop.get(self.from_id)
 	if not train or not from then return self:fail() end
-	if from:is_full() then
-		-- Queue up in the stop's delivery queue
-		from:enqueue(self.id)
-		self:set_state("wait_from")
+	if self.state == "to_from" then return end
+	if
+		train:schedule(
+			coordinate_entry(from.entity),
+			pickup_entry(from, self.manifest)
+		)
+	then
+		self:set_state("to_from")
 	else
-		if
-			train:schedule(
-				coordinate_entry(from.entity),
-				pickup_entry(from, self.manifest)
-			)
-		then
-			from:add_delivery(self.id)
-			self:set_state("to_from")
-		else
-			self:set_state("interrupted_from")
-		end
+		self:set_state("interrupted_from")
 	end
 end
 
@@ -250,17 +258,11 @@ function TrainDelivery:goto_to()
 	local to = TrainStop.get(self.to_id)
 	if not train or not to then return self:fail() end
 	self:clear_from_charge()
-	if to:is_full() then
-		-- Queue up in the stop's delivery queue
-		to:enqueue(self.id)
-		self:set_state("wait_to")
+	if self.state == "to_to" then return end
+	if train:schedule(coordinate_entry(to.entity), dropoff_entry(to)) then
+		self:set_state("to_to")
 	else
-		if train:schedule(coordinate_entry(to.entity), dropoff_entry(to)) then
-			to:add_delivery(self.id)
-			self:set_state("to_to")
-		else
-			self:set_state("interrupted_to")
-		end
+		self:set_state("interrupted_to")
 	end
 end
 
@@ -276,7 +278,11 @@ end
 ---that stop
 function TrainDelivery:notify_departed(stop)
 	if self.state == "to_from" and stop.id == self.from_id then
-		self:goto_to()
+		self:clear_from_charge()
+		local to = TrainStop.get(self.to_id)
+		if not to then return self:fail() end
+		self:set_state("wait_to")
+		to:enqueue(self.id)
 	elseif self.state == "to_to" and stop.id == self.to_id then
 		self:complete()
 	else
@@ -297,27 +303,17 @@ end
 ---@param stop Cybersyn.TrainStop
 function TrainDelivery:notify_queue(stop)
 	if self.state == "wait_from" and stop.id == self.from_id then
-		self:goto_from()
+		cs2.enqueue_delivery_operation(self, "goto_from")
 	elseif self.state == "wait_to" and stop.id == self.to_id then
-		self:goto_to()
-	else
-		strace(
-			stlib.WARN,
-			"cs2",
-			"delivery_queue",
-			"delivery",
-			self,
-			"message",
-			"notify_queue() was called while we weren't supposed to be queued."
-		)
+		cs2.enqueue_delivery_operation(self, "goto_to")
 	end
 end
 
 function TrainDelivery:notify_interrupted()
 	if self.state == "interrupted_from" then
-		self:goto_from()
+		cs2.enqueue_delivery_operation(self, "goto_from")
 	elseif self.state == "interrupted_to" then
-		self:goto_to()
+		cs2.enqueue_delivery_operation(self, "goto_to")
 	end
 end
 
@@ -369,7 +365,7 @@ cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 	if renamed_type ~= "train-stop" then return end
 	local stop = TrainStop.get_stop_from_unit_number(entity.unit_number)
 	if not stop then return end
-	for delivery_id in pairs(stop.deliveries or empty) do
+	for _, delivery_id in pairs(stop.delivery_queue or empty) do
 		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		if delivery then
 			local train = Train.get(delivery.vehicle_id)
@@ -380,11 +376,57 @@ cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 	end
 end)
 
--- init: Virtual charges against source and dest inventory
--- wait_from: Check for open slot at source and enter queue
--- to_from: Add schedule for source
--- interrupted_from: Train was interrupted while trying to get to `from`, reschedule to `from` when it hits depot.
--- wait_to: Clear virtual charge from source inventory, check for open slot at dest and enter queue
--- to_to: Add schedule for dest.
--- completed: Clear virtual charge from dest
--- failed: Clear any virtual charges, remove from any queue slots
+--------------------------------------------------------------------------------
+-- Dispatch thread
+-- Due to the large cost incurred by calling the Factorio API to dispatch a
+-- train, we want it to happen on its own frame isolated from all other processing.
+--------------------------------------------------------------------------------
+
+---@class Cybersyn.Internal.DeliveryDispatchThread: Lib.Thread
+---@field public queue (int|string)[] Queue of delivery IDs to be dispatched.
+local DeliveryDispatchThread = class("DeliveryDispatchThread", Thread)
+
+function DeliveryDispatchThread:new()
+	local thread = Thread.new(self) --[[@as Cybersyn.Internal.DeliveryDispatchThread]]
+	thread.friendly_name = "delivery_dispatch"
+	-- Guarantee that the thread gets its own exclusive frame.
+	thread.workload = 1000000000
+	thread.queue = {}
+	return thread
+end
+
+function DeliveryDispatchThread:main()
+	local queue = self.queue
+	if #queue == 0 then return self:sleep() end
+	-- Pop exactly one delivery and schedule it
+	local delivery_id = table.remove(queue, 1)
+	local operation = table.remove(queue, 1)
+	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+	if not delivery then return end
+	delivery[operation](delivery)
+	-- Sleep whenever queue is empty.
+	if #queue == 0 then return self:sleep() end
+end
+
+---@param delivery_id int The ID of the delivery to be dispatched.
+---@param operation string The operation to be performed on the delivery.
+function DeliveryDispatchThread:enqueue(delivery_id, operation)
+	self.queue[#self.queue + 1] = delivery_id
+	self.queue[#self.queue + 1] = operation
+	self:wake()
+end
+
+cs2.on_startup(function()
+	-- Create the dispatch thread on startup.
+	local thread = DeliveryDispatchThread:new()
+	storage.task_ids["delivery_dispatch"] = thread.id
+end)
+
+---Defer an operation that will schedule a train onto its own frame.
+---@param delivery Cybersyn.TrainDelivery
+---@param operation string The method to call on the delivery.
+function _G.cs2.enqueue_delivery_operation(delivery, operation)
+	local ddt = thread_lib.get_thread(storage.task_ids["delivery_dispatch"]) --[[@as Cybersyn.Internal.DeliveryDispatchThread?]]
+	if not ddt then return end
+	ddt:enqueue(delivery.id, operation)
+end

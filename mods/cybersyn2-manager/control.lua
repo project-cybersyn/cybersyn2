@@ -5,8 +5,12 @@ require("scripts.types")
 require("scripts.events")
 require("scripts.storage")
 require("scripts.settings")
+require("scripts.elements")
+
+require("scripts.manager.base")
 
 require("scripts.inspector.base")
+require("scripts.inspector.inventory")
 
 require("scripts.main")
 

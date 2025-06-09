@@ -1,4 +1,4 @@
-# Delivery Thresholds
+# Delivery Sizes
 
 A **delivery threshold** for a station is the minimum number of a particular item a train must be dropping off or picking up at that station in order to be dispatched.
 

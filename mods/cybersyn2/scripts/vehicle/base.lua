@@ -17,7 +17,8 @@ _G.cs2.Vehicle = Vehicle
 ---@return Cybersyn.Vehicle
 function Vehicle.new(type)
 	local id = counters.next("vehicle")
-	storage.vehicles[id] = setmetatable({ id = id, type = type }, Vehicle)
+	storage.vehicles[id] =
+		setmetatable({ id = id, type = type, created_tick = game.tick }, Vehicle)
 	return storage.vehicles[id]
 end
 

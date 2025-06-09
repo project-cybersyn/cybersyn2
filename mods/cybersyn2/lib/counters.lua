@@ -9,9 +9,7 @@ local lib = {}
 
 ---Initialize the counter system. Must be called in the mod's `on_init` handler.
 ---BEFORE any counters are utilized.
-function lib.init()
-	if not storage._counters then storage._counters = {} end
-end
+function lib.init() storage._counters = {} end
 
 ---Increment the global counter with the given key and return its next value.
 ---@param key string The key of the counter to increment.

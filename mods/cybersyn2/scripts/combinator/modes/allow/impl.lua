@@ -178,6 +178,19 @@ local function evaluate_stop(stop, changed_layout_id)
 	end
 end
 
+---@param stop Cybersyn.TrainStop
+local function cull_stop_layouts(stop)
+	if not stop.allowed_layouts then return end
+	local culled_layout = false
+	for layout_id in pairs(stop.allowed_layouts) do
+		if not storage.train_layouts[layout_id] then
+			stop.allowed_layouts[layout_id] = nil
+			culled_layout = true
+		end
+	end
+	if culled_layout then cs2.raise_node_data_changed(stop) end
+end
+
 --------------------------------------------------------------------------------
 -- Events triggering allow list updates
 --------------------------------------------------------------------------------
@@ -211,6 +224,15 @@ cs2.on_train_layout_created(function(train_layout)
 	for _, node in pairs(storage.nodes) do
 		if node.type == "stop" then
 			evaluate_stop(node --[[@as Cybersyn.TrainStop]], train_layout.id)
+		end
+	end
+end)
+
+cs2.on_train_layouts_destroyed(function()
+	-- When train layouts are destroyed, we need to re-evaluate all stops.
+	for _, node in pairs(storage.nodes) do
+		if node.type == "stop" then
+			cull_stop_layouts(node --[[@as Cybersyn.TrainStop]])
 		end
 	end
 end)

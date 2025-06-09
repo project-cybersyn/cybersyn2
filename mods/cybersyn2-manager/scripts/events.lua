@@ -41,3 +41,10 @@ _G.mgr.on_inspector_selected, _G.mgr.raise_inspector_selected = event(
 
 _G.mgr.on_manager_toggle, _G.mgr.raise_manager_toggle =
 	event("on_manager_toggle", "PlayerIndex", "nil", "nil", "nil", "nil")
+
+--------------------------------------------------------------------------------
+-- Cybersyn 2 custom events
+--------------------------------------------------------------------------------
+
+_G.mgr.on_view_updated, _G.mgr.raise_view_updated =
+	event("view_updated", "Id", "nil", "nil", "nil", "nil")

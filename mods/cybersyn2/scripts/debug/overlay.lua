@@ -170,6 +170,8 @@ local function update_stop_overlay(stop)
 	if not overlay then return end
 	local layout = stop:get_layout()
 	if not layout then return end
+	local inventory = stop:get_inventory()
+	if not inventory then return end
 
 	-- Text
 	local lines = {
@@ -177,7 +179,6 @@ local function update_stop_overlay(stop)
 			"[item=train-stop]",
 			stop.id,
 			stop.per_wagon_mode and "[item=cargo-wagon]" or "",
-			stop.true_inventory_id and "[item=buffer-chest]" or "",
 			"[item=steel-chest]",
 			stop.inventory_id,
 		}),
@@ -295,21 +296,22 @@ local function enable_or_disable_overlays()
 	end
 end
 
+cs2.on_reset(clear_all_overlays)
 cs2.on_mod_settings_changed(enable_or_disable_overlays)
 cs2.on_combinator_destroyed(destroy_combinator_overlay)
 --cs2.on_combinator_created(update_combinator_overlay)
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
 	--update_combinator_overlay(combinator)
-	if new_node then
-		local l, t, r, b = mlib.bbox_get(combinator.entity.bounding_box)
-		rendering.draw_rectangle({
-			color = { r = 0, g = 1, b = 1, a = 0.5 },
-			left_top = { l, t },
-			right_bottom = { r, b },
-			surface = combinator.entity.surface,
-			time_to_live = 300,
-		})
-	end
+	-- if new_node then
+	-- 	local l, t, r, b = mlib.bbox_get(combinator.entity.bounding_box)
+	-- 	rendering.draw_rectangle({
+	-- 		color = { r = 0, g = 1, b = 1, a = 0.5 },
+	-- 		left_top = { l, t },
+	-- 		right_bottom = { r, b },
+	-- 		surface = combinator.entity.surface,
+	-- 		time_to_live = 300,
+	-- 	})
+	-- end
 end)
 cs2.on_node_destroyed(destroy_stop_overlay)
 cs2.on_node_created(update_stop_overlay)

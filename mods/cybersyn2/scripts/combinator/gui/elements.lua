@@ -12,13 +12,26 @@ local HF = ultros.HFlow
 ---setting automatically.
 ---@param caption LocalisedString
 ---@param tooltip LocalisedString?
-function _G.cs2.gui.Checkbox(caption, tooltip, combinator, setting, inverse)
+---@param combinator Cybersyn.Combinator.Ephemeral
+---@param setting Cybersyn.Combinator.SettingDefinition
+---@param inverse boolean? If true, the checkbox will be inverted (checked when the setting is false).
+---@param disabled true? If true, the checkbox will be disabled and not interactable.
+function _G.cs2.gui.Checkbox(
+	caption,
+	tooltip,
+	combinator,
+	setting,
+	inverse,
+	disabled
+)
 	local value = combinator:read_setting(setting)
 	if inverse then value = not value end
+	local enabled = not disabled
 	return ultros.Checkbox({
 		caption = caption,
 		tooltip = tooltip,
 		value = value,
+		enabled = enabled,
 		on_change = function(_, state)
 			local new_state = state
 			if inverse then new_state = not state end
@@ -40,29 +53,45 @@ function _G.cs2.gui.AnySignalPicker(combinator, setting)
 end
 
 ---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
----combinator setting. Only allows valid network signals.
-function _G.cs2.gui.NetworkSignalPicker(combinator, setting)
+---combinator setting. Only allows virtual signals.
+function _G.cs2.gui.VirtualSignalPicker(combinator, setting, tooltip)
 	return ultros.SignalPicker({
+		tooltip = tooltip,
+		value = combinator:read_setting(setting),
+		on_change = function(_, signal, elem)
+			if not signal then return combinator:write_setting(setting, nil) end
+			if signal.type == "virtual" then
+				combinator:write_setting(setting, signal)
+			else
+				game.print("Invalid signal type. Please select a virtual signal.", {
+					color = { 255, 128, 0 },
+					skip = defines.print_skip.never,
+					sound = defines.print_sound.always,
+				})
+				elem.elem_value = nil
+				return
+			end
+		end,
+	})
+end
+
+---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
+---combinator setting. Only allows valid network signals.
+function _G.cs2.gui.NetworkSignalPicker(combinator, setting, tooltip)
+	return ultros.SignalPicker({
+		tooltip = tooltip,
 		virtual_signal = combinator:read_setting(setting),
 		on_change = function(_, signal, elem)
 			if not signal then return combinator:write_setting(setting, nil) end
 			if
 				signal.type == "virtual"
-				and not cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal.name]
+				and not cs2.INVALID_NETWORK_SIGNAL_SET[signal.name]
 			then
 				local stored = signal.name
-				if
-					signal.name == "signal-everything"
-					or signal.name == "signal-anything"
-					or signal.name == "signal-each"
-				then
-					stored = "signal-each"
-				end
-
 				combinator:write_setting(setting, stored)
 			else
 				game.print(
-					"Invalid signal type. Please select a non-configuration virtual signal.",
+					"Invalid signal selected. Please select a valid virtual signal.",
 					{
 						color = { 255, 128, 0 },
 						skip = defines.print_skip.never,
@@ -111,6 +140,9 @@ _G.cs2.gui.Input = relm.define_element({
 	render = function(props, state)
 		local dirty = not not (state and state.dirty)
 		local value = props.combinator:read_setting(props.setting)
+		if not value and props.displayed_default_value then
+			value = props.displayed_default_value
+		end
 		local tf_props = ultros.assign({
 			value = value,
 			on_change = "on_change",

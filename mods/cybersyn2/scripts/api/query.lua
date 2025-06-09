@@ -1,4 +1,3 @@
-local log = require("__cybersyn2__.lib.logging")
 local strace_lib = require("__cybersyn2__.lib.strace")
 local query_handlers = _G.cs2.query_handlers
 local types = require("__cybersyn2__.lib.types")
@@ -15,7 +14,6 @@ function _G.cs2.remote_api.query(query)
 	strace(TRACE, "cs2", "query_exec", "message", query)
 	local handler = query_handlers[query.type]
 	if not handler then
-		log.error("Invalid query (bad type)", query)
 		return {
 			type = { false, ContainerType.value, PrimitiveType.Nil },
 			data = nil,

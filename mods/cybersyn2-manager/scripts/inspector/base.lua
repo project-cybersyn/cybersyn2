@@ -1,4 +1,3 @@
-local log = require("__cybersyn2__.lib.logging")
 local strace_lib = require("__cybersyn2__.lib.strace")
 local relm = require("__cybersyn2__.lib.relm")
 local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
@@ -8,10 +7,7 @@ local mgr = _G.mgr
 
 local strace = strace_lib.strace
 local Pr = relm.Primitive
-
----@class Cybersyn2.Manager.InspectorFrameType
----@field public name string Type of this panel
----@field public widget_type string CSGUI widget to create.
+local empty = tlib.empty
 
 _G.mgr.inspector = {}
 _G.mgr.INSPECTOR_WINDOW_NAME = "cybersyn2-inspector"
@@ -93,8 +89,8 @@ local function entity_to_entries(entity)
 			if stop.inventory_id then
 				entries[#entries + 1] = {
 					key = "inv" .. stop.inventory_id,
-					type = "InspectorItem.Generic",
-					query = { type = "inventories", ids = { stop.inventory_id } },
+					type = "InspectorItem.Inventory",
+					inventory_id = stop.inventory_id,
 					caption = "Inventory " .. stop.inventory_id,
 				}
 			end
@@ -142,16 +138,33 @@ end)
 -- Components
 --------------------------------------------------------------------------------
 
+local renderers = {}
+
+local function default_renderer(k, v)
+	return ultros.BoldLabel(k), ultros.RtMultilineLabel(strace_lib.stringify(v))
+end
+
 relm.define_element({
 	name = "InspectorItem.Generic",
-	render = function(props)
+	render = function(props, state)
+		-- lol
+		local result = ((state or empty).data or empty)[1] or empty
 		relm_helpers.use_timer(120, "update")
-		local result = remote.call("cybersyn2", "query", props.query)
-		return ultros.RtMultilineLabel(log.stringify(result))
+		local children = {}
+		for k, v in pairs(result) do
+			local renderer = renderers[k] or default_renderer
+			tlib.append(children, renderer(k, v))
+		end
+		return relm.Primitive({
+			type = "table",
+			horizontally_stretchable = true,
+			column_count = 2,
+		}, children)
 	end,
-	message = function(me, payload)
+	message = function(me, payload, props)
 		if payload.key == "update" then
-			relm.paint(me)
+			local result = remote.call("cybersyn2", "query", props.query)
+			relm.set_state(me, result)
 			return true
 		end
 		return false

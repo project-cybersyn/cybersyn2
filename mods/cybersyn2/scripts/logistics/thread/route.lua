@@ -25,6 +25,7 @@ local key_is_fluid = signal.key_is_fluid
 local LogisticsThread = _G.cs2.LogisticsThread
 
 ---@class (exact) Cybersyn.Internal.TrainCargoState
+---@field public total_item_slots uint Total item slots. Locked slots already subtracted.
 ---@field public remaining_item_slots uint Remaining item slots. Locked slots already subtracted.
 ---@field public fluid_capacity uint Train fluid capacity. Reserved cap already subtracted.
 ---@field public seen_items table<SignalKey, boolean> Seen items.
@@ -76,7 +77,9 @@ local function try_allocation(
 	-- Fluid case
 	if allocation.is_fluid then
 		-- No mixing fluid
-		if cargo_state.fluid_was_allocated then return true end
+		if cargo_state.fluid_was_allocated or cargo_state.fluid_capacity < 1 then
+			return true
+		end
 		-- Verify capacity
 		if
 			cargo_state.fluid_capacity >= from_thresh
@@ -104,6 +107,11 @@ local function try_allocation(
 	if remaining_item_slots < 1 then return true end
 	local stack_size = allocation.stack_size
 	local spillover = cargo_state.item_spillover
+	-- TODO: locked slots and spillover should not count against receiver
+	-- threshold.
+	-- Allow grace for locked slots on receiver threshold
+	to_thresh =
+		min(to_thresh, cargo_state.total_item_slots * allocation.stack_size)
 	-- Figure out the most we could put on to the train, accounting for spillover
 	-- and remaining slots. If below threshold, abort.
 	local remaining_item_capacity = (remaining_item_slots * stack_size)
@@ -119,6 +127,7 @@ local function try_allocation(
 	local manifest_qty = min(allocation.qty, remaining_item_capacity)
 	local spillover_qty = min(allocation.qty + spillover, remaining_item_capacity)
 	local slots_needed = ceil(spillover_qty / stack_size)
+	if slots_needed > remaining_item_slots then return true end
 	cargo_state.remaining_item_slots = remaining_item_slots - slots_needed
 	cargo_state.manifest[allocation.item] = manifest_qty
 	if spillover > 0 then
@@ -140,12 +149,12 @@ local function route_train(data, train, allocation, index)
 	local reserved_capacity = from.reserved_capacity or 0
 	local spillover = from.spillover or 0
 
+	local total_item_slots =
+		max(train.item_slot_capacity - (n_cargo_wagons * reserved_slots), 0)
 	---@type Cybersyn.Internal.TrainCargoState
 	local cargo_state = {
-		remaining_item_slots = max(
-			train.item_slot_capacity - (n_cargo_wagons * reserved_slots),
-			0
-		),
+		total_item_slots = total_item_slots,
+		remaining_item_slots = total_item_slots,
 		fluid_capacity = max(
 			train.fluid_capacity - (n_fluid_wagons * reserved_capacity),
 			0
@@ -156,13 +165,33 @@ local function route_train(data, train, allocation, index)
 		manifest = {},
 	}
 
+	local allocations_from = data.allocs_from[from.id]
+	if not allocations_from then
+		strace(
+			stlib.ERROR,
+			"cs2",
+			"route",
+			"message",
+			"Inconsistent logistics thread state (alloc without alloc_from)"
+		)
+		return false
+	end
+
 	-- Attempt to tack on as many future point-to-point allocations as possible
-	local allocations = data.allocations --[[@as Cybersyn.Internal.LogisticsAllocation[] ]]
-	for i = index, from.produce_single_item and index or #allocations do
-		local future_alloc = allocations[i]
+	local found_self = false
+	for i = 1, #allocations_from do
+		local future_alloc = allocations_from[i]
+		if future_alloc == allocation then found_self = true end
+		if not found_self then goto continue end
 		if not try_allocation(data, allocation, future_alloc, cargo_state) then
 			break
 		end
+		if from.produce_single_item then
+			-- If we are producing a single item, we can stop after the
+			-- primary allocation completes.
+			break
+		end
+		::continue::
 	end
 
 	-- Verify that we have a manifest
@@ -180,8 +209,7 @@ local function route_train(data, train, allocation, index)
 	end
 
 	-- Mark consumer as receiving a delivery
-	allocation.to.last_consumer_tick = game.tick
-	allocation.from.last_producer_tick = game.tick
+	allocation.to.last_consumed_tick[allocation.item] = game.tick
 	-- Remove from avail_trains
 	data.avail_trains[train.id] = nil
 	-- Create delivery
@@ -216,6 +244,15 @@ end
 
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 function LogisticsThread:route_train_allocation(allocation, index)
+	-- If alloc below threshold, skip it.
+	if
+		allocation.qty < allocation.from_thresh
+		or allocation.qty < allocation.to_thresh
+	then
+		-- TODO: log at provider that stuff was reserved below threshold
+		return false
+	end
+
 	local from = allocation.from --[[@as Cybersyn.TrainStop]]
 	local to = allocation.to --[[@as Cybersyn.TrainStop]]
 	if (not from:is_valid()) or (not to:is_valid()) then return false end
@@ -284,22 +321,20 @@ function LogisticsThread:maybe_route_allocation(allocation, index)
 end
 
 function LogisticsThread:enter_route()
-	local top_id = self.current_topology
+	local top_id = self.topology_id
 	self.avail_trains = tlib.t_map_t(storage.vehicles, function(_, veh)
 		if veh.type == "train" and veh.topology_id == top_id then
 			return veh.id, veh
 		end
 	end) --[[@as table<uint, Cybersyn.Train>]]
-	self.stride = 1
-	self.index = 1
+	self:begin_async_loop(self.allocations, 1)
 end
 
 function LogisticsThread:exit_route() self.allocations = nil end
 
 function LogisticsThread:route()
-	self:async_loop(
-		self.allocations,
+	self:step_async_loop(
 		self.maybe_route_allocation,
-		function(x) x:set_state("next_t") end
+		function(x) x:set_state("init") end
 	)
 end

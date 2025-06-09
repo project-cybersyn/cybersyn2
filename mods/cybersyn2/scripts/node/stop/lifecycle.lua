@@ -9,6 +9,9 @@ local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
 local TrainStop = _G.cs2.TrainStop
 local Delivery = _G.cs2.Delivery
+local Topology = _G.cs2.Topology
+
+local empty = tlib.empty
 
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
@@ -61,6 +64,21 @@ function reassociate_recursive(combinators, depth)
 		-- Find the preferred stop for association
 		local target_stop_entity, target_rail_entity =
 			cs2.lib.find_associable_entities_for_combinator(combinator.entity)
+		-- Ignore entities that are being destroyed
+		local entities_being_destroyed = storage.entities_being_destroyed or empty
+		if
+			target_stop_entity
+			and entities_being_destroyed[target_stop_entity.unit_number]
+		then
+			target_stop_entity = nil
+		end
+		if
+			target_rail_entity
+			and entities_being_destroyed[target_rail_entity.unit_number]
+		then
+			target_rail_entity = nil
+		end
+
 		combinator.connected_rail = target_rail_entity
 		---@type Cybersyn.TrainStop?
 		local target_stop = nil
@@ -171,6 +189,13 @@ cs2.on_broken_train_stop(function(stop_entity)
 	local stop =
 		TrainStop.get_stop_from_unit_number(stop_entity.unit_number, true)
 	if not stop then return end
+
+	-- XXX: prevent migration crash
+	if not storage.entities_being_destroyed then
+		storage.entities_being_destroyed = {}
+	end
+
+	storage.entities_being_destroyed[stop_entity.unit_number] = true
 	stop:destroy()
 end)
 
@@ -188,9 +213,29 @@ cs2.on_node_combinator_set_changed(function(node)
 	end
 end)
 
--- When a stop is destroyed, fail all its deliveries.
+-- Cleanup state when a stop is destroyed.
 cs2.on_node_destroyed(function(node)
 	if node.type ~= "stop" then return end
 	---@cast node Cybersyn.TrainStop
+	-- Fail all deliveries associated with this stop.
 	node:fail_all_deliveries()
+	-- Destroy all alerts associated with this stop.
+	cs2.destroy_alerts(node.entity)
+end)
+
+-- When a topology is created, reassociate any stops with the appropriate
+-- train topology
+cs2.on_topologies(function(topology, what)
+	if what == "created" then
+		-- TODO: this is very brute force. we should try to figure out
+		-- exactly which nodes need to be updated.
+		for _, stop in pairs(storage.nodes) do
+			if stop.type == "stop" and stop:is_valid() then
+				---@cast stop Cybersyn.TrainStop
+				local train_topology =
+					Topology.get_train_topology(stop.entity.surface_index)
+				if train_topology then stop.topology_id = train_topology.id end
+			end
+		end
+	end
 end)

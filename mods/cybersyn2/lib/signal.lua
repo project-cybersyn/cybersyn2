@@ -8,10 +8,17 @@ if ... ~= "__cybersyn2__.lib.signal" then
 	return require("__cybersyn2__.lib.signal")
 end
 
+local tlib = require("__cybersyn2__.lib.table")
+
+local empty = tlib.empty
 local strsub = string.sub
 local strfind = string.find
 local strformat = string.format
 local type = _G.type
+local abs = math.abs
+local floor = math.floor
+local tostring = _G.tostring
+local band = bit32.band
 
 local lib = {}
 
@@ -180,12 +187,29 @@ local function key_is_cargo(key)
 end
 lib.key_is_cargo = key_is_cargo
 
+---Determine if this signal key represents a fluid signal.
 ---@param key SignalKey
 local function key_is_fluid(key)
 	local s = key_to_signal(key)
 	if s then return s.type == "fluid" end
 end
 lib.key_is_fluid = key_is_fluid
+
+---Classify keys relevant to Cybersyn input mechanisms.
+---@return "cargo"|"virtual"|nil genus Genus of the key
+---@return "item"|"fluid"|nil species For `cargo` keys, species of the cargo.
+local function classify_key(key)
+	if parameter_names[key] then return end
+	local sig = key_to_signal(key)
+	if sig then
+		if sig.type == "item" or sig.type == "fluid" then
+			return "cargo", sig.type --[[@as "item"|"fluid"]]
+		elseif sig.type == "virtual" then
+			return "virtual", nil
+		end
+	end
+end
+lib.classify_key = classify_key
 
 ---@param key SignalKey
 local function key_to_richtext(key)
@@ -220,5 +244,71 @@ local function key_to_stacksize(key)
 	end
 end
 lib.key_to_stacksize = key_to_stacksize
+
+---Format the count of a signal as a small SI string for display on buttons.
+---@param count int
+---@return string
+function lib.format_signal_count(count)
+	local function si_format(divisor, si_symbol)
+		if abs(floor(count / divisor)) >= 10 then
+			count = floor(count / divisor)
+			return strformat("%.0f%s", count, si_symbol)
+		else
+			count = floor(count / (divisor / 10)) / 10
+			return strformat("%.1f%s", count, si_symbol)
+		end
+	end
+
+	local absv = abs(count)
+	return -- signals are 32bit integers so Giga is enough
+		absv >= 1e9 and si_format(1e9, "G") or absv >= 1e6 and si_format(
+		1e6,
+		"M"
+	) or absv >= 1e3 and si_format(1e3, "k") or tostring(count)
+end
+
+---Convert an array of signals to a table of signal counts.
+---@param signals Signal[]
+---@return SignalCounts
+function lib.signals_to_signal_counts(signals)
+	local counts = {}
+	for i = 1, #signals do
+		local signal = signals[i]
+		counts[signal_to_key(signal.signal)] = signal.count
+	end
+	return counts
+end
+
+---@param signal_id SignalID|nil
+function lib.signal_is_cargo(signal_id)
+	if not signal_id then return false end
+	local ty = signal_id.type
+	return (ty == nil or ty == "item" or ty == "fluid")
+end
+
+---Given collections of signal counts treated as network masks, determine
+---if they match. Uses OR for the outer operation.
+---@param networks1 SignalCounts
+---@param networks2 SignalCounts
+function lib.network_match_or(networks1, networks2)
+	for name, mask in pairs(networks1 or empty) do
+		if band(mask, (networks2 or empty)[name] or 0) ~= 0 then return true end
+	end
+	return false
+end
+
+---Given a signal key and an item filter, determine if the key passes the
+---filter. The filter is interpreted as `OR` and quality is ignored.
+---@param key SignalKey
+---@param item_filter SignalSet
+function lib.item_filter_any_quality_OR(key, item_filter)
+	if not item_filter then return true end
+	local sig = key_to_signal(key)
+	if not sig then return false end
+	if sig.type == "item" or sig.type == "fluid" then
+		return item_filter[sig.name] ~= nil
+	end
+	return false
+end
 
 return lib

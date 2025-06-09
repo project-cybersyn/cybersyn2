@@ -8,6 +8,7 @@ local Vehicle = _G.cs2.Vehicle
 local Topology = _G.cs2.Topology
 
 local strsub = string.sub
+local mod_settings = _G.cs2.mod_settings
 
 --------------------------------------------------------------------------------
 -- Group tracking
@@ -122,6 +123,7 @@ function Train.new(lua_train)
 	train.stock = stock
 	train.lua_train_id = lua_train.id
 	train.topology_id = topology.id
+	train.home_surface_index = stock.surface_index
 	train.item_slot_capacity = 0
 	train.fluid_capacity = 0
 
@@ -237,6 +239,13 @@ end
 
 function Train:is_available()
 	if self.delivery_id or not self:is_valid() then return false end
+	-- Honor vehicle warmup time
+	if
+		game.tick - (self.created_tick or 0)
+		< (mod_settings.vehicle_warmup_time * 60)
+	then
+		return false
+	end
 	local schedule = self.lua_train.get_schedule()
 	if get_schedule_state(schedule) then return false end
 	return true

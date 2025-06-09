@@ -1404,7 +1404,7 @@ function lib.delegate_event(event) return dispatch(event) end
 ---in a migration.
 function lib.init()
 	-- Lint diagnostic here is ok. We can't disable it because of luals bug.
-	if not storage._relm then storage._relm = { roots = {}, root_counter = 0 } end
+	storage._relm = { roots = {}, root_counter = 0 }
 end
 
 ---This function MUST BE CALLED in `on_load` handler in order to re-sync
