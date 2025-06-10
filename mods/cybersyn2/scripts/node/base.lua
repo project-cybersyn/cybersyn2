@@ -36,6 +36,9 @@ function Node.new(type)
 		created_tick = game.tick,
 		last_consumed_tick = {},
 		deliveries = {},
+		log_size = 10,
+		log_current = 1,
+		log_buffer = {},
 	}, Node)
 
 	storage.nodes[id] = node

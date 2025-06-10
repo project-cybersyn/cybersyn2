@@ -29,6 +29,11 @@ local lib = {}
 ---@field public is_changing_state boolean? `true` if a state change is ongoing
 ---@field public queued_state_changes string[]? A queue of state changes to be applied
 
+---@class RingBufferLog
+---@field public log_size uint Max size of the log
+---@field public log_current uint Index of the current log entry
+---@field public log_buffer any[] The full log ring buffer.
+
 ---An opaque reference to EITHER a live combinator OR its ghost.
 ---@class Cybersyn.Combinator.Ephemeral
 ---@field public entity? LuaEntity The primary entity of the combinator OR its ghost.
@@ -112,7 +117,7 @@ lib.NodeNetworkOperation = {
 ---@field public global_combinators IdSet Set of global combinators (e.g. inventory combinators) associated with this topology. This DOES NOT include per-node combinators.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
----@class Cybersyn.Node
+---@class Cybersyn.Node: RingBufferLog
 ---@field public id Id Unique id of the node.
 ---@field public topology_id Id? Id of the topology this node belongs to.
 ---@field public type string The type of the node.
