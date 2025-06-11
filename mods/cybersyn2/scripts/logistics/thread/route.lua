@@ -198,6 +198,18 @@ local function route_train(data, train, allocation, index)
 	-- XXX: debug, remove after we know this all works
 	local mi1, mq1 = next(cargo_state.manifest)
 	if (not mi1) or (mq1 < 1) then
+		if mod_settings.debug then
+			local log_entry = {
+				type = "ALLOC_COULDNT_ROUTE",
+				from = allocation.from.id,
+				to = allocation.to.id,
+				item = allocation.item,
+				qty = allocation.qty,
+			}
+			cs2.ring_buffer_log_write(allocation.from, log_entry)
+			cs2.ring_buffer_log_write(allocation.to, log_entry)
+		end
+
 		strace(
 			stlib.ERROR,
 			"cs2",
@@ -213,7 +225,7 @@ local function route_train(data, train, allocation, index)
 	-- Remove from avail_trains
 	data.avail_trains[train.id] = nil
 	-- Create delivery
-	TrainDelivery.new(
+	local delivery = TrainDelivery.new(
 		train,
 		allocation.from --[[@as Cybersyn.TrainStop]],
 		allocation.from_inv,
@@ -225,6 +237,18 @@ local function route_train(data, train, allocation, index)
 		reserved_slots,
 		reserved_capacity
 	)
+	if mod_settings.debug then
+		local log_entry = {
+			type = "ROUTE_TRAIN",
+			from = allocation.from.id,
+			to = allocation.to.id,
+			item = allocation.item,
+			qty = allocation.qty,
+			delivery = delivery.id,
+		}
+		cs2.ring_buffer_log_write(allocation.from, log_entry)
+		cs2.ring_buffer_log_write(allocation.to, log_entry)
+	end
 	return true
 end
 
@@ -244,12 +268,35 @@ end
 
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 function LogisticsThread:route_train_allocation(allocation, index)
-	-- If alloc below threshold, skip it.
-	if
-		allocation.qty < allocation.from_thresh
-		or allocation.qty < allocation.to_thresh
-	then
-		-- TODO: log at provider that stuff was reserved below threshold
+	local qty = allocation.qty
+	-- Allocation with qty=0 was already handled elsewhere.
+	if qty < 1 then return false end
+	if qty < allocation.from_thresh then
+		if mod_settings.debug then
+			local log_entry = {
+				type = "ALLOC_BELOW_FROM_THRESH",
+				from = allocation.from.id,
+				to = allocation.to.id,
+				item = allocation.item,
+				qty = qty,
+			}
+			cs2.ring_buffer_log_write(allocation.from, log_entry)
+			cs2.ring_buffer_log_write(allocation.to, log_entry)
+		end
+		return false
+	end
+	if qty < allocation.to_thresh then
+		if mod_settings.debug then
+			local log_entry = {
+				type = "ALLOC_BELOW_TO_THRESH",
+				from = allocation.from.id,
+				to = allocation.to.id,
+				item = allocation.item,
+				qty = qty,
+			}
+			cs2.ring_buffer_log_write(allocation.from, log_entry)
+			cs2.ring_buffer_log_write(allocation.to, log_entry)
+		end
 		return false
 	end
 
@@ -258,7 +305,18 @@ function LogisticsThread:route_train_allocation(allocation, index)
 	if (not from:is_valid()) or (not to:is_valid()) then return false end
 
 	-- Don't queue into a full queue.
-	if from:is_queue_full() then return false end
+	if from:is_queue_full() then
+		if mod_settings.debug then
+			cs2.ring_buffer_log_write(from, {
+				type = "FROM_QUEUE_FULL",
+				from = from.id,
+				to = to.id,
+				item = allocation.item,
+				qty = qty,
+			})
+		end
+		return false
+	end
 
 	local is_fluid = allocation.is_fluid
 	local stack_size = allocation.stack_size
@@ -299,6 +357,17 @@ function LogisticsThread:route_train_allocation(allocation, index)
 		return route_train(self, best_train, allocation, index)
 	else
 		-- TODO: "No train found" alert
+		if mod_settings.debug then
+			local log_entry = {
+				type = "ALLOC_NO_AVAIL_TRAIN",
+				from = from.id,
+				to = to.id,
+				item = allocation.item,
+				qty = qty,
+			}
+			cs2.ring_buffer_log_write(from, log_entry)
+			cs2.ring_buffer_log_write(to, log_entry)
+		end
 		return false
 	end
 end
