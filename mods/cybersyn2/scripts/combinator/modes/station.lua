@@ -94,6 +94,11 @@ local wire_dropdown_items = {
 relm.define_element({
 	name = "CombinatorGui.Mode.Station",
 	render = function(props)
+		local pr = props.combinator:read_setting(combinator_settings.pr)
+		local is_provider = pr == 1 or pr == 0
+		local is_requester = pr == 2 or pr == 0
+		local is_provide_only = pr == 1
+		local is_request_only = pr == 2
 		return VF({
 			ultros.WellSection(
 				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
@@ -131,7 +136,6 @@ relm.define_element({
 							wire_dropdown_items
 						),
 					}),
-
 					gui.InnerHeading({
 						caption = "Flags",
 					}),
@@ -147,7 +151,7 @@ relm.define_element({
 						props.combinator,
 						combinator_settings.provide_subset,
 						true,
-						props.combinator:read_setting(combinator_settings.pr) ~= 1
+						is_requester
 					),
 					HF({ vertical_align = "center" }, {
 						gui.Checkbox(
@@ -156,7 +160,7 @@ relm.define_element({
 							props.combinator,
 							combinator_settings.disable_auto_thresholds,
 							true,
-							props.combinator:read_setting(combinator_settings.pr) == 1
+							is_provide_only
 						),
 						HF({ horizontally_stretchable = true }, {}),
 						gui.Input({
@@ -172,8 +176,7 @@ relm.define_element({
 							numeric = true,
 							allow_decimal = false,
 							allow_negative = false,
-							enabled = props.combinator:read_setting(combinator_settings.pr)
-								~= 1,
+							enabled = not is_provide_only,
 						}),
 					}),
 				}
@@ -232,7 +235,8 @@ relm.define_element({
 				),
 			}),
 			ultros.WellFold({
-				caption = "Item Handling",
+				caption = "Outbound Item Handling",
+				visible = is_provider,
 			}, {
 				ultros.Labeled({ caption = "Spillover", top_margin = 6 }, {
 					gui.Input({

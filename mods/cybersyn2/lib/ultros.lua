@@ -441,7 +441,13 @@ lib.WellSection = relm.define_element({
 	name = "WellSection",
 	render = function(props, state)
 		local collapsed = (state or {}).collapsed
-		return VF({ bottom_margin = 6, horizontally_squashable = true }, {
+		local visible = true
+		if props.visible == false then visible = false end
+		return VF({
+			bottom_margin = 6,
+			horizontally_squashable = true,
+			visible = visible,
+		}, {
 			Pr({
 				type = "frame",
 				style = "subheader_frame",
