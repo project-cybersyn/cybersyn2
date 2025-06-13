@@ -155,7 +155,8 @@ relm.define_element({
 							{ "cybersyn2-combinator-mode-station.auto-mds-tooltip" },
 							props.combinator,
 							combinator_settings.disable_auto_thresholds,
-							true
+							true,
+							props.combinator:read_setting(combinator_settings.pr) == 1
 						),
 						HF({ horizontally_stretchable = true }, {}),
 						gui.Input({
@@ -171,6 +172,8 @@ relm.define_element({
 							numeric = true,
 							allow_decimal = false,
 							allow_negative = false,
+							enabled = props.combinator:read_setting(combinator_settings.pr)
+								~= 1,
 						}),
 					}),
 				}

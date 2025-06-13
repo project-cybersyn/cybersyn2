@@ -15,7 +15,7 @@ local HF = ultros.HFlow
 ---@param combinator Cybersyn.Combinator.Ephemeral
 ---@param setting Cybersyn.Combinator.SettingDefinition
 ---@param inverse boolean? If true, the checkbox will be inverted (checked when the setting is false).
----@param disabled true? If true, the checkbox will be disabled and not interactable.
+---@param disabled boolean? If true, the checkbox will be disabled and not interactable.
 function _G.cs2.gui.Checkbox(
 	caption,
 	tooltip,
