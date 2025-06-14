@@ -109,11 +109,8 @@ lib.NodeNetworkOperation = {
 ---@class Cybersyn.Topology
 ---@field public id Id Unique id of the topology.
 ---@field public surface_index? uint The index of the surface this topology is associated with, if any. This is not a 1-1 association; a surface may have multiple topologies.
----@field public name? string The name of the topology, if any. This is not a unique key and primarily used for debugging.
+---@field public name? string The name of the topology, if any.
 ---@field public thread_id? int The id of the thread servicing this topology if any.
----@field public vehicle_type string The vehicle type intended to traverse this topology.
----@field public provided? SignalCounts Count of all items provided by nodes in this topology. This is a cached value and is not updated in realtime.
----@field public requested? SignalCounts Count of all items requested by nodes in this topology. This is a cached value and is not updated in realtime.
 ---@field public global_combinators IdSet Set of global combinators (e.g. inventory combinators) associated with this topology. This DOES NOT include per-node combinators.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
@@ -177,10 +174,6 @@ lib.NodeNetworkOperation = {
 ---@field public rail_bbox BoundingBox? The bounding box for only the rails.
 ---@field public rail_set UnitNumberSet The set of rails associated to this stop.
 ---@field public direction defines.direction? Direction of the vector pointing from the stop entity towards the oncoming track, if known.
-
----@class Cybersyn.TrainGroup
----@field public name string The factorio train group name.
----@field public trains IdSet The set of vehicle ids of trains in the group.
 
 ---@class Cybersyn.Order
 ---@field public inventory Cybersyn.Inventory The inventory against which this order is placed.

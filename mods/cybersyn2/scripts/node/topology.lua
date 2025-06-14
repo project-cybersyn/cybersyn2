@@ -17,10 +17,8 @@ _G.cs2.Topology = Topology
 ---Create a new topology.
 function Topology.new()
 	local id = counters.next("topology")
-	storage.topologies[id] = setmetatable(
-		{ id = id, vehicle_type = "none", global_combinators = {} },
-		Topology
-	)
+	storage.topologies[id] =
+		setmetatable({ id = id, global_combinators = {} }, Topology)
 	return storage.topologies[id]
 end
 
@@ -30,6 +28,29 @@ end
 local function get_topology(id) return storage.topologies[id or ""] end
 Topology.get = get_topology
 _G.cs2.get_topology = get_topology
+
+---@param name string
+---@return Cybersyn.Topology?
+local function get_topology_by_name(name)
+	-- XXX: linear search here, but should be fine as it is rarely called.
+	for _, topology in pairs(storage.topologies) do
+		if topology.name == name then return topology end
+	end
+end
+_G.cs2.get_topology_by_name = get_topology_by_name
+
+---@param name string
+---@return Cybersyn.Topology
+local function get_or_create_topology_by_name(name)
+	local topology = get_topology_by_name(name)
+	if not topology then
+		topology = Topology.new()
+		topology.name = name
+		cs2.raise_topologies(topology, "created")
+	end
+	return topology
+end
+_G.cs2.get_or_create_topology_by_name = get_or_create_topology_by_name
 
 function Topology:add_global_combinator(comb)
 	if not self.global_combinators[comb.id] then
@@ -66,7 +87,6 @@ local function create_train_topology(surface_index)
 	local t = Topology.new()
 	t.surface_index = surface_index
 	t.name = game.get_surface(surface_index).name
-	t.vehicle_type = "train"
 	storage.surface_index_to_train_topology[surface_index] = t.id
 	cs2.raise_topologies(t, "created")
 end

@@ -14,6 +14,11 @@ local mod_settings = _G.cs2.mod_settings
 -- Group tracking
 --------------------------------------------------------------------------------
 
+---@class Cybersyn.Internal.TrainGroup
+---@field public name string The factorio train group name.
+---@field public trains IdSet The set of vehicle ids of trains in the group.
+---@field public topology_id Id? The id of the topology manually assigned to this group, if any.
+
 ---Check if the given group name is considered a Cybersyn train group name.
 ---@param name string?
 ---@return boolean
@@ -25,9 +30,20 @@ _G.cs2.is_cybersyn_train_group_name = is_cybersyn_train_group_name
 
 ---@param name string
 local function create_train_group(name)
+	-- Check for topology name after group name
+	local prefix = cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX
+	local rest = strsub(name or "", #prefix + 1)
+	local _, _, signal = string.find(rest, "^(%[virtual%-signal=[%w_%-]+%])")
+	local topology_id = nil
+	if signal then
+		local topology = cs2.get_or_create_topology_by_name(signal)
+		topology_id = topology.id
+	end
+
 	storage.train_groups[name] = {
 		name = name,
 		trains = {},
+		topology_id = topology_id,
 	}
 	-- cs2.raise_train_group_created(name)
 end

@@ -12,7 +12,7 @@
 ---@field public inventories table<Id, Cybersyn.Inventory> All Cybersyn inventories indexed by id
 ---@field public deliveries table<Id, Cybersyn.Delivery> All Cybersyn deliveries indexed by id
 ---@field public task_ids table<string, Scheduler.TaskId> Ids of core tasks
----@field public train_groups table<string, Cybersyn.TrainGroup> All Cybersyn-controlled train groups indexed by Factorio group name
+---@field public train_groups table<string, Cybersyn.Internal.TrainGroup> All Cybersyn-controlled train groups indexed by Factorio group name
 ---@field public luatrain_id_to_vehicle_id table<Id, Id> Map of LuaTrain ids to Cybersyn vehicle ids
 ---@field public rail_id_to_node_id table<UnitNumber, Id> Map of rail unit numbers to node ids of the associated train stop
 ---@field public combinator_settings_cache table<UnitNumber, Tags> Cache used to store combinator settings so that it is not necessary to read encoded data from the combinator's entity
