@@ -50,7 +50,8 @@ function lib.get_connected_stop(rail_entity)
 	if stop_entity then
 		local connected_rail = stop_entity.connected_rail
 		if
-			connected_rail and (connected_rail.unit_number == rail_entity.unit_number)
+			connected_rail
+			and (connected_rail.unit_number == rail_entity.unit_number)
 		then
 			return stop_entity
 		end
@@ -170,6 +171,29 @@ function lib.iterative_rail_search(state, max_iterations)
 		n = n + 1
 	end
 	state.disposition = lib.search_disposition.STOPPED_ITERATION_LIMIT
+end
+
+--------------------------------------------------------------------------------
+-- Trains and carriages
+--------------------------------------------------------------------------------
+
+---Determine the net capacity of a train car.
+---@param carriage LuaEntity A *valid* carriage entity that is a rolling stock in a train.
+---@return number item_slot_capacity The number of item SLOTS the carriage can hold.
+---@return number fluid_capacity The total amount of fluid the carriage can hold.
+function lib.get_carriage_capacity(carriage)
+	if
+		carriage.type == "cargo-wagon" or carriage.type == "infinity-cargo-wagon"
+	then
+		local inventory = carriage.get_inventory(defines.inventory.cargo_wagon)
+		return #inventory, 0
+	elseif carriage.type == "fluid-wagon" then
+		local wagon_proto = carriage.prototype
+		local cap = wagon_proto.get_fluid_capacity(carriage.quality)
+		return 0, cap
+	else
+		return 0, 0
+	end
 end
 
 return lib

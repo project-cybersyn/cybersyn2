@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local class = require("__cybersyn2__.lib.class").class
+local train_lib = require("__cybersyn2__.lib.trains")
 local cs2 = _G.cs2
 local Vehicle = _G.cs2.Vehicle
 local Topology = _G.cs2.Topology
@@ -276,4 +277,24 @@ function Train:get_wagon_counts()
 	else
 		return 0, 0
 	end
+end
+
+---Examine the rolling stock of the train and re-compute the item and
+---fluid capacity.
+---@param self Cybersyn.Train A *valid* train.
+function Train:evaluate_capacity()
+	local carriages = self.lua_train.carriages
+	local item_slot_capacity = 0
+	local fluid_capacity = 0
+	for i = 1, #carriages do
+		local carriage = carriages[i]
+		local ic, fc = train_lib.get_carriage_capacity(carriage)
+		item_slot_capacity = item_slot_capacity + ic
+		fluid_capacity = fluid_capacity + fc
+	end
+	self.item_slot_capacity = item_slot_capacity
+	self.fluid_capacity = fluid_capacity
+	-- These will be recomputed on demand by wagon control subsystem.
+	self.per_wagon_fluid_capacity = nil
+	self.per_wagon_item_slot_capacity = nil
 end
