@@ -1,6 +1,7 @@
 local mlib = require("__cybersyn2__.lib.math")
 
 local distsq = mlib.pos_distsq
+local pos_get = mlib.pos_get
 local INF = math.huge
 local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
 
@@ -113,4 +114,49 @@ function _G.cs2.ring_buffer_log_write(log, value)
 	log.log_buffer[log.log_current] = value
 	log.log_current = log.log_current + 1
 	if log.log_current > log.log_size then log.log_current = 1 end
+end
+
+---Given a combinator, find the nearby rail or stop that may trigger an
+---association.
+---@param combinator_entity LuaEntity A *valid* combinator entity.
+---@return LuaEntity? stop_entity The closest-to-front train stop within the combinator's association zone.
+---@return LuaEntity? rail_entity The closest-to-front straight rail with a train stop within the combinator's association zone.
+function _G.cs2.lib.find_associable_entities_for_combinator(combinator_entity)
+	local pos = combinator_entity.position
+	local pos_x, pos_y = pos_get(pos)
+	local search_area = {
+		{ pos_x - 1.5, pos_y - 1.5 },
+		{ pos_x + 1.5, pos_y + 1.5 },
+	}
+	local stop = nil
+	local rail = nil
+	local stop_dist = INF
+	local rail_dist = INF
+	local entities = combinator_entity.surface.find_entities_filtered({
+		area = search_area,
+		name = {
+			"train-stop",
+			"straight-rail",
+		},
+	})
+	for _, cur_entity in pairs(entities) do
+		if cur_entity.name == "train-stop" then
+			local dist = distsq(pos, cur_entity.position)
+			if dist < stop_dist then
+				stop_dist = dist
+				stop = cur_entity
+			end
+		elseif cur_entity.type == "straight-rail" then
+			-- Prefer rails with stops, then prefer rails nearer the
+			-- front of the combinator.
+			if cs2.find_stop_from_rail(cur_entity) then
+				local dist = distsq(pos, cur_entity.position)
+				if dist < rail_dist then
+					rail_dist = dist
+					rail = cur_entity
+				end
+			end
+		end
+	end
+	return stop, rail
 end
