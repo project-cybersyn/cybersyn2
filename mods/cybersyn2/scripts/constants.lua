@@ -78,3 +78,9 @@ _G.cs2.CS2_ICON_SIGNAL_ID = {
 	type = "virtual",
 	name = "cybersyn2",
 }
+
+_G.cs2.ERROR_PRINT_OPTS = {
+	color = { 255, 128, 0 },
+	skip = defines.print_skip.never,
+	sound = defines.print_sound.always,
+}

@@ -91,12 +91,8 @@ function _G.cs2.gui.NetworkSignalPicker(combinator, setting, tooltip)
 				combinator:write_setting(setting, stored)
 			else
 				game.print(
-					"Invalid signal selected. Please select a valid virtual signal.",
-					{
-						color = { 255, 128, 0 },
-						skip = defines.print_skip.never,
-						sound = defines.print_sound.always,
-					}
+					{ "cybersyn2-gui.virtual-signals-only" },
+					cs2.ERROR_PRINT_OPTS
 				)
 				elem.elem_value = nil
 			end
