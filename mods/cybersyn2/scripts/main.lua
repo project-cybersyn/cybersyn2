@@ -267,6 +267,7 @@ script.on_event(
 --------------------------------------------------------------------------------
 
 script.on_event(defines.events.on_gui_opened, function(event)
+	if not event.entity then return end
 	local player = game.get_player(event.player_index)
 	if not player then return end
 

@@ -368,6 +368,7 @@ cs2.on_selected(function(_, _, player) render_connection(player) end)
 ---attempt to create a link is being made.
 ---@return boolean #`true` if there was a connection attempt
 function _G.cs2.try_finish_connection(player, entity)
+	if not cs2_lib.entity_is_combinator(entity) then return false end
 	local pstate = cs2.get_player_state(player.index)
 	if (not pstate) or not pstate.connection_source then return false end
 	finish_connection(player, entity)
