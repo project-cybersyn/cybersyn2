@@ -211,8 +211,6 @@ _G.cs2.on_combinator_destroyed, _G.cs2.raise_combinator_destroyed = event(
 	"nil"
 )
 
----@alias CybersynNodeOrNil Cybersyn.Node|nil
-
 ---Event raised when a combinator is associated or disassociated with a node.
 --- * Arg 1 - `Cybersyn.Combinator` - The combinator.
 --- * Arg 2 - `Cybersyn.Node|nil` - The node, if any, that the combinator is now associated with.
@@ -221,8 +219,8 @@ _G.cs2.on_combinator_node_associated, _G.cs2.raise_combinator_node_associated =
 	event(
 		"combinator_node_associated",
 		"Cybersyn.Combinator",
-		"CybersynNodeOrNil",
-		"CybersynNodeOrNil",
+		"Cybersyn.Node",
+		"Cybersyn.Node",
 		"nil",
 		"nil"
 	)

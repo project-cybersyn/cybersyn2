@@ -201,8 +201,12 @@ cs2.on_train_stop_pattern_changed(function(stop) evaluate_stop(stop) end)
 -- When an allowlist combinator is associated with a stop, update its stop.
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
 	if combinator.mode == "allow" then
-		if old_node and old_node.type == "stop" then evaluate_stop(old_node) end
-		if new_node and new_node.type == "stop" then evaluate_stop(new_node) end
+		if old_node and old_node.type == "stop" then
+			evaluate_stop(old_node --[[@as Cybersyn.TrainStop]])
+		end
+		if new_node and new_node.type == "stop" then
+			evaluate_stop(new_node --[[@as Cybersyn.TrainStop]])
+		end
 	end
 end)
 
