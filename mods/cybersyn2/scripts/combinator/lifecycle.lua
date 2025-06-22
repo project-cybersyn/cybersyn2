@@ -18,28 +18,6 @@ local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
 local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
 local get_raw_settings = _G.cs2.get_raw_settings
 
--- fix missing Factorio API types
--- this comes from Harag's original CS1 DC patch
--- TODO: move this to a better place
-
----@class DeciderCombinatorOutput -- The Factorio Lua API only defines this as 'table'
----@field public copy_count_from_input boolean
----@field public constant int32
----@field public signal SignalFilter
-
----@class DeciderCombinatorSignalNetworks
----@field public green boolean?
----@field public red boolean?
-
----@class DeciderCombinatorCondition -- The Factorio Lua API only defines this as 'table'
----@field public comparator "="|">"|"<"|"≥"|">="|"≤"|"<="|"≠"|"!="
----@field public compare_type "and"|"or"|nil
----@field public first_signal SignalFilter?
----@field public first_signal_networks DeciderCombinatorSignalNetworks?
----@field public constant int32?
----@field public second_signal SignalFilter?
----@field public second_signal_networks DeciderCombinatorSignalNetworks?
-
 local NO_NETWORKS = { red = false, green = false }
 
 --------------------------------------------------------------------------------
