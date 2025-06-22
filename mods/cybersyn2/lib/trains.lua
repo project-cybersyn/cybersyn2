@@ -177,9 +177,10 @@ end
 -- Trains and carriages
 --------------------------------------------------------------------------------
 
----Determine the net capacity of a train car.
+---Determine the net capacity of a train car. Returns `0, 0` for entities that
+---are not train cars.
 ---@param carriage LuaEntity A *valid* carriage entity that is a rolling stock in a train.
----@return number item_slot_capacity The number of item SLOTS the carriage can hold.
+---@return number item_slot_capacity The number of item slots the carriage can hold.
 ---@return number fluid_capacity The total amount of fluid the carriage can hold.
 function lib.get_carriage_capacity(carriage)
 	if
