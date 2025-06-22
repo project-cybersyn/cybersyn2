@@ -322,14 +322,6 @@ local MainWireHelp = relm.define_element({
 			ultros.RtMultilineLabel({
 				"cybersyn2-combinator-mode-station.priority-signal",
 			}),
-			ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
-			ultros.RtMultilineLabel({
-				"cybersyn2-combinator-mode-station.all-items-signal",
-			}),
-			ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
-			ultros.RtMultilineLabel({
-				"cybersyn2-combinator-mode-station.all-fluids-signal",
-			}),
 		}
 	end,
 })
@@ -415,6 +407,7 @@ cs2.on_combinator_node_associated(function(combinator, from, to)
 	end
 end)
 
+-- Rebuild inventory on critical setting changes
 cs2.on_combinator_setting_changed(
 	function(combinator, setting, next_value, prev_value)
 		if
