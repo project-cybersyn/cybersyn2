@@ -144,7 +144,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		comb:read_setting(combinator_settings.disable_auto_thresholds)
 	stop.disable_auto_thresholds = disable_auto_thresholds
 	if not disable_auto_thresholds then
-		for layout_id in pairs(stop.allowed_layouts) do
+		for layout_id in pairs(stop.allowed_layouts or storage.train_layouts) do
 			local layout = storage.train_layouts[layout_id]
 			if layout then
 				local fluid_cap = layout.min_fluid_capacity
