@@ -50,7 +50,7 @@ require("scripts.vehicle.train.layout")
 require("scripts.logistics.delivery.train") -- needs inventory, trainstop, train
 
 require("scripts.combinator.modes.station")
-require("scripts.combinator.modes.allow.base")
+require("scripts.combinator.modes.allow")
 require("scripts.combinator.modes.dt")
 require("scripts.combinator.modes.manifest")
 require("scripts.combinator.modes.wagon")
