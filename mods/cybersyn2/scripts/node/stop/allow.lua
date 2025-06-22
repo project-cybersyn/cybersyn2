@@ -232,8 +232,8 @@ cs2.on_train_layout_created(function(train_layout)
 	end
 end)
 
+-- When train layouts are destroyed, we need to re-evaluate all stops.
 cs2.on_train_layouts_destroyed(function()
-	-- When train layouts are destroyed, we need to re-evaluate all stops.
 	for _, node in pairs(storage.nodes) do
 		if node.type == "stop" then
 			cull_stop_layouts(node --[[@as Cybersyn.TrainStop]])

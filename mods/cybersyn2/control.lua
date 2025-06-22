@@ -40,6 +40,7 @@ require("scripts.node.stop.lifecycle") -- needs delivery, combinator
 require("scripts.node.stop.layout.base")
 require("scripts.node.stop.layout.equipment")
 require("scripts.node.stop.layout.pattern")
+require("scripts.node.stop.allow")
 
 require("scripts.vehicle.base")
 require("scripts.vehicle.train.base")
@@ -50,7 +51,6 @@ require("scripts.logistics.delivery.train") -- needs inventory, trainstop, train
 
 require("scripts.combinator.modes.station")
 require("scripts.combinator.modes.allow.base")
-require("scripts.combinator.modes.allow.impl")
 require("scripts.combinator.modes.dt")
 require("scripts.combinator.modes.manifest")
 require("scripts.combinator.modes.wagon")
