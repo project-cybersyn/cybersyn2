@@ -25,12 +25,14 @@ local NO_NETWORKS = { red = false, green = false }
 --------------------------------------------------------------------------------
 
 ---@param combinator_entity LuaEntity
-local function create_combinator(combinator_entity)
-	local comb = Combinator.new(combinator_entity)
+local function clear_combinator_outputs(combinator_entity)
+	-- Clear outputs of combinator
+	local beh = combinator_entity.get_or_create_control_behavior()
+	if not beh then return end
+	---@cast beh LuaDeciderCombinatorControlBehavior
 
 	-- Add LHS conditions. First is so we can control what displays in the
 	-- combinator's window, second is generic "always-true"
-	local beh = combinator_entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	beh.parameters = {
 		conditions = {
 			{
@@ -52,7 +54,12 @@ local function create_combinator(combinator_entity)
 		},
 		outputs = {},
 	}
+end
 
+---@param combinator_entity LuaEntity
+local function create_combinator(combinator_entity)
+	local comb = Combinator.new(combinator_entity)
+	clear_combinator_outputs(combinator_entity)
 	cs2.raise_combinator_created(comb)
 end
 
@@ -116,6 +123,7 @@ cs2.on_entity_settings_pasted(function(event)
 	if source and dest then
 		local vals = source:get_raw_settings()
 		dest:set_raw_settings(vals)
+		clear_combinator_outputs(dest.entity)
 		cs2.raise_combinator_or_ghost_setting_changed(dest, nil, nil, nil)
 	end
 end)
@@ -146,6 +154,8 @@ cs2.on_blueprint_built(function(bpinfo)
 					entity
 				)
 				comb:set_raw_settings(tags)
+				-- Clear the output of the combinator in the event of settings change
+				clear_combinator_outputs(entity)
 				cs2.raise_combinator_or_ghost_setting_changed(comb, nil, nil, nil)
 			end
 		end
