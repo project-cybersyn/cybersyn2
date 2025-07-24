@@ -74,6 +74,10 @@ end
 -- Allocator primitives
 --------------------------------------------------------------------------------
 
+---Create a single-item allocation. This temporarily adds the item to the
+---outflow of the `from_inv` and inflow of the `to_inv`. It is expected that
+---later steps of the processing thread will clear or retain these temporary
+---inventory charges as needed.
 ---@param from_node Cybersyn.Node
 ---@param from_inv Cybersyn.Inventory
 ---@param from_thresh uint
@@ -136,51 +140,54 @@ end
 --------------------------------------------------------------------------------
 
 ---@param item SignalKey
----@param requester Cybersyn.Order
+---@param requesting_order Cybersyn.Order
 ---@param is_fluid boolean?
-function LogisticsThread:alloc_item_to(item, requester, is_fluid)
-	local providers = self.providers[item]
-	if not providers or #providers == 0 then
+function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
+	local providing_orders = self.providers[item]
+	if not providing_orders or #providing_orders == 0 then
 		-- This shouldn't happen since the list of items is generated based on
 		-- existence of providers
 		return
 	end
-	local requester_networks = requester.networks
-	local requester_stop = cs2.get_stop(requester.node_id)
+	local requester_networks = requesting_order.networks
+	local requester_stop = cs2.get_stop(requesting_order.node_id)
 	if not requester_stop then return end
 	local requester_x, requester_y = pos_get(requester_stop.entity.position)
 
 	-- Compute threshold and quantity for the request.
 	-- Complicated by the fact that it could be a "Request-all" order.
-	local request_thresh = requester.thresholds_in[item]
+	local request_thresh = requesting_order.thresholds_in[item]
 		or requester_stop:get_inbound_threshold(item)
 	local request_qty
-	if requester.request_all_items and not is_fluid then
-		local item_stack_capacity = requester.inventory.item_stack_capacity or 0
-		local used_item_stack_capacity = requester.inventory:get_used_capacities()
+	if requesting_order.request_all_items and not is_fluid then
+		local item_stack_capacity = requesting_order.inventory.item_stack_capacity
+			or 0
+		local used_item_stack_capacity =
+			requesting_order.inventory:get_used_capacities()
 		local remaining_item_capacity = (
 			item_stack_capacity - used_item_stack_capacity
 		) * (key_to_stacksize(item) or 0)
 		request_qty = max(remaining_item_capacity, 0)
-	elseif requester.request_all_fluids and is_fluid then
-		local fluid_capacity = requester.inventory.fluid_capacity or 0
-		local _, used_fluid_capacity = requester.inventory:get_used_capacities()
+	elseif requesting_order.request_all_fluids and is_fluid then
+		local fluid_capacity = requesting_order.inventory.fluid_capacity or 0
+		local _, used_fluid_capacity =
+			requesting_order.inventory:get_used_capacities()
 		local remaining_fluid_capacity = fluid_capacity - used_fluid_capacity
 		request_qty = max(remaining_fluid_capacity, 0)
 	else
-		request_qty = order_requested_qty(requester, item)
+		request_qty = order_requested_qty(requesting_order, item)
 	end
 
 	-- Filter for providers that still have inventory. Optimize by replacing
 	-- overall list of providers.
-	providers = filter(providers, function(provider)
+	providing_orders = filter(providing_orders, function(provider)
 		if order_provided_qty(provider, item) <= 0 then return false end
 		return true
 	end)
-	self.providers[item] = providers
+	self.providers[item] = providing_orders
 
 	-- Filter for netmatches.
-	providers = filter(providers, function(provider)
+	providing_orders = filter(providing_orders, function(provider)
 		-- Netmask matches
 		if not network_match(requester_networks, provider.networks) then
 			return false
@@ -189,7 +196,7 @@ function LogisticsThread:alloc_item_to(item, requester, is_fluid)
 	end)
 
 	-- Sort providers
-	tsort(providers, function(a, b)
+	tsort(providing_orders, function(a, b)
 		-- Ability to make an above-threshold delivery
 		-- A can deliver, B can't = true
 		-- A can't deliver, B can = false
@@ -213,8 +220,8 @@ function LogisticsThread:alloc_item_to(item, requester, is_fluid)
 	end)
 
 	-- Allocate from providers until the requested amount is met
-	for i = 1, #providers do
-		local provider = providers[i]
+	for i = 1, #providing_orders do
+		local provider = providing_orders[i]
 		local qty = min(request_qty, order_provided_qty(provider, item))
 		if qty > 0 then
 			local provider_stop = cs2.get_stop(provider.node_id, true)
@@ -224,11 +231,11 @@ function LogisticsThread:alloc_item_to(item, requester, is_fluid)
 					provider.inventory,
 					provider.thresholds_out[item],
 					requester_stop,
-					requester.inventory,
+					requesting_order.inventory,
 					request_thresh,
 					item,
 					qty,
-					requester.priority
+					requesting_order.priority
 				)
 			end
 		end
@@ -240,19 +247,19 @@ end
 ---@param item SignalKey
 function LogisticsThread:alloc_item(item)
 	---@type Cybersyn.Order[]
-	local requesters = self.requesters[item]
+	local requesting_orders = self.requesters[item]
 	local is_fluid = key_is_fluid(item)
-	local request_all = nil
+	local request_all_orders = nil
 	if is_fluid then
-		request_all = self.request_all_fluids
+		request_all_orders = self.request_all_fluids
 	else
-		request_all = self.request_all_items
+		request_all_orders = self.request_all_items
 	end
 
 	-- Early cull if nobody is interested in this item.
 	if
-		(not requesters or #requesters == 0)
-		and (not request_all or #request_all == 0)
+		(not requesting_orders or #requesting_orders == 0)
+		and (not request_all_orders or #request_all_orders == 0)
 	then
 		-- TODO: modify `step_async_loop` to allow us to skip to the next item
 		-- without waiting for the next processing frame.
@@ -260,13 +267,13 @@ function LogisticsThread:alloc_item(item)
 	end
 
 	-- Union requesters if needed
-	if request_all and #request_all > 0 then
-		requesters = concat(requesters, request_all) --[[@as Cybersyn.Order[] ]]
+	if request_all_orders and #request_all_orders > 0 then
+		requesting_orders = concat(requesting_orders, request_all_orders) --[[@as Cybersyn.Order[] ]]
 	end
 
 	-- Sort requesters by descending priority, then by when they have last
 	-- received this item, then by how busy they are
-	tsort(requesters, function(a, b)
+	tsort(requesting_orders, function(a, b)
 		local a_prio, b_prio = a.priority, b.priority
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
@@ -280,8 +287,8 @@ function LogisticsThread:alloc_item(item)
 	end)
 
 	-- Allocate to each requesting order
-	for _, requester in pairs(requesters) do
-		self:alloc_item_to(item, requester, is_fluid)
+	for _, requesting_order in pairs(requesting_orders) do
+		self:alloc_item_to(item, requesting_order, is_fluid)
 	end
 end
 
