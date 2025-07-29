@@ -30,6 +30,7 @@ local order_provided_qty = cs2.order_provided_qty
 local order_requested_qty = cs2.order_requested_qty
 local band = bit32.band
 local network_match = siglib.network_match_or
+local get_stop = cs2.get_stop
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -136,9 +137,11 @@ function LogisticsThread:refund_allocation(alloc)
 end
 
 --------------------------------------------------------------------------------
--- Neoinventory
+-- Allocator
 --------------------------------------------------------------------------------
 
+---Find providing orders appropriate for the given requesting order and
+---create corresponding allocations.
 ---@param item SignalKey
 ---@param requesting_order Cybersyn.Order
 ---@param is_fluid boolean?
@@ -146,18 +149,19 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 	local providing_orders = self.providers[item]
 	if not providing_orders or #providing_orders == 0 then
 		-- This shouldn't happen since the list of items is generated based on
-		-- existence of providers
+		-- existence of providers.
+		-- TODO: log something here?
 		return
 	end
 	local requester_networks = requesting_order.networks
-	local requester_stop = cs2.get_stop(requesting_order.node_id)
+	-- Skip validation here as it was done during requester culling
+	local requester_stop = get_stop(requesting_order.node_id, true)
 	if not requester_stop then return end
 	local requester_x, requester_y = pos_get(requester_stop.entity.position)
 
 	-- Compute threshold and quantity for the request.
 	-- Complicated by the fact that it could be a "Request-all" order.
 	local request_thresh = requesting_order.thresholds_in[item]
-		or requester_stop:get_inbound_threshold(item)
 	local request_qty
 	if requesting_order.request_all_items and not is_fluid then
 		local item_stack_capacity = requesting_order.inventory.item_stack_capacity
@@ -180,16 +184,16 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 
 	-- Filter for providers that still have inventory. Optimize by replacing
 	-- overall list of providers.
-	providing_orders = filter(providing_orders, function(provider)
-		if order_provided_qty(provider, item) <= 0 then return false end
+	providing_orders = filter(providing_orders, function(providing_order)
+		if order_provided_qty(providing_order, item) <= 0 then return false end
 		return true
 	end)
 	self.providers[item] = providing_orders
 
 	-- Filter for netmatches.
-	providing_orders = filter(providing_orders, function(provider)
+	providing_orders = filter(providing_orders, function(providing_order)
 		-- Netmask matches
-		if not network_match(requester_networks, provider.networks) then
+		if not network_match(requester_networks, providing_order.networks) then
 			return false
 		end
 		return true
@@ -201,10 +205,10 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 		-- A can deliver, B can't = true
 		-- A can't deliver, B can = false
 		-- Any other situation = fallthrough
-		local a_thresh = a.thresholds_out[item]
+		local a_thresh = a.thresholds_out[item] or 1
 		local a_qty = min(order_provided_qty(a, item), request_qty)
 		local a_can_deliver = (a_qty >= a_thresh) and (a_qty >= request_thresh)
-		local b_thresh = b.thresholds_out[item]
+		local b_thresh = b.thresholds_out[item] or 1
 		local b_qty = min(order_provided_qty(b, item), request_qty)
 		local b_can_deliver = (b_qty >= b_thresh) and (b_qty >= request_thresh)
 		if a_can_deliver and not b_can_deliver then return true end
@@ -266,10 +270,21 @@ function LogisticsThread:alloc_item(item)
 		return
 	end
 
-	-- Union requesters if needed
-	if request_all_orders and #request_all_orders > 0 then
-		requesting_orders = concat(requesting_orders, request_all_orders) --[[@as Cybersyn.Order[] ]]
-	end
+	-- Concatenate and filter all requesting orders. Only keep those that
+	-- are above threshold.
+	requesting_orders = tlib.concat_filter(function(order)
+		-- Fast path: get threshold directly from the order
+		local thresh = order.thresholds_in[item]
+		if thresh then return order_requested_qty(order, item) >= thresh end
+		-- Slow path: get threshold from the stop. Here we will also validate
+		-- the stop and cull if invalid.
+		local stop = get_stop(order.node_id)
+		if not stop then return false end
+		thresh = stop:get_inbound_threshold(item)
+		-- Cache threshold in order for use in alloc_from
+		order.thresholds_in[item] = thresh
+		return order_requested_qty(order, item) >= thresh
+	end, requesting_orders, request_all_orders)
 
 	-- Sort requesters by descending priority, then by when they have last
 	-- received this item, then by how busy they are
@@ -297,7 +312,12 @@ end
 --------------------------------------------------------------------------------
 
 function LogisticsThread:enter_alloc()
+	-- Shuffle the list of items each loop cycle. This is to ensure that
+	-- allocations are not biased towards the first items in the list. Otherwise,
+	-- the first items in the list could consume all the available trains and
+	-- the last items in the list could be starved out.
 	local avail_items = tlib.shuffle(tlib.keys(self.providers))
+
 	self.allocations = {}
 	self.allocs_from = {}
 	self:begin_async_loop(

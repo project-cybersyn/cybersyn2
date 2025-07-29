@@ -138,6 +138,9 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	stop.threshold_item_out = nil
 
 	-- Autothresholds
+	-- TODO: These only need to change when train layouts or combinator settings
+	-- change. We don't actually need to poll them here. Avoiding that could
+	-- improve dispatch loop performance.
 	stop.threshold_auto_fluid_max = nil
 	stop.threshold_auto_item_max = nil
 	local disable_auto_thresholds =

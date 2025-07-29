@@ -90,6 +90,27 @@ function lib.concat(...)
 	return A
 end
 
+---Concatenate all input arrays into a single new result array, applying the
+---given filter function to each element. Only elements for which the
+---filter function returns true will be included in the result.
+---@generic T
+---@param f fun(value: T, index: integer): boolean
+---@param ... T[][]
+---@return T[]
+function lib.concat_filter(f, ...)
+	local A = {}
+	for i = 1, select("#", ...) do
+		local B = select(i, ...)
+		if B ~= nil then
+			for j = 1, #B do
+				local value = B[j]
+				if f(value, j) then A[#A + 1] = value end
+			end
+		end
+	end
+	return A
+end
+
 ---Appends all non-`nil` args to the array `A`, returning `A`
 ---@generic T
 ---@param A T[]
