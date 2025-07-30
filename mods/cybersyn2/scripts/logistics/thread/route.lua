@@ -266,11 +266,14 @@ local function train_score(train, allocation, train_capacity)
 	return 100 * cap_ratio - dist
 end
 
+---Route an allocation via train, if possible.
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 function LogisticsThread:route_train_allocation(allocation, index)
 	local qty = allocation.qty
 	-- Allocation with qty=0 was already handled elsewhere.
 	if qty < 1 then return false end
+
+	-- Don't route allocations below threshold.
 	if qty < allocation.from_thresh then
 		if mod_settings.debug then
 			local log_entry = {
@@ -372,13 +375,17 @@ function LogisticsThread:route_train_allocation(allocation, index)
 	end
 end
 
+---Handle routing a single allocation.
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
+---@return boolean #`true` if allocation was routed, `false` if it should be refunded.
 function LogisticsThread:route_allocation(allocation, index)
 	if allocation.from.type == "stop" then
 		return self:route_train_allocation(allocation, index)
 	end
 end
 
+---Handle routing of a single allocation, refunding it if it can't
+---be routed.
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 function LogisticsThread:maybe_route_allocation(allocation, index)
 	-- Skip allocations with qty = 0
@@ -391,6 +398,8 @@ end
 
 function LogisticsThread:enter_route()
 	local top_id = self.topology_id
+	-- Initial set of available trains = all trains associated with
+	-- this topology.
 	self.avail_trains = tlib.t_map_t(storage.vehicles, function(_, veh)
 		if veh.type == "train" and veh.topology_id == top_id then
 			return veh.id, veh
