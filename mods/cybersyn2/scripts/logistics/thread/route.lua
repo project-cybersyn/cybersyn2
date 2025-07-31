@@ -252,18 +252,22 @@ local function route_train(data, train, allocation, index)
 	return true
 end
 
+---Determine a numerical score for a train processing a given allocation.
+---This score is used to determine the best train for the allocation.
 ---@param train Cybersyn.Train
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 ---@return number
 local function train_score(train, allocation, train_capacity)
-	-- TODO: re-evaluate this, ideal cap ratio is 1.0, and above 1.0 should
-	-- be treated more harshly than below 1.0
-	-- note: route_train_allocation already assures train_capacity>0
+	-- Prefer trains that can move the most material.
+	local material_moved = min(allocation.qty, train_capacity)
+	-- Amongst those trains, prefer those that use the most of their capacity.
 	local cap_ratio = min(allocation.qty / train_capacity, 1.0)
+	-- Amongst the best-fitting trains, penalize those that are further away
 	local train_stock = train:get_stock()
 	local stop = (allocation.from --[[@as Cybersyn.TrainStop]]).entity
 	local dist = distsq(stop, train_stock)
-	return 100 * cap_ratio - dist
+
+	return (10000 * material_moved) + (1000 * cap_ratio) - dist
 end
 
 ---Route an allocation via train, if possible.
@@ -382,6 +386,7 @@ function LogisticsThread:route_allocation(allocation, index)
 	if allocation.from.type == "stop" then
 		return self:route_train_allocation(allocation, index)
 	end
+	return false
 end
 
 ---Handle routing of a single allocation, refunding it if it can't
