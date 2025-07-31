@@ -12,13 +12,14 @@ local mod_settings = _G.cs2.mod_settings
 local empty = tlib.empty
 local max = math.max
 local min = math.min
+local sqrt = math.sqrt
 local INF = math.huge
 local ceil = math.ceil
 local strace = stlib.strace
 local TRACE = stlib.TRACE
 local DEBUG = stlib.DEBUG
 local ERROR = stlib.ERROR
-local distsq = _G.cs2.lib.distsq
+local dist = _G.cs2.lib.dist
 local key_is_fluid = signal.key_is_fluid
 
 ---@class Cybersyn.LogisticsThread
@@ -264,10 +265,10 @@ local function train_score(train, allocation, train_capacity)
 	local cap_ratio = min(allocation.qty / train_capacity, 1.0)
 	-- Amongst the best-fitting trains, penalize those that are further away
 	local train_stock = train:get_stock()
-	local stop = (allocation.from --[[@as Cybersyn.TrainStop]]).entity
-	local dist = distsq(stop, train_stock)
+	local stop = (allocation.from --[[@as Cybersyn.TrainStop]]).entity --[[@as LuaEntity]]
+	local dx = dist(stop, train_stock)
 
-	return (10000 * material_moved) + (1000 * cap_ratio) - dist
+	return (10000 * material_moved) + (1000 * cap_ratio) - dx
 end
 
 ---Route an allocation via train, if possible.
