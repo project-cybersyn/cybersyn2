@@ -306,7 +306,7 @@ function LogisticsThread:enter_poll_nodes()
 	self.request_all_fluids = {}
 	self:begin_async_loop(
 		self.nodes,
-		math.ceil(cs2.PERF_NODE_POLL_WORKLOAD * mod_settings.work_factor)
+		math.ceil(cs2.PERF_POLL_NODES_WORKLOAD * mod_settings.work_factor)
 	)
 	local topology = cs2.get_topology(self.topology_id)
 	if topology then

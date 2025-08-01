@@ -145,18 +145,19 @@ end
 ---@param item SignalKey
 ---@param requesting_order Cybersyn.Order
 ---@param is_fluid boolean?
+---@return number #Work units used in processing
 function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 	local providing_orders = self.providers[item]
 	if not providing_orders or #providing_orders == 0 then
 		-- This shouldn't happen since the list of items is generated based on
 		-- existence of providers.
 		-- TODO: log something here?
-		return
+		return 1
 	end
 	local requester_networks = requesting_order.networks
 	-- Skip validation here as it was done during requester culling
 	local requester_stop = get_stop(requesting_order.node_id, true)
-	if not requester_stop then return end
+	if not requester_stop then return 1 end
 	local requester_x, requester_y = pos_get(requester_stop.entity.position)
 
 	-- Compute threshold and quantity for the request.
@@ -182,6 +183,8 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 		request_qty = order_requested_qty(requesting_order, item)
 	end
 
+	local n_providing_orders = #providing_orders
+
 	-- Filter for providers that still have inventory. Optimize by replacing
 	-- overall list of providers.
 	providing_orders = filter(providing_orders, function(providing_order)
@@ -198,6 +201,11 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 		end
 		return true
 	end)
+
+	if #providing_orders == 0 then
+		-- No providers left after filtering.
+		return 2 * n_providing_orders
+	end
 
 	-- Sort providers
 	tsort(providing_orders, function(a, b)
@@ -246,9 +254,14 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 		request_qty = request_qty - qty
 		if request_qty <= 0 then break end
 	end
+
+	-- Empirical estimate of work done in examining all providers.
+	-- This is a very rough estimate, but it should be good enough.
+	return 5 * n_providing_orders
 end
 
 ---@param item SignalKey
+---@return number #Work units used for this allocation
 function LogisticsThread:alloc_item(item)
 	---@type Cybersyn.Order[]
 	local requesting_orders = self.requesters[item]
@@ -265,26 +278,42 @@ function LogisticsThread:alloc_item(item)
 		(not requesting_orders or #requesting_orders == 0)
 		and (not request_all_orders or #request_all_orders == 0)
 	then
-		-- TODO: modify `step_async_loop` to allow us to skip to the next item
-		-- without waiting for the next processing frame.
-		return
+		return 0
 	end
 
 	-- Concatenate and filter all requesting orders. Only keep those that
 	-- are above threshold.
-	requesting_orders = tlib.concat_filter(function(order)
-		-- Fast path: get threshold directly from the order
-		local thresh = order.thresholds_in[item]
-		if thresh then return order_requested_qty(order, item) >= thresh end
-		-- Slow path: get threshold from the stop. Here we will also validate
-		-- the stop and cull if invalid.
-		local stop = get_stop(order.node_id)
-		if not stop then return false end
-		thresh = stop:get_inbound_threshold(item)
-		-- Cache threshold in order for use in alloc_from
-		order.thresholds_in[item] = thresh
-		return order_requested_qty(order, item) >= thresh
-	end, requesting_orders, request_all_orders)
+	requesting_orders = tlib.concat_filter(
+		---@param order Cybersyn.Order
+		function(order)
+			local is_request_all = order.request_all_items or order.request_all_fluids
+
+			-- Fast path: get threshold directly from the order
+			local thresh = order.thresholds_in[item]
+			if thresh then
+				if is_request_all then
+					return true
+				else
+					return order_requested_qty(order, item) >= thresh
+				end
+			end
+
+			-- Slow path: get threshold from the stop. Here we will also validate
+			-- the stop and cull if invalid.
+			local stop = get_stop(order.node_id)
+			if not stop then return false end
+			thresh = stop:get_inbound_threshold(item)
+			-- Cache threshold in order for use in alloc_from
+			order.thresholds_in[item] = thresh
+			if is_request_all then
+				return true
+			else
+				return order_requested_qty(order, item) >= thresh
+			end
+		end,
+		requesting_orders,
+		request_all_orders
+	)
 
 	-- Sort requesters by descending priority, then by when they have last
 	-- received this item, then by how busy they are
@@ -301,10 +330,15 @@ function LogisticsThread:alloc_item(item)
 		return a.busy_value < b.busy_value
 	end)
 
+	local work_units = 2 * #requesting_orders
+
 	-- Allocate to each requesting order
 	for _, requesting_order in pairs(requesting_orders) do
-		self:alloc_item_to(item, requesting_order, is_fluid)
+		work_units = work_units
+			+ self:alloc_item_to(item, requesting_order, is_fluid)
 	end
+
+	return work_units
 end
 
 --------------------------------------------------------------------------------
@@ -320,12 +354,31 @@ function LogisticsThread:enter_alloc()
 
 	self.allocations = {}
 	self.allocs_from = {}
-	self:begin_async_loop(
-		avail_items,
-		math.ceil(mod_settings.work_factor * cs2.PERF_ALLOC_ITEM_WORKLOAD)
-	)
+
+	self.index = 1
+	self.iterable = avail_items
+	self.state_max_workload = mod_settings.work_factor * cs2.PERF_ALLOC_WORKLOAD
 end
 
 function LogisticsThread:alloc()
-	self:step_async_loop(self.alloc_item, function(x) x:set_state("route") end)
+	local array = self.iterable
+	if not array then return self:set_state("route") end
+	local i = self.index
+	local workload = 0
+	local max_workload = self.state_max_workload or 1
+	while i <= #array and workload < max_workload do
+		local item = array[i]
+		if not item then break end
+		workload = workload + self:alloc_item(item)
+		i = i + 1
+	end
+	if i > #array then
+		self.iterable = nil
+		self.index = nil
+		self.state_max_workload = nil
+		self:set_state("route")
+		return
+	else
+		self.index = i
+	end
 end

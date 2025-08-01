@@ -13,6 +13,7 @@ local mod_settings = _G.cs2.mod_settings
 ---@field public state Cybersyn.LogisticsThreadState State of the task.
 ---@field public paused boolean? `true` if loop is paused
 ---@field public stepped boolean? `true` if user wants to execute one step
+---@field public state_max_workload number Max workload for current state
 ---@field public topology_id Id Id of topology being serviced by this thread.
 ---@field public nodes Cybersyn.Node[]? Nodes found within topology.
 ---@field public providers? {[SignalKey]: Cybersyn.Order[]} Orders providing a given item.
