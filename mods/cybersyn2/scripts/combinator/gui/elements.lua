@@ -42,8 +42,9 @@ end
 
 ---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
 ---combinator setting.
-function _G.cs2.gui.AnySignalPicker(combinator, setting)
+function _G.cs2.gui.AnySignalPicker(combinator, setting, tooltip)
 	return ultros.SignalPicker({
+		tooltip = tooltip,
 		value = combinator:read_setting(setting),
 		on_change = function(_, signal)
 			if signal and signal.type == nil then signal.type = "item" end

@@ -82,6 +82,11 @@ cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("ignore_secondary_thresholds", "station_flags", 3)
 )
 
+-- Topology
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("topology_signal", "topology_signal")
+)
+
 --------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
@@ -178,6 +183,16 @@ relm.define_element({
 							allow_negative = false,
 							enabled = not is_provide_only,
 						}),
+					}),
+					ultros.Labeled({
+						caption = { "cybersyn2-combinator-mode-station.topology" },
+						top_margin = 6,
+					}, {
+						gui.VirtualSignalPicker(
+							props.combinator,
+							combinator_settings.topology_signal,
+							{ "cybersyn2-combinator-mode-station.topology-tooltip" }
+						),
 					}),
 				}
 			),
