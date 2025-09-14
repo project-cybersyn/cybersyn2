@@ -55,7 +55,7 @@ data:extend({
 		name = "cybersyn2-setting-queue-limit",
 		order = "bc",
 		setting_type = "runtime-global",
-		default_value = 5,
+		default_value = 1,
 		minimum_value = 0,
 		maximum_value = 100,
 	},
