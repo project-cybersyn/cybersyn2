@@ -10,6 +10,7 @@ local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local Node = _G.cs2.Node
 
+local INF = math.huge
 local strace = stlib.strace
 local TRACE = stlib.TRACE
 local DEBUG = stlib.DEBUG
@@ -159,6 +160,8 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 	local requester_stop = get_stop(requesting_order.node_id, true)
 	if not requester_stop then return 1 end
 	local requester_x, requester_y = pos_get(requester_stop.entity.position)
+	local stack_size = 1
+	if not is_fluid then stack_size = key_to_stacksize(item) or 1 end
 
 	-- Compute threshold and quantity for the request.
 	-- Complicated by the fact that it could be a "Request-all" order.
@@ -171,7 +174,7 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 			requesting_order.inventory:get_used_capacities()
 		local remaining_item_capacity = (
 			item_stack_capacity - used_item_stack_capacity
-		) * (key_to_stacksize(item) or 0)
+		) * stack_size
 		request_qty = max(remaining_item_capacity, 0)
 	elseif requesting_order.request_all_fluids and is_fluid then
 		local fluid_capacity = requesting_order.inventory.fluid_capacity or 0
@@ -209,18 +212,19 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 
 	-- Sort providers
 	tsort(providing_orders, function(a, b)
-		-- Ability to make an above-threshold delivery
-		-- A can deliver, B can't = true
-		-- A can't deliver, B can = false
-		-- Any other situation = fallthrough
-		local a_thresh = a.thresholds_out[item] or 1
-		local a_qty = min(order_provided_qty(a, item), request_qty)
-		local a_can_deliver = (a_qty >= a_thresh) and (a_qty >= request_thresh)
-		local b_thresh = b.thresholds_out[item] or 1
-		local b_qty = min(order_provided_qty(b, item), request_qty)
-		local b_can_deliver = (b_qty >= b_thresh) and (b_qty >= request_thresh)
-		if a_can_deliver and not b_can_deliver then return true end
-		if not a_can_deliver and b_can_deliver then return false end
+		-- TODO: evaluate need for this sorting code.
+		-- -- Ability to make an above-threshold delivery
+		-- -- A can deliver, B can't = true
+		-- -- A can't deliver, B can = false
+		-- -- Any other situation = fallthrough
+		-- local a_thresh = a.thresholds_out[item] or 1
+		-- local a_qty = min(order_provided_qty(a, item), request_qty)
+		-- local a_can_deliver = (a_qty >= a_thresh) and (a_qty >= request_thresh)
+		-- local b_thresh = b.thresholds_out[item] or 1
+		-- local b_qty = min(order_provided_qty(b, item), request_qty)
+		-- local b_can_deliver = (b_qty >= b_thresh) and (b_qty >= request_thresh)
+		-- if a_can_deliver and not b_can_deliver then return true end
+		-- if not a_can_deliver and b_can_deliver then return false end
 		-- Priority
 		local a_prio = a.priority
 		local b_prio = b.priority
@@ -235,20 +239,30 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 	for i = 1, #providing_orders do
 		local provider = providing_orders[i]
 		local qty = min(request_qty, order_provided_qty(provider, item))
-		if qty > 0 then
+		if qty >= request_thresh then
 			local provider_stop = cs2.get_stop(provider.node_id, true)
 			if provider_stop then
-				self:allocate(
-					provider_stop,
-					provider.inventory,
-					provider.thresholds_out[item],
-					requester_stop,
-					requesting_order.inventory,
-					request_thresh,
-					item,
-					qty,
-					requesting_order.priority
-				)
+				local max_providable = INF
+				if is_fluid and provider_stop.allowed_max_fluid_capacity then
+					max_providable = provider_stop.allowed_max_fluid_capacity
+				elseif provider_stop.allowed_max_item_slot_capacity then
+					max_providable = provider_stop.allowed_max_item_slot_capacity
+						* stack_size
+				end
+				qty = min(qty, max_providable)
+				if qty >= request_thresh then
+					self:allocate(
+						provider_stop,
+						provider.inventory,
+						provider.thresholds_out[item],
+						requester_stop,
+						requesting_order.inventory,
+						request_thresh,
+						item,
+						qty,
+						requesting_order.priority
+					)
+				end
 			end
 		end
 		request_qty = request_qty - qty

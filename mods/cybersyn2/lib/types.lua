@@ -132,8 +132,6 @@ lib.NodeNetworkOperation = {
 ---@field public threshold_fluid_in uint? General inbound fluid threshold
 ---@field public threshold_item_out uint? General outbound item threshold
 ---@field public threshold_fluid_out uint? General outbound fluid threshold
----@field public threshold_auto_item_max? uint Maximum item threshold for auto-thresholding (stacks)
----@field public threshold_auto_fluid_max? uint Maximum fluid threshold for auto-thresholding
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
@@ -162,6 +160,10 @@ lib.NodeNetworkOperation = {
 ---@field public per_wagon_mode boolean? `true` if the station is in per-wagon mode due to the presence of a wagon comb.
 ---@field public shared_inventory_slaves IdSet? Exists only if this station is a shared-inventory master and contains the ids of the slaves.
 ---@field public shared_inventory_master Id? The id of the shared inventory master, if this station is a slave.
+---@field public allowed_min_item_slot_capacity uint? Min item capacity for allowed trains at this stop. Zero or nil means trains cannot pick up or deliver items.
+---@field public allowed_max_item_slot_capacity uint? Max item capacity for allowed trains at this stop. Zero or nil means trains cannot pick up or deliver items.
+---@field public allowed_min_fluid_capacity uint? Min fluid capacity for allowed trains at this stop. Zero or nil means trains cannot pick up or deliver fluids.
+---@field public allowed_max_fluid_capacity uint? Max fluid capacity for allowed trains at this stop. Zero or nil means trains cannot pick up or deliver fluids.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.

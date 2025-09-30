@@ -20,14 +20,12 @@ local INF = math.huge
 -- Train group monitor background thread
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Internal.TrainMonitor: StatefulThread
+---@class (exact) Cybersyn.Internal.TrainMonitor: StatefulThread
 ---@field state "init"|"enum_luatrains"|"enum_cstrains" State of the task.
 ---@field trains LuaTrain[] Extant luatrains at beginning of sweep.
 ---@field seen_groups table<string, true> Cybersyn groups seen by sweep.
 ---@field seen_layouts IdSet Cybersyn train layouts seen by sweep.
 ---@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
----@field layout_min_item_caps table<Id, number> Minimum item capacity for each train layout.
----@field layout_min_fluid_caps table<Id, number> Minimum fluid capacity for each train layout.
 local TrainMonitor = class("TrainMonitor", cs2.StatefulThread)
 
 function TrainMonitor:new()
@@ -119,8 +117,6 @@ function TrainMonitor:enum_luatrains()
 end
 
 function TrainMonitor:enter_enum_cstrains()
-	self.layout_min_fluid_caps = {}
-	self.layout_min_item_caps = {}
 	self.seen_layouts = {}
 	self:begin_async_loop(
 		tlib.t_map_a(Vehicle.all(), function(veh)
@@ -157,21 +153,6 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 	end
 
 	self.seen_layouts[layout_id] = true
-	-- Capacity computations
-	local fluid_capacity = train.fluid_capacity or 0
-	local item_capacity = train.item_slot_capacity or 0
-	if
-		fluid_capacity > 0
-		and fluid_capacity < (self.layout_min_fluid_caps[layout_id] or INF)
-	then
-		self.layout_min_fluid_caps[layout_id] = fluid_capacity
-	end
-	if
-		item_capacity > 0
-		and item_capacity < (self.layout_min_item_caps[layout_id] or INF)
-	then
-		self.layout_min_item_caps[layout_id] = item_capacity
-	end
 
 	-- View vehicle visitors
 	for _, view in pairs(storage.views) do
@@ -201,11 +182,6 @@ function TrainMonitor:exit_enum_cstrains()
 			)
 			storage.train_layouts[layout_id] = nil
 			layouts_deleted = true
-		else
-			local min_item_cap = self.layout_min_item_caps[layout_id]
-			local min_fluid_cap = self.layout_min_fluid_caps[layout_id]
-			train_layout.min_item_slot_capacity = min_item_cap
-			train_layout.min_fluid_capacity = min_fluid_cap
 		end
 	end
 
@@ -216,8 +192,6 @@ function TrainMonitor:exit_enum_cstrains()
 	end
 
 	-- Cleanup
-	self.layout_min_fluid_caps = nil
-	self.layout_min_item_caps = nil
 	self.seen_layouts = nil
 end
 

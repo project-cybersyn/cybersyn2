@@ -7,12 +7,17 @@ local cs2 = _G.cs2
 local combinator_settings = _G.cs2.combinator_settings
 local CarriageType = require("__cybersyn2__.lib.types").CarriageType
 
+---@class Cybersyn.TrainStop
+local TrainStop = _G.cs2.TrainStop
+
 local Locomotive = CarriageType.Locomotive
 local CargoWagon = CarriageType.CargoWagon
 local FluidWagon = CarriageType.FluidWagon
 local strace = stlib.strace
 local WARN = stlib.WARN
 local TRACE = stlib.TRACE
+local INF = math.huge
+local NINF = -math.huge
 
 ---@param carriage_type Cybersyn.CarriageType?
 ---@param pattern (0|1|2|3)?
@@ -237,6 +242,59 @@ cs2.on_train_layouts_destroyed(function()
 	for _, node in pairs(storage.nodes) do
 		if node.type == "stop" then
 			cull_stop_layouts(node --[[@as Cybersyn.TrainStop]])
+		end
+	end
+end)
+
+--------------------------------------------------------------------------------
+-- Allowed train capacity computations
+--------------------------------------------------------------------------------
+
+---Evaluate the allowed capacities for trains at this stop.
+function TrainStop:evaluate_allowed_capacities()
+	local min_item_slots, min_fluids = nil, nil
+	local max_item_slots, max_fluids = nil, nil
+	if self.allowed_layouts then
+		for layout_id in pairs(self.allowed_layouts) do
+			local layout = storage.train_layouts[layout_id]
+			if layout then
+				local fluid_cap = layout.min_fluid_capacity
+				local item_cap = layout.min_item_slot_capacity
+				if fluid_cap and fluid_cap < (min_fluids or INF) then
+					min_fluids = fluid_cap
+				end
+				if fluid_cap and fluid_cap > (max_fluids or NINF) then
+					max_fluids = fluid_cap
+				end
+				if item_cap and item_cap < (min_item_slots or INF) then
+					min_item_slots = item_cap
+				end
+				if item_cap and item_cap > (max_item_slots or NINF) then
+					max_item_slots = item_cap
+				end
+			end
+		end
+	end
+	self.allowed_min_item_slot_capacity = min_item_slots
+	self.allowed_min_fluid_capacity = min_fluids
+	self.allowed_max_item_slot_capacity = max_item_slots
+	self.allowed_max_fluid_capacity = max_fluids
+end
+
+cs2.on_node_data_changed(function(node)
+	if node.type == "stop" then
+		---@cast node Cybersyn.TrainStop
+		node:evaluate_allowed_capacities()
+	end
+end)
+
+cs2.on_train_layout_changed(function(layout)
+	for _, node in pairs(storage.nodes) do
+		---@cast node Cybersyn.TrainStop
+		if node.type == "stop" and node.allowed_layouts then
+			if node.allowed_layouts[layout.id] then
+				node:evaluate_allowed_capacities()
+			end
 		end
 	end
 end)

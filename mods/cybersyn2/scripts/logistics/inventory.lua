@@ -328,9 +328,9 @@ local function compute_auto_threshold(stop, item, species, request_qty)
 			or mod_settings.default_auto_threshold_fraction
 		)
 	if species == "fluid" then
-		return min(ceil(thresh), stop.threshold_auto_fluid_max or 1)
+		return min(ceil(thresh), stop.allowed_min_fluid_capacity or 1)
 	elseif species == "item" then
-		local max_thresh = (stop.threshold_auto_item_max or 1)
+		local max_thresh = (stop.allowed_max_item_slot_capacity or 1)
 			* (key_to_stacksize(item) or 1)
 		return min(ceil(thresh), max_thresh)
 	else
