@@ -332,10 +332,15 @@ function LogisticsThread:route_train_allocation(allocation, index)
 	local avail_trains = self.avail_trains or empty
 	local best_train = nil
 	local best_score = -INF
+	local n_trains_considered, busy_rejections, capacity_threshold_rejections, allowlist_rejections =
+		0, 0, 0, 0
 	for train_id, train in pairs(avail_trains) do
+		n_trains_considered = n_trains_considered + 1
+
 		-- Check if still available
 		if not train:is_available() then
 			avail_trains[train_id] = nil
+			busy_rejections = busy_rejections + 1
 			goto continue
 		end
 		-- Check if capacity exceeds both thresholds
@@ -346,10 +351,12 @@ function LogisticsThread:route_train_allocation(allocation, index)
 			or train_capacity < allocation.from_thresh
 			or train_capacity < allocation.to_thresh
 		then
+			capacity_threshold_rejections = capacity_threshold_rejections + 1
 			goto continue
 		end
 		-- Check if allowlisted at both ends
 		if not (from:allows_train(train) and to:allows_train(train)) then
+			allowlist_rejections = allowlist_rejections + 1
 			goto continue
 		end
 		-- Check if better than the previous train.
@@ -372,6 +379,10 @@ function LogisticsThread:route_train_allocation(allocation, index)
 				to = to.id,
 				item = allocation.item,
 				qty = qty,
+				n_trains_considered = n_trains_considered,
+				busy_rejections = busy_rejections,
+				capacity_threshold_rejections = capacity_threshold_rejections,
+				allowlist_rejections = allowlist_rejections,
 			}
 			cs2.ring_buffer_log_write(from, log_entry)
 			cs2.ring_buffer_log_write(to, log_entry)
