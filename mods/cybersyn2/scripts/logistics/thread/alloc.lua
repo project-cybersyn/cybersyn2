@@ -262,10 +262,10 @@ function LogisticsThread:alloc_item_to(item, requesting_order, is_fluid)
 						qty,
 						requesting_order.priority
 					)
+					request_qty = request_qty - qty
 				end
 			end
 		end
-		request_qty = request_qty - qty
 		if request_qty <= 0 then break end
 	end
 
