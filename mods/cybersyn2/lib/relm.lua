@@ -769,6 +769,8 @@ local function vpaint_context_create(context, props)
 			addable_props.index = context.index
 		end
 		new_elem = elem.add(addable_props)
+		-- Entities for entity-preview can only be set after creation.
+		if props.entity then new_elem.entity = props.entity end
 		-- Inherit __relm_root
 		local tags = new_elem.tags
 		tags["__relm_root"] = context.root_id

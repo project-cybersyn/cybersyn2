@@ -104,7 +104,12 @@ function lib.handle_gui_events(...)
 		if payload.key == "factorio_event" then
 			---@cast payload Relm.MessagePayload.FactorioEvent
 			local handler = event_map[payload.name]
-			if handler then handler(me, payload.event, props, state) end
+			if not handler then return false end
+			if type(handler) == "function" then
+				handler(me, payload.event, props, state)
+			elseif type(handler) == "string" then
+				relm.msg_bubble(me, { key = handler, event = payload.event }, true)
+			end
 			return true
 		end
 		return false
@@ -193,7 +198,7 @@ local function on_click_transformer(props)
 	if props.on_click then
 		props.listen = true
 		props.message_handler =
-			lib.map_events(defines.events.on_gui_click, props.on_click)
+			lib.handle_gui_events(defines.events.on_gui_click, props.on_click)
 	end
 end
 
@@ -207,7 +212,6 @@ lib.HFlow = lib.customize_primitive({
 	direction = "horizontal",
 }, nil, true)
 local HF = lib.HFlow
--- TODO: fix buttons to new event handling paradigm
 lib.Button = lib.customize_primitive({
 	type = "button",
 	style = "button",

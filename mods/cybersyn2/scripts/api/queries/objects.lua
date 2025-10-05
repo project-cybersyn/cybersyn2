@@ -10,6 +10,7 @@ local Vehicle = _G.cs2.Vehicle
 local Train = _G.cs2.Train
 local TrainStop = _G.cs2.TrainStop
 local Topology = _G.cs2.Topology
+local Delivery = _G.cs2.Delivery
 
 local comb_list_datatype = {
 	true,
@@ -118,4 +119,32 @@ function _G.cs2.query_handlers.topologies(arg)
 		res = tlib.t_map_a(storage.topologies, function(t) return t end)
 	end
 	return { data = res or {}, type = top_list_datatype }
+end
+
+---@param deliveries Cybersyn.Delivery[]
+local function format_deliveries(deliveries)
+	return map(deliveries, function(d_in)
+		local d = tlib.assign({}, d_in) --[[@as Cybersyn.Delivery ]]
+		local from_stop = TrainStop.get(d.from_id)
+		if from_stop then d.from_entity = from_stop.entity end
+		local to_stop = TrainStop.get(d.to_id)
+		if to_stop then d.to_entity = to_stop.entity end
+		return d
+	end)
+end
+
+function _G.cs2.query_handlers.deliveries(arg)
+	---@type Cybersyn.Delivery[]
+	local res = nil
+	if arg.ids then
+		res =
+			format_deliveries(map(arg.ids, function(id) return Delivery.get(id) end))
+	elseif arg.vehicle_id then
+		local vehicle_id = arg.vehicle_id
+		local filtered = tlib.t_map_a(storage.deliveries, function(d)
+			if d.vehicle_id == vehicle_id then return d end
+		end)
+		res = format_deliveries(filtered)
+	end
+	return { data = res or {} }
 end
