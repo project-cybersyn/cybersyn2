@@ -241,15 +241,16 @@ function TrainDelivery:goto_from()
 	local from = TrainStop.get(self.from_id)
 	if not train or not from then return self:fail() end
 	if self.state == "to_from" then return end
-	if
-		train:schedule(
-			coordinate_entry(from.entity),
-			pickup_entry(from, self.manifest)
-		)
-	then
+	local ok, reason = train:schedule(
+		coordinate_entry(from.entity),
+		pickup_entry(from, self.manifest)
+	)
+	if ok then
 		self:set_state("to_from")
-	else
+	elseif reason == "interrupted" then
 		self:set_state("interrupted_from")
+	else
+		-- TODO: failed to add schedule record, what now?
 	end
 end
 
@@ -259,10 +260,14 @@ function TrainDelivery:goto_to()
 	if not train or not to then return self:fail() end
 	self:clear_from_charge()
 	if self.state == "to_to" then return end
-	if train:schedule(coordinate_entry(to.entity), dropoff_entry(to)) then
+	local ok, reason =
+		train:schedule(coordinate_entry(to.entity), dropoff_entry(to))
+	if ok then
 		self:set_state("to_to")
-	else
+	elseif reason == "interrupted" then
 		self:set_state("interrupted_to")
+	else
+		-- TODO: failed to add schedule record, what now?
 	end
 end
 
@@ -271,7 +276,13 @@ function TrainDelivery:complete()
 	self:clear_to_charge()
 	self:set_state("completed")
 	local train = Train.get(self.vehicle_id)
-	if train then train:clear_delivery(self.id) end
+	if train then
+		train:clear_delivery(self.id)
+		if not train:is_empty() then
+			self.left_dirty = "Train was not fully unloaded at destination."
+			-- TODO: tainted train handling
+		end
+	end
 end
 
 ---Train stop invokes this to notify a train on this delivery left
@@ -295,6 +306,35 @@ function TrainDelivery:notify_departed(stop)
 			"message",
 			"notify_departed() was called out of context."
 		)
+	end
+end
+
+---Train stop invokes this to notify a train on this delivery_id
+---arrived at the stop.
+---@param stop Cybersyn.TrainStop
+function TrainDelivery:notify_arrived(stop)
+	if self.state == "to_from" then
+		if stop.id ~= self.from_id then
+			local priority = stop.entity.train_stop_priority
+			-- TODO: misrouted warning/handling
+			self.misrouted_from = string.format(
+				"wrong source: expected %d, got %d. prio %d",
+				self.from_id,
+				stop.id,
+				priority
+			)
+		end
+	elseif self.state == "to_to" then
+		if stop.id ~= self.to_id then
+			local priority = stop.entity.train_stop_priority
+			-- TODO: misrouted warning/handling
+			self.misrouted_to = string.format(
+				"wrong sink: expected %d, got %d. prio %d",
+				self.to_id,
+				stop.id,
+				priority
+			)
+		end
 	end
 end
 

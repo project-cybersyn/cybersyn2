@@ -166,7 +166,13 @@ function TrainStop:remove_delivery(delivery_id)
 	self:defer_process_queue()
 end
 
-function TrainStop:train_arrived(train) end
+---@param train Cybersyn.Train
+function TrainStop:train_arrived(train)
+	local delivery_id = train.delivery_id
+	if not delivery_id or not self.deliveries[delivery_id] then return end
+	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+	if delivery then delivery:notify_arrived(self) end
+end
 
 ---@param train Cybersyn.Train
 function TrainStop:train_departed(train)
