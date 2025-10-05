@@ -115,11 +115,8 @@ local function entity_to_entries(entity)
 				{
 					key = "train" .. train.id,
 					caption = "Train " .. train.id,
-					type = "InspectorItem.Generic",
-					query = {
-						type = "vehicles",
-						luatrain_ids = { train.id },
-					},
+					type = "InspectorItem.Train",
+					train_id = train.id,
 				},
 			}
 		end
