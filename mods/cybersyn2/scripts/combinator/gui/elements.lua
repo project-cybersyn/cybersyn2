@@ -16,16 +16,21 @@ local HF = ultros.HFlow
 ---@param setting Cybersyn.Combinator.SettingDefinition
 ---@param inverse boolean? If true, the checkbox will be inverted (checked when the setting is false).
 ---@param disabled boolean? If true, the checkbox will be disabled and not interactable.
+---@param value_when_disabled boolean? If `disabled` is true, this will be the value shown in the checkbox.
 function _G.cs2.gui.Checkbox(
 	caption,
 	tooltip,
 	combinator,
 	setting,
 	inverse,
-	disabled
+	disabled,
+	value_when_disabled
 )
 	local value = combinator:read_setting(setting)
 	if inverse then value = not value end
+	if disabled and value_when_disabled ~= nil then
+		value = value_when_disabled
+	end
 	local enabled = not disabled
 	return ultros.Checkbox({
 		caption = caption,

@@ -156,7 +156,8 @@ relm.define_element({
 						props.combinator,
 						combinator_settings.provide_subset,
 						true,
-						is_requester
+						is_requester,
+						false
 					),
 					HF({ vertical_align = "center" }, {
 						gui.Checkbox(
