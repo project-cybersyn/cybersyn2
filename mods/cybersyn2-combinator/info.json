@@ -1,0 +1,10 @@
+{
+  "name": "cybersyn2-combinator",
+  "version": "1.0.0",
+  "title": "Cybersyn 2 Combinator",
+  "author": "Sharparam",
+  "homepage": "https://github.com/Sharparam/cybersyn-combinator",
+  "description": "A specialized combinator for the Project Cybersyn 2 mod",
+  "factorio_version": "2.0",
+  "dependencies": ["base >= 2.0.0", "cybersyn2", "flib >= 0.15.0", "! cybersyn-combinator"]
+}

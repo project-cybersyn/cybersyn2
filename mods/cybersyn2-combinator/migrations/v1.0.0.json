@@ -1,0 +1,6 @@
+{
+  "item": [["cybersyn-constant-combinator", "cybersyn2-constant-combinator"]],
+  "recipe": [["cybersyn-constant-combinator", "cybersyn2-constant-combinator"]],
+  "entity": [["cybersyn-constant-combinator", "cybersyn2-constant-combinator"]],
+  "virtual-signal": [["cybersyn-priority", "cybersyn2-priority"]]
+}
