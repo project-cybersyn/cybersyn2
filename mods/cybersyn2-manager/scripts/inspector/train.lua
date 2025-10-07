@@ -154,7 +154,7 @@ relm.define_element({
 			local dels = del_q.data
 			table.sort(
 				dels,
-				function(a, b) return a.created_tick < b.created_tick end
+				function(a, b) return a.created_tick > b.created_tick end
 			)
 			relm.set_state(me, { veh = veh, deliveries = dels })
 			return true
