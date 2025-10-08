@@ -254,27 +254,32 @@ end)
 function TrainStop:evaluate_allowed_capacities()
 	local min_item_slots, min_fluids = nil, nil
 	local max_item_slots, max_fluids = nil, nil
-	if self.allowed_layouts then
-		for layout_id in pairs(self.allowed_layouts) do
-			local layout = storage.train_layouts[layout_id]
-			if layout then
-				local fluid_cap = layout.min_fluid_capacity
-				local item_cap = layout.min_item_slot_capacity
-				if fluid_cap and fluid_cap < (min_fluids or INF) then
-					min_fluids = fluid_cap
-				end
-				if fluid_cap and fluid_cap > (max_fluids or NINF) then
-					max_fluids = fluid_cap
-				end
-				if item_cap and item_cap < (min_item_slots or INF) then
-					min_item_slots = item_cap
-				end
-				if item_cap and item_cap > (max_item_slots or NINF) then
-					max_item_slots = item_cap
-				end
+
+	-- If allowed_layouts is nil, we're in "allow all" mode, so
+	-- consider all layouts when evaluating capacities.
+	local layout_id_set = self.allowed_layouts
+	if self.allowed_layouts == nil then layout_id_set = storage.train_layouts end
+
+	for layout_id in pairs(layout_id_set) do
+		local layout = storage.train_layouts[layout_id]
+		if layout then
+			local fluid_cap = layout.min_fluid_capacity
+			local item_cap = layout.min_item_slot_capacity
+			if fluid_cap and fluid_cap < (min_fluids or INF) then
+				min_fluids = fluid_cap
+			end
+			if fluid_cap and fluid_cap > (max_fluids or NINF) then
+				max_fluids = fluid_cap
+			end
+			if item_cap and item_cap < (min_item_slots or INF) then
+				min_item_slots = item_cap
+			end
+			if item_cap and item_cap > (max_item_slots or NINF) then
+				max_item_slots = item_cap
 			end
 		end
 	end
+
 	self.allowed_min_item_slot_capacity = min_item_slots
 	self.allowed_min_fluid_capacity = min_fluids
 	self.allowed_max_item_slot_capacity = max_item_slots
@@ -291,8 +296,8 @@ end)
 cs2.on_train_layout_changed(function(layout)
 	for _, node in pairs(storage.nodes) do
 		---@cast node Cybersyn.TrainStop
-		if node.type == "stop" and node.allowed_layouts then
-			if node.allowed_layouts[layout.id] then
+		if node.type == "stop" then
+			if node.allowed_layouts == nil or node.allowed_layouts[layout.id] then
 				node:evaluate_allowed_capacities()
 			end
 		end
