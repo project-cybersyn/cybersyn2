@@ -98,31 +98,29 @@ function Topology.get_train_topology(surface_index)
 	if topology_id then return storage.topologies[topology_id] end
 end
 
----Recheck surfaces and build corresponding topologies
-local function recheck_train_surfaces()
+---Check all surfaces for presence of cs2 combinator. Where they are present,
+---create topologies.
+local function recheck_surfaces()
 	for _, surface in pairs(game.surfaces) do
-		if surface.planet then
+		local combs = surface.find_entities_filtered({
+			name = cs2.COMBINATOR_NAME,
+		})
+		if #combs > 0 then
 			if not Topology.get_train_topology(surface.index) then
 				create_train_topology(surface.index)
 			end
 		end
 	end
 end
-_G.cs2.recheck_train_surfaces = recheck_train_surfaces
 
--- At startup re-enumerate surfaces and find matching topologies
-cs2.on_startup(function() recheck_train_surfaces() end)
+-- At startup re-enumerate surfaces and create topologies as needed.
+cs2.on_startup(function() recheck_surfaces() end)
 
--- When a planet is created make a train topology.
-cs2.on_surface(function(index, op)
-	if op == "created" then
-		local surface = game.get_surface(index)
-		if
-			surface
-			and surface.planet
-			and not Topology.get_train_topology(index)
-		then
-			create_train_topology(index)
-		end
+-- When a combinator is built, create topology if necessary
+cs2.on_combinator_created(function(comb)
+	if (not comb.entity) or not comb.entity.valid then return end
+	local surface_index = comb.entity.surface_index
+	if not Topology.get_train_topology(surface_index) then
+		create_train_topology(surface_index)
 	end
-end)
+end, true)
