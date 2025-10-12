@@ -422,7 +422,11 @@ function LogisticsThread:enter_route()
 			return veh.id, veh
 		end
 	end) --[[@as table<uint, Cybersyn.Train>]]
-	self:begin_async_loop(self.allocations, 1)
+
+	self:begin_async_loop(
+		self.allocations,
+		math.ceil(cs2.PERF_ROUTE_WORKLOAD * mod_settings.work_factor)
+	)
 end
 
 function LogisticsThread:exit_route() self.allocations = nil end

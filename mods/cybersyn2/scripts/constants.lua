@@ -23,6 +23,8 @@ _G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 4
 _G.cs2.PERF_POLL_NODES_WORKLOAD = 4
 -- Base empirical work units per `alloc` iteration.
 _G.cs2.PERF_ALLOC_WORKLOAD = 15
+-- Base number of allocations to examine per `route` iteration.
+_G.cs2.PERF_ROUTE_WORKLOAD = 1
 -- Number of deliveries to examine per delivery monitor iteration.
 _G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 5
 
