@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local stlib = require("__cybersyn2__.lib.strace")
+local tlib = require("__cybersyn2__.lib.table")
 local cs2 = _G.cs2
 local combinator_settings = _G.cs2.combinator_settings
 local CarriageType = require("__cybersyn2__.lib.types").CarriageType
@@ -255,10 +256,16 @@ function TrainStop:evaluate_allowed_capacities()
 	local min_item_slots, min_fluids = nil, nil
 	local max_item_slots, max_fluids = nil, nil
 
-	-- If allowed_layouts is nil, we're in "allow all" mode, so
-	-- consider all layouts when evaluating capacities.
-	local layout_id_set = self.allowed_layouts
-	if self.allowed_layouts == nil then layout_id_set = storage.train_layouts end
+	-- Find all practically allowed train layouts.
+	local layout_id_set = {}
+	for _, veh in pairs(storage.vehicles) do
+		if veh.type == "train" and veh.topology_id == self.topology_id then
+			---@cast veh Cybersyn.Train
+			if self.allowed_layouts == nil or self.allowed_layouts[veh.layout_id] then
+				layout_id_set[veh.layout_id] = true
+			end
+		end
+	end
 
 	for layout_id in pairs(layout_id_set) do
 		local layout = storage.train_layouts[layout_id]

@@ -169,6 +169,18 @@ function Node:get_combinator_with_mode(mode)
 end
 
 --------------------------------------------------------------------------------
+-- Topology
+--------------------------------------------------------------------------------
+
+---Set the topology ID for this node.
+---@param topology_id Id
+function Node:set_topology(topology_id)
+	if self.topology_id == topology_id then return end
+	self.topology_id = topology_id
+	cs2.raise_node_data_changed(self)
+end
+
+--------------------------------------------------------------------------------
 -- Inventory
 --------------------------------------------------------------------------------
 
