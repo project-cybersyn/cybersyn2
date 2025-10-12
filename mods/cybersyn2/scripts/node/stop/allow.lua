@@ -259,8 +259,13 @@ function TrainStop:evaluate_allowed_capacities()
 	-- Find all practically allowed train layouts.
 	local layout_id_set = {}
 	for _, veh in pairs(storage.vehicles) do
-		if veh.type == "train" and veh.topology_id == self.topology_id then
+		if
+			veh.type == "train"
 			---@cast veh Cybersyn.Train
+
+			and veh.topology_id == self.topology_id
+			and veh.layout_id
+		then
 			if self.allowed_layouts == nil or self.allowed_layouts[veh.layout_id] then
 				layout_id_set[veh.layout_id] = true
 			end
