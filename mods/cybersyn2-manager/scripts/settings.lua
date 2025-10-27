@@ -1,8 +1,8 @@
+local events = require("__cybersyn2__.lib.core.event")
+
 local mgr = _G.mgr
 
 ---@class (exact) Cybersyn.Manager.ModSettings
----@field public work_period uint Number of ticks between work cycles.
----@field public work_factor number Multiplier applied to work done per cycle.
 
 ---@type Cybersyn.Manager.ModSettings
 ---@diagnostic disable-next-line: missing-fields
@@ -15,10 +15,12 @@ local function update_mod_settings() end
 update_mod_settings()
 
 -- On init we must treat settings as having been changed
-mgr.on_init(function() mgr.raise_mod_settings_changed(nil) end)
+events.bind(
+	"on_startup",
+	function() events.raise("mgr.on_mod_settings_changed") end
+)
 
----@param event EventData.on_runtime_mod_setting_changed
-function _G.mgr.handle_runtime_mod_setting_changed(event)
+events.bind(defines.events.on_runtime_mod_setting_changed, function(event)
 	update_mod_settings()
-	mgr.raise_mod_settings_changed(event.setting)
-end
+	events.raise("mgr.on_mod_settings_changed", event.setting)
+end)

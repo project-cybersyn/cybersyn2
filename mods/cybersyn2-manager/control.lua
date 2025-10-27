@@ -1,7 +1,6 @@
 -- Manager globals
 _G.mgr = {}
 
-require("scripts.events")
 require("scripts.storage")
 require("scripts.settings")
 require("scripts.elements")

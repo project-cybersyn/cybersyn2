@@ -62,7 +62,7 @@ _G.mgr.ViewWrapper = relm.define_element({
 	render = function(props, state)
 		---@cast state table
 		relm.use_effect(props.filter or 0, view_effect, view_cleanup)
-		relm_helpers.use_event("on_view_updated")
+		relm_helpers.use_event("mgr.on_view_updated")
 		local child = props.child
 		local next_props = tlib.assign({}, child.props)
 		tlib.assign(next_props, state)

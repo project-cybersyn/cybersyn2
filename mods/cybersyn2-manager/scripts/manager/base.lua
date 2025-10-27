@@ -4,6 +4,7 @@ local relm_helpers = require("__cybersyn2__.lib.core.relm.util")
 local ultros = require("__cybersyn2__.lib.core.relm.ultros")
 local tlib = require("__cybersyn2__.lib.core.table")
 local siglib = require("__cybersyn2__.lib.signal")
+local events = require("__cybersyn2__.lib.core.event")
 local mgr = _G.mgr
 
 local strace = strace_lib.strace
@@ -56,7 +57,7 @@ function _G.mgr.manager.open(player_index)
 	end
 end
 
-mgr.on_manager_toggle(function(player_index)
+events.bind("mgr.on_manager_toggle", function(player_index)
 	if not player_index then return end
 
 	if manager.get(player_index) then

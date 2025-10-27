@@ -1,3 +1,4 @@
+local events = require("__cybersyn2__.lib.core.event")
 local strace_lib = require("__cybersyn2__.lib.core.strace")
 local relm = require("__cybersyn2__.lib.core.relm.relm")
 local relm_helpers = require("__cybersyn2__.lib.core.relm.util")
@@ -123,7 +124,7 @@ local function entity_to_entries(entity)
 	end
 end
 
-mgr.on_inspector_selected(function(event)
+events.bind("mgr.on_inspector_selected", function(event)
 	if not inspector.get(event.player_index) then
 		inspector.open(event.player_index)
 	end
