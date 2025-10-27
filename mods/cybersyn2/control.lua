@@ -13,6 +13,38 @@ _G.cs2 = {
 	debug = {},
 }
 
+local strace = require("lib.strace")
+
+local stringify = strace.stringify
+local select = select
+
+strace.set_handler(function(level, ...)
+	local frame = 0
+	if game then frame = game.ticks_played end
+	local cat_tbl = {
+		"[",
+		frame,
+		strace.level_to_string[level],
+		"]",
+	}
+	strace.foreach(function(key, value, ...)
+		if key == "level" then
+		-- skip
+		elseif key == "message" then
+			cat_tbl[#cat_tbl + 1] = stringify(value)
+			for i = 1, select("#", ...) do
+				cat_tbl[#cat_tbl + 1] = stringify(select(i, ...))
+			end
+		else
+			cat_tbl[#cat_tbl + 1] = " "
+			cat_tbl[#cat_tbl + 1] = tostring(key)
+			cat_tbl[#cat_tbl + 1] = "="
+			cat_tbl[#cat_tbl + 1] = stringify(value)
+		end
+	end, level, ...)
+	log(table.concat(cat_tbl, " "))
+end)
+
 require("scripts.types")
 require("scripts.constants")
 require("scripts.events")

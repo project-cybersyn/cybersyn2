@@ -25,10 +25,6 @@
 -- use this library in order for your own mod to use or display straces.
 --------------------------------------------------------------------------------
 
-if ... ~= "__cybersyn2__.lib.strace" then
-	return require("__cybersyn2__.lib.strace")
-end
-
 local select = _G.select
 local type = _G.type
 local tconcat = _G.table.concat
@@ -63,6 +59,48 @@ lib.level_to_string = level_to_string
 ---Global strace handler per Lua state.
 ---@type fun(...)|nil
 local handler = nil
+
+local function unwind_fns(car, ...)
+	if type(car) == "function" then car = car() end
+	if select("#", ...) == 0 then
+		return car
+	else
+		return car, unwind_fns(...)
+	end
+end
+
+---Split off the first key-value pair from an strace message, returning the
+---key and value, along with the remaining message.
+---The level parameter must have been stripped in advance.
+---@return string? key The first key or `nil` if no such key exists in the message
+---@return any ... The associated value. If the `message` is encountered, instead a full parameter pack of the message data will be returned, with lazy functions evaluated.
+function lib.car_cdr(k, v, ...)
+	if k == nil then return nil end
+	if v == nil then
+		-- Malformed strace message.
+		return nil
+	end
+	if k == "message" then return "message", unwind_fns(v, ...) end
+	if type(v) == "function" then v = v() end
+	return k, v, ...
+end
+
+---Iterate over the kv pairs of an strace message.
+---@param fn fun(key: string, ...: any) Function to call for each key-value pair. If the `message` key is encountered, the function will be called with `message` and all remaining message args.
+---@param level int The strace level.
+---@param ... any The strace message parameter pack.
+function lib.foreach(fn, level, ...)
+	fn("level", level)
+	for i = 1, select("#", ...), 2 do
+		local key = select(i, ...)
+		if key == "message" then
+			return fn("message", unwind_fns(select(i + 1, ...)))
+		end
+		local val = select(i + 1, ...)
+		if type(val) == "function" then val = val() end
+		fn(key, val)
+	end
+end
 
 ---Get a key-value pair from an strace message by linear search for the key.
 ---@return string? key The key or `nil` if no such key exists in the message
@@ -151,9 +189,17 @@ lib.unpacked_from_struct = unpacked_from_struct
 
 ---Send a structured tracing message specified by the parameter pack.
 ---@param level int Trace level.
-function lib.strace(level, ...)
+local function strace(level, ...)
 	if handler then return handler(level, ...) end
 end
+lib.strace = strace
+
+function lib.trace(...) return strace(lib.TRACE, "message", ...) end
+function lib.info(...) return strace(lib.INFO, "message", ...) end
+function lib.log(...) return strace(lib.INFO, "message", ...) end
+function lib.debug(...) return strace(lib.DEBUG, "message", ...) end
+function lib.warn(...) return strace(lib.WARN, "message", ...) end
+function lib.error(...) return strace(lib.ERROR, "message", ...) end
 
 ---Set a global tracing handler
 ---@param new_handler? fun(...)
@@ -193,6 +239,7 @@ function lib.message_to_string(...)
 		local arg = select(i, ...)
 		accum[#accum + 1] = stringify_with(arg, serpent_line)
 	end
+	return tconcat(accum)
 end
 
 ---Filter strace messages by key/value. Each key/value pair in `filters` defines
