@@ -163,7 +163,7 @@ local function add_forceout_conditions(conditions, stop)
 			},
 		}
 		conditions[#conditions + 1] = {
-			type = "time",
+			type = "inactivity",
 			compare_type = "and",
 			ticks = 60,
 		}
