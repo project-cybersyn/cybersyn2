@@ -2,9 +2,9 @@
 -- Train lifecycle.
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
+local class = require("lib.core.class").class
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local Train = _G.cs2.Train

@@ -1,5 +1,5 @@
-local tlib = require("__cybersyn2__.lib.table")
-local types = require("__cybersyn2__.lib.types")
+local tlib = require("lib.core.table")
+local types = require("lib.types")
 local ContainerType = types.ContainerType
 local PrimitiveType = types.PrimitiveType
 local Inventory = _G.cs2.Inventory

@@ -1,6 +1,6 @@
-local counters = require("__cybersyn2__.lib.counters")
-local scheduler = require("__cybersyn2__.lib.scheduler")
-local tlib = require("__cybersyn2__.lib.table")
+local counters = require("lib.core.counters")
+local scheduler = require("lib.core.scheduler")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 
 ---@class Cybersyn.Alert

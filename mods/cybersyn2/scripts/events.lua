@@ -2,7 +2,7 @@
 -- Internal event backplane.
 --------------------------------------------------------------------------------
 
-local event = require("__cybersyn2__.lib.events").create_event
+local event = require("lib.core.events").create_event
 
 -- These type aliases are necessary due to problems in Sumneko Lua's parameter
 -- system.

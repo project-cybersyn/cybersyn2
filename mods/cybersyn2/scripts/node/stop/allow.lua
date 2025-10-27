@@ -2,11 +2,11 @@
 -- Implementation of allow lists
 --------------------------------------------------------------------------------
 
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local combinator_settings = _G.cs2.combinator_settings
-local CarriageType = require("__cybersyn2__.lib.types").CarriageType
+local CarriageType = require("lib.types").CarriageType
 
 ---@class Cybersyn.TrainStop
 local TrainStop = _G.cs2.TrainStop

@@ -6,8 +6,8 @@
 -- TODO: let other mods (space exploration, trains-on-platforms) intervene in
 -- how topologies are built.
 
-local class = require("__cybersyn2__.lib.class").class
-local counters = require("__cybersyn2__.lib.counters")
+local class = require("lib.core.class").class
+local counters = require("lib.core.counters")
 local cs2 = _G.cs2
 
 ---@class Cybersyn.Topology

@@ -2,10 +2,10 @@
 -- Thread scheduling helper
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local StateMachine = require("__cybersyn2__.lib.state-machine")
-local scheduler = require("__cybersyn2__.lib.scheduler")
-local thread = require("__cybersyn2__.lib.thread")
+local class = require("lib.core.class").class
+local StateMachine = require("lib.core.state-machine")
+local scheduler = require("lib.core.scheduler")
+local thread = require("lib.core.thread")
 local Thread = thread.Thread
 local cs2 = _G.cs2
 
@@ -18,14 +18,14 @@ local min = math.min
 -- TODO: remove at release
 scheduler.register_handler("thread_handler", function() end)
 
----@class StatefulThread: Lib.Thread, StateMachine
+---@class StatefulThread: Core.Thread, StateMachine
 ---@field public stride? int For enumerating threads, the number of elements to loop over in a single iteration
 ---@field public index? any The current index in the async iteration, if applicable
 ---@field public iterable? any[]|table The array or table being async iterated over, if applicable
 local StatefulThread = class("StatefulThread", Thread, StateMachine)
 _G.cs2.StatefulThread = StatefulThread
 
----@param initial_state? string
+---@param initial_state string
 function StatefulThread:new(initial_state)
 	local thr = Thread.new(self) --[[@as StatefulThread]]
 	thr.state = initial_state

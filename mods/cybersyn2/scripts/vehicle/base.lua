@@ -2,8 +2,8 @@
 -- Base classes and methods for Vehicles.
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local counters = require("__cybersyn2__.lib.counters")
+local class = require("lib.core.class").class
+local counters = require("lib.core.counters")
 
 local cs2 = _G.cs2
 

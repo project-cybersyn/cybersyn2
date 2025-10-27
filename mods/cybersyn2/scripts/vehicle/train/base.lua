@@ -2,8 +2,8 @@
 -- Base Train class and associated structures
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local train_lib = require("__cybersyn2__.lib.trains")
+local class = require("lib.core.class").class
+local train_lib = require("lib.trains")
 local cs2 = _G.cs2
 local Vehicle = _G.cs2.Vehicle
 local Topology = _G.cs2.Topology

@@ -5,47 +5,14 @@
 -- separate files should then operate by binding to the event backplane.
 --------------------------------------------------------------------------------
 
-local counters = require("__cybersyn2__.lib.counters")
-local scheduler = require("__cybersyn2__.lib.scheduler")
-local thread = require("__cybersyn2__.lib.thread")
-local tlib = require("__cybersyn2__.lib.table")
-local relm = require("__cybersyn2__.lib.relm")
-local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
+local tlib = require("lib.core.table")
 local bplib = require("__bplib__.blueprint")
 local cs2 = _G.cs2
 local cs2_lib = _G.cs2.lib
 
-local db_dispatch = dynamic_binding.dispatch
 local COMBINATOR_NAME = cs2.COMBINATOR_NAME
 local BlueprintBuild = bplib.BlueprintBuild
 local BlueprintSetup = bplib.BlueprintSetup
-
---------------------------------------------------------------------------------
--- Required library event bindings
---------------------------------------------------------------------------------
-
-cs2.on_startup(counters.init, true)
-
-cs2.on_startup(scheduler.init, true)
-
-cs2.on_startup(thread.init, true)
-
-cs2.on_startup(relm.init, true)
-cs2.on_load(relm.on_load)
-relm.install_event_handlers()
-cs2.on_reset(function()
-	-- On reset, we must destroy all Relm roots.
-	relm.root_foreach(function(_, root_id) relm.root_destroy(root_id) end)
-end)
-
--- Connect `dynamic_binding` to cs2 event backplane
-cs2.on_startup(dynamic_binding.init, true)
-cs2.on_load(dynamic_binding.on_load)
-dynamic_binding.on_event_bound(function(event_name)
-	if _G.cs2[event_name] and string.sub(event_name, 1, 3) == "on_" then
-		_G.cs2[event_name](function(...) return db_dispatch(event_name, ...) end)
-	end
-end)
 
 --------------------------------------------------------------------------------
 -- Core Factorio control phase
@@ -58,11 +25,6 @@ script.on_configuration_changed(cs2.raise_configuration_changed)
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
 	cs2.update_mod_settings()
 	cs2.raise_mod_settings_changed(event.setting)
-end)
-script.on_nth_tick(nil)
-script.on_nth_tick(1, function(data)
-	scheduler.tick(data)
-	thread.tick(data)
 end)
 
 --------------------------------------------------------------------------------

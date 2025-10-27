@@ -2,7 +2,7 @@
 -- Debugging facilities
 --------------------------------------------------------------------------------
 
-local strace_lib = require("__cybersyn2__.lib.strace")
+local strace_lib = require("lib.core.strace")
 local cs2 = _G.cs2
 
 local strace = strace_lib.strace

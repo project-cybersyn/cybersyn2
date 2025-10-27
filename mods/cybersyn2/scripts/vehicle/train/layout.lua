@@ -2,10 +2,9 @@
 -- Train layout
 --------------------------------------------------------------------------------
 
-local log = require("__cybersyn2__.lib.logging")
-local tlib = require("__cybersyn2__.lib.table")
-local counters = require("__cybersyn2__.lib.counters")
-local CarriageType = require("__cybersyn2__.lib.types").CarriageType
+local tlib = require("lib.core.table")
+local counters = require("lib.core.counters")
+local CarriageType = require("lib.types").CarriageType
 local cs2 = _G.cs2
 
 ---@class Cybersyn.Train

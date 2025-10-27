@@ -2,12 +2,12 @@
 -- Debugger GUI
 --------------------------------------------------------------------------------
 
-local relm = require("__cybersyn2__.lib.relm")
-local ultros = require("__cybersyn2__.lib.ultros")
-local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
-local tlib = require("__cybersyn2__.lib.table")
-local strace_lib = require("__cybersyn2__.lib.strace")
-local signal = require("__cybersyn2__.lib.signal")
+local relm = require("lib.core.relm.relm")
+local ultros = require("lib.core.relm.ultros")
+local relm_helpers = require("lib.core.relm.util")
+local tlib = require("lib.core.table")
+local strace_lib = require("lib.core.strace")
+local signal = require("lib.signal")
 local cs2 = _G.cs2
 
 local strformat = string.format

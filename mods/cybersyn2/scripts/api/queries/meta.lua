@@ -1,5 +1,4 @@
-local types = require("__cybersyn2__.lib.types")
-local query_lib = require("__cybersyn2__.lib.query")
+local types = require("lib.types")
 local ContainerType = types.ContainerType
 local PrimitiveType = types.PrimitiveType
 

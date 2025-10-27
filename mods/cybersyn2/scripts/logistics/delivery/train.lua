@@ -12,11 +12,11 @@
 -- completed: Clear virtual charge from dest
 -- failed: Clear any virtual charges, remove from any queue slots
 
-local class = require("__cybersyn2__.lib.class").class
-local siglib = require("__cybersyn2__.lib.signal")
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
-local thread_lib = require("__cybersyn2__.lib.thread")
+local class = require("lib.core.class").class
+local siglib = require("lib.signal")
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
+local thread_lib = require("lib.core.thread")
 
 local empty = tlib.empty
 local strace = stlib.strace

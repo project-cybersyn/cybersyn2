@@ -5,8 +5,8 @@
 -- numerous cross-cutting concerns with lifecycle.
 --------------------------------------------------------------------------------
 
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local EphemeralCombinator = _G.cs2.EphemeralCombinator

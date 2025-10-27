@@ -2,9 +2,9 @@
 -- `route` logistics phase
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
-local stlib = require("__cybersyn2__.lib.strace")
-local signal = require("__cybersyn2__.lib.signal")
+local tlib = require("lib.core.table")
+local stlib = require("lib.core.strace")
+local signal = require("lib.signal")
 local cs2 = _G.cs2
 local TrainDelivery = _G.cs2.TrainDelivery
 local mod_settings = _G.cs2.mod_settings

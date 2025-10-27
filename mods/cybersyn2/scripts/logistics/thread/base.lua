@@ -2,8 +2,8 @@
 -- Logistics thread
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local thread_lib = require("__cybersyn2__.lib.thread")
+local class = require("lib.core.class").class
+local thread_lib = require("lib.core.thread")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
