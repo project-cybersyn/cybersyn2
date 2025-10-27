@@ -162,6 +162,11 @@ local function add_forceout_conditions(conditions, stop)
 				first_signal = stop.force_departure_signal,
 			},
 		}
+		conditions[#conditions + 1] = {
+			type = "time",
+			compare_type = "and",
+			ticks = 60,
+		}
 	end
 	if
 		(stop.inactivity_timeout or 0) > 0 and stop.inactivity_mode == "forceout"
