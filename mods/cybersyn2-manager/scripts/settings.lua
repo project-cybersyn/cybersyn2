@@ -9,10 +9,7 @@ local mgr = _G.mgr
 _G.mgr.mod_settings = {}
 local mod_settings = _G.mgr.mod_settings
 
-local function update_mod_settings()
-	-- mod_settings.work_period = settings.global["cybersyn2-manager-setting-work-period"].value --[[@as uint]]
-	-- mod_settings.work_factor = settings.global["cybersyn2-manager-setting-work-factor"].value --[[@as number]]
-end
+local function update_mod_settings() end
 
 -- Initial loading of settings
 update_mod_settings()

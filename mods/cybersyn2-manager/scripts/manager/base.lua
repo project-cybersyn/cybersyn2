@@ -1,8 +1,8 @@
-local strace_lib = require("__cybersyn2__.lib.strace")
-local relm = require("__cybersyn2__.lib.relm")
-local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
-local ultros = require("__cybersyn2__.lib.ultros")
-local tlib = require("__cybersyn2__.lib.table")
+local strace_lib = require("__cybersyn2__.lib.core.strace")
+local relm = require("__cybersyn2__.lib.core.relm.relm")
+local relm_helpers = require("__cybersyn2__.lib.core.relm.util")
+local ultros = require("__cybersyn2__.lib.core.relm.ultros")
+local tlib = require("__cybersyn2__.lib.core.table")
 local siglib = require("__cybersyn2__.lib.signal")
 local mgr = _G.mgr
 
