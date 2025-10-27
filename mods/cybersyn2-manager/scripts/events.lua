@@ -1,4 +1,4 @@
-local event = require("__cybersyn2__.lib.events").create_event
+local event = require("__cybersyn2__.lib.core.events").create_event
 
 --------------------------------------------------------------------------------
 -- Factorio core control phase events

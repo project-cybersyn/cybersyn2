@@ -4,11 +4,7 @@
 -- signals to and from strings.
 --------------------------------------------------------------------------------
 
-if ... ~= "__cybersyn2__.lib.signal" then
-	return require("__cybersyn2__.lib.signal")
-end
-
-local tlib = require("__cybersyn2__.lib.table")
+local tlib = require("lib.core.table")
 
 local empty = tlib.empty
 local strsub = string.sub
