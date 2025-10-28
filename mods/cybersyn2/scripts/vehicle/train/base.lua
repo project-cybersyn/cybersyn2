@@ -4,6 +4,7 @@
 
 local class = require("lib.core.class").class
 local train_lib = require("lib.trains")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local Vehicle = _G.cs2.Vehicle
 local Topology = _G.cs2.Topology
@@ -145,7 +146,10 @@ function Train.new(lua_train)
 	train.fluid_capacity = 0
 
 	storage.luatrain_id_to_vehicle_id[lua_train.id] = train.id
+
+	train:evaluate_capacity()
 	cs2.raise_vehicle_created(train)
+	events.raise("cs2.vehicle_created", train)
 	return train
 end
 
@@ -298,7 +302,10 @@ end
 ---Examine the rolling stock of the train and re-compute the item and
 ---fluid capacity.
 ---@param self Cybersyn.Train A *valid* train.
+---@return boolean #`true` if the capacity of the train changed.
 function Train:evaluate_capacity()
+	local old_item_slot_capacity = self.item_slot_capacity
+	local old_fluid_capacity = self.fluid_capacity
 	local carriages = self.lua_train.carriages
 	local item_slot_capacity = 0
 	local fluid_capacity = 0
@@ -313,6 +320,10 @@ function Train:evaluate_capacity()
 	-- These will be recomputed on demand by wagon control subsystem.
 	self.per_wagon_fluid_capacity = nil
 	self.per_wagon_item_slot_capacity = nil
+	return (
+		old_item_slot_capacity ~= item_slot_capacity
+		or old_fluid_capacity ~= fluid_capacity
+	)
 end
 
 ---Determine if the train has any cargo (items or fluids) in its wagons.

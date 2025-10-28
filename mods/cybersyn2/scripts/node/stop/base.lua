@@ -73,7 +73,8 @@ end
 ---@param layout_id uint?
 function TrainStop:accepts_layout(layout_id)
 	if not layout_id then return false end
-	return self.allowed_layouts and self.allowed_layouts[layout_id]
+	if self.allowed_layouts == nil then return true end
+	return self.allowed_layouts[layout_id]
 end
 
 ---Determine if a train is allowed at this stop.
@@ -82,7 +83,7 @@ function TrainStop:allows_train(train)
 	local layout_id = train.layout_id
 	if not layout_id then return false end
 	if self.allowed_layouts == nil then return true end
-	return self.allowed_layouts and self.allowed_layouts[layout_id]
+	return self.allowed_layouts[layout_id]
 	-- TODO: allowed groups
 end
 
