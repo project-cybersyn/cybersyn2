@@ -26,8 +26,10 @@ local key_is_fluid = signal.key_is_fluid
 local LogisticsThread = _G.cs2.LogisticsThread
 
 ---@class (exact) Cybersyn.Internal.TrainCargoState
+---@field public base_item_slots uint Base item slots. Before locked slots are subtracted.
 ---@field public total_item_slots uint Total item slots. Locked slots already subtracted.
 ---@field public remaining_item_slots uint Remaining item slots. Locked slots already subtracted.
+---@field public base_fluid_capacity uint Base fluid capacity. Before reserved cap is subtracted.
 ---@field public fluid_capacity uint Train fluid capacity. Reserved cap already subtracted.
 ---@field public seen_items table<SignalKey, boolean> Seen items.
 ---@field public item_spillover uint Per-item spillover from provider PREMULTIPLIED BY NUMBER OF CARGO WAGONS
@@ -83,8 +85,8 @@ local function try_allocation(
 		end
 		-- Verify capacity
 		if
-			cargo_state.fluid_capacity >= from_thresh
-			and cargo_state.fluid_capacity >= to_thresh
+			cargo_state.base_fluid_capacity >= from_thresh
+			and cargo_state.base_fluid_capacity >= to_thresh
 		then
 			-- Allocate fluid
 			cargo_state.fluid_was_allocated = true
@@ -150,12 +152,15 @@ local function route_train(data, train, allocation, index)
 	local reserved_capacity = from.reserved_capacity or 0
 	local spillover = from.spillover or 0
 
+	local base_item_slots = train.item_slot_capacity
 	local total_item_slots =
-		max(train.item_slot_capacity - (n_cargo_wagons * reserved_slots), 0)
+		max(base_item_slots - (n_cargo_wagons * reserved_slots), 0)
 	---@type Cybersyn.Internal.TrainCargoState
 	local cargo_state = {
+		base_item_slots = base_item_slots,
 		total_item_slots = total_item_slots,
 		remaining_item_slots = total_item_slots,
+		base_fluid_capacity = train.fluid_capacity,
 		fluid_capacity = max(
 			train.fluid_capacity - (n_fluid_wagons * reserved_capacity),
 			0
