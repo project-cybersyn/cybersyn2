@@ -28,6 +28,12 @@ function _G.cs2.shutdown(force)
 		})
 		return
 	end
+	if not force and storage._SHUTDOWN_DATA then
+		game.print(
+			"Cybersyn 2 shutdown failed: must restart with `/cs2-restart` before shutting down again. Use `/cs2-shutdown force` to shut down anyway."
+		)
+		return
+	end
 
 	---@type Core.ResetData
 	local shutdown_state = { init = false, handoff = false }
