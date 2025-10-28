@@ -4,6 +4,6 @@
   "title": "Project Cybersyn 2",
   "author": "The LORD thy GOD",
   "factorio_version": "2.0",
-  "dependencies": ["base >= 2.0.57", "flib >= 0.16.0", "bplib >= 1.0.0", "! OverloadedTrains"],
+  "dependencies": ["base >= 2.0.57", "bplib >= 1.0.0", "! OverloadedTrains"],
   "description": "Creates a feature-rich train logistics system controlled by cybernetic combinators and the circuit network. A successor to Project Cybersyn, redesigned for Factorio 2.0."
 }
