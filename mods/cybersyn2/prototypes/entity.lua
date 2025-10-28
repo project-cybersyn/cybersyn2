@@ -178,3 +178,39 @@ local invisible_sprite =
 proxy_entity.picture = invisible_sprite
 
 data:extend({ proxy_entity })
+
+--------------------------------------------------------------------------------
+-- Thing definitions
+--------------------------------------------------------------------------------
+
+---@type things.ThingRegistration
+local comb_registration = {
+	name = "cybersyn2-combinator",
+	intercept_construction = true,
+	migrate_tags_callback = { "cybersyn2", "migrate_tags_callback" },
+	custom_events = {
+		on_initialized = "cybersyn2-combinator-on_initialized",
+		on_status = "cybersyn2-combinator-on_status",
+		on_edge_status = "cybersyn2-combinator-on_edge_status",
+	},
+}
+
+data.raw["mod-data"]["things-names"].data["cybersyn2-combinator"] =
+	comb_registration
+
+-- local chest_registration = {
+-- 	name = "cybersyn2-proxy-chest",
+-- 	intercept_construction = false,
+-- 	no_garbage_collection = true,
+-- 	allow_in_cursor = "never",
+-- }
+
+-- data.raw["mod-data"]["things-names"].data["cybersyn2-proxy-chest"] =
+-- 	chest_registration
+
+data.raw["mod-data"]["things-graphs"].data["cybersyn2-shared-inventory"] = {
+	directed = true,
+	custom_events = {
+		on_edge_changed = "ribbon-cables-on_edge_changed",
+	},
+}
