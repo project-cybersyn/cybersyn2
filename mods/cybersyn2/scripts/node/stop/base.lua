@@ -1,9 +1,7 @@
-local class = require("__cybersyn2__.lib.class").class
-local mlib = require("__cybersyn2__.lib.math")
-local slib = require("__cybersyn2__.lib.signal")
-local tlib = require("__cybersyn2__.lib.table")
-local stlib = require("__cybersyn2__.lib.strace")
-local scheduler = require("__cybersyn2__.lib.scheduler")
+local class = require("lib.core.class").class
+local tlib = require("lib.core.table")
+local stlib = require("lib.core.strace")
+local scheduler = require("lib.core.scheduler")
 local cs2 = _G.cs2
 local Node = _G.cs2.Node
 local Topology = _G.cs2.Topology
@@ -13,8 +11,6 @@ local combinator_settings = _G.cs2.combinator_settings
 
 local strace = stlib.strace
 local TRACE = stlib.TRACE
-local distance_squared = mlib.pos_distsq
-local pos_get = mlib.pos_get
 local INF = math.huge
 local tremove = table.remove
 local abs = math.abs
@@ -66,6 +62,7 @@ function TrainStop.find_stop_from_rail(rail_entity)
 		return storage.nodes[stop_id] --[[@as Cybersyn.TrainStop?]]
 	end
 end
+_G.cs2.find_stop_from_rail = TrainStop.find_stop_from_rail
 
 ---Check if this is a valid train stop.
 function TrainStop:is_valid()
@@ -76,7 +73,8 @@ end
 ---@param layout_id uint?
 function TrainStop:accepts_layout(layout_id)
 	if not layout_id then return false end
-	return self.allowed_layouts and self.allowed_layouts[layout_id]
+	if self.allowed_layouts == nil then return true end
+	return self.allowed_layouts[layout_id]
 end
 
 ---Determine if a train is allowed at this stop.
@@ -84,7 +82,8 @@ end
 function TrainStop:allows_train(train)
 	local layout_id = train.layout_id
 	if not layout_id then return false end
-	return self.allowed_layouts and self.allowed_layouts[layout_id]
+	if self.allowed_layouts == nil then return true end
+	return self.allowed_layouts[layout_id]
 	-- TODO: allowed groups
 end
 
@@ -97,52 +96,6 @@ function TrainStop.get_stop_from_unit_number(unit_number, skip_validation)
 		storage.stop_id_to_node_id[unit_number or ""],
 		skip_validation
 	) --[[@as Cybersyn.TrainStop?]]
-end
-
----Given a combinator, find the nearby rail or stop that may trigger an
----association.
----TODO: other than the fact that it depends on TrainStop this code should be somewhere else...
----@param combinator_entity LuaEntity A *valid* combinator entity.
----@return LuaEntity? stop_entity The closest-to-front train stop within the combinator's association zone.
----@return LuaEntity? rail_entity The closest-to-front straight rail with a train stop within the combinator's association zone.
-function _G.cs2.lib.find_associable_entities_for_combinator(combinator_entity)
-	local pos = combinator_entity.position
-	local pos_x, pos_y = pos_get(pos)
-	local search_area = {
-		{ pos_x - 1.5, pos_y - 1.5 },
-		{ pos_x + 1.5, pos_y + 1.5 },
-	}
-	local stop = nil
-	local rail = nil
-	local stop_dist = INF
-	local rail_dist = INF
-	local entities = combinator_entity.surface.find_entities_filtered({
-		area = search_area,
-		name = {
-			"train-stop",
-			"straight-rail",
-		},
-	})
-	for _, cur_entity in pairs(entities) do
-		if cur_entity.name == "train-stop" then
-			local dist = distance_squared(pos, cur_entity.position)
-			if dist < stop_dist then
-				stop_dist = dist
-				stop = cur_entity
-			end
-		elseif cur_entity.type == "straight-rail" then
-			-- Prefer rails with stops, then prefer rails nearer the
-			-- front of the combinator.
-			if TrainStop.find_stop_from_rail(cur_entity) then
-				local dist = distance_squared(pos, cur_entity.position)
-				if dist < rail_dist then
-					rail_dist = dist
-					rail = cur_entity
-				end
-			end
-		end
-	end
-	return stop, rail
 end
 
 ---Determine if a train parked at this stop is reversed relative to the stop.
@@ -213,7 +166,13 @@ function TrainStop:remove_delivery(delivery_id)
 	self:defer_process_queue()
 end
 
-function TrainStop:train_arrived(train) end
+---@param train Cybersyn.Train
+function TrainStop:train_arrived(train)
+	local delivery_id = train.delivery_id
+	if not delivery_id or not self.deliveries[delivery_id] then return end
+	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+	if delivery then delivery:notify_arrived(self) end
+end
 
 ---@param train Cybersyn.Train
 function TrainStop:train_departed(train)
@@ -287,6 +246,7 @@ function TrainStop:get_queue_size() return #self.delivery_queue end
 
 function TrainStop:get_tekbox_equation()
 	local limit = math.max(self.entity.trains_limit, 1)
+	-- TODO: fix this; should account for queue less train limit
 	return table_size(self.deliveries)
 		+ (#self.delivery_queue * (limit + 1) / limit)
 end

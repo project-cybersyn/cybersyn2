@@ -2,11 +2,12 @@
 -- Delivery abstraction
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local StateMachine = require("__cybersyn2__.lib.state-machine")
-local counters = require("__cybersyn2__.lib.counters")
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
+local class = require("lib.core.class").class
+local StateMachine = require("lib.core.state-machine")
+local counters = require("lib.core.counters")
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
@@ -114,17 +115,21 @@ cs2.on_vehicle_destroyed(function(vehicle)
 	if delivery then delivery:fail("vehicle_destroyed") end
 end)
 
-cs2.on_try_reset(function(state)
-	for _, delivery in pairs(storage.deliveries) do
-		if not delivery:is_in_final_state() then
-			table.insert(
-				state.reasons,
-				"Reset not recommended while deliveries are in progress. Disable logistics in game settings and wait for all vehicles to be idle."
-			)
-			return
+events.bind(
+	"on_try_shutdown",
+	---@param state Core.ResetData
+	function(state)
+		for _, delivery in pairs(storage.deliveries) do
+			if not delivery:is_in_final_state() and state.veto_shutdown then
+				table.insert(
+					state.veto_shutdown,
+					"Shutdown not recommended while deliveries are in progress. Disable logistics in game settings and wait for all vehicles to be idle."
+				)
+				return
+			end
 		end
 	end
-end)
+)
 
 --------------------------------------------------------------------------------
 -- Delivery monitor thread
@@ -197,4 +202,4 @@ function DeliveryMonitor:exit_enum_deliveries()
 end
 
 -- Start delivery monitor thread on startup.
-cs2.on_startup(function() DeliveryMonitor:new() end)
+events.bind("on_startup", function() DeliveryMonitor:new() end)

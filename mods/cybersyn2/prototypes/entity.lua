@@ -1,11 +1,11 @@
-local flib = require("__flib__.data-util")
+local data_lib = require("lib.core.data-util")
 
 --------------------------------------------------------------------------------
 -- Combinator
 --------------------------------------------------------------------------------
 
 ---@type data.DeciderCombinatorPrototype
-local combinator_entity = flib.copy_prototype(
+local combinator_entity = data_lib.copy_prototype(
 	data.raw["decider-combinator"]["decider-combinator"],
 	"cybersyn2-combinator"
 )
@@ -149,7 +149,7 @@ data:extend({ combinator_entity })
 -- Hidden Proxy Chest
 --------------------------------------------------------------------------------
 
-local proxy_entity = flib.copy_prototype(
+local proxy_entity = data_lib.copy_prototype(
 	data.raw["proxy-container"]["proxy-container"],
 	"cybersyn2-proxy-chest"
 ) --[[@as data.ProxyContainerPrototype]]

@@ -1,8 +1,9 @@
-local strace_lib = require("__cybersyn2__.lib.strace")
-local relm = require("__cybersyn2__.lib.relm")
-local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
-local ultros = require("__cybersyn2__.lib.ultros")
-local tlib = require("__cybersyn2__.lib.table")
+local events = require("__cybersyn2__.lib.core.event")
+local strace_lib = require("__cybersyn2__.lib.core.strace")
+local relm = require("__cybersyn2__.lib.core.relm.relm")
+local relm_helpers = require("__cybersyn2__.lib.core.relm.util")
+local ultros = require("__cybersyn2__.lib.core.relm.ultros")
+local tlib = require("__cybersyn2__.lib.core.table")
 local mgr = _G.mgr
 
 local strace = strace_lib.strace
@@ -115,18 +116,15 @@ local function entity_to_entries(entity)
 				{
 					key = "train" .. train.id,
 					caption = "Train " .. train.id,
-					type = "InspectorItem.Generic",
-					query = {
-						type = "vehicles",
-						luatrain_ids = { train.id },
-					},
+					type = "InspectorItem.Train",
+					train_id = train.id,
 				},
 			}
 		end
 	end
 end
 
-mgr.on_inspector_selected(function(event)
+events.bind("mgr.on_inspector_selected", function(event)
 	if not inspector.get(event.player_index) then
 		inspector.open(event.player_index)
 	end

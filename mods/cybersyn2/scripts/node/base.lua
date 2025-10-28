@@ -2,12 +2,13 @@
 -- Base API for Cybersyn `Node` objects.
 --------------------------------------------------------------------------------
 
-local counters = require("__cybersyn2__.lib.counters")
-local class = require("__cybersyn2__.lib.class").class
-local tlib = require("__cybersyn2__.lib.table")
-local stlib = require("__cybersyn2__.lib.strace")
-local signal = require("__cybersyn2__.lib.signal")
-local scheduler = require("__cybersyn2__.lib.scheduler")
+local counters = require("lib.core.counters")
+local class = require("lib.core.class").class
+local tlib = require("lib.core.table")
+local stlib = require("lib.core.strace")
+local signal = require("lib.signal")
+local scheduler = require("lib.core.scheduler")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local Inventory = _G.cs2.Inventory
 local mod_settings = _G.cs2.mod_settings
@@ -36,6 +37,9 @@ function Node.new(type)
 		created_tick = game.tick,
 		last_consumed_tick = {},
 		deliveries = {},
+		log_size = 20,
+		log_current = 1,
+		log_buffer = {},
 	}, Node)
 
 	storage.nodes[id] = node
@@ -163,6 +167,20 @@ function Node:get_combinator_with_mode(mode)
 		local combinator = cs2.get_combinator(id, true)
 		if combinator and combinator.mode == mode then return combinator end
 	end
+end
+
+--------------------------------------------------------------------------------
+-- Topology
+--------------------------------------------------------------------------------
+
+---Set the topology ID for this node.
+---@param topology_id Id
+function Node:set_topology(topology_id)
+	local previous_topology_id = self.topology_id
+	if previous_topology_id == topology_id then return end
+	self.topology_id = topology_id
+	cs2.raise_node_data_changed(self)
+	events.raise("cs2.node_topology_changed", self, previous_topology_id)
 end
 
 --------------------------------------------------------------------------------

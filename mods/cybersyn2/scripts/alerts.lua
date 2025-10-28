@@ -1,6 +1,7 @@
-local counters = require("__cybersyn2__.lib.counters")
-local scheduler = require("__cybersyn2__.lib.scheduler")
-local tlib = require("__cybersyn2__.lib.table")
+local counters = require("lib.core.counters")
+local scheduler = require("lib.core.scheduler")
+local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 
 ---@class Cybersyn.Alert
@@ -154,8 +155,8 @@ end
 -- Events
 --------------------------------------------------------------------------------
 
-cs2.on_reset(function()
-	-- Clear all alerts on reset
+events.bind("on_shutdown", function()
+	-- Clear all alerts on shutdown
 	if storage.alerts then
 		for id in pairs(storage.alerts) do
 			destroy_alert(id, true)

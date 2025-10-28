@@ -1,6 +1,6 @@
-local strace_lib = require("__cybersyn2__.lib.strace")
+local strace_lib = require("lib.core.strace")
 local query_handlers = _G.cs2.query_handlers
-local types = require("__cybersyn2__.lib.types")
+local types = require("lib.types")
 local ContainerType = types.ContainerType
 local PrimitiveType = types.PrimitiveType
 

@@ -2,8 +2,8 @@
 -- Reusable Relm elements for combinator gui
 --------------------------------------------------------------------------------
 
-local relm = require("__cybersyn2__.lib.relm")
-local ultros = require("__cybersyn2__.lib.ultros")
+local relm = require("lib.core.relm.relm")
+local ultros = require("lib.core.relm.ultros")
 local cs2 = _G.cs2
 local Pr = relm.Primitive
 local HF = ultros.HFlow
@@ -15,17 +15,22 @@ local HF = ultros.HFlow
 ---@param combinator Cybersyn.Combinator.Ephemeral
 ---@param setting Cybersyn.Combinator.SettingDefinition
 ---@param inverse boolean? If true, the checkbox will be inverted (checked when the setting is false).
----@param disabled true? If true, the checkbox will be disabled and not interactable.
+---@param disabled boolean? If true, the checkbox will be disabled and not interactable.
+---@param value_when_disabled boolean? If `disabled` is true, this will be the value shown in the checkbox.
 function _G.cs2.gui.Checkbox(
 	caption,
 	tooltip,
 	combinator,
 	setting,
 	inverse,
-	disabled
+	disabled,
+	value_when_disabled
 )
 	local value = combinator:read_setting(setting)
 	if inverse then value = not value end
+	if disabled and value_when_disabled ~= nil then
+		value = value_when_disabled
+	end
 	local enabled = not disabled
 	return ultros.Checkbox({
 		caption = caption,
@@ -42,8 +47,9 @@ end
 
 ---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
 ---combinator setting.
-function _G.cs2.gui.AnySignalPicker(combinator, setting)
+function _G.cs2.gui.AnySignalPicker(combinator, setting, tooltip)
 	return ultros.SignalPicker({
+		tooltip = tooltip,
 		value = combinator:read_setting(setting),
 		on_change = function(_, signal)
 			if signal and signal.type == nil then signal.type = "item" end
@@ -91,12 +97,8 @@ function _G.cs2.gui.NetworkSignalPicker(combinator, setting, tooltip)
 				combinator:write_setting(setting, stored)
 			else
 				game.print(
-					"Invalid signal selected. Please select a valid virtual signal.",
-					{
-						color = { 255, 128, 0 },
-						skip = defines.print_skip.never,
-						sound = defines.print_sound.always,
-					}
+					{ "cybersyn2-gui.virtual-signals-only" },
+					cs2.ERROR_PRINT_OPTS
 				)
 				elem.elem_value = nil
 			end

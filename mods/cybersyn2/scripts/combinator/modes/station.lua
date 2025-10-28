@@ -2,8 +2,8 @@
 -- Station combinator.
 --------------------------------------------------------------------------------
 
-local relm = require("__cybersyn2__.lib.relm")
-local ultros = require("__cybersyn2__.lib.ultros")
+local relm = require("lib.core.relm.relm")
+local ultros = require("lib.core.relm.ultros")
 local cs2 = _G.cs2
 local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
@@ -82,6 +82,11 @@ cs2.register_combinator_setting(
 	cs2.lib.make_flag_setting("ignore_secondary_thresholds", "station_flags", 3)
 )
 
+-- Topology
+cs2.register_combinator_setting(
+	cs2.lib.make_raw_setting("topology_signal", "topology_signal")
+)
+
 --------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
@@ -94,6 +99,11 @@ local wire_dropdown_items = {
 relm.define_element({
 	name = "CombinatorGui.Mode.Station",
 	render = function(props)
+		local pr = props.combinator:read_setting(combinator_settings.pr)
+		local is_provider = pr == 1 or pr == 0
+		local is_requester = pr == 2 or pr == 0
+		local is_provide_only = pr == 1
+		local is_request_only = pr == 2
 		return VF({
 			ultros.WellSection(
 				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
@@ -131,7 +141,6 @@ relm.define_element({
 							wire_dropdown_items
 						),
 					}),
-
 					gui.InnerHeading({
 						caption = "Flags",
 					}),
@@ -147,7 +156,8 @@ relm.define_element({
 						props.combinator,
 						combinator_settings.provide_subset,
 						true,
-						props.combinator:read_setting(combinator_settings.pr) ~= 1
+						is_requester,
+						false
 					),
 					HF({ vertical_align = "center" }, {
 						gui.Checkbox(
@@ -155,7 +165,8 @@ relm.define_element({
 							{ "cybersyn2-combinator-mode-station.auto-mds-tooltip" },
 							props.combinator,
 							combinator_settings.disable_auto_thresholds,
-							true
+							true,
+							is_provide_only
 						),
 						HF({ horizontally_stretchable = true }, {}),
 						gui.Input({
@@ -171,7 +182,18 @@ relm.define_element({
 							numeric = true,
 							allow_decimal = false,
 							allow_negative = false,
+							enabled = not is_provide_only,
 						}),
+					}),
+					ultros.Labeled({
+						caption = { "cybersyn2-combinator-mode-station.topology" },
+						top_margin = 6,
+					}, {
+						gui.VirtualSignalPicker(
+							props.combinator,
+							combinator_settings.topology_signal,
+							{ "cybersyn2-combinator-mode-station.topology-tooltip" }
+						),
 					}),
 				}
 			),
@@ -229,7 +251,8 @@ relm.define_element({
 				),
 			}),
 			ultros.WellFold({
-				caption = "Item Handling",
+				caption = "Outbound Item Handling",
+				visible = is_provider,
 			}, {
 				ultros.Labeled({ caption = "Spillover", top_margin = 6 }, {
 					gui.Input({
@@ -314,14 +337,6 @@ local MainWireHelp = relm.define_element({
 			ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
 			ultros.RtMultilineLabel({
 				"cybersyn2-combinator-mode-station.priority-signal",
-			}),
-			ultros.RtLgLabel("[virtual-signal=cybersyn2-all-items]"),
-			ultros.RtMultilineLabel({
-				"cybersyn2-combinator-mode-station.all-items-signal",
-			}),
-			ultros.RtLgLabel("[virtual-signal=cybersyn2-all-fluids]"),
-			ultros.RtMultilineLabel({
-				"cybersyn2-combinator-mode-station.all-fluids-signal",
 			}),
 		}
 	end,
@@ -408,6 +423,7 @@ cs2.on_combinator_node_associated(function(combinator, from, to)
 	end
 end)
 
+-- Rebuild inventory on critical setting changes
 cs2.on_combinator_setting_changed(
 	function(combinator, setting, next_value, prev_value)
 		if

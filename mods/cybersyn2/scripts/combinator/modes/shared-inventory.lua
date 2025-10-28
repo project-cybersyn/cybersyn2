@@ -2,12 +2,12 @@
 -- Shared inventory combinator
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
-local mlib = require("__cybersyn2__.lib.math")
-local relm = require("__cybersyn2__.lib.relm")
-local ultros = require("__cybersyn2__.lib.ultros")
-local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
-local stlib = require("__cybersyn2__.lib.strace")
+local tlib = require("lib.core.table")
+local mlib = require("lib.core.math.bbox")
+local relm = require("lib.core.relm.relm")
+local ultros = require("lib.core.relm.ultros")
+local relm_helpers = require("lib.core.relm.util")
+local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
 local cs2_lib = _G.cs2.lib
 local combinator_settings = _G.cs2.combinator_settings
@@ -368,6 +368,7 @@ cs2.on_selected(function(_, _, player) render_connection(player) end)
 ---attempt to create a link is being made.
 ---@return boolean #`true` if there was a connection attempt
 function _G.cs2.try_finish_connection(player, entity)
+	if not cs2_lib.entity_is_combinator(entity) then return false end
 	local pstate = cs2.get_player_state(player.index)
 	if (not pstate) or not pstate.connection_source then return false end
 	finish_connection(player, entity)
@@ -582,47 +583,5 @@ end)
 cs2.on_node_combinator_set_changed(function(node)
 	local si_comb = node:get_combinator_with_mode("shared-inventory")
 	if not si_comb then return end
-	try_relink()
-end)
-
--- On reset, store all existing shared inventory pairs as StoredLinks
-cs2.on_reset(function(reset_data)
-	local inventory_links = get_link_storage() or {}
-	reset_data.inventory_links = inventory_links
-	-- TODO: impl
-	for _, master in pairs(storage.nodes) do
-		if master.type == "stop" and master:is_valid() then
-			---@cast master Cybersyn.TrainStop
-			local slaves = master.shared_inventory_slaves
-			if slaves then
-				local master_comb = master:get_combinator_with_mode("shared-inventory")
-				if not master_comb then goto continue end
-				for slave_id in pairs(slaves) do
-					local slave_stop = cs2.get_stop(slave_id)
-					if slave_stop then
-						local slave_comb =
-							slave_stop:get_combinator_with_mode("shared-inventory")
-						if slave_comb then
-							inventory_links[#inventory_links + 1] = {
-								game.tick,
-								nil,
-								nil,
-								master_comb.id,
-								slave_comb.id,
-							}
-						end
-					end
-				end
-			end
-		end
-		::continue::
-	end
-end)
-
--- On startup, restore StoredLinks and try to relink.
-cs2.on_startup(function(reset_data)
-	if reset_data.inventory_links then
-		storage.inventory_links = reset_data.inventory_links
-	end
 	try_relink()
 end)

@@ -12,11 +12,12 @@
 -- completed: Clear virtual charge from dest
 -- failed: Clear any virtual charges, remove from any queue slots
 
-local class = require("__cybersyn2__.lib.class").class
-local siglib = require("__cybersyn2__.lib.signal")
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
-local thread_lib = require("__cybersyn2__.lib.thread")
+local class = require("lib.core.class").class
+local siglib = require("lib.signal")
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
+local thread_lib = require("lib.core.thread")
+local events = require("lib.core.event")
 
 local empty = tlib.empty
 local strace = stlib.strace
@@ -162,6 +163,11 @@ local function add_forceout_conditions(conditions, stop)
 				first_signal = stop.force_departure_signal,
 			},
 		}
+		conditions[#conditions + 1] = {
+			type = "inactivity",
+			compare_type = "and",
+			ticks = 60,
+		}
 	end
 	if
 		(stop.inactivity_timeout or 0) > 0 and stop.inactivity_mode == "forceout"
@@ -241,15 +247,16 @@ function TrainDelivery:goto_from()
 	local from = TrainStop.get(self.from_id)
 	if not train or not from then return self:fail() end
 	if self.state == "to_from" then return end
-	if
-		train:schedule(
-			coordinate_entry(from.entity),
-			pickup_entry(from, self.manifest)
-		)
-	then
+	local ok, reason = train:schedule(
+		coordinate_entry(from.entity),
+		pickup_entry(from, self.manifest)
+	)
+	if ok then
 		self:set_state("to_from")
-	else
+	elseif reason == "interrupted" then
 		self:set_state("interrupted_from")
+	else
+		-- TODO: failed to add schedule record, what now?
 	end
 end
 
@@ -259,10 +266,14 @@ function TrainDelivery:goto_to()
 	if not train or not to then return self:fail() end
 	self:clear_from_charge()
 	if self.state == "to_to" then return end
-	if train:schedule(coordinate_entry(to.entity), dropoff_entry(to)) then
+	local ok, reason =
+		train:schedule(coordinate_entry(to.entity), dropoff_entry(to))
+	if ok then
 		self:set_state("to_to")
-	else
+	elseif reason == "interrupted" then
 		self:set_state("interrupted_to")
+	else
+		-- TODO: failed to add schedule record, what now?
 	end
 end
 
@@ -271,7 +282,13 @@ function TrainDelivery:complete()
 	self:clear_to_charge()
 	self:set_state("completed")
 	local train = Train.get(self.vehicle_id)
-	if train then train:clear_delivery(self.id) end
+	if train then
+		train:clear_delivery(self.id)
+		if not train:is_empty() then
+			self.left_dirty = "Train was not fully unloaded at destination."
+			-- TODO: tainted train handling
+		end
+	end
 end
 
 ---Train stop invokes this to notify a train on this delivery left
@@ -295,6 +312,35 @@ function TrainDelivery:notify_departed(stop)
 			"message",
 			"notify_departed() was called out of context."
 		)
+	end
+end
+
+---Train stop invokes this to notify a train on this delivery_id
+---arrived at the stop.
+---@param stop Cybersyn.TrainStop
+function TrainDelivery:notify_arrived(stop)
+	if self.state == "to_from" then
+		if stop.id ~= self.from_id then
+			local priority = stop.entity.train_stop_priority
+			-- TODO: misrouted warning/handling
+			self.misrouted_from = string.format(
+				"wrong source: expected %d, got %d. prio %d",
+				self.from_id,
+				stop.id,
+				priority
+			)
+		end
+	elseif self.state == "to_to" then
+		if stop.id ~= self.to_id then
+			local priority = stop.entity.train_stop_priority
+			-- TODO: misrouted warning/handling
+			self.misrouted_to = string.format(
+				"wrong sink: expected %d, got %d. prio %d",
+				self.to_id,
+				stop.id,
+				priority
+			)
+		end
 	end
 end
 
@@ -382,7 +428,7 @@ end)
 -- train, we want it to happen on its own frame isolated from all other processing.
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Internal.DeliveryDispatchThread: Lib.Thread
+---@class Cybersyn.Internal.DeliveryDispatchThread: Core.Thread
 ---@field public queue (int|string)[] Queue of delivery IDs to be dispatched.
 local DeliveryDispatchThread = class("DeliveryDispatchThread", Thread)
 
@@ -416,7 +462,7 @@ function DeliveryDispatchThread:enqueue(delivery_id, operation)
 	self:wake()
 end
 
-cs2.on_startup(function()
+events.bind("on_startup", function()
 	-- Create the dispatch thread on startup.
 	local thread = DeliveryDispatchThread:new()
 	storage.task_ids["delivery_dispatch"] = thread.id

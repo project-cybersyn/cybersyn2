@@ -2,10 +2,10 @@
 -- Base classes and methods for combinators.
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local tlib = require("__cybersyn2__.lib.table")
-local signal_lib = require("__cybersyn2__.lib.signal")
-local mlib = require("__cybersyn2__.lib.math")
+local class = require("lib.core.class").class
+local tlib = require("lib.core.table")
+local signal_lib = require("lib.signal")
+local mlib = require("lib.core.math.pos")
 
 local cs2 = _G.cs2
 local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost

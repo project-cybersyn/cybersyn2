@@ -1,5 +1,5 @@
-local class = require("__cybersyn2__.lib.class").class
-local counters = require("__cybersyn2__.lib.counters")
+local class = require("lib.core.class").class
+local counters = require("lib.core.counters")
 
 ---@class Cybersyn.View
 ---@field public id Id

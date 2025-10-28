@@ -2,9 +2,10 @@
 -- Train lifecycle.
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
+local class = require("lib.core.class").class
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local Train = _G.cs2.Train
@@ -20,14 +21,12 @@ local INF = math.huge
 -- Train group monitor background thread
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Internal.TrainMonitor: StatefulThread
+---@class (exact) Cybersyn.Internal.TrainMonitor: StatefulThread
 ---@field state "init"|"enum_luatrains"|"enum_cstrains" State of the task.
 ---@field trains LuaTrain[] Extant luatrains at beginning of sweep.
 ---@field seen_groups table<string, true> Cybersyn groups seen by sweep.
 ---@field seen_layouts IdSet Cybersyn train layouts seen by sweep.
 ---@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
----@field layout_min_item_caps table<Id, number> Minimum item capacity for each train layout.
----@field layout_min_fluid_caps table<Id, number> Minimum fluid capacity for each train layout.
 local TrainMonitor = class("TrainMonitor", cs2.StatefulThread)
 
 function TrainMonitor:new()
@@ -119,8 +118,6 @@ function TrainMonitor:enum_luatrains()
 end
 
 function TrainMonitor:enter_enum_cstrains()
-	self.layout_min_fluid_caps = {}
-	self.layout_min_item_caps = {}
 	self.seen_layouts = {}
 	self:begin_async_loop(
 		tlib.t_map_a(Vehicle.all(), function(veh)
@@ -157,21 +154,6 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 	end
 
 	self.seen_layouts[layout_id] = true
-	-- Capacity computations
-	local fluid_capacity = train.fluid_capacity or 0
-	local item_capacity = train.item_slot_capacity or 0
-	if
-		fluid_capacity > 0
-		and fluid_capacity < (self.layout_min_fluid_caps[layout_id] or INF)
-	then
-		self.layout_min_fluid_caps[layout_id] = fluid_capacity
-	end
-	if
-		item_capacity > 0
-		and item_capacity < (self.layout_min_item_caps[layout_id] or INF)
-	then
-		self.layout_min_item_caps[layout_id] = item_capacity
-	end
 
 	-- View vehicle visitors
 	for _, view in pairs(storage.views) do
@@ -191,21 +173,29 @@ function TrainMonitor:exit_enum_cstrains()
 	-- Update data for known train layouts.
 	local layouts_deleted = false
 	for layout_id, train_layout in pairs(storage.train_layouts) do
-		if not self.seen_layouts[layout_id] then
-			-- Layout is no longer in use, delete it.
-			strace(
-				stlib.INFO,
-				"message",
-				"Train layout no longer in use, deleting",
-				train_layout
-			)
-			storage.train_layouts[layout_id] = nil
-			layouts_deleted = true
+		if self.seen_layouts[layout_id] then
+			-- Layout is still in use, nothing to do.
+			if train_layout.no_trains then
+				strace(
+					stlib.INFO,
+					"message",
+					"Train layout now in use again",
+					train_layout
+				)
+				train_layout.no_trains = nil
+			end
 		else
-			local min_item_cap = self.layout_min_item_caps[layout_id]
-			local min_fluid_cap = self.layout_min_fluid_caps[layout_id]
-			train_layout.min_item_slot_capacity = min_item_cap
-			train_layout.min_fluid_capacity = min_fluid_cap
+			if not train_layout.no_trains then
+				-- Layout is no longer in use.
+				strace(
+					stlib.INFO,
+					"message",
+					"Train layout no longer in use",
+					train_layout
+				)
+				train_layout.no_trains = true
+				layouts_deleted = true
+			end
 		end
 	end
 
@@ -216,13 +206,11 @@ function TrainMonitor:exit_enum_cstrains()
 	end
 
 	-- Cleanup
-	self.layout_min_fluid_caps = nil
-	self.layout_min_item_caps = nil
 	self.seen_layouts = nil
 end
 
 -- Start thread on startup.
-cs2.on_startup(function() TrainMonitor:new() end)
+events.bind("on_startup", function() TrainMonitor:new() end)
 
 --------------------------------------------------------------------------------
 -- Handle trains arriving/leaving at stops

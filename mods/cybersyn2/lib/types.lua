@@ -29,6 +29,11 @@ local lib = {}
 ---@field public is_changing_state boolean? `true` if a state change is ongoing
 ---@field public queued_state_changes string[]? A queue of state changes to be applied
 
+---@class RingBufferLog
+---@field public log_size uint Max size of the log
+---@field public log_current uint Index of the current log entry
+---@field public log_buffer any[] The full log ring buffer.
+
 ---An opaque reference to EITHER a live combinator OR its ghost.
 ---@class Cybersyn.Combinator.Ephemeral
 ---@field public entity? LuaEntity The primary entity of the combinator OR its ghost.
@@ -91,8 +96,7 @@ lib.CarriageType = {
 ---@field public bidirectional boolean `true` if the train has locomotives allowing it to move both directions.
 ---@field public n_cargo_wagons uint Number of cargo wagons in the train.
 ---@field public n_fluid_wagons uint Number of fluid wagons in the train.
----@field public min_item_slot_capacity? uint Minimum item slot capacity of all trains matching this layout, if known.
----@field public min_fluid_capacity? uint Minimum fluid capacity of all trains matching this layout, if known.
+---@field public no_trains boolean? `true` if no extant trains match this layout.
 
 ---@enum Cybersyn.Node.NetworkOperation
 lib.NodeNetworkOperation = {
@@ -104,15 +108,12 @@ lib.NodeNetworkOperation = {
 ---@class Cybersyn.Topology
 ---@field public id Id Unique id of the topology.
 ---@field public surface_index? uint The index of the surface this topology is associated with, if any. This is not a 1-1 association; a surface may have multiple topologies.
----@field public name? string The name of the topology, if any. This is not a unique key and primarily used for debugging.
+---@field public name? string The name of the topology, if any.
 ---@field public thread_id? int The id of the thread servicing this topology if any.
----@field public vehicle_type string The vehicle type intended to traverse this topology.
----@field public provided? SignalCounts Count of all items provided by nodes in this topology. This is a cached value and is not updated in realtime.
----@field public requested? SignalCounts Count of all items requested by nodes in this topology. This is a cached value and is not updated in realtime.
 ---@field public global_combinators IdSet Set of global combinators (e.g. inventory combinators) associated with this topology. This DOES NOT include per-node combinators.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
----@class Cybersyn.Node
+---@class Cybersyn.Node: RingBufferLog
 ---@field public id Id Unique id of the node.
 ---@field public topology_id Id? Id of the topology this node belongs to.
 ---@field public type string The type of the node.
@@ -130,8 +131,6 @@ lib.NodeNetworkOperation = {
 ---@field public threshold_fluid_in uint? General inbound fluid threshold
 ---@field public threshold_item_out uint? General outbound item threshold
 ---@field public threshold_fluid_out uint? General outbound fluid threshold
----@field public threshold_auto_item_max? uint Maximum item threshold for auto-thresholding (stacks)
----@field public threshold_auto_fluid_max? uint Maximum fluid threshold for auto-thresholding
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds
 ---@field public thresholds_out SignalCounts? Per-item outbound thresholds
 ---@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
@@ -145,6 +144,7 @@ lib.NodeNetworkOperation = {
 ---@field public entity LuaEntity? The `train-stop` entity for this stop, if it exists.
 ---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
 ---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
+---@field public allowed_layouts_key string? A string key representing the allowed layouts for caching purposes. `''` if all layouts are allowed.
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
 ---@field public delivery_queue Id[] All deliveries currently enroute for this stop, in order. The lowest index in the queue is the next delivery to be processed.
 ---@field public allow_departure_signal SignalID? The signal key that will allow a train to depart this stop.
@@ -160,6 +160,10 @@ lib.NodeNetworkOperation = {
 ---@field public per_wagon_mode boolean? `true` if the station is in per-wagon mode due to the presence of a wagon comb.
 ---@field public shared_inventory_slaves IdSet? Exists only if this station is a shared-inventory master and contains the ids of the slaves.
 ---@field public shared_inventory_master Id? The id of the shared inventory master, if this station is a slave.
+---@field public allowed_min_item_slot_capacity uint? Min item capacity for allowed trains at this stop. Zero means station can't handle items. `nil` means could not be evaluated.
+---@field public allowed_max_item_slot_capacity uint? Max item capacity for allowed trains at this stop. Zero means station can't handle items. `nil` means could not be evaluated.
+---@field public allowed_min_fluid_capacity uint? Min fluid capacity for allowed trains at this stop. Zero means station can't handle fluids. `nil` means could not be evaluated.
+---@field public allowed_max_fluid_capacity uint? Max fluid capacity for allowed trains at this stop. Zero means station can't handle fluids. `nil` means could not be evaluated.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
@@ -172,10 +176,6 @@ lib.NodeNetworkOperation = {
 ---@field public rail_bbox BoundingBox? The bounding box for only the rails.
 ---@field public rail_set UnitNumberSet The set of rails associated to this stop.
 ---@field public direction defines.direction? Direction of the vector pointing from the stop entity towards the oncoming track, if known.
-
----@class Cybersyn.TrainGroup
----@field public name string The factorio train group name.
----@field public trains IdSet The set of vehicle ids of trains in the group.
 
 ---@class Cybersyn.Order
 ---@field public inventory Cybersyn.Inventory The inventory against which this order is placed.
@@ -223,6 +223,9 @@ lib.NodeNetworkOperation = {
 ---@field public spillover uint Spillover used when calculating this delivery
 ---@field public reserved_slots uint Reserved slots used when calculating this delivery
 ---@field public reserved_fluid_capacity uint Reserved capacity used when calculating this delivery
+---@field public misrouted_from? string If this field exists, the train was misrouted to its `from` stop. The string contains engine diagnostic info.
+---@field public misrouted_to? string If this field exists, the train was misrouted to its `to` stop. The string contains engine diagnostic info.
+---@field public left_dirty? string If this field exists, the train left the `to` stop without being fully unloaded. The string contains engine diagnostic info.
 
 --------------------------------------------------------------------------------
 -- Public type encodings for the query interface.
