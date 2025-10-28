@@ -5,6 +5,7 @@
 local pos_lib = require("lib.core.math.pos")
 local bbox_lib = require("lib.core.math.bbox")
 local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
@@ -297,7 +298,8 @@ local function enable_or_disable_overlays()
 	end
 end
 
-cs2.on_reset(clear_all_overlays)
+events.bind("on_shutdown", clear_all_overlays)
+
 cs2.on_mod_settings_changed(enable_or_disable_overlays)
 cs2.on_combinator_destroyed(destroy_combinator_overlay)
 --cs2.on_combinator_created(update_combinator_overlay)
