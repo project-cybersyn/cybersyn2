@@ -115,17 +115,21 @@ cs2.on_vehicle_destroyed(function(vehicle)
 	if delivery then delivery:fail("vehicle_destroyed") end
 end)
 
-cs2.on_try_reset(function(state)
-	for _, delivery in pairs(storage.deliveries) do
-		if not delivery:is_in_final_state() then
-			table.insert(
-				state.reasons,
-				"Reset not recommended while deliveries are in progress. Disable logistics in game settings and wait for all vehicles to be idle."
-			)
-			return
+events.bind(
+	"on_try_shutdown",
+	---@param state Core.ResetData
+	function(state)
+		for _, delivery in pairs(storage.deliveries) do
+			if not delivery:is_in_final_state() and state.veto_shutdown then
+				table.insert(
+					state.veto_shutdown,
+					"Shutdown not recommended while deliveries are in progress. Disable logistics in game settings and wait for all vehicles to be idle."
+				)
+				return
+			end
 		end
 	end
-end)
+)
 
 --------------------------------------------------------------------------------
 -- Delivery monitor thread

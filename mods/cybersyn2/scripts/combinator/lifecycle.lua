@@ -240,7 +240,7 @@ end)
 --------------------------------------------------------------------------------
 -- Reset
 --------------------------------------------------------------------------------
-cs2.on_reset(function(reset_data)
+events.bind("on_shutdown", function(reset_data)
 	-- Need to hand off combinator settings so they can be restored after reset.
 	reset_data.combinator_settings_cache = storage.combinator_settings_cache
 
@@ -257,7 +257,7 @@ end)
 
 events.bind("on_startup", function(reset_data)
 	-- Restore combinator settings after reset.
-	if reset_data.combinator_settings_cache then
+	if reset_data.handoff and reset_data.combinator_settings_cache then
 		storage.combinator_settings_cache = reset_data.combinator_settings_cache
 	end
 
