@@ -2,10 +2,10 @@
 -- Inventory abstraction
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local tlib = require("__cybersyn2__.lib.table")
-local counters = require("__cybersyn2__.lib.counters")
-local signal_keys = require("__cybersyn2__.lib.signal")
+local class = require("lib.core.class").class
+local tlib = require("lib.core.table")
+local counters = require("lib.core.counters")
+local signal_keys = require("lib.signal")
 local cs2 = _G.cs2
 
 -- TODO: This code is called in high performance dispatch loops. Take some

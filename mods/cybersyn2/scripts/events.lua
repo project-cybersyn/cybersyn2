@@ -2,7 +2,7 @@
 -- Internal event backplane.
 --------------------------------------------------------------------------------
 
-local event = require("__cybersyn2__.lib.events").create_event
+local event = require("lib.core.events").create_event
 
 -- These type aliases are necessary due to problems in Sumneko Lua's parameter
 -- system.
@@ -12,21 +12,6 @@ local event = require("__cybersyn2__.lib.events").create_event
 --------------------------------------------------------------------------------
 -- Factorio core control phase events
 --------------------------------------------------------------------------------
-
-_G.cs2.on_init, _G.cs2.raise_init =
-	event("init", "nil", "nil", "nil", "nil", "nil")
-
-_G.cs2.on_load, _G.cs2.raise_load =
-	event("load", "nil", "nil", "nil", "nil", "nil")
-
-_G.cs2.on_configuration_changed, _G.cs2.raise_configuration_changed = event(
-	"configuration_changed",
-	"ConfigurationChangedData",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
 
 ---Event raised when runtime mod settings are changed. By the time this
 ---event is dispatched, the global `mod_settings` contains the new settings.

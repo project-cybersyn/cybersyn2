@@ -2,9 +2,10 @@
 -- Train lifecycle.
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
+local class = require("lib.core.class").class
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local Train = _G.cs2.Train
@@ -196,7 +197,7 @@ function TrainMonitor:exit_enum_cstrains()
 end
 
 -- Start thread on startup.
-cs2.on_startup(function() TrainMonitor:new() end)
+events.bind("on_startup", function() TrainMonitor:new() end)
 
 --------------------------------------------------------------------------------
 -- Handle trains arriving/leaving at stops

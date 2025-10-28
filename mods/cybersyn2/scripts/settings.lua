@@ -1,5 +1,7 @@
 local cs2 = _G.cs2
 
+local events = require("lib.core.event")
+
 ---@class (exact) Cybersyn.ModSettings
 ---@field public enable_logistics boolean Enable or disable scheduling globally.
 ---@field public debug boolean Enable debug mode.
@@ -40,4 +42,10 @@ _G.cs2.update_mod_settings = update_mod_settings
 update_mod_settings()
 
 -- On init we must treat settings as having been changed
-cs2.on_startup(function() cs2.raise_mod_settings_changed(nil) end)
+events.bind("on_startup", function() cs2.raise_mod_settings_changed(nil) end)
+
+-- Change settings when settings change
+events.bind(defines.events.on_runtime_mod_setting_changed, function(event)
+	update_mod_settings()
+	cs2.raise_mod_settings_changed(event.setting)
+end)

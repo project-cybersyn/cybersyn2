@@ -2,8 +2,8 @@
 -- Reusable Relm elements for combinator gui
 --------------------------------------------------------------------------------
 
-local relm = require("__cybersyn2__.lib.relm")
-local ultros = require("__cybersyn2__.lib.ultros")
+local relm = require("lib.core.relm.relm")
+local ultros = require("lib.core.relm.ultros")
 local cs2 = _G.cs2
 local Pr = relm.Primitive
 local HF = ultros.HFlow

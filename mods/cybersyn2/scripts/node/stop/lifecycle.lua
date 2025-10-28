@@ -3,7 +3,7 @@
 -- train stops is also located here due to cross-cutting concerns.
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node

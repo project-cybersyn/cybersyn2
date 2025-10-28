@@ -2,10 +2,10 @@
 -- Train layout
 --------------------------------------------------------------------------------
 
-local log = require("__cybersyn2__.lib.logging")
-local tlib = require("__cybersyn2__.lib.table")
-local counters = require("__cybersyn2__.lib.counters")
-local CarriageType = require("__cybersyn2__.lib.types").CarriageType
+local events = require("lib.core.event")
+local tlib = require("lib.core.table")
+local counters = require("lib.core.counters")
+local CarriageType = require("lib.types").CarriageType
 local cs2 = _G.cs2
 
 ---@class Cybersyn.Train
@@ -167,4 +167,7 @@ end, true)
 
 -- When mods change, train capacity may have changed as a result of quality
 -- prototype or wagon prototype changes. Re-evaluate all capacities.
-cs2.on_configuration_changed(function() cs2.evaluate_train_capacities() end)
+events.bind(
+	"on_configuration_changed",
+	function() cs2.evaluate_train_capacities() end
+)

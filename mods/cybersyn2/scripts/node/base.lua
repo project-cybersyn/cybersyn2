@@ -2,12 +2,12 @@
 -- Base API for Cybersyn `Node` objects.
 --------------------------------------------------------------------------------
 
-local counters = require("__cybersyn2__.lib.counters")
-local class = require("__cybersyn2__.lib.class").class
-local tlib = require("__cybersyn2__.lib.table")
-local stlib = require("__cybersyn2__.lib.strace")
-local signal = require("__cybersyn2__.lib.signal")
-local scheduler = require("__cybersyn2__.lib.scheduler")
+local counters = require("lib.core.counters")
+local class = require("lib.core.class").class
+local tlib = require("lib.core.table")
+local stlib = require("lib.core.strace")
+local signal = require("lib.signal")
+local scheduler = require("lib.core.scheduler")
 local cs2 = _G.cs2
 local Inventory = _G.cs2.Inventory
 local mod_settings = _G.cs2.mod_settings

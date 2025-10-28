@@ -2,12 +2,12 @@
 -- Shared inventory combinator
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
-local mlib = require("__cybersyn2__.lib.math")
-local relm = require("__cybersyn2__.lib.relm")
-local ultros = require("__cybersyn2__.lib.ultros")
-local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
-local stlib = require("__cybersyn2__.lib.strace")
+local tlib = require("lib.core.table")
+local mlib = require("lib.core.math.bbox")
+local relm = require("lib.core.relm.relm")
+local ultros = require("lib.core.relm.ultros")
+local relm_helpers = require("lib.core.relm.util")
+local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
 local cs2_lib = _G.cs2.lib
 local combinator_settings = _G.cs2.combinator_settings
@@ -618,12 +618,4 @@ cs2.on_reset(function(reset_data)
 		end
 		::continue::
 	end
-end)
-
--- On startup, restore StoredLinks and try to relink.
-cs2.on_startup(function(reset_data)
-	if reset_data.inventory_links then
-		storage.inventory_links = reset_data.inventory_links
-	end
-	try_relink()
 end)

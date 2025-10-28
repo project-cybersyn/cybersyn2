@@ -2,10 +2,10 @@
 -- Allocation phase
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
-local stlib = require("__cybersyn2__.lib.strace")
-local mlib = require("__cybersyn2__.lib.math")
-local siglib = require("__cybersyn2__.lib.signal")
+local tlib = require("lib.core.table")
+local stlib = require("lib.core.strace")
+local mlib = require("lib.core.math.pos")
+local siglib = require("lib.signal")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 local Node = _G.cs2.Node

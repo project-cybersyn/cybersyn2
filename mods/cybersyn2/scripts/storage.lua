@@ -2,6 +2,8 @@
 -- Type definition and implementation of Cybersyn's game state storage.
 --------------------------------------------------------------------------------
 
+local events = require("lib.core.event")
+
 ---The entire synchronized game state for Cybersyn.
 ---@class (exact) Cybersyn.Storage
 ---@field public players table<PlayerIndex, Cybersyn.PlayerState> Per-player state
@@ -59,7 +61,7 @@ local function get_player_state(player_index)
 end
 _G.cs2.get_player_state = get_player_state
 
-_G.cs2.on_startup(function()
+events.bind("on_startup", function()
 	storage.players = {}
 	storage.vehicles = {}
 	storage.combinators = {}

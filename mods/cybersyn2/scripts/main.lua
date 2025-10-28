@@ -1,76 +1,23 @@
 --------------------------------------------------------------------------------
--- Main entry point. Code here should connect game events to the backplane
--- with minimum necessary filtering. This is the only place in the code
--- allowed to bind to Factorio events. Business logic implemented in
--- separate files should then operate by binding to the event backplane.
+-- Main entry point.
 --------------------------------------------------------------------------------
 
-local counters = require("__cybersyn2__.lib.counters")
-local scheduler = require("__cybersyn2__.lib.scheduler")
-local thread = require("__cybersyn2__.lib.thread")
-local tlib = require("__cybersyn2__.lib.table")
-local relm = require("__cybersyn2__.lib.relm")
-local dynamic_binding = require("__cybersyn2__.lib.dynamic-binding")
+local events = require("lib.core.event")
+local tlib = require("lib.core.table")
 local bplib = require("__bplib__.blueprint")
 local cs2 = _G.cs2
 local cs2_lib = _G.cs2.lib
 
-local db_dispatch = dynamic_binding.dispatch
 local COMBINATOR_NAME = cs2.COMBINATOR_NAME
 local BlueprintBuild = bplib.BlueprintBuild
 local BlueprintSetup = bplib.BlueprintSetup
 
 --------------------------------------------------------------------------------
--- Required library event bindings
---------------------------------------------------------------------------------
-
-cs2.on_startup(counters.init, true)
-
-cs2.on_startup(scheduler.init, true)
-
-cs2.on_startup(thread.init, true)
-
-cs2.on_startup(relm.init, true)
-cs2.on_load(relm.on_load)
-relm.install_event_handlers()
-cs2.on_reset(function()
-	-- On reset, we must destroy all Relm roots.
-	relm.root_foreach(function(_, root_id) relm.root_destroy(root_id) end)
-end)
-
--- Connect `dynamic_binding` to cs2 event backplane
-cs2.on_startup(dynamic_binding.init, true)
-cs2.on_load(dynamic_binding.on_load)
-dynamic_binding.on_event_bound(function(event_name)
-	if _G.cs2[event_name] and string.sub(event_name, 1, 3) == "on_" then
-		_G.cs2[event_name](function(...) return db_dispatch(event_name, ...) end)
-	end
-end)
-
---------------------------------------------------------------------------------
--- Core Factorio control phase
---------------------------------------------------------------------------------
-
-script.on_init(cs2.raise_init)
-cs2.on_init(function() cs2.raise_startup({}) end, true)
-script.on_load(cs2.raise_load)
-script.on_configuration_changed(cs2.raise_configuration_changed)
-script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
-	cs2.update_mod_settings()
-	cs2.raise_mod_settings_changed(event.setting)
-end)
-script.on_nth_tick(nil)
-script.on_nth_tick(1, function(data)
-	scheduler.tick(data)
-	thread.tick(data)
-end)
-
---------------------------------------------------------------------------------
 -- LuaTrains
 --------------------------------------------------------------------------------
 
-script.on_event(defines.events.on_train_created, cs2.raise_luatrain_created)
-script.on_event(
+events.bind(defines.events.on_train_created, cs2.raise_luatrain_created)
+events.bind(
 	defines.events.on_train_changed_state,
 	cs2.raise_luatrain_changed_state
 )
@@ -121,16 +68,17 @@ for _, name in ipairs(cs2.lib.get_equipment_names()) do
 	table.insert(filter_built, { filter = "name", name = name })
 end
 
-script.on_event(defines.events.on_built_entity, on_built, filter_built)
-script.on_event(defines.events.on_robot_built_entity, on_built, filter_built)
-script.on_event(
+events.bind(defines.events.on_built_entity, on_built, nil, filter_built)
+events.bind(defines.events.on_robot_built_entity, on_built, nil, filter_built)
+events.bind(
 	defines.events.on_space_platform_built_entity,
 	on_built,
+	nil,
 	filter_built
 )
-script.on_event(defines.events.script_raised_built, on_built)
-script.on_event(defines.events.script_raised_revive, on_built)
-script.on_event(defines.events.on_entity_cloned, on_built)
+events.bind(defines.events.script_raised_built, on_built)
+events.bind(defines.events.script_raised_revive, on_built)
+events.bind(defines.events.on_entity_cloned, on_built)
 
 --------------------------------------------------------------------------------
 -- Entity configuration
@@ -153,14 +101,14 @@ local function on_renamed(event)
 	end
 end
 
-script.on_event(defines.events.on_player_rotated_entity, on_repositioned)
-script.on_event(defines.events.on_entity_renamed, on_renamed)
-script.on_event(
+events.bind(defines.events.on_player_rotated_entity, on_repositioned)
+events.bind(defines.events.on_entity_renamed, on_renamed)
+events.bind(
 	defines.events.on_entity_settings_pasted,
 	cs2.raise_entity_settings_pasted
 )
 
-script.on_event(defines.events.on_selected_entity_changed, function(event)
+events.bind(defines.events.on_selected_entity_changed, function(event)
 	local player = game.get_player(event.player_index)
 	if not player then return end
 	local entity = player.selected
@@ -172,7 +120,7 @@ script.on_event(defines.events.on_selected_entity_changed, function(event)
 	end
 end)
 
-script.on_event(
+events.bind(
 	"cybersyn2-linked-clear-cursor",
 	---@param event EventData.CustomInputEvent
 	function(event)
@@ -186,13 +134,13 @@ script.on_event(
 -- Blueprinting
 --------------------------------------------------------------------------------
 
-script.on_event(defines.events.on_player_setup_blueprint, function(event)
+events.bind(defines.events.on_player_setup_blueprint, function(event)
 	local bp_setup = BlueprintSetup:new(event)
 	if not bp_setup then return end
 	cs2.raise_blueprint_setup(bp_setup)
 end)
 
-script.on_event(defines.events.on_pre_build, function(event)
+events.bind(defines.events.on_pre_build, function(event)
 	local bp_build = BlueprintBuild:new(event)
 	if not bp_build then return end
 	cs2.raise_blueprint_built(bp_build)
@@ -231,33 +179,35 @@ end
 local filter_broken = tlib.assign({}, filter_built)
 table.insert(filter_broken, { filter = "rolling-stock" })
 
-script.on_event(defines.events.on_entity_died, on_destroyed, filter_broken)
-script.on_event(
+events.bind(defines.events.on_entity_died, on_destroyed, nil, filter_broken)
+events.bind(
 	defines.events.on_pre_player_mined_item,
 	on_destroyed,
+	nil,
 	filter_broken
 )
-script.on_event(defines.events.on_robot_pre_mined, on_destroyed, filter_broken)
-script.on_event(
+events.bind(defines.events.on_robot_pre_mined, on_destroyed, nil, filter_broken)
+events.bind(
 	defines.events.on_space_platform_pre_mined,
 	on_destroyed,
+	nil,
 	filter_broken
 )
-script.on_event(defines.events.script_raised_destroy, on_destroyed)
+events.bind(defines.events.script_raised_destroy, on_destroyed)
 
 --------------------------------------------------------------------------------
 -- Surfaces
 --------------------------------------------------------------------------------
 
-script.on_event(
+events.bind(
 	defines.events.on_pre_surface_cleared,
 	function(event) cs2.raise_surface(event.surface_index, "cleared") end
 )
-script.on_event(
+events.bind(
 	defines.events.on_pre_surface_deleted,
 	function(event) cs2.raise_surface(event.surface_index, "deleted") end
 )
-script.on_event(
+events.bind(
 	defines.events.on_surface_created,
 	function(event) cs2.raise_surface(event.surface_index, "created") end
 )
@@ -266,7 +216,7 @@ script.on_event(
 -- Combinator GUI
 --------------------------------------------------------------------------------
 
-script.on_event(defines.events.on_gui_opened, function(event)
+events.bind(defines.events.on_gui_opened, function(event)
 	if not event.entity then return end
 	local player = game.get_player(event.player_index)
 	if not player then return end
@@ -284,7 +234,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
 	end
 end)
 
-script.on_event(defines.events.on_gui_closed, function(event)
+events.bind(defines.events.on_gui_closed, function(event)
 	local element = event.element
 	if not element or element.name ~= cs2.WINDOW_NAME then return end
 	cs2.lib.close_combinator_gui(event.player_index)

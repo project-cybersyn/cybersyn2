@@ -1,6 +1,6 @@
-local class = require("__cybersyn2__.lib.class").class
-local tlib = require("__cybersyn2__.lib.table")
-local siglib = require("__cybersyn2__.lib.signal")
+local class = require("lib.core.class").class
+local tlib = require("lib.core.table")
+local siglib = require("lib.signal")
 
 local cs2 = _G.cs2
 local max = math.max

@@ -1,4 +1,4 @@
-local mlib = require("__cybersyn2__.lib.math")
+local mlib = require("lib.core.math.pos")
 
 local distsq = mlib.pos_distsq
 local pos_get = mlib.pos_get

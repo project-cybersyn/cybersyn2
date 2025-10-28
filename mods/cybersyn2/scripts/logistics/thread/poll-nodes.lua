@@ -4,9 +4,8 @@
 -- inputs and adding their items to the logistics arrays.
 --------------------------------------------------------------------------------
 
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
-local slib = require("__cybersyn2__.lib.signal")
+local stlib = require("lib.core.strace")
+local slib = require("lib.signal")
 local cs2 = _G.cs2
 
 local mod_settings = _G.cs2.mod_settings
