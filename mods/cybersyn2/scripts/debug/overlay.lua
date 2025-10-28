@@ -2,8 +2,10 @@
 -- Use `LuaRendering` to draw relevant debugging information on screen.
 --------------------------------------------------------------------------------
 
-local mlib = require("__cybersyn2__.lib.math")
-local tlib = require("__cybersyn2__.lib.table")
+local pos_lib = require("lib.core.math.pos")
+local bbox_lib = require("lib.core.math.bbox")
+local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
@@ -73,7 +75,7 @@ local function set_text_overlay_text(overlay, lines)
 	end
 	local base_target = overlay.backdrop.left_top --[[@as ScriptRenderTargetTable]]
 	local base_offset_x, base_offset_y =
-		mlib.pos_get(base_target.offset or { 0, 0 })
+		pos_lib.pos_get(base_target.offset or { 0, 0 })
 	overlay.backdrop.visible = true
 	overlay.backdrop.right_bottom = {
 		entity = base_target.entity,
@@ -235,7 +237,7 @@ local function update_stop_overlay(stop)
 
 	-- Rect indicating bounding box
 	if layout.bbox then
-		local l, t, r, b = mlib.bbox_get(layout.bbox)
+		local l, t, r, b = bbox_lib.bbox_get(layout.bbox)
 		if not overlay.bbox then
 			overlay.bbox = rendering.draw_rectangle({
 				surface = stop.entity.surface,
@@ -296,7 +298,8 @@ local function enable_or_disable_overlays()
 	end
 end
 
-cs2.on_reset(clear_all_overlays)
+events.bind("on_shutdown", clear_all_overlays)
+
 cs2.on_mod_settings_changed(enable_or_disable_overlays)
 cs2.on_combinator_destroyed(destroy_combinator_overlay)
 --cs2.on_combinator_created(update_combinator_overlay)

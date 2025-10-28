@@ -2,10 +2,15 @@
 -- Implementation of allow lists
 --------------------------------------------------------------------------------
 
-local stlib = require("__cybersyn2__.lib.strace")
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local combinator_settings = _G.cs2.combinator_settings
-local CarriageType = require("__cybersyn2__.lib.types").CarriageType
+local CarriageType = require("lib.types").CarriageType
+
+---@class Cybersyn.TrainStop
+local TrainStop = _G.cs2.TrainStop
 
 local Locomotive = CarriageType.Locomotive
 local CargoWagon = CarriageType.CargoWagon
@@ -13,6 +18,8 @@ local FluidWagon = CarriageType.FluidWagon
 local strace = stlib.strace
 local WARN = stlib.WARN
 local TRACE = stlib.TRACE
+local INF = math.huge
+local NINF = -math.huge
 
 ---@param carriage_type Cybersyn.CarriageType?
 ---@param pattern (0|1|2|3)?
@@ -115,6 +122,7 @@ local function make_auto_allow_list(stop, is_strict, is_bidi, changed_layout_id)
 		end
 	end
 	cs2.raise_node_data_changed(stop)
+	events.raise("cs2.stop_allow_list_changed", stop)
 end
 
 ---@param stop Cybersyn.TrainStop
@@ -122,6 +130,7 @@ local function make_all_allow_list(stop)
 	stop.allowed_layouts = nil
 	stop.allowed_groups = nil
 	cs2.raise_node_data_changed(stop)
+	events.raise("cs2.stop_allow_list_changed", stop)
 end
 
 ---@param stop Cybersyn.TrainStop
@@ -183,12 +192,16 @@ local function cull_stop_layouts(stop)
 	if not stop.allowed_layouts then return end
 	local culled_layout = false
 	for layout_id in pairs(stop.allowed_layouts) do
-		if not storage.train_layouts[layout_id] then
+		local layout = storage.train_layouts[layout_id]
+		if layout and layout.no_trains then
 			stop.allowed_layouts[layout_id] = nil
 			culled_layout = true
 		end
 	end
-	if culled_layout then cs2.raise_node_data_changed(stop) end
+	if culled_layout then
+		cs2.raise_node_data_changed(stop)
+		events.raise("cs2.stop_allow_list_changed", stop)
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -201,8 +214,12 @@ cs2.on_train_stop_pattern_changed(function(stop) evaluate_stop(stop) end)
 -- When an allowlist combinator is associated with a stop, update its stop.
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
 	if combinator.mode == "allow" then
-		if old_node and old_node.type == "stop" then evaluate_stop(old_node) end
-		if new_node and new_node.type == "stop" then evaluate_stop(new_node) end
+		if old_node and old_node.type == "stop" then
+			evaluate_stop(old_node --[[@as Cybersyn.TrainStop]])
+		end
+		if new_node and new_node.type == "stop" then
+			evaluate_stop(new_node --[[@as Cybersyn.TrainStop]])
+		end
 	end
 end)
 
@@ -228,11 +245,41 @@ cs2.on_train_layout_created(function(train_layout)
 	end
 end)
 
+-- When train layouts are destroyed, we need to re-evaluate all stops.
 cs2.on_train_layouts_destroyed(function()
-	-- When train layouts are destroyed, we need to re-evaluate all stops.
 	for _, node in pairs(storage.nodes) do
 		if node.type == "stop" then
 			cull_stop_layouts(node --[[@as Cybersyn.TrainStop]])
 		end
 	end
 end)
+
+--------------------------------------------------------------------------------
+-- Allowlist key calculation
+--------------------------------------------------------------------------------
+
+events.bind(
+	"cs2.stop_allow_list_changed",
+	---@param stop Cybersyn.TrainStop
+	function(stop)
+		-- Generate allowlist key.
+		if stop.allowed_layouts then
+			local key_parts = {}
+			-- Rely on the deterministic ordering of stored layouts.
+			for id in pairs(storage.train_layouts) do
+				if stop.allowed_layouts[id] then key_parts[#key_parts + 1] = id end
+			end
+			-- Generate the final key.
+			local key = table.concat(key_parts, "|")
+			-- Update the stop's allowlist key.
+			stop.allowed_layouts_key = key
+		else
+			stop.allowed_layouts_key = "ALL"
+			return
+		end
+	end,
+	true
+)
+
+-- XXX: this is needed in an alpha migration. remove for beta.
+function TrainStop:evaluate_allowed_capacities() end

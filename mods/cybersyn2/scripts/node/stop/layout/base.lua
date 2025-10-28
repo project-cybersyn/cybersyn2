@@ -2,13 +2,12 @@
 -- Train stop layouts.
 --------------------------------------------------------------------------------
 
-local class = require("__cybersyn2__.lib.class").class
-local tlib = require("__cybersyn2__.lib.table")
-local mlib = require("__cybersyn2__.lib.math")
-local trains_lib = require("__cybersyn2__.lib.trains")
-local flib_direction = require("__flib__.direction")
-local flib_bbox = require("__flib__.bounding-box")
-local stlib = require("__cybersyn2__.lib.strace")
+local class = require("lib.core.class").class
+local tlib = require("lib.core.table")
+local mlib = require("lib.core.math.bbox")
+local trains_lib = require("lib.trains")
+local pos_lib = require("lib.core.math.pos")
+local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
@@ -197,7 +196,7 @@ function TrainStop:compute_layout(ignored_entity_set)
 		rail_direction_from_stop = FRONT
 	end
 	local stop_direction = stop_entity.direction
-	local direction_from_stop = flib_direction.opposite(stop_direction)
+	local direction_from_stop = pos_lib.dir_opposite(stop_direction)
 	local is_vertical = (stop_direction == NORTH or stop_direction == SOUTH)
 
 	-- Iteratively search for the collection of rails that defines the automatic
@@ -271,7 +270,8 @@ function TrainStop:compute_layout(ignored_entity_set)
 	end
 
 	-- Update the rail set caches.
-	stop_layout.rail_bbox = flib_bbox.ceil(bbox)
+	-- TODO: do we need bbox_new here??
+	stop_layout.rail_bbox = mlib.bbox_round(mlib.bbox_new(bbox))
 	clear_rail_set_from_storage(stop_layout.rail_set)
 	stop_layout.rail_set = rail_set
 	add_rail_set_to_storage(rail_set, stop_id)
@@ -289,7 +289,7 @@ function TrainStop:compute_layout(ignored_entity_set)
 		b = b + reach
 		mlib.bbox_set(bbox, l, t, r, b)
 	end
-	bbox = flib_bbox.ceil(bbox)
+	mlib.bbox_round(bbox)
 	stop_layout.bbox = bbox
 	stop_layout.direction = direction_from_stop
 

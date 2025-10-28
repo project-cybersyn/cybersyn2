@@ -2,10 +2,10 @@
 -- Inventory input combinator
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
-local relm = require("__cybersyn2__.lib.relm")
-local ultros = require("__cybersyn2__.lib.ultros")
-local stlib = require("__cybersyn2__.lib.strace")
+local tlib = require("lib.core.table")
+local relm = require("lib.core.relm.relm")
+local ultros = require("lib.core.relm.ultros")
+local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
 local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui

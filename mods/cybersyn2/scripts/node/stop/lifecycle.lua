@@ -3,7 +3,7 @@
 -- train stops is also located here due to cross-cutting concerns.
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
@@ -231,10 +231,11 @@ cs2.on_topologies(function(topology, what)
 		-- exactly which nodes need to be updated.
 		for _, stop in pairs(storage.nodes) do
 			if stop.type == "stop" and stop:is_valid() then
+				-- TODO: manual topologies
 				---@cast stop Cybersyn.TrainStop
 				local train_topology =
 					Topology.get_train_topology(stop.entity.surface_index)
-				if train_topology then stop.topology_id = train_topology.id end
+				if train_topology then stop:set_topology(train_topology.id) end
 			end
 		end
 	end

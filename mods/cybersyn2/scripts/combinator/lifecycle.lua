@@ -5,8 +5,9 @@
 -- numerous cross-cutting concerns with lifecycle.
 --------------------------------------------------------------------------------
 
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
+local stlib = require("lib.core.strace")
+local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local EphemeralCombinator = _G.cs2.EphemeralCombinator
@@ -18,28 +19,6 @@ local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
 local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
 local get_raw_settings = _G.cs2.get_raw_settings
 
--- fix missing Factorio API types
--- this comes from Harag's original CS1 DC patch
--- TODO: move this to a better place
-
----@class DeciderCombinatorOutput -- The Factorio Lua API only defines this as 'table'
----@field public copy_count_from_input boolean
----@field public constant int32
----@field public signal SignalFilter
-
----@class DeciderCombinatorSignalNetworks
----@field public green boolean?
----@field public red boolean?
-
----@class DeciderCombinatorCondition -- The Factorio Lua API only defines this as 'table'
----@field public comparator "="|">"|"<"|"≥"|">="|"≤"|"<="|"≠"|"!="
----@field public compare_type "and"|"or"|nil
----@field public first_signal SignalFilter?
----@field public first_signal_networks DeciderCombinatorSignalNetworks?
----@field public constant int32?
----@field public second_signal SignalFilter?
----@field public second_signal_networks DeciderCombinatorSignalNetworks?
-
 local NO_NETWORKS = { red = false, green = false }
 
 --------------------------------------------------------------------------------
@@ -47,12 +26,14 @@ local NO_NETWORKS = { red = false, green = false }
 --------------------------------------------------------------------------------
 
 ---@param combinator_entity LuaEntity
-local function create_combinator(combinator_entity)
-	local comb = Combinator.new(combinator_entity)
+local function clear_combinator_outputs(combinator_entity)
+	-- Clear outputs of combinator
+	local beh = combinator_entity.get_or_create_control_behavior()
+	if not beh then return end
+	---@cast beh LuaDeciderCombinatorControlBehavior
 
 	-- Add LHS conditions. First is so we can control what displays in the
 	-- combinator's window, second is generic "always-true"
-	local beh = combinator_entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	beh.parameters = {
 		conditions = {
 			{
@@ -74,7 +55,12 @@ local function create_combinator(combinator_entity)
 		},
 		outputs = {},
 	}
+end
 
+---@param combinator_entity LuaEntity
+local function create_combinator(combinator_entity)
+	local comb = Combinator.new(combinator_entity)
+	clear_combinator_outputs(combinator_entity)
 	cs2.raise_combinator_created(comb)
 end
 
@@ -138,6 +124,7 @@ cs2.on_entity_settings_pasted(function(event)
 	if source and dest then
 		local vals = source:get_raw_settings()
 		dest:set_raw_settings(vals)
+		clear_combinator_outputs(dest.entity)
 		cs2.raise_combinator_or_ghost_setting_changed(dest, nil, nil, nil)
 	end
 end)
@@ -168,6 +155,8 @@ cs2.on_blueprint_built(function(bpinfo)
 					entity
 				)
 				comb:set_raw_settings(tags)
+				-- Clear the output of the combinator in the event of settings change
+				clear_combinator_outputs(entity)
 				cs2.raise_combinator_or_ghost_setting_changed(comb, nil, nil, nil)
 			end
 		end
@@ -251,7 +240,7 @@ end)
 --------------------------------------------------------------------------------
 -- Reset
 --------------------------------------------------------------------------------
-cs2.on_reset(function(reset_data)
+events.bind("on_shutdown", function(reset_data)
 	-- Need to hand off combinator settings so they can be restored after reset.
 	reset_data.combinator_settings_cache = storage.combinator_settings_cache
 
@@ -266,9 +255,9 @@ cs2.on_reset(function(reset_data)
 	end
 end)
 
-cs2.on_startup(function(reset_data)
+events.bind("on_startup", function(reset_data)
 	-- Restore combinator settings after reset.
-	if reset_data.combinator_settings_cache then
+	if reset_data.handoff and reset_data.combinator_settings_cache then
 		storage.combinator_settings_cache = reset_data.combinator_settings_cache
 	end
 

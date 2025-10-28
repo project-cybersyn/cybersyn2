@@ -1,7 +1,7 @@
-local flib = require("__flib__.data-util")
+local data_lib = require("lib.core.data-util")
 
 ---@type data.RecipePrototype
-local combinator_recipe = flib.copy_prototype(
+local combinator_recipe = data_lib.copy_prototype(
 	data.raw["recipe"]["decider-combinator"],
 	"cybersyn2-combinator"
 )

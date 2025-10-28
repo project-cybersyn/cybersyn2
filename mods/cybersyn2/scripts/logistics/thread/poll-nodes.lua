@@ -4,9 +4,8 @@
 -- inputs and adding their items to the logistics arrays.
 --------------------------------------------------------------------------------
 
-local stlib = require("__cybersyn2__.lib.strace")
-local tlib = require("__cybersyn2__.lib.table")
-local slib = require("__cybersyn2__.lib.signal")
+local stlib = require("lib.core.strace")
+local slib = require("lib.signal")
 local cs2 = _G.cs2
 
 local mod_settings = _G.cs2.mod_settings
@@ -138,25 +137,10 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	stop.threshold_item_out = nil
 
 	-- Autothresholds
-	stop.threshold_auto_fluid_max = nil
-	stop.threshold_auto_item_max = nil
 	local disable_auto_thresholds =
 		comb:read_setting(combinator_settings.disable_auto_thresholds)
 	stop.disable_auto_thresholds = disable_auto_thresholds
 	if not disable_auto_thresholds then
-		for layout_id in pairs(stop.allowed_layouts) do
-			local layout = storage.train_layouts[layout_id]
-			if layout then
-				local fluid_cap = layout.min_fluid_capacity
-				local item_cap = layout.min_item_slot_capacity
-				if fluid_cap and fluid_cap < (stop.threshold_auto_fluid_max or INF) then
-					stop.threshold_auto_fluid_max = fluid_cap
-				end
-				if item_cap and item_cap < (stop.threshold_auto_item_max or INF) then
-					stop.threshold_auto_item_max = item_cap
-				end
-			end
-		end
 		stop.auto_threshold_fraction = mod_settings.default_auto_threshold_fraction
 		local auto_threshold_percent =
 			comb:read_setting(combinator_settings.auto_threshold_percent)
@@ -303,7 +287,7 @@ function LogisticsThread:enter_poll_nodes()
 	self.request_all_fluids = {}
 	self:begin_async_loop(
 		self.nodes,
-		math.ceil(cs2.PERF_NODE_POLL_WORKLOAD * mod_settings.work_factor)
+		math.ceil(cs2.PERF_POLL_NODES_WORKLOAD * mod_settings.work_factor)
 	)
 	local topology = cs2.get_topology(self.topology_id)
 	if topology then

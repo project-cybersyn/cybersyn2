@@ -1,0 +1,3 @@
+[submodule "mods/cybersyn2/lib/core"]
+	path = mods/cybersyn2/lib/core
+	url = https://github.com/wcjohnson/factorio-mod-core.git

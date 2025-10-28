@@ -2,9 +2,9 @@
 -- `route` logistics phase
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
-local stlib = require("__cybersyn2__.lib.strace")
-local signal = require("__cybersyn2__.lib.signal")
+local tlib = require("lib.core.table")
+local stlib = require("lib.core.strace")
+local signal = require("lib.signal")
 local cs2 = _G.cs2
 local TrainDelivery = _G.cs2.TrainDelivery
 local mod_settings = _G.cs2.mod_settings
@@ -12,21 +12,24 @@ local mod_settings = _G.cs2.mod_settings
 local empty = tlib.empty
 local max = math.max
 local min = math.min
+local sqrt = math.sqrt
 local INF = math.huge
 local ceil = math.ceil
 local strace = stlib.strace
 local TRACE = stlib.TRACE
 local DEBUG = stlib.DEBUG
 local ERROR = stlib.ERROR
-local distsq = _G.cs2.lib.distsq
+local dist = _G.cs2.lib.dist
 local key_is_fluid = signal.key_is_fluid
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
 ---@class (exact) Cybersyn.Internal.TrainCargoState
+---@field public base_item_slots uint Base item slots. Before locked slots are subtracted.
 ---@field public total_item_slots uint Total item slots. Locked slots already subtracted.
 ---@field public remaining_item_slots uint Remaining item slots. Locked slots already subtracted.
+---@field public base_fluid_capacity uint Base fluid capacity. Before reserved cap is subtracted.
 ---@field public fluid_capacity uint Train fluid capacity. Reserved cap already subtracted.
 ---@field public seen_items table<SignalKey, boolean> Seen items.
 ---@field public item_spillover uint Per-item spillover from provider PREMULTIPLIED BY NUMBER OF CARGO WAGONS
@@ -82,8 +85,8 @@ local function try_allocation(
 		end
 		-- Verify capacity
 		if
-			cargo_state.fluid_capacity >= from_thresh
-			and cargo_state.fluid_capacity >= to_thresh
+			cargo_state.base_fluid_capacity >= from_thresh
+			and cargo_state.base_fluid_capacity >= to_thresh
 		then
 			-- Allocate fluid
 			cargo_state.fluid_was_allocated = true
@@ -149,12 +152,15 @@ local function route_train(data, train, allocation, index)
 	local reserved_capacity = from.reserved_capacity or 0
 	local spillover = from.spillover or 0
 
+	local base_item_slots = train.item_slot_capacity
 	local total_item_slots =
-		max(train.item_slot_capacity - (n_cargo_wagons * reserved_slots), 0)
+		max(base_item_slots - (n_cargo_wagons * reserved_slots), 0)
 	---@type Cybersyn.Internal.TrainCargoState
 	local cargo_state = {
+		base_item_slots = base_item_slots,
 		total_item_slots = total_item_slots,
 		remaining_item_slots = total_item_slots,
+		base_fluid_capacity = train.fluid_capacity,
 		fluid_capacity = max(
 			train.fluid_capacity - (n_fluid_wagons * reserved_capacity),
 			0
@@ -198,6 +204,18 @@ local function route_train(data, train, allocation, index)
 	-- XXX: debug, remove after we know this all works
 	local mi1, mq1 = next(cargo_state.manifest)
 	if (not mi1) or (mq1 < 1) then
+		if mod_settings.debug then
+			local log_entry = {
+				type = "ALLOC_COULDNT_ROUTE",
+				from = allocation.from.id,
+				to = allocation.to.id,
+				item = allocation.item,
+				qty = allocation.qty,
+			}
+			cs2.ring_buffer_log_write(allocation.from, log_entry)
+			cs2.ring_buffer_log_write(allocation.to, log_entry)
+		end
+
 		strace(
 			stlib.ERROR,
 			"cs2",
@@ -213,7 +231,7 @@ local function route_train(data, train, allocation, index)
 	-- Remove from avail_trains
 	data.avail_trains[train.id] = nil
 	-- Create delivery
-	TrainDelivery.new(
+	local delivery = TrainDelivery.new(
 		train,
 		allocation.from --[[@as Cybersyn.TrainStop]],
 		allocation.from_inv,
@@ -225,31 +243,73 @@ local function route_train(data, train, allocation, index)
 		reserved_slots,
 		reserved_capacity
 	)
+	if mod_settings.debug then
+		local log_entry = {
+			type = "ROUTE_TRAIN",
+			from = allocation.from.id,
+			to = allocation.to.id,
+			item = allocation.item,
+			qty = allocation.qty,
+			delivery = delivery.id,
+		}
+		cs2.ring_buffer_log_write(allocation.from, log_entry)
+		cs2.ring_buffer_log_write(allocation.to, log_entry)
+	end
 	return true
 end
 
+---Determine a numerical score for a train processing a given allocation.
+---This score is used to determine the best train for the allocation.
 ---@param train Cybersyn.Train
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 ---@return number
 local function train_score(train, allocation, train_capacity)
-	-- TODO: re-evaluate this, ideal cap ratio is 1.0, and above 1.0 should
-	-- be treated more harshly than below 1.0
-	-- note: route_train_allocation already assures train_capacity>0
+	-- Prefer trains that can move the most material.
+	local material_moved = min(allocation.qty, train_capacity)
+	-- Amongst those trains, prefer those that use the most of their capacity.
 	local cap_ratio = min(allocation.qty / train_capacity, 1.0)
+	-- Amongst the best-fitting trains, penalize those that are further away
 	local train_stock = train:get_stock()
-	local stop = (allocation.from --[[@as Cybersyn.TrainStop]]).entity
-	local dist = distsq(stop, train_stock)
-	return 100 * cap_ratio - dist
+	local stop = (allocation.from --[[@as Cybersyn.TrainStop]]).entity --[[@as LuaEntity]]
+	local dx = dist(stop, train_stock)
+
+	return (10000 * material_moved) + (1000 * cap_ratio) - dx
 end
 
+---Route an allocation via train, if possible.
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 function LogisticsThread:route_train_allocation(allocation, index)
-	-- If alloc below threshold, skip it.
-	if
-		allocation.qty < allocation.from_thresh
-		or allocation.qty < allocation.to_thresh
-	then
-		-- TODO: log at provider that stuff was reserved below threshold
+	local qty = allocation.qty
+	-- Allocation with qty=0 was already handled elsewhere.
+	if qty < 1 then return false end
+
+	-- Don't route allocations below threshold.
+	if qty < allocation.from_thresh then
+		if mod_settings.debug then
+			local log_entry = {
+				type = "ALLOC_BELOW_FROM_THRESH",
+				from = allocation.from.id,
+				to = allocation.to.id,
+				item = allocation.item,
+				qty = qty,
+			}
+			cs2.ring_buffer_log_write(allocation.from, log_entry)
+			cs2.ring_buffer_log_write(allocation.to, log_entry)
+		end
+		return false
+	end
+	if qty < allocation.to_thresh then
+		if mod_settings.debug then
+			local log_entry = {
+				type = "ALLOC_BELOW_TO_THRESH",
+				from = allocation.from.id,
+				to = allocation.to.id,
+				item = allocation.item,
+				qty = qty,
+			}
+			cs2.ring_buffer_log_write(allocation.from, log_entry)
+			cs2.ring_buffer_log_write(allocation.to, log_entry)
+		end
 		return false
 	end
 
@@ -258,7 +318,18 @@ function LogisticsThread:route_train_allocation(allocation, index)
 	if (not from:is_valid()) or (not to:is_valid()) then return false end
 
 	-- Don't queue into a full queue.
-	if from:is_queue_full() then return false end
+	if from:is_queue_full() then
+		if mod_settings.debug then
+			cs2.ring_buffer_log_write(from, {
+				type = "FROM_QUEUE_FULL",
+				from = from.id,
+				to = to.id,
+				item = allocation.item,
+				qty = qty,
+			})
+		end
+		return false
+	end
 
 	local is_fluid = allocation.is_fluid
 	local stack_size = allocation.stack_size
@@ -266,10 +337,15 @@ function LogisticsThread:route_train_allocation(allocation, index)
 	local avail_trains = self.avail_trains or empty
 	local best_train = nil
 	local best_score = -INF
+	local n_trains_considered, busy_rejections, capacity_threshold_rejections, allowlist_rejections =
+		0, 0, 0, 0
 	for train_id, train in pairs(avail_trains) do
+		n_trains_considered = n_trains_considered + 1
+
 		-- Check if still available
 		if not train:is_available() then
 			avail_trains[train_id] = nil
+			busy_rejections = busy_rejections + 1
 			goto continue
 		end
 		-- Check if capacity exceeds both thresholds
@@ -280,10 +356,12 @@ function LogisticsThread:route_train_allocation(allocation, index)
 			or train_capacity < allocation.from_thresh
 			or train_capacity < allocation.to_thresh
 		then
+			capacity_threshold_rejections = capacity_threshold_rejections + 1
 			goto continue
 		end
 		-- Check if allowlisted at both ends
 		if not (from:allows_train(train) and to:allows_train(train)) then
+			allowlist_rejections = allowlist_rejections + 1
 			goto continue
 		end
 		-- Check if better than the previous train.
@@ -299,17 +377,37 @@ function LogisticsThread:route_train_allocation(allocation, index)
 		return route_train(self, best_train, allocation, index)
 	else
 		-- TODO: "No train found" alert
+		if mod_settings.debug then
+			local log_entry = {
+				type = "ALLOC_NO_AVAIL_TRAIN",
+				from = from.id,
+				to = to.id,
+				item = allocation.item,
+				qty = qty,
+				n_trains_considered = n_trains_considered,
+				busy_rejections = busy_rejections,
+				capacity_threshold_rejections = capacity_threshold_rejections,
+				allowlist_rejections = allowlist_rejections,
+			}
+			cs2.ring_buffer_log_write(from, log_entry)
+			cs2.ring_buffer_log_write(to, log_entry)
+		end
 		return false
 	end
 end
 
+---Handle routing a single allocation.
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
+---@return boolean #`true` if allocation was routed, `false` if it should be refunded.
 function LogisticsThread:route_allocation(allocation, index)
 	if allocation.from.type == "stop" then
 		return self:route_train_allocation(allocation, index)
 	end
+	return false
 end
 
+---Handle routing of a single allocation, refunding it if it can't
+---be routed.
 ---@param allocation Cybersyn.Internal.LogisticsAllocation
 function LogisticsThread:maybe_route_allocation(allocation, index)
 	-- Skip allocations with qty = 0
@@ -322,12 +420,18 @@ end
 
 function LogisticsThread:enter_route()
 	local top_id = self.topology_id
+	-- Initial set of available trains = all trains associated with
+	-- this topology.
 	self.avail_trains = tlib.t_map_t(storage.vehicles, function(_, veh)
 		if veh.type == "train" and veh.topology_id == top_id then
 			return veh.id, veh
 		end
 	end) --[[@as table<uint, Cybersyn.Train>]]
-	self:begin_async_loop(self.allocations, 1)
+
+	self:begin_async_loop(
+		self.allocations,
+		math.ceil(cs2.PERF_ROUTE_WORKLOAD * mod_settings.work_factor)
+	)
 end
 
 function LogisticsThread:exit_route() self.allocations = nil end

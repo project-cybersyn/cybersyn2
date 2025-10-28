@@ -2,7 +2,7 @@
 -- Debugging facilities
 --------------------------------------------------------------------------------
 
-local strace_lib = require("__cybersyn2__.lib.strace")
+local strace_lib = require("lib.core.strace")
 local cs2 = _G.cs2
 
 local strace = strace_lib.strace
@@ -25,15 +25,6 @@ local level_str = strace_lib.level_to_string
 --------------------------------------------------------------------------------
 -- Strace handlers for libraries
 --------------------------------------------------------------------------------
-
-local relm = require("__cybersyn2__.lib.relm")
-relm.configure({ strace = strace })
-
-local events = require("__cybersyn2__.lib.events")
-events.set_strace_handler(strace)
-
-local scheduler = require("__cybersyn2__.lib.scheduler")
-scheduler.set_strace_handler(strace)
 
 --------------------------------------------------------------------------------
 -- Strace logging setup.
@@ -79,31 +70,31 @@ end
 
 ---@param state Cybersyn.Internal.DebugState
 local function setup_strace(state)
-	local base_level = state.strace_level
-	local always_level = state.strace_always_level or strace_lib.MAX_LEVEL
-	local filter = state.strace_filter
-	local whitelist = not not state.strace_whitelist
-	if not base_level or base_level >= strace_lib.MAX_LEVEL then
-		strace_lib.set_handler(nil)
-	else
-		if filter and next(filter) then
-			strace_lib.set_handler(function(level, ...)
-				if level < base_level then return end
-				if
-					level >= always_level or strace_filter(whitelist, filter, level, ...)
-				then
-					return print_strace(level, ...)
-				end
-			end)
-		else
-			strace_lib.set_handler(function(level, ...)
-				if level >= base_level then return print_strace(level, ...) end
-			end)
-		end
-	end
+	-- local base_level = state.strace_level
+	-- local always_level = state.strace_always_level or strace_lib.MAX_LEVEL
+	-- local filter = state.strace_filter
+	-- local whitelist = not not state.strace_whitelist
+	-- if not base_level or base_level >= strace_lib.MAX_LEVEL then
+	-- 	strace_lib.set_handler(nil)
+	-- else
+	-- 	if filter and next(filter) then
+	-- 		strace_lib.set_handler(function(level, ...)
+	-- 			if level < base_level then return end
+	-- 			if
+	-- 				level >= always_level or strace_filter(whitelist, filter, level, ...)
+	-- 			then
+	-- 				return print_strace(level, ...)
+	-- 			end
+	-- 		end)
+	-- 	else
+	-- 		strace_lib.set_handler(function(level, ...)
+	-- 			if level >= base_level then return print_strace(level, ...) end
+	-- 		end)
+	-- 	end
+	-- end
 end
 
-cs2.on_load(function() setup_strace(storage.debug_state) end)
+-- cs2.on_load(function() setup_strace(storage.debug_state) end)
 
 ---Set parameters for strace messages to be printed to console.
 ---@param level int?

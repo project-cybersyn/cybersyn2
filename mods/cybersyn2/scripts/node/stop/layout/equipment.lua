@@ -2,9 +2,10 @@
 -- Train stop equipment scanning.
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
-local mlib = require("__cybersyn2__.lib.math")
-local flib_bbox = require("__flib__.bounding-box")
+local tlib = require("lib.core.table")
+local mlib = require("lib.core.math.bbox")
+local pos_lib = require("lib.core.math.pos")
+local pos_get = pos_lib.pos_get
 local cs2 = _G.cs2
 
 ---@class Cybersyn.TrainStop
@@ -55,18 +56,21 @@ local function get_loader1x1_loading_stop(loader)
 	local direction = loader.direction
 	local surface = loader.surface
 	-- Grow loader bbox in its facing direction by 1 tile...
-	-- TODO: use mlib instead of flib
-	local area = flib_bbox.ensure_explicit(flib_bbox.from_position(position))
+	local x, y = pos_get(position)
+	x = math.floor(x)
+	y = math.floor(y)
+	local ltx, lty, rbx, rby = x, y, x + 1, y + 1
 	if
 		direction == defines.direction.east
 		or direction == defines.direction.west
 	then
-		area.left_top.x = area.left_top.x - 1
-		area.right_bottom.x = area.right_bottom.x + 1
+		ltx = ltx - 1
+		rbx = rbx + 1
 	else
-		area.left_top.y = area.left_top.y - 1
-		area.right_bottom.y = area.right_bottom.y + 1
+		lty = lty - 1
+		rby = rby + 1
 	end
+	local area = mlib.bbox_new(ltx, lty, rbx, rby)
 	local rails = surface.find_entities_filtered({
 		type = rail_types,
 		area = area,
@@ -337,7 +341,8 @@ cs2.on_entity_repositioned(function(kind, entity)
 	-- Find every stop the inserter could possibly interact with and invoke
 	-- registration for each of them, which should correctly detect whether
 	-- the inserter belongs there or not.
-	local area = flib_bbox.from_dimensions(
+	local area = mlib.bbox_around(
+		mlib.bbox_new(),
 		entity.position,
 		cs2.LONGEST_INSERTER_REACH,
 		cs2.LONGEST_INSERTER_REACH

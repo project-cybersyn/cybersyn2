@@ -2,16 +2,14 @@
 -- Infer layout data from equipment maps.
 --------------------------------------------------------------------------------
 
-local tlib = require("__cybersyn2__.lib.table")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 
 ---Get car index from tile index. Assumes hard-coded length of 6 tiles per car.
 ---@param tile_index integer
 ---@return integer car_index 1-based index of car; 0 in the event of a problem.
 local function get_car_index_from_tile_index(tile_index)
-	if tile_index % 7 == 0 then
-		return 0
-	end -- gap between cars
+	if tile_index % 7 == 0 then return 0 end -- gap between cars
 	local res = math.floor(tile_index / 7) + 1
 	-- Users needing degenerately-long trains should use custom allowlists.
 	if res < 1 or res > 32 then
@@ -35,9 +33,7 @@ cs2.on_train_stop_equipment_changed(function(stop, layout)
 	for _, tile_index in pairs(layout.cargo_loader_map) do
 		local car_index = get_car_index_from_tile_index(tile_index)
 		if car_index ~= 0 then
-			if car_index > max_car then
-				max_car = car_index
-			end
+			if car_index > max_car then max_car = car_index end
 			local previous_pattern = layout_pattern[car_index]
 			if (previous_pattern == 2) or (previous_pattern == 3) then
 				layout_pattern[car_index] = 3
@@ -49,9 +45,7 @@ cs2.on_train_stop_equipment_changed(function(stop, layout)
 	for _, tile_index in pairs(layout.fluid_loader_map) do
 		local car_index = get_car_index_from_tile_index(tile_index)
 		if car_index ~= 0 then
-			if car_index > max_car then
-				max_car = car_index
-			end
+			if car_index > max_car then max_car = car_index end
 			local previous_pattern = layout_pattern[car_index]
 			if (previous_pattern == 1) or (previous_pattern == 3) then
 				layout_pattern[car_index] = 3
@@ -61,9 +55,7 @@ cs2.on_train_stop_equipment_changed(function(stop, layout)
 		end
 	end
 	for i = 1, max_car do
-		if layout_pattern[i] == nil then
-			layout_pattern[i] = 0
-		end
+		if layout_pattern[i] == nil then layout_pattern[i] = 0 end
 	end
 
 	if tlib.a_eqeq(layout_pattern, layout.carriage_loading_pattern) then

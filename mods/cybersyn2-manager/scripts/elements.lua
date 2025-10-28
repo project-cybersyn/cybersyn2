@@ -1,8 +1,8 @@
-local strace_lib = require("__cybersyn2__.lib.strace")
-local relm = require("__cybersyn2__.lib.relm")
-local relm_helpers = require("__cybersyn2__.lib.relm-helpers")
-local ultros = require("__cybersyn2__.lib.ultros")
-local tlib = require("__cybersyn2__.lib.table")
+local strace_lib = require("__cybersyn2__.lib.core.strace")
+local relm = require("__cybersyn2__.lib.core.relm.relm")
+local relm_helpers = require("__cybersyn2__.lib.core.relm.util")
+local ultros = require("__cybersyn2__.lib.core.relm.ultros")
+local tlib = require("__cybersyn2__.lib.core.table")
 local siglib = require("__cybersyn2__.lib.signal")
 local mgr = _G.mgr
 
@@ -62,7 +62,7 @@ _G.mgr.ViewWrapper = relm.define_element({
 	render = function(props, state)
 		---@cast state table
 		relm.use_effect(props.filter or 0, view_effect, view_cleanup)
-		relm_helpers.use_event("on_view_updated")
+		relm_helpers.use_event("mgr.on_view_updated")
 		local child = props.child
 		local next_props = tlib.assign({}, child.props)
 		tlib.assign(next_props, state)

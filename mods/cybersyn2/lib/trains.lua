@@ -1,11 +1,9 @@
 --------------------------------------------------------------------------------
 -- Reusable library for manipulating Factorio trains, rails, and stops
 --------------------------------------------------------------------------------
-if ... ~= "__cybersyn2__.lib.trains" then
-	return require("__cybersyn2__.lib.trains")
-end
 
-local mlib = require("__cybersyn2__.lib.math")
+local bbox_lib = require("lib.core.math.bbox")
+local pos_lib = require("lib.core.math.pos")
 
 local defines_front = defines.rail_direction.front
 local defines_back = defines.rail_direction.back
@@ -50,7 +48,8 @@ function lib.get_connected_stop(rail_entity)
 	if stop_entity then
 		local connected_rail = stop_entity.connected_rail
 		if
-			connected_rail and (connected_rail.unit_number == rail_entity.unit_number)
+			connected_rail
+			and (connected_rail.unit_number == rail_entity.unit_number)
 		then
 			return stop_entity
 		end
@@ -114,7 +113,7 @@ local function iterate(state)
 	if not current_rail then return false, nil end
 
 	if state.debug then
-		local l, t, r, b = mlib.bbox_get(current_rail.bounding_box)
+		local l, t, r, b = bbox_lib.bbox_get(current_rail.bounding_box)
 		rendering.draw_rectangle({
 			color = { r = 0, g = 1, b = 0, a = 0.5 },
 			left_top = { l, t },
@@ -152,7 +151,8 @@ local function iterate(state)
 		return false
 	end
 	if not state.direction then
-		state.direction = mlib.dir_ortho(current_rail.position, next_rail.position)
+		state.direction =
+			pos_lib.dir_ortho(current_rail.position, next_rail.position)
 	end
 	state.rail = next_rail
 	return true
@@ -170,6 +170,30 @@ function lib.iterative_rail_search(state, max_iterations)
 		n = n + 1
 	end
 	state.disposition = lib.search_disposition.STOPPED_ITERATION_LIMIT
+end
+
+--------------------------------------------------------------------------------
+-- Trains and carriages
+--------------------------------------------------------------------------------
+
+---Determine the net capacity of a train car. Returns `0, 0` for entities that
+---are not train cars.
+---@param carriage LuaEntity A *valid* carriage entity that is a rolling stock in a train.
+---@return number item_slot_capacity The number of item slots the carriage can hold.
+---@return number fluid_capacity The total amount of fluid the carriage can hold.
+function lib.get_carriage_capacity(carriage)
+	if
+		carriage.type == "cargo-wagon" or carriage.type == "infinity-cargo-wagon"
+	then
+		local inventory = carriage.get_inventory(defines.inventory.cargo_wagon)
+		return #inventory, 0
+	elseif carriage.type == "fluid-wagon" then
+		local wagon_proto = carriage.prototype
+		local cap = wagon_proto.get_fluid_capacity(carriage.quality)
+		return 0, cap
+	else
+		return 0, 0
+	end
 end
 
 return lib

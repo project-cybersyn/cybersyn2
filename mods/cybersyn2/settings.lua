@@ -30,7 +30,7 @@ data:extend({
 		setting_type = "runtime-global",
 		default_value = 1.0,
 		minimum_value = 0.01,
-		maximum_value = 10.0,
+		maximum_value = 100.0,
 	},
 	{
 		type = "double-setting",
@@ -55,7 +55,7 @@ data:extend({
 		name = "cybersyn2-setting-queue-limit",
 		order = "bc",
 		setting_type = "runtime-global",
-		default_value = 5,
+		default_value = 1,
 		minimum_value = 0,
 		maximum_value = 100,
 	},

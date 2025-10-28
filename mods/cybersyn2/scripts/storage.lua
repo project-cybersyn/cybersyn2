@@ -2,6 +2,8 @@
 -- Type definition and implementation of Cybersyn's game state storage.
 --------------------------------------------------------------------------------
 
+local events = require("lib.core.event")
+
 ---The entire synchronized game state for Cybersyn.
 ---@class (exact) Cybersyn.Storage
 ---@field public players table<PlayerIndex, Cybersyn.PlayerState> Per-player state
@@ -12,7 +14,7 @@
 ---@field public inventories table<Id, Cybersyn.Inventory> All Cybersyn inventories indexed by id
 ---@field public deliveries table<Id, Cybersyn.Delivery> All Cybersyn deliveries indexed by id
 ---@field public task_ids table<string, Scheduler.TaskId> Ids of core tasks
----@field public train_groups table<string, Cybersyn.TrainGroup> All Cybersyn-controlled train groups indexed by Factorio group name
+---@field public train_groups table<string, Cybersyn.Internal.TrainGroup> All Cybersyn-controlled train groups indexed by Factorio group name
 ---@field public luatrain_id_to_vehicle_id table<Id, Id> Map of LuaTrain ids to Cybersyn vehicle ids
 ---@field public rail_id_to_node_id table<UnitNumber, Id> Map of rail unit numbers to node ids of the associated train stop
 ---@field public combinator_settings_cache table<UnitNumber, Tags> Cache used to store combinator settings so that it is not necessary to read encoded data from the combinator's entity
@@ -25,7 +27,7 @@
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
 ---@field public inventory_links Cybersyn.Internal.StoredLink[] State of blueprinted inventory links between shared inventory combinators
 ---@field public views {[Id]: Cybersyn.View} All views currently active, indexed by id
----@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events.
+---@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events
 storage = {}
 
 ---Per-player global state.
@@ -59,7 +61,7 @@ local function get_player_state(player_index)
 end
 _G.cs2.get_player_state = get_player_state
 
-_G.cs2.on_startup(function()
+events.bind("on_startup", function()
 	storage.players = {}
 	storage.vehicles = {}
 	storage.combinators = {}
