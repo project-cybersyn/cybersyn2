@@ -328,14 +328,21 @@ local function compute_auto_threshold(stop, item, species, request_qty)
 			or mod_settings.default_auto_threshold_fraction
 		)
 	if species == "fluid" then
-		return min(ceil(thresh), stop.allowed_min_fluid_capacity or 1)
+		local amfc = stop.allowed_min_fluid_capacity
+		if not amfc then
+			return 2000000000 -- effectively infinite
+		end
+		return min(ceil(thresh), amfc)
 	elseif species == "item" then
-		local max_thresh = (stop.allowed_min_item_slot_capacity or 1)
-			* (key_to_stacksize(item) or 1)
+		local amisc = stop.allowed_min_item_slot_capacity
+		if not amisc then
+			return 2000000000 -- effectively infinite
+		end
+		local max_thresh = amisc * (key_to_stacksize(item) or 1)
 		return min(ceil(thresh), max_thresh)
 	else
 		-- TODO: error log here
-		return 1
+		return 2000000000 -- effectively infinite
 	end
 end
 
