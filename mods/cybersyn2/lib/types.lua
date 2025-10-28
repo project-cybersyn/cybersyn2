@@ -98,6 +98,7 @@ lib.CarriageType = {
 ---@field public n_fluid_wagons uint Number of fluid wagons in the train.
 ---@field public min_item_slot_capacity? uint Minimum item slot capacity of all trains matching this layout, if known.
 ---@field public min_fluid_capacity? uint Minimum fluid capacity of all trains matching this layout, if known.
+---@field public no_trains boolean? `true` if no extant trains match this layout.
 
 ---@enum Cybersyn.Node.NetworkOperation
 lib.NodeNetworkOperation = {

@@ -178,11 +178,13 @@ function TrainMonitor:exit_enum_cstrains()
 			strace(
 				stlib.INFO,
 				"message",
-				"Train layout no longer in use, deleting",
+				"Train layout no longer in use",
 				train_layout
 			)
-			storage.train_layouts[layout_id] = nil
+			train_layout.no_trains = true
 			layouts_deleted = true
+		else
+			train_layout.no_trains = nil
 		end
 	end
 
