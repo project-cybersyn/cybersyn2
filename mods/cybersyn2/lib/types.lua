@@ -96,8 +96,7 @@ lib.CarriageType = {
 ---@field public bidirectional boolean `true` if the train has locomotives allowing it to move both directions.
 ---@field public n_cargo_wagons uint Number of cargo wagons in the train.
 ---@field public n_fluid_wagons uint Number of fluid wagons in the train.
----@field public min_item_slot_capacity? uint Minimum item slot capacity of all trains matching this layout, if known.
----@field public min_fluid_capacity? uint Minimum fluid capacity of all trains matching this layout, if known.
+---@field public no_trains boolean? `true` if no extant trains match this layout.
 
 ---@enum Cybersyn.Node.NetworkOperation
 lib.NodeNetworkOperation = {
@@ -145,6 +144,7 @@ lib.NodeNetworkOperation = {
 ---@field public entity LuaEntity? The `train-stop` entity for this stop, if it exists.
 ---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
 ---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
+---@field public allowed_layouts_key string? A string key representing the allowed layouts for caching purposes. `''` if all layouts are allowed.
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
 ---@field public delivery_queue Id[] All deliveries currently enroute for this stop, in order. The lowest index in the queue is the next delivery to be processed.
 ---@field public allow_departure_signal SignalID? The signal key that will allow a train to depart this stop.
@@ -160,10 +160,10 @@ lib.NodeNetworkOperation = {
 ---@field public per_wagon_mode boolean? `true` if the station is in per-wagon mode due to the presence of a wagon comb.
 ---@field public shared_inventory_slaves IdSet? Exists only if this station is a shared-inventory master and contains the ids of the slaves.
 ---@field public shared_inventory_master Id? The id of the shared inventory master, if this station is a slave.
----@field public allowed_min_item_slot_capacity uint? Min item capacity for allowed trains at this stop. Zero or nil means trains cannot pick up or deliver items.
----@field public allowed_max_item_slot_capacity uint? Max item capacity for allowed trains at this stop. Zero or nil means trains cannot pick up or deliver items.
----@field public allowed_min_fluid_capacity uint? Min fluid capacity for allowed trains at this stop. Zero or nil means trains cannot pick up or deliver fluids.
----@field public allowed_max_fluid_capacity uint? Max fluid capacity for allowed trains at this stop. Zero or nil means trains cannot pick up or deliver fluids.
+---@field public allowed_min_item_slot_capacity uint? Min item capacity for allowed trains at this stop. Zero means station can't handle items. `nil` means could not be evaluated.
+---@field public allowed_max_item_slot_capacity uint? Max item capacity for allowed trains at this stop. Zero means station can't handle items. `nil` means could not be evaluated.
+---@field public allowed_min_fluid_capacity uint? Min fluid capacity for allowed trains at this stop. Zero means station can't handle fluids. `nil` means could not be evaluated.
+---@field public allowed_max_fluid_capacity uint? Max fluid capacity for allowed trains at this stop. Zero means station can't handle fluids. `nil` means could not be evaluated.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.

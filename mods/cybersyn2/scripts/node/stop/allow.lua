@@ -4,6 +4,7 @@
 
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local combinator_settings = _G.cs2.combinator_settings
 local CarriageType = require("lib.types").CarriageType
@@ -121,6 +122,7 @@ local function make_auto_allow_list(stop, is_strict, is_bidi, changed_layout_id)
 		end
 	end
 	cs2.raise_node_data_changed(stop)
+	events.raise("cs2.stop_allow_list_changed", stop)
 end
 
 ---@param stop Cybersyn.TrainStop
@@ -128,6 +130,7 @@ local function make_all_allow_list(stop)
 	stop.allowed_layouts = nil
 	stop.allowed_groups = nil
 	cs2.raise_node_data_changed(stop)
+	events.raise("cs2.stop_allow_list_changed", stop)
 end
 
 ---@param stop Cybersyn.TrainStop
@@ -189,12 +192,16 @@ local function cull_stop_layouts(stop)
 	if not stop.allowed_layouts then return end
 	local culled_layout = false
 	for layout_id in pairs(stop.allowed_layouts) do
-		if not storage.train_layouts[layout_id] then
+		local layout = storage.train_layouts[layout_id]
+		if layout and layout.no_trains then
 			stop.allowed_layouts[layout_id] = nil
 			culled_layout = true
 		end
 	end
-	if culled_layout then cs2.raise_node_data_changed(stop) end
+	if culled_layout then
+		cs2.raise_node_data_changed(stop)
+		events.raise("cs2.stop_allow_list_changed", stop)
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -248,70 +255,31 @@ cs2.on_train_layouts_destroyed(function()
 end)
 
 --------------------------------------------------------------------------------
--- Allowed train capacity computations
+-- Allowlist key calculation
 --------------------------------------------------------------------------------
 
----Evaluate the allowed capacities for trains at this stop.
-function TrainStop:evaluate_allowed_capacities()
-	local min_item_slots, min_fluids = nil, nil
-	local max_item_slots, max_fluids = nil, nil
-
-	-- Find all practically allowed train layouts.
-	local layout_id_set = {}
-	for _, veh in pairs(storage.vehicles) do
-		if
-			veh.type == "train"
-			---@cast veh Cybersyn.Train
-
-			and veh.topology_id == self.topology_id
-			and veh.layout_id
-		then
-			if self.allowed_layouts == nil or self.allowed_layouts[veh.layout_id] then
-				layout_id_set[veh.layout_id] = true
+events.bind(
+	"cs2.stop_allow_list_changed",
+	---@param stop Cybersyn.TrainStop
+	function(stop)
+		-- Generate allowlist key.
+		if stop.allowed_layouts then
+			local key_parts = {}
+			-- Rely on the deterministic ordering of stored layouts.
+			for id in pairs(storage.train_layouts) do
+				if stop.allowed_layouts[id] then key_parts[#key_parts + 1] = id end
 			end
+			-- Generate the final key.
+			local key = table.concat(key_parts, "|")
+			-- Update the stop's allowlist key.
+			stop.allowed_layouts_key = key
+		else
+			stop.allowed_layouts_key = "ALL"
+			return
 		end
-	end
+	end,
+	true
+)
 
-	for layout_id in pairs(layout_id_set) do
-		local layout = storage.train_layouts[layout_id]
-		if layout then
-			local fluid_cap = layout.min_fluid_capacity
-			local item_cap = layout.min_item_slot_capacity
-			if fluid_cap and fluid_cap < (min_fluids or INF) then
-				min_fluids = fluid_cap
-			end
-			if fluid_cap and fluid_cap > (max_fluids or NINF) then
-				max_fluids = fluid_cap
-			end
-			if item_cap and item_cap < (min_item_slots or INF) then
-				min_item_slots = item_cap
-			end
-			if item_cap and item_cap > (max_item_slots or NINF) then
-				max_item_slots = item_cap
-			end
-		end
-	end
-
-	self.allowed_min_item_slot_capacity = min_item_slots
-	self.allowed_min_fluid_capacity = min_fluids
-	self.allowed_max_item_slot_capacity = max_item_slots
-	self.allowed_max_fluid_capacity = max_fluids
-end
-
-cs2.on_node_data_changed(function(node)
-	if node.type == "stop" then
-		---@cast node Cybersyn.TrainStop
-		node:evaluate_allowed_capacities()
-	end
-end)
-
-cs2.on_train_layout_changed(function(layout)
-	for _, node in pairs(storage.nodes) do
-		---@cast node Cybersyn.TrainStop
-		if node.type == "stop" then
-			if node.allowed_layouts == nil or node.allowed_layouts[layout.id] then
-				node:evaluate_allowed_capacities()
-			end
-		end
-	end
-end)
+-- XXX: this is needed in an alpha migration. remove for beta.
+function TrainStop:evaluate_allowed_capacities() end

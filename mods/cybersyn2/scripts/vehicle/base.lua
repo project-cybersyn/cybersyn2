@@ -4,6 +4,7 @@
 
 local class = require("lib.core.class").class
 local counters = require("lib.core.counters")
+local events = require("lib.core.event")
 
 local cs2 = _G.cs2
 
@@ -48,5 +49,13 @@ function Vehicle:is_available() return false end
 function Vehicle:destroy()
 	self.is_being_destroyed = true
 	cs2.raise_vehicle_destroyed(self)
+	events.raise("cs2.vehicle_destroyed", self)
 	storage.vehicles[self.id] = nil
+end
+
+function Vehicle:set_topology(topology_id)
+	local previous_topology_id = self.topology_id
+	if previous_topology_id == topology_id then return end
+	self.topology_id = topology_id
+	events.raise("cs2.vehicle_topology_changed", self, previous_topology_id)
 end

@@ -8,6 +8,7 @@ local tlib = require("lib.core.table")
 local stlib = require("lib.core.strace")
 local signal = require("lib.signal")
 local scheduler = require("lib.core.scheduler")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local Inventory = _G.cs2.Inventory
 local mod_settings = _G.cs2.mod_settings
@@ -175,9 +176,11 @@ end
 ---Set the topology ID for this node.
 ---@param topology_id Id
 function Node:set_topology(topology_id)
-	if self.topology_id == topology_id then return end
+	local previous_topology_id = self.topology_id
+	if previous_topology_id == topology_id then return end
 	self.topology_id = topology_id
 	cs2.raise_node_data_changed(self)
+	events.raise("cs2.node_topology_changed", self, previous_topology_id)
 end
 
 --------------------------------------------------------------------------------
