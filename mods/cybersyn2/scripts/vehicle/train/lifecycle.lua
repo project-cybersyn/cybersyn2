@@ -173,18 +173,29 @@ function TrainMonitor:exit_enum_cstrains()
 	-- Update data for known train layouts.
 	local layouts_deleted = false
 	for layout_id, train_layout in pairs(storage.train_layouts) do
-		if not self.seen_layouts[layout_id] then
-			-- Layout is no longer in use, delete it.
-			strace(
-				stlib.INFO,
-				"message",
-				"Train layout no longer in use",
-				train_layout
-			)
-			train_layout.no_trains = true
-			layouts_deleted = true
+		if self.seen_layouts[layout_id] then
+			-- Layout is still in use, nothing to do.
+			if train_layout.no_trains then
+				strace(
+					stlib.INFO,
+					"message",
+					"Train layout now in use again",
+					train_layout
+				)
+				train_layout.no_trains = nil
+			end
 		else
-			train_layout.no_trains = nil
+			if not train_layout.no_trains then
+				-- Layout is no longer in use.
+				strace(
+					stlib.INFO,
+					"message",
+					"Train layout no longer in use",
+					train_layout
+				)
+				train_layout.no_trains = true
+				layouts_deleted = true
+			end
 		end
 	end
 
