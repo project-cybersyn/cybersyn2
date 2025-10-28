@@ -619,11 +619,3 @@ cs2.on_reset(function(reset_data)
 		::continue::
 	end
 end)
-
--- On startup, restore StoredLinks and try to relink.
-cs2.on_startup(function(reset_data)
-	if reset_data.inventory_links then
-		storage.inventory_links = reset_data.inventory_links
-	end
-	try_relink()
-end)

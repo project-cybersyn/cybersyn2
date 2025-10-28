@@ -17,6 +17,7 @@ local siglib = require("lib.signal")
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
 local thread_lib = require("lib.core.thread")
+local events = require("lib.core.event")
 
 local empty = tlib.empty
 local strace = stlib.strace
@@ -427,7 +428,7 @@ end)
 -- train, we want it to happen on its own frame isolated from all other processing.
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Internal.DeliveryDispatchThread: Lib.Thread
+---@class Cybersyn.Internal.DeliveryDispatchThread: Core.Thread
 ---@field public queue (int|string)[] Queue of delivery IDs to be dispatched.
 local DeliveryDispatchThread = class("DeliveryDispatchThread", Thread)
 
@@ -461,7 +462,7 @@ function DeliveryDispatchThread:enqueue(delivery_id, operation)
 	self:wake()
 end
 
-cs2.on_startup(function()
+events.bind("on_startup", function()
 	-- Create the dispatch thread on startup.
 	local thread = DeliveryDispatchThread:new()
 	storage.task_ids["delivery_dispatch"] = thread.id

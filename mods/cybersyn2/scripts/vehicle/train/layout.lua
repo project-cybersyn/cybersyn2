@@ -2,6 +2,7 @@
 -- Train layout
 --------------------------------------------------------------------------------
 
+local events = require("lib.core.event")
 local tlib = require("lib.core.table")
 local counters = require("lib.core.counters")
 local CarriageType = require("lib.types").CarriageType
@@ -166,4 +167,7 @@ end, true)
 
 -- When mods change, train capacity may have changed as a result of quality
 -- prototype or wagon prototype changes. Re-evaluate all capacities.
-cs2.on_configuration_changed(function() cs2.evaluate_train_capacities() end)
+events.bind(
+	"on_configuration_changed",
+	function() cs2.evaluate_train_capacities() end
+)

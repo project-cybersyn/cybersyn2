@@ -7,6 +7,7 @@
 
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local EphemeralCombinator = _G.cs2.EphemeralCombinator
@@ -254,7 +255,7 @@ cs2.on_reset(function(reset_data)
 	end
 end)
 
-cs2.on_startup(function(reset_data)
+events.bind("on_startup", function(reset_data)
 	-- Restore combinator settings after reset.
 	if reset_data.combinator_settings_cache then
 		storage.combinator_settings_cache = reset_data.combinator_settings_cache
