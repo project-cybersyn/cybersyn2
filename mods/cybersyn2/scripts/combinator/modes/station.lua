@@ -160,7 +160,7 @@ relm.define_element({
 								"cybersyn2-combinator-mode-station.auto-mds-percent-tooltip",
 							},
 							combinator = props.combinator,
-							setting = combinator_settings.auto_threshold_percent,
+							setting = "auto_threshold_percent",
 							displayed_default_value = math.floor(
 								mod_settings.default_auto_threshold_fraction * 100
 							),
@@ -211,7 +211,7 @@ relm.define_element({
 					{
 						gui.Input({
 							combinator = props.combinator,
-							setting = combinator_settings.inactivity_timeout,
+							setting = "inactivity_timeout",
 							width = 75,
 							numeric = true,
 							allow_decimal = false,

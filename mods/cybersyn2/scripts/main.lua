@@ -190,26 +190,23 @@ events.bind(
 -- Combinator GUI
 --------------------------------------------------------------------------------
 
-events.bind(defines.events.on_gui_opened, function(event)
-	if not event.entity then return end
-	local player = game.get_player(event.player_index)
-	if not player then return end
-
-	-- Unfortunate spaghetti code case here: when creating a shared inventory
-	-- link, this is the event that ultimately gets raised. We have to distinguish
-	-- between this and someone actually wanting to open a combinator gui.
-	if cs2.try_finish_connection(player, event.entity) then
-		-- Close default combinator UI.
-		player.opened = nil
-	else
-		local comb = cs2.EphemeralCombinator.new(event.entity)
+events.bind(
+	defines.events.on_gui_opened,
+	---@param event EventData.on_gui_opened
+	function(event)
+		if not event.entity then return end
+		local player = game.get_player(event.player_index)
+		if not player then return end
+		local _, id = remote.call("things", "get_thing_id", event.entity)
+		local comb = cs2.get_combinator(id)
 		if not comb then return end
-		cs2.lib.open_combinator_gui(event.player_index, comb)
+
+		cs2.open_combinator_gui(event.player_index, comb)
 	end
-end)
+)
 
 events.bind(defines.events.on_gui_closed, function(event)
 	local element = event.element
 	if not element or element.name ~= cs2.WINDOW_NAME then return end
-	cs2.lib.close_combinator_gui(event.player_index)
+	cs2.close_combinator_gui(event.player_index)
 end)

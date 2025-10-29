@@ -49,18 +49,21 @@ function Combinator:new(thing)
 	if (not id) or storage.combinators[id] then
 		error("Bad or duplicate combinator creation.")
 	end
-	storage.combinators[id] = setmetatable(
-		{ id = id, entity = thing.entity, last_read_tick = 0 },
-		Combinator
-	)
-	return storage.combinators[id]
+	local obj = setmetatable({ id = id, last_read_tick = 0 }, self)
+	if thing.status == "real" then obj.real_entity = thing.entity end
+	storage.combinators[id] = obj
+	return obj
 end
 
 ---Check whether this combinator's entity is valid.
 ---@return boolean? #`true` if the combinator's entity exists and is valid.
-function Combinator:is_valid()
-	local entity = self.entity
-	return entity and entity.valid
+function Combinator:is_valid() return true end
+
+---Check whether this combinator has a real, valid entity.
+---@return boolean? #`true` if the combinator is real and its entity is valid.
+function Combinator:is_real()
+	local real_entity = self.real_entity
+	return real_entity and real_entity.valid
 end
 
 ---Retrieve a combinator state from storage by its Thing ID.
@@ -69,12 +72,7 @@ end
 ---@return Cybersyn.Combinator?
 local function get_combinator(thing_id, skip_validation)
 	if not thing_id then return nil end
-	local combinator = storage.combinators[thing_id]
-	if skip_validation then
-		return combinator
-	elseif combinator then
-		return combinator:is_valid() and combinator or nil
-	end
+	return storage.combinators[thing_id]
 end
 _G.cs2.get_combinator = get_combinator
 
@@ -107,8 +105,8 @@ local GREEN_INPUTS = defines.wire_connector_id.combinator_input_green
 ---@param which "red"|"green"|nil If given, and the combinator has independent input wires, read only the given wire. If `nil`, read both wires.
 function Combinator:read_inputs(which)
 	-- Sanity checks
-	-- Don't read invalid entities
-	local entity = self.entity
+	-- Don't read invalid entities or ghosts
+	local entity = self.real_entity
 	if not entity or not entity.valid then return end
 	-- Verify input mode
 	local mdef = modes[self.mode or ""]
@@ -158,7 +156,7 @@ end
 
 ---Clear all the combinator's outputs.
 function Combinator:clear_outputs()
-	local entity = self.entity
+	local entity = self.real_entity
 	if not entity or not entity.valid then return end
 
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
@@ -198,7 +196,7 @@ end
 ---`int` values representing the signals to add to the output along
 ---with a multiplier.
 function Combinator:write_outputs(...)
-	local entity = self.entity
+	local entity = self.real_entity
 	if not entity or not entity.valid then return end
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
@@ -209,7 +207,7 @@ end
 ---Directly replace the combinator's raw outputs.
 ---@param outputs DeciderCombinatorOutput[]
 function Combinator:direct_write_outputs(outputs)
-	local entity = self.entity
+	local entity = self.real_entity
 	if not entity or not entity.valid then return end
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
@@ -245,7 +243,7 @@ end
 
 ---Perform dynamic cross-wiring between combinator input and output pins.
 function Combinator:hotwire()
-	local combinator_entity = self.entity
+	local combinator_entity = self.real_entity
 	if not combinator_entity or not combinator_entity.valid then return end
 
 	local mdef = cs2.combinator_modes[self.mode or ""]
@@ -269,13 +267,15 @@ function Combinator:find_connected_wagon()
 	-- instead of the whole rail.
 	local rail = self.connected_rail
 	if not rail then return nil end
-	local wagons = self.entity.surface.find_entities_filtered({
+	local combinator_entity = self.real_entity
+	if not combinator_entity or not combinator_entity.valid then return nil end
+	local wagons = combinator_entity.surface.find_entities_filtered({
 		type = WAGON_TYPES,
 		area = rail.bounding_box,
 	})
 	if #wagons == 0 then return nil end
 	if #wagons == 1 then return wagons[1] end
-	local pos = self.entity.position
+	local pos = self.real_entity.position
 	local closest = math.huge
 	local wagon = nil
 	for i = 1, #wagons do

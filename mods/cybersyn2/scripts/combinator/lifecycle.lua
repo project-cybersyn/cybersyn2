@@ -64,6 +64,7 @@ local function create_combinator(thing)
 	events.raise("cs2.combinator_created", comb)
 	events.raise("cs2.combinator_status_changed", comb)
 	cs2.raise_combinator_created(comb)
+	return comb
 end
 
 ---@param comb Cybersyn.Combinator
@@ -77,9 +78,7 @@ end
 events.bind(
 	"cybersyn2-combinator-on_initialized",
 	---@param ev things.EventData.on_initialized
-	function(ev)
-		if ev.status == "real" then create_combinator(ev) end
-	end
+	function(ev) create_combinator(ev) end
 )
 
 events.bind(
@@ -88,21 +87,23 @@ events.bind(
 	function(ev)
 		local comb = cs2.get_combinator(ev.thing.id, true)
 		if not comb then
-			if ev.new_status == "real" then
-				-- Create new combinator
-				create_combinator(ev.thing)
+			if ev.old_status == "void" and ev.new_status ~= "destroyed" then
+				comb = create_combinator(ev.thing)
+			else
+				error(
+					"Referential integrity failure: no matching Combinator for Thing "
+						.. ev.thing.id
+				)
 			end
-			return
 		end
 
 		if ev.new_status == "real" then
-			comb.entity = ev.thing.entity
+			comb.real_entity = ev.thing.entity
 		else
-			comb.entity = nil
+			comb.real_entity = nil
 		end
 
-		local settings = cs2.CombinatorSettings:new(comb, ev.thing)
-		events.raise("cs2.combinator_status_changed", comb, settings)
+		events.raise("cs2.combinator_status_changed", comb)
 
 		if ev.new_status == "void" or ev.new_status == "destroyed" then
 			destroy_combinator(comb)
@@ -182,9 +183,7 @@ events.bind("on_startup", function(reset_data)
 				)
 			end
 			local combinator = cs2.get_combinator(thing.id, true)
-			if not combinator and thing.status == "real" then
-				create_combinator(thing)
-			end
+			if not combinator then create_combinator(thing) end
 		end
 	end
 end)

@@ -4,7 +4,8 @@ local relm_util = require("lib.core.relm.util")
 local tlib = require("lib.core.table")
 local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
-local combinator_settings = _G.cs2.combinator_settings
+local events = require("lib.core.event")
+
 local combinator_modes = _G.cs2.combinator_modes
 
 local strace = stlib.strace
@@ -24,31 +25,10 @@ local function create_gui_state(player_index, combinator)
 	return pstate
 end
 
----Run a callback on each player who has an open combinator GUI.
----@param callback fun(state: Cybersyn.PlayerState, relm_root: Relm.Handle?)
-local function for_each_open_combinator_gui(callback)
-	for _, state in pairs(storage.players) do
-		local player = game.get_player(state.player_index)
-		if player and state.combinator_gui_root then
-			local root = relm.root_handle(state.combinator_gui_root)
-			callback(state, root)
-		end
-	end
-end
-
-local function close_guis_with_invalid_combinators()
-	for_each_open_combinator_gui(function(state)
-		local comb = state.open_combinator
-		if not comb or not comb:is_valid() then
-			cs2.lib.close_combinator_gui(state.player_index)
-		end
-	end)
-end
-
 ---Close the combinator gui for the given player.
 ---@param player_index PlayerIndex
 ---@param silent boolean?
-function _G.cs2.lib.close_combinator_gui(player_index, silent)
+function _G.cs2.close_combinator_gui(player_index, silent)
 	local player = game.get_player(player_index)
 	if not player then return end
 
@@ -79,12 +59,12 @@ end
 ---Open the combinator gui for a player.
 ---@param player_index PlayerIndex
 ---@param combinator Cybersyn.Combinator
-function _G.cs2.lib.open_combinator_gui(player_index, combinator)
+function _G.cs2.open_combinator_gui(player_index, combinator)
 	local player = game.get_player(player_index)
 	if not player then return end
 
 	-- Close any existing gui
-	cs2.lib.close_combinator_gui(player_index, true)
+	cs2.close_combinator_gui(player_index, true)
 	-- Create new gui state
 	local state = create_gui_state(player_index, combinator)
 
@@ -201,7 +181,7 @@ local Status = relm.define_element({
 				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
 			})
 		end
-		local entity = props.combinator.entity
+		local entity = props.combinator.real_entity
 		return VF({
 			Pr({
 				type = "frame",
@@ -336,7 +316,7 @@ relm.define_element({
 	end,
 	message = function(me, payload, props)
 		if payload.key == "close" then
-			cs2.lib.close_combinator_gui(props.player_index)
+			cs2.close_combinator_gui(props.player_index)
 			return true
 		elseif payload.key == "toggle_info" then
 			local player_state = cs2.get_or_create_player_state(props.player_index)

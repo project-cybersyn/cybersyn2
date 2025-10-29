@@ -212,7 +212,7 @@ local function update_stop_overlay(stop)
 	local n_assoc = 0
 	for comb_id in pairs(stop.combinator_set) do
 		local comb = cs2.get_combinator(comb_id)
-		if comb then
+		if comb and comb.real_entity then
 			n_assoc = n_assoc + 1
 			local assoc = overlay.associations[n_assoc]
 			if not assoc then
@@ -225,7 +225,7 @@ local function update_stop_overlay(stop)
 				})
 				overlay.associations[n_assoc] = assoc
 			end
-			assoc.from = comb.entity
+			assoc.from = comb.real_entity
 			assoc.to = stop.entity
 		end
 		-- Destroy any extra association lines

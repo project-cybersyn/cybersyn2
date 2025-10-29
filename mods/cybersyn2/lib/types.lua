@@ -37,7 +37,7 @@ local lib = {}
 ---Combinator game state.
 ---@class Cybersyn.Combinator
 ---@field public id int64 The unique Thing ID associated with this combinator.
----@field public entity LuaEntity? The most recent LuaEntity object representing this combinator. Note that this is a cached value and must ALWAYS be checked for validity before use.
+---@field public real_entity LuaEntity? If the combinator is real and not a ghost, this is the LuaEntity representing it. NOTE: This is a cached value and must ALWAYS be checked for validity before use.
 ---@field public node_id? uint The id of the node this combinator is associated with, if any.
 ---@field public is_being_destroyed true? `true` if the combinator is being removed from state at this time.
 ---@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
