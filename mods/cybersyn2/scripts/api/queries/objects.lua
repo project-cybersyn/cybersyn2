@@ -24,7 +24,7 @@ function _G.cs2.query_handlers.combinators(arg)
 	---@type Cybersyn.Combinator[]
 	local res = nil
 	if arg.ids then
-		res = map(arg.ids, function(id) return Combinator.get(id) end)
+		res = map(arg.ids, function(id) return cs2.get_combinator(id) end)
 	end
 	return { data = res or {}, type = comb_list_datatype }
 end

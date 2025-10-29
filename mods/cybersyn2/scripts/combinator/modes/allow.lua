@@ -15,15 +15,14 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("allow_mode", "allow_mode", "auto")
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("allow_strict", "allow_flags", 0)
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("allow_bidi", "allow_flags", 1)
-)
+---@class Cybersyn.Combinator
+---@field public get_allow_mode fun(): "auto" | "layout" | "group" | "all"
+---@field public get_allow_strict fun(): boolean
+---@field public get_allow_bidi fun(): boolean
+
+cs2.register_raw_setting("allow_mode", "allow_mode", "auto")
+cs2.register_flag_setting("allow_strict", "allow_flags", 0)
+cs2.register_flag_setting("allow_bidi", "allow_flags", 1)
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -57,13 +56,13 @@ local AutoSettings = relm.define_element({
 				"Strict allow list",
 				"Requires all equipment at the train stop to engage with a wagon.",
 				props.combinator,
-				combinator_settings.allow_strict
+				"allow_strict"
 			),
 			gui.Checkbox(
 				"Bidirectional trains only",
 				"Requires trains that can travel in both directions; both directions must also be compatible with the stop equipment",
 				props.combinator,
-				combinator_settings.allow_bidi
+				"allow_bidi"
 			),
 		}
 	end,
@@ -72,14 +71,14 @@ local AutoSettings = relm.define_element({
 relm.define_element({
 	name = "CombinatorGui.Mode.Allow",
 	render = function(props)
-		local mode = props.combinator:read_setting(combinator_settings.allow_mode)
+		local mode = props.combinator:get_allow_mode()
 		return VF({
 			ultros.WellSection({ caption = "Settings" }, {
 				ultros.Labeled({ caption = "Allowlist mode", top_margin = 6 }, {
 					gui.Dropdown(
 						nil,
 						props.combinator,
-						combinator_settings.allow_mode,
+						"allow_mode",
 						mode_dropdown_items
 					),
 				}),

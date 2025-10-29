@@ -34,13 +34,10 @@ local lib = {}
 ---@field public log_current uint Index of the current log entry
 ---@field public log_buffer any[] The full log ring buffer.
 
----An opaque reference to EITHER a live combinator OR its ghost.
----@class Cybersyn.Combinator.Ephemeral
----@field public entity? LuaEntity The primary entity of the combinator OR its ghost.
-
----An opaque reference to a fully realized and built combinator that has been indexed by Cybersyn and tracked in game state.
----@class Cybersyn.Combinator: Cybersyn.Combinator.Ephemeral
----@field public id UnitNumber The unique unit number of the combinator entity.
+---Combinator game state.
+---@class Cybersyn.Combinator
+---@field public id int64 The unique Thing ID associated with this combinator.
+---@field public entity LuaEntity? The most recent LuaEntity object representing this combinator. Note that this is a cached value and must ALWAYS be checked for validity before use.
 ---@field public node_id? uint The id of the node this combinator is associated with, if any.
 ---@field public is_being_destroyed true? `true` if the combinator is being removed from state at this time.
 ---@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
@@ -48,7 +45,6 @@ local lib = {}
 ---@field public red_inputs? SignalCounts As `inputs` but for only the red wire. Exists only for modes with `independent_input_wires` set.
 ---@field public green_inputs? SignalCounts As `inputs` but for only the green wire. Exists only for modes with `independent_input_wires` set.
 ---@field public last_read_tick uint The tick this combinator was last read.
----@field public associated_entities table<string, LuaEntity>? Hidden or related entities that must be created or destroyed along with the combinator.
 ---@field public connected_rail LuaEntity? If this combinator was built next to a rail, this is that rail.
 
 ---A vehicle managed by Cybersyn.

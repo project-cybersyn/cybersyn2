@@ -141,13 +141,12 @@ local function make_custom_allow_list(
 	allowlist_combinator,
 	changed_layout_id
 )
-	local allow_mode =
-		allowlist_combinator:read_setting(combinator_settings.allow_mode)
+	local allow_mode = allowlist_combinator:get_allow_mode()
 	if allow_mode == "auto" then
 		make_auto_allow_list(
 			stop,
-			allowlist_combinator:read_setting(combinator_settings.allow_strict),
-			allowlist_combinator:read_setting(combinator_settings.allow_bidi),
+			allowlist_combinator:get_allow_strict(),
+			allowlist_combinator:get_allow_bidi(),
 			changed_layout_id
 		)
 	elseif allow_mode == "all" then

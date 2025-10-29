@@ -31,7 +31,7 @@ require("scripts.logistics.inventory")
 require("scripts.logistics.delivery.base")
 
 require("scripts.combinator.base")
-require("scripts.combinator.setting")
+require("scripts.combinator.settings")
 require("scripts.combinator.lifecycle")
 require("scripts.combinator.mode")
 require("scripts.combinator.gui.base")

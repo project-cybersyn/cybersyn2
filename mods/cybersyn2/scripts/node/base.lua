@@ -63,7 +63,7 @@ function Node:destroy()
 	-- combinator set, we must do so here.
 	if next(self.combinator_set) then
 		tlib.for_each(self.combinator_set, function(_, combinator_id)
-			local combinator = Combinator.get(combinator_id, true)
+			local combinator = cs2.get_combinator(combinator_id, true)
 			Node.disassociate_combinator(combinator, true)
 		end)
 		cs2.raise_node_combinator_set_changed(self)
@@ -153,7 +153,7 @@ end)
 ---@return Cybersyn.Combinator[] #The combinators associated to the node, if any.
 function Node:get_associated_combinators(filter)
 	return tlib.t_map_a(self.combinator_set, function(_, combinator_id)
-		local comb = Combinator.get(combinator_id, true)
+		local comb = cs2.get_combinator(combinator_id, true)
 		if comb and ((not filter) or filter(comb)) then return comb end
 	end)
 end

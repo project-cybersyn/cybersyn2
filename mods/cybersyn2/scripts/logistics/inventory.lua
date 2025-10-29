@@ -374,7 +374,7 @@ function StopInventory:update(reread)
 			if reread then comb:read_inputs() end
 			-- Station combinator has a single unique order associated to it.
 			if comb.mode == "station" then
-				local primary_wire = comb:read_setting(combinator_settings.primary_wire)
+				local primary_wire = comb:get_primary_wire()
 				if primary_wire == "green" then
 					self:set_base(comb.green_inputs)
 				else
@@ -384,7 +384,7 @@ function StopInventory:update(reread)
 				if
 					stop.is_producer
 					and not stop.is_consumer
-					and not comb:read_setting(combinator_settings.provide_subset)
+					and not comb:get_provide_subset()
 				then
 					assign(order.provides, self.inventory or empty)
 					for cargo in pairs(order.provides) do
@@ -476,8 +476,7 @@ function StopInventory:rebuild_orders()
 	if not controlling_stop then return end
 	local station_comb = controlling_stop:get_combinator_with_mode("station")
 	if not station_comb then return end
-	local primary_wire =
-		station_comb:read_setting(combinator_settings.primary_wire)
+	local primary_wire = station_comb:get_primary_wire()
 	local opposite_wire = primary_wire == "green" and "red" or "green"
 	-- Opposite wire on station comb treated as an order.
 	orders[#orders + 1] = create_blank_order(

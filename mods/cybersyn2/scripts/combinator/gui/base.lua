@@ -1,5 +1,6 @@
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
+local relm_util = require("lib.core.relm.util")
 local tlib = require("lib.core.table")
 local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
@@ -12,18 +13,14 @@ local ERROR = stlib.ERROR
 ---@param player_index PlayerIndex
 local function destroy_gui_state(player_index)
 	local state = storage.players[player_index]
-	if state then
-		state.open_combinator = nil
-		state.open_combinator_unit_number = nil
-	end
+	if state then state.open_combinator = nil end
 end
 
 ---@param player_index PlayerIndex
----@param combinator Cybersyn.Combinator.Ephemeral
+---@param combinator Cybersyn.Combinator
 local function create_gui_state(player_index, combinator)
 	local pstate = cs2.get_or_create_player_state(player_index)
 	pstate.open_combinator = combinator
-	pstate.open_combinator_unit_number = combinator.entity.unit_number
 	return pstate
 end
 
@@ -44,19 +41,6 @@ local function close_guis_with_invalid_combinators()
 		local comb = state.open_combinator
 		if not comb or not comb:is_valid() then
 			cs2.lib.close_combinator_gui(state.player_index)
-		end
-	end)
-end
-
----@param combinator Cybersyn.Combinator.Ephemeral
-local function update_guis_referencing_combinator(combinator)
-	local unit_number = combinator.entity.unit_number
-	for_each_open_combinator_gui(function(state, root)
-		if state.open_combinator_unit_number == unit_number then
-			relm.msg_broadcast(root, {
-				key = "combinator_settings_updated",
-				combinator = combinator,
-			})
 		end
 	end)
 end
@@ -94,9 +78,8 @@ end
 
 ---Open the combinator gui for a player.
 ---@param player_index PlayerIndex
----@param combinator Cybersyn.Combinator.Ephemeral
+---@param combinator Cybersyn.Combinator
 function _G.cs2.lib.open_combinator_gui(player_index, combinator)
-	if not combinator:is_valid() then return end
 	local player = game.get_player(player_index)
 	if not player then return end
 
@@ -137,13 +120,12 @@ local Pr = relm.Primitive
 local ModePicker = relm.define_element({
 	name = "CombinatorGui.ModePicker",
 	render = function(props)
-		if (not props.combinator) or (not props.combinator:is_valid()) then
+		if not props.combinator then
 			return VF({
 				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
 			})
 		end
-		local desired_mode_name =
-			props.combinator:read_setting(combinator_settings.mode)
+		local desired_mode_name = props.combinator.mode
 		local options = tlib.t_map_a(
 			combinator_modes,
 			function(mode, name)
@@ -166,9 +148,7 @@ local ModePicker = relm.define_element({
 			return true
 		elseif payload.key == "set_combinator_mode" then
 			local new_mode = payload.value
-			if new_mode then
-				props.combinator:write_setting(combinator_settings.mode, new_mode)
-			end
+			if new_mode then props.combinator:set_mode(new_mode) end
 			return true
 		else
 			return false
@@ -179,13 +159,13 @@ local ModePicker = relm.define_element({
 local ModeSettings = relm.define_element({
 	name = "CombinatorGui.ModeSettings",
 	render = function(props)
-		if (not props.combinator) or (not props.combinator:is_valid()) then
+		relm_util.use_event("cs2.combinator_settings_changed")
+		if not props.combinator then
 			return VF({
 				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
 			})
 		end
-		local desired_mode_name =
-			props.combinator:read_setting(combinator_settings.mode)
+		local desired_mode_name = props.combinator.mode
 		local mode = combinator_modes[desired_mode_name]
 		if mode and mode.settings_element then
 			return relm.element(mode.settings_element, {
@@ -198,8 +178,13 @@ local ModeSettings = relm.define_element({
 			})
 		end
 	end,
-	message = function(me, payload)
-		if payload.key == "combinator_settings_updated" then
+	message = function(me, payload, props)
+		if
+			payload.key == "cs2.combinator_settings_changed"
+			and payload[1]
+			and props.combinator
+			and payload[1].id == props.combinator.id
+		then
 			relm.paint(me)
 			return true
 		else
@@ -211,7 +196,7 @@ local ModeSettings = relm.define_element({
 local Status = relm.define_element({
 	name = "CombinatorGui.StatusArea",
 	render = function(props)
-		if (not props.combinator) or (not props.combinator:is_valid()) then
+		if not props.combinator then
 			return VF({
 				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
 			})
@@ -252,13 +237,13 @@ local Status = relm.define_element({
 local Help = relm.define_element({
 	name = "CombinatorGui.Help",
 	render = function(props)
-		if (not props.combinator) or (not props.combinator:is_valid()) then
+		relm_util.use_event("cs2.combinator_settings_changed")
+		if not props.combinator then
 			return VF({
 				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
 			})
 		end
-		local desired_mode_name =
-			props.combinator:read_setting(combinator_settings.mode)
+		local desired_mode_name = props.combinator.mode
 		local mode = combinator_modes[desired_mode_name]
 		if mode and mode.help_element then
 			return relm.element(mode.help_element, {
@@ -271,8 +256,13 @@ local Help = relm.define_element({
 			})
 		end
 	end,
-	message = function(me, payload)
-		if payload.key == "combinator_settings_updated" then
+	message = function(me, payload, props)
+		if
+			payload.key == "cs2.combinator_settings_changed"
+			and payload[1]
+			and props.combinator
+			and payload[1].id == props.combinator.id
+		then
 			relm.paint(me)
 			return true
 		else
@@ -371,15 +361,3 @@ relm.define_element({
 		end
 	end,
 })
-
---------------------------------------------------------------------------------
--- Event handling
---------------------------------------------------------------------------------
-
--- When a combinator ghost revives, close any guis that may be referencing it.
--- (We're doing this every time a combinator is built which is overkill but
--- there doesn't appear to be a precise event for ghost revival.)
-cs2.on_built_combinator(close_guis_with_invalid_combinators)
-
--- Repaint GUIs when a combinator's settings change.
-cs2.on_combinator_or_ghost_setting_changed(update_guis_referencing_combinator)

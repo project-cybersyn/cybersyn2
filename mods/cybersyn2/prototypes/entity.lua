@@ -188,10 +188,12 @@ local comb_registration = {
 	name = "cybersyn2-combinator",
 	intercept_construction = true,
 	migrate_tags_callback = { "cybersyn2", "migrate_tags_callback" },
+	initial_tags_callback = { "cybersyn2", "initial_tags_callback" },
 	custom_events = {
 		on_initialized = "cybersyn2-combinator-on_initialized",
 		on_status = "cybersyn2-combinator-on_status",
 		on_edge_status = "cybersyn2-combinator-on_edge_status",
+		on_tags_changed = "cybersyn2-combinator-on_tags_changed",
 	},
 }
 
@@ -211,6 +213,14 @@ data.raw["mod-data"]["things-names"].data["cybersyn2-combinator"] =
 data.raw["mod-data"]["things-graphs"].data["cybersyn2-shared-inventory"] = {
 	directed = true,
 	custom_events = {
-		on_edge_changed = "ribbon-cables-on_edge_changed",
+		on_edge_changed = "cybersyn2-combinator-on_edge_changed",
 	},
 }
+
+data:extend({
+	{ type = "custom-event", name = "cybersyn2-combinator-on_initialized" },
+	{ type = "custom-event", name = "cybersyn2-combinator-on_status" },
+	{ type = "custom-event", name = "cybersyn2-combinator-on_edge_status" },
+	{ type = "custom-event", name = "cybersyn2-combinator-on_edge_changed" },
+	{ type = "custom-event", name = "cybersyn2-combinator-on_tags_changed" },
+})

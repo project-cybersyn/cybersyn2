@@ -18,74 +18,60 @@ local If = ultros.If
 -- Station combinator settings.
 --------------------------------------------------------------------------------
 
+---@class Cybersyn.Combinator
+---@field public get_network_signal fun(self: Cybersyn.Combinator): string
+---@field public get_pr fun(self: Cybersyn.Combinator): number
+---@field public get_use_stack_thresholds fun(self: Cybersyn.Combinator): boolean
+---@field public get_primary_wire fun(self: Cybersyn.Combinator): string
+---@field public get_provide_subset fun(self: Cybersyn.Combinator): boolean
+---@field public get_disable_auto_thresholds fun(self: Cybersyn.Combinator): boolean
+---@field public get_auto_threshold_percent fun(self: Cybersyn.Combinator): number
+---@field public get_allow_departure_signal fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_force_departure_signal fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_inactivity_mode fun(self: Cybersyn.Combinator): number
+---@field public get_inactivity_timeout fun(self: Cybersyn.Combinator): number
+---@field public get_disable_cargo_condition fun(self: Cybersyn.Combinator): boolean
+---@field public get_spillover fun(self: Cybersyn.Combinator): number
+---@field public get_reserved_slots fun(self: Cybersyn.Combinator): number
+---@field public get_reserved_capacity fun(self: Cybersyn.Combinator): number
+---@field public get_produce_single_item fun(self: Cybersyn.Combinator): boolean
+---@field public get_ignore_secondary_thresholds fun(self: Cybersyn.Combinator): boolean
+---@field public get_topology_signal fun(self: Cybersyn.Combinator): SignalID?
+
 -- Name of the network virtual signal.
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("network_signal", "network")
-)
+cs2.register_raw_setting("network_signal", "network")
 -- Whether the station should provide, request, or both.
 -- 0 = p/r, 1 = p, 2 = r
-cs2.register_combinator_setting(cs2.lib.make_raw_setting("pr", "pr"))
+cs2.register_raw_setting("pr", "pr")
 -- Whether the station should interpret minimum delivery sizes as stacks or items.
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("use_stack_thresholds", "station_flags", 0)
-)
+cs2.register_flag_setting("use_stack_thresholds", "station_flags", 0)
 -- Which input wire the primary/true inventory input is on.
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("primary_wire", "primary_wire", "red")
-)
+cs2.register_raw_setting("primary_wire", "primary_wire", "red")
 -- Whether the station's primary order should provide the whole inventory or a subset.
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("provide_subset", "station_flags", 4)
-)
+cs2.register_flag_setting("provide_subset", "station_flags", 4)
 -- Whether to disable auto thresholds
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("disable_auto_thresholds", "station_flags", 5)
-)
+cs2.register_flag_setting("disable_auto_thresholds", "station_flags", 5)
 -- Auto threshold percentage
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("auto_threshold_percent", "auto_threshold_percent")
-)
+cs2.register_raw_setting("auto_threshold_percent", "auto_threshold_percent")
 
 -- Departure conditions
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("allow_departure_signal", "allow_departure_signal")
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("force_departure_signal", "force_departure_signal")
-)
+cs2.register_raw_setting("allow_departure_signal", "allow_departure_signal")
+cs2.register_raw_setting("force_departure_signal", "force_departure_signal")
 -- How to apply inactivity timeouts
 -- 0 = disabled, 1 = after delivery, 2 = force out
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("inactivity_mode", "inactivity_mode")
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("inactivity_timeout", "inactivity_timeout")
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("disable_cargo_condition", "station_flags", 1)
-)
+cs2.register_raw_setting("inactivity_mode", "inactivity_mode")
+cs2.register_raw_setting("inactivity_timeout", "inactivity_timeout")
+cs2.register_flag_setting("disable_cargo_condition", "station_flags", 1)
 
 -- Multi-item related
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("spillover", "spillover")
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("reserved_slots", "reserved_slots")
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("reserved_capacity", "reserved_capacity")
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("produce_single_item", "station_flags", 2)
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("ignore_secondary_thresholds", "station_flags", 3)
-)
+cs2.register_raw_setting("spillover", "spillover")
+cs2.register_raw_setting("reserved_slots", "reserved_slots")
+cs2.register_raw_setting("reserved_capacity", "reserved_capacity")
+cs2.register_flag_setting("produce_single_item", "station_flags", 2)
+cs2.register_flag_setting("ignore_secondary_thresholds", "station_flags", 3)
 
 -- Topology
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("topology_signal", "topology_signal")
-)
+cs2.register_raw_setting("topology_signal", "topology_signal")
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -99,7 +85,7 @@ local wire_dropdown_items = {
 relm.define_element({
 	name = "CombinatorGui.Mode.Station",
 	render = function(props)
-		local pr = props.combinator:read_setting(combinator_settings.pr)
+		local pr = props.combinator:get_pr()
 		local is_provider = pr == 1 or pr == 0
 		local is_requester = pr == 2 or pr == 0
 		local is_provide_only = pr == 1
@@ -115,7 +101,7 @@ relm.define_element({
 							"Outbound only",
 							"Inbound only",
 							props.combinator,
-							combinator_settings.pr
+							"pr"
 						),
 					}),
 					ultros.Labeled({
@@ -124,7 +110,7 @@ relm.define_element({
 					}, {
 						gui.NetworkSignalPicker(
 							props.combinator,
-							combinator_settings.network_signal,
+							"network_signal",
 							{ "cybersyn2-combinator-mode-station.network-tooltip" }
 						),
 					}),
@@ -137,7 +123,7 @@ relm.define_element({
 						gui.Dropdown(
 							nil,
 							props.combinator,
-							combinator_settings.primary_wire,
+							"primary_wire",
 							wire_dropdown_items
 						),
 					}),
@@ -148,13 +134,13 @@ relm.define_element({
 						"Use stack thresholds",
 						"If checked, all item delivery thresholds will be interpreted as stacks of items. If unchecked, all item delivery thresholds will be interpreted as individual items.",
 						props.combinator,
-						combinator_settings.use_stack_thresholds
+						"use_stack_thresholds"
 					),
 					gui.Checkbox(
 						{ "cybersyn2-combinator-mode-station.provide-all" },
 						{ "cybersyn2-combinator-mode-station.provide-all-tooltip" },
 						props.combinator,
-						combinator_settings.provide_subset,
+						"provide_subset",
 						true,
 						is_requester,
 						false
@@ -164,7 +150,7 @@ relm.define_element({
 							{ "cybersyn2-combinator-mode-station.auto-mds" },
 							{ "cybersyn2-combinator-mode-station.auto-mds-tooltip" },
 							props.combinator,
-							combinator_settings.disable_auto_thresholds,
+							"disable_auto_thresholds",
 							true,
 							is_provide_only
 						),
@@ -191,7 +177,7 @@ relm.define_element({
 					}, {
 						gui.VirtualSignalPicker(
 							props.combinator,
-							combinator_settings.topology_signal,
+							"topology_signal",
 							{ "cybersyn2-combinator-mode-station.topology-tooltip" }
 						),
 					}),
@@ -201,19 +187,13 @@ relm.define_element({
 				ultros.Labeled(
 					{ caption = "Signal: Allow departure", top_margin = 6 },
 					{
-						gui.AnySignalPicker(
-							props.combinator,
-							combinator_settings.allow_departure_signal
-						),
+						gui.AnySignalPicker(props.combinator, "allow_departure_signal"),
 					}
 				),
 				ultros.Labeled(
 					{ caption = "Signal: Force departure", top_margin = 6 },
 					{
-						gui.AnySignalPicker(
-							props.combinator,
-							combinator_settings.force_departure_signal
-						),
+						gui.AnySignalPicker(props.combinator, "force_departure_signal"),
 					}
 				),
 				ultros.Labeled({ caption = "Inactivity mode", top_margin = 6 }, {
@@ -223,7 +203,7 @@ relm.define_element({
 						"After delivery",
 						"Force out",
 						props.combinator,
-						combinator_settings.inactivity_mode
+						"inactivity_mode"
 					),
 				}),
 				ultros.Labeled(
@@ -246,7 +226,7 @@ relm.define_element({
 					"Enable cargo condition",
 					"If checked, trains will receive a wait condition requiring them to pick up or drop off their cargo. If unchecked, you must manually control the train's departure using custom logic.",
 					props.combinator,
-					combinator_settings.disable_cargo_condition,
+					"disable_cargo_condition",
 					true
 				),
 			}),
@@ -258,7 +238,7 @@ relm.define_element({
 					gui.Input({
 						tooltip = "A number of extra items (measured in units, not stacks) that may be loaded into each cargo wagon of an outgoing train as a result of imprecise processes such as extra inserter swings. This value is applied per-item against the capacity of the each wagon and the net inventory of the station.",
 						combinator = props.combinator,
-						setting = combinator_settings.spillover,
+						setting = "spillover",
 						width = 75,
 						numeric = true,
 						allow_decimal = false,
@@ -271,7 +251,7 @@ relm.define_element({
 						gui.Input({
 							tooltip = "The number of slots that will be deducted for each cargo wagon when calculating the capacity of an outgoing train. Unlike spillover, reserve slots do not count against the net inventory of the station.",
 							combinator = props.combinator,
-							setting = combinator_settings.reserved_slots,
+							setting = "reserved_slots",
 							width = 75,
 							numeric = true,
 							allow_decimal = false,
@@ -285,7 +265,7 @@ relm.define_element({
 						gui.Input({
 							tooltip = "A reserved amount of capacity to be deducted per fluid wagon. This can be used to allow pumps to clear their fluid boxes before a train departs.",
 							combinator = props.combinator,
-							setting = combinator_settings.reserved_capacity,
+							setting = "reserved_capacity",
 							width = 75,
 							numeric = true,
 							allow_decimal = false,
@@ -300,13 +280,13 @@ relm.define_element({
 					"Single item per outgoing train",
 					"If checked, this station will never load multiple items onto an outgoing train, instead loading only the first matching item.",
 					props.combinator,
-					combinator_settings.produce_single_item
+					"produce_single_item"
 				),
 				gui.Checkbox(
 					"Ignore minimum delivery size for secondary items",
 					"If checked, when loading secondary items onto an outgoing train, this station will ignore minimum delivery sizes for those items. This can result in multiple items being more efficiently packed onto trains.",
 					props.combinator,
-					combinator_settings.ignore_secondary_thresholds
+					"ignore_secondary_thresholds"
 				),
 			}),
 		})
@@ -366,8 +346,7 @@ local OrderWireHelp = relm.define_element({
 relm.define_element({
 	name = "CombinatorGui.Mode.Station.Help",
 	render = function(props)
-		local primary_wire =
-			props.combinator:read_setting(combinator_settings.primary_wire)
+		local primary_wire = props.combinator:get_primary_wire()
 		local opposite_wire = primary_wire == "red" and "green" or "red"
 		return VF({
 			Pr({

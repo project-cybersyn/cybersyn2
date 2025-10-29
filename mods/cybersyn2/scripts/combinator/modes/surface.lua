@@ -22,13 +22,14 @@ local empty = tlib.empty
 -- Settings
 --------------------------------------------------------------------------------
 
+---@class Cybersyn.Combinator
+---@field public get_surface_inventory_mode fun(): "provided" | "pulled" | "pushed" | "sunk"
+
 -- Which inventory data to include in the combinator output.
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting(
-		"surface_inventory_mode",
-		"surface_inventory_mode",
-		"provided"
-	)
+cs2.register_raw_setting(
+	"surface_inventory_mode",
+	"surface_inventory_mode",
+	"provided"
 )
 
 --------------------------------------------------------------------------------
@@ -59,7 +60,7 @@ relm.define_element({
 						gui.Dropdown(
 							nil,
 							props.combinator,
-							combinator_settings.surface_inventory_mode,
+							"surface_inventory_mode",
 							mode_dropdown_items
 						),
 					}),
@@ -100,101 +101,11 @@ relm.define_element({
 -- Mode registration
 --------------------------------------------------------------------------------
 
-cs2.register_combinator_mode({
-	name = "surface",
-	localized_string = "cybersyn2-combinator-modes.surface",
-	settings_element = "CombinatorGui.Mode.Surface",
-	help_element = "CombinatorGui.Mode.Surface.Help",
-	is_output = true,
-	is_input = false,
-})
-
---------------------------------------------------------------------------------
--- Impl
---------------------------------------------------------------------------------
-
----@param top Cybersyn.Topology
-local function update_surface_combinators(top)
-	if not top.global_combinators then return end
-	local combs = tlib.t_map_a(
-		top.global_combinators,
-		function(_, id) return cs2.get_combinator(id) end
-	)
-	local provided, pulled, pushed, sunk
-	for _, comb in pairs(combs) do
-		if comb.mode == "surface" then
-			local submode =
-				comb:read_setting(combinator_settings.surface_inventory_mode)
-			local outputs = nil
-			if submode == "provided" then
-				if not provided then
-					provided = comb:encode_outputs(top.provided or empty, 1)
-				end
-				outputs = provided
-			elseif submode == "pulled" then
-				if not pulled then
-					pulled = comb:encode_outputs(top.pulled or empty, 1)
-				end
-				outputs = pulled
-			elseif submode == "pushed" then
-				if not pushed then
-					pushed = comb:encode_outputs(top.pushed or empty, 1)
-				end
-				outputs = pushed
-			elseif submode == "sunk" then
-				if not sunk then sunk = comb:encode_outputs(top.sunk or empty, 1) end
-				outputs = sunk
-			end
-			comb:direct_write_outputs(outputs or {})
-		end
-	end
-end
-
-cs2.on_topology_inventory_updated(
-	function(top) update_surface_combinators(top) end
-)
-
-cs2.on_combinator_setting_changed(function(comb, setting)
-	if setting == nil or setting == "mode" then
-		-- TODO: better topology determination
-		local top = Topology.get_train_topology(comb.entity.surface_index)
-		if not top then return end
-		if comb.mode == "surface" then
-			top:add_global_combinator(comb)
-		else
-			top:remove_global_combinator(comb)
-		end
-	end
-end)
-
-cs2.on_combinator_created(function(comb)
-	if comb.mode == "surface" then
-		-- TODO: better topology determination
-		local top = Topology.get_train_topology(comb.entity.surface_index)
-		if not top then return end
-		top:add_global_combinator(comb)
-	end
-end)
-
-cs2.on_combinator_destroyed(function(comb)
-	if comb.mode == "surface" then
-		-- TODO: better topology determination
-		local top = Topology.get_train_topology(comb.entity.surface_index)
-		if not top then return end
-		top:remove_global_combinator(comb)
-	end
-end)
-
--- When a top is created, enum all combinators that might be global
-cs2.on_topologies(function(top, event)
-	if event == "created" then
-		local comb_ents = top:get_combinator_entities()
-		local combs = tlib.map(
-			comb_ents,
-			function(ent) return cs2.get_combinator(ent.unit_number) end
-		)
-		for _, comb in pairs(combs) do
-			if comb.mode == "surface" then top:add_global_combinator(comb) end
-		end
-	end
-end)
+-- cs2.register_combinator_mode({
+-- 	name = "surface",
+-- 	localized_string = "cybersyn2-combinator-modes.surface",
+-- 	settings_element = "CombinatorGui.Mode.Surface",
+-- 	help_element = "CombinatorGui.Mode.Surface.Help",
+-- 	is_output = true,
+-- 	is_input = false,
+-- })

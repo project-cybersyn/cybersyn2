@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local cs2 = _G.cs2
+local events = require("lib.core.event")
 
 local modes = _G.cs2.combinator_modes
 
@@ -30,18 +31,18 @@ function _G.cs2.get_combinator_mode(name) return modes[name or ""] end
 -- Pull mode into combinator data
 --------------------------------------------------------------------------------
 
-cs2.on_combinator_setting_changed(function(combinator, setting)
-	if (not setting) or setting == "mode" then
-		local prev_mode = combinator.mode
-		local new_mode = combinator:get_raw_setting("mode") --[[@as string?]]
-		if prev_mode ~= new_mode then
-			combinator.mode = new_mode
-			combinator:clear_outputs()
-			-- TODO: specific mode change event?
+events.bind(
+	"cs2.combinator_settings_changed",
+	---@param combinator Cybersyn.Combinator
+	function(combinator, key, value)
+		if (not key) or key == "mode" then
+			local prev_mode = combinator.mode
+			local new_mode = value
+			if prev_mode ~= new_mode then
+				combinator.mode = new_mode
+				combinator:clear_outputs()
+			end
 		end
-	end
-end, true)
-
-cs2.on_combinator_created(function(combinator)
-	combinator.mode = combinator:get_raw_setting("mode") --[[@as string?]]
-end, true)
+	end,
+	true
+)

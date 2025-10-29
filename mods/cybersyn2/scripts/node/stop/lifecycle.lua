@@ -147,12 +147,12 @@ function create_recursive(stop_entities, depth)
 			-- Create the new stop state.
 			stop = TrainStop.new(stop_entity)
 			-- Recursively reassociate combinators near the new stop.
-			local combs = cs2.lib.find_associable_combinators(stop_entity)
+			local combs = cs2.find_associable_combinator_entities(stop_entity)
 			if #combs > 0 then
-				local comb_states = tlib.map(
-					combs,
-					function(comb) return Combinator.get(comb.unit_number) end
-				)
+				local comb_states = tlib.map(combs, function(comb)
+					local id = remote.call("things", "get_thing_id", comb)
+					return cs2.get_combinator(id, true)
+				end)
 				if #comb_states > 0 then
 					reassociate_recursive(comb_states, depth + 1)
 				end
@@ -174,12 +174,12 @@ end
 
 -- When a stop is built, check for combinators nearby and associate them.
 cs2.on_built_train_stop(function(stop_entity)
-	local combs = cs2.lib.find_associable_combinators(stop_entity)
+	local combs = cs2.find_associable_combinator_entities(stop_entity)
 	if #combs > 0 then
-		local comb_states = tlib.map(
-			combs,
-			function(comb) return Combinator.get(comb.unit_number) end
-		)
+		local comb_states = tlib.map(combs, function(comb)
+			local id = remote.call("things", "get_thing_id", comb)
+			return cs2.get_combinator(id, true)
+		end)
 		cs2.lib.reassociate_combinators(comb_states)
 	end
 end)

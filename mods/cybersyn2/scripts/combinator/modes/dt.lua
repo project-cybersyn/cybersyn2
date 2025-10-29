@@ -16,12 +16,12 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("dt_inbound", "dt_flags", 0)
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("dt_outbound", "dt_flags", 1)
-)
+---@class Cybersyn.Combinator
+---@field public get_dt_inbound fun(): boolean
+---@field public get_dt_outbound fun(): boolean
+
+cs2.register_flag_setting("dt_inbound", "dt_flags", 0)
+cs2.register_flag_setting("dt_outbound", "dt_flags", 1)
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -42,12 +42,12 @@ relm.define_element({
 						"cybersyn2-combinator-mode-delivery-size.set-inbound-delivery-size",
 					}, {
 						"cybersyn2-combinator-mode-delivery-size.set-inbound-delivery-size-tooltip",
-					}, props.combinator, combinator_settings.dt_inbound),
+					}, props.combinator, "dt_inbound"),
 					gui.Checkbox({
 						"cybersyn2-combinator-mode-delivery-size.set-outbound-delivery-size",
 					}, {
 						"cybersyn2-combinator-mode-delivery-size.set-outbound-delivery-size-tooltip",
-					}, props.combinator, combinator_settings.dt_outbound),
+					}, props.combinator, "dt_outbound"),
 				}
 			),
 		})

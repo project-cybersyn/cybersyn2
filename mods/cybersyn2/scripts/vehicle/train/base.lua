@@ -306,20 +306,24 @@ end
 function Train:evaluate_capacity()
 	local old_item_slot_capacity = self.item_slot_capacity
 	local old_fluid_capacity = self.fluid_capacity
+	local pwfc = {} -- per-wagon fluid capacity cache
+	local pwisc = {} -- per-wagon item slot capacity cache
+
 	local carriages = self.lua_train.carriages
 	local item_slot_capacity = 0
 	local fluid_capacity = 0
 	for i = 1, #carriages do
 		local carriage = carriages[i]
 		local ic, fc = train_lib.get_carriage_capacity(carriage)
+		pwfc[i] = fc
+		pwisc[i] = ic
 		item_slot_capacity = item_slot_capacity + ic
 		fluid_capacity = fluid_capacity + fc
 	end
 	self.item_slot_capacity = item_slot_capacity
 	self.fluid_capacity = fluid_capacity
-	-- These will be recomputed on demand by wagon control subsystem.
-	self.per_wagon_fluid_capacity = nil
-	self.per_wagon_item_slot_capacity = nil
+	self.per_wagon_fluid_capacity = pwfc
+	self.per_wagon_item_slot_capacity = pwisc
 	return (
 		old_item_slot_capacity ~= item_slot_capacity
 		or old_fluid_capacity ~= fluid_capacity

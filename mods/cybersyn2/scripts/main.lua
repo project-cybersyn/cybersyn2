@@ -39,12 +39,6 @@ local function on_built(event)
 		or entity.type == "curved-rail-b"
 	then
 		cs2.raise_built_rail(entity)
-	elseif entity.name == COMBINATOR_NAME then
-		cs2.raise_built_combinator(entity, event.tags)
-	elseif
-		entity.name == "entity-ghost" and entity.ghost_name == COMBINATOR_NAME
-	then
-		cs2.raise_built_combinator_ghost(entity)
 	elseif
 		cs2.lib.is_equipment_type(entity.type)
 		or cs2.lib.is_equipment_name(entity.name)
@@ -58,8 +52,6 @@ local filter_built = {
 	{ filter = "type", type = "straight-rail" },
 	{ filter = "type", type = "curved-rail-a" },
 	{ filter = "type", type = "curved-rail-b" },
-	{ filter = "name", name = COMBINATOR_NAME },
-	{ filter = "ghost_name", name = COMBINATOR_NAME },
 }
 for _, type in ipairs(cs2.lib.get_equipment_types()) do
 	table.insert(filter_built, { filter = "type", type = type })
@@ -131,22 +123,6 @@ events.bind(
 )
 
 --------------------------------------------------------------------------------
--- Blueprinting
---------------------------------------------------------------------------------
-
-events.bind(defines.events.on_player_setup_blueprint, function(event)
-	local bp_setup = BlueprintSetup:new(event)
-	if not bp_setup then return end
-	cs2.raise_blueprint_setup(bp_setup)
-end)
-
-events.bind(defines.events.on_pre_build, function(event)
-	local bp_build = BlueprintBuild:new(event)
-	if not bp_build then return end
-	cs2.raise_blueprint_built(bp_build)
-end)
-
---------------------------------------------------------------------------------
 -- Entity destruction
 --------------------------------------------------------------------------------
 
@@ -163,8 +139,6 @@ local function on_destroyed(event)
 		or entity.type == "curved-rail-b"
 	then
 		cs2.raise_broken_rail(entity)
-	elseif entity.name == COMBINATOR_NAME then
-		cs2.raise_broken_combinator(entity)
 	elseif
 		cs2.lib.is_equipment_type(entity.type)
 		or cs2.lib.is_equipment_name(entity.name)
