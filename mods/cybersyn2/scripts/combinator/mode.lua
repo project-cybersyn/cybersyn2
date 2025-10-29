@@ -34,10 +34,10 @@ function _G.cs2.get_combinator_mode(name) return modes[name or ""] end
 events.bind(
 	"cs2.combinator_settings_changed",
 	---@param combinator Cybersyn.Combinator
-	function(combinator, key, value)
+	function(combinator, key, value, old_value, tags)
 		if (not key) or key == "mode" then
 			local prev_mode = combinator.mode
-			local new_mode = value
+			local new_mode = tags.mode --[[@as string]]
 			if prev_mode ~= new_mode then
 				combinator.mode = new_mode
 				combinator:clear_outputs()

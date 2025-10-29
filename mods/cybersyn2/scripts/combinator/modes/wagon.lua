@@ -124,19 +124,19 @@ local function create_or_destroy_hidden_chest(combinator, force_destroy)
 		remote.call("things", "get_transient_child", combinator.id, "proxy_chest")
 	if
 		combinator.mode == "wagon"
-		and combinator.entity
+		and combinator.real_entity
 		and combinator:get_live_wagon_inventory()
 		and not force_destroy
 	then
 		-- Create chest if it doesn't exist
 		if chest and chest.valid then return end
 
-		local combinator_entity = combinator.entity --[[@as LuaEntity]]
+		local combinator_entity = combinator.real_entity --[[@as LuaEntity]]
 
 		chest = combinator_entity.surface.create_entity({
 			name = "cybersyn2-proxy-chest",
-			position = combinator.entity.position,
-			force = combinator.entity.force,
+			position = combinator_entity.position,
+			force = combinator_entity.force,
 		})
 
 		if not chest then

@@ -41,13 +41,14 @@ local function set_tag(combinator, key, value)
 	remote.call("things", "set_tag", combinator.id, key, value)
 end
 
-local function raise_event(combinator, setting_name, new_value, old_value)
+local function raise_event(combinator, setting_name, new_value, old_value, tags)
 	events.raise(
 		"cs2.combinator_settings_changed",
 		combinator,
 		setting_name,
 		new_value,
-		old_value
+		old_value,
+		tags
 	)
 	cs2.raise_combinator_setting_changed(
 		combinator,
@@ -74,7 +75,7 @@ function _G.cs2.register_flag_setting(setting_name, bitfield_key, bit_index)
 		if type(bits) ~= "number" then bits = bits and 1 or 0 end
 		local new_bits = bit_replace(bits, new_value and 1 or 0, bit_index, 1) --[[@as int]]
 		set_tag(self, bitfield_key, new_bits)
-		raise_event(self, setting_name, new_value)
+		raise_event(self, setting_name, new_value, nil, tags)
 	end
 end
 
@@ -92,7 +93,7 @@ function _G.cs2.register_raw_setting(setting_name, key, default)
 		local old_value = tags[key] or default
 		if old_value == new_value then return false end
 		set_tag(self, key, new_value)
-		raise_event(self, key, new_value, old_value)
+		raise_event(self, key, new_value, old_value, tags)
 	end
 end
 
@@ -107,7 +108,7 @@ function Combinator:set_mode(new_mode)
 	local old_mode = tags.mode
 	if old_mode == new_mode then return false end
 	set_tag(self, "mode", new_mode)
-	raise_event(self, "mode", new_mode, old_mode)
+	raise_event(self, "mode", new_mode, old_mode, tags)
 end
 
 --------------------------------------------------------------------------------
@@ -128,7 +129,15 @@ events.bind(
 		end
 		combinator.tag_cache = event.new_tags
 		if event.cause == "engine" then
-			events.raise("cs2.combinator_settings_changed", combinator, nil, nil)
+			strace.info("on_tags_changed: Tags changed by engine", event.new_tags)
+			events.raise(
+				"cs2.combinator_settings_changed",
+				combinator,
+				nil,
+				nil,
+				nil,
+				combinator.tag_cache
+			)
 			cs2.raise_combinator_setting_changed(combinator, nil, nil)
 		end
 	end
