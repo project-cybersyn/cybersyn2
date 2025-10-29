@@ -1,0 +1,10 @@
+{
+  "configurations": [
+  {
+    "type": "factoriomod",
+    "request": "launch",
+    "name": "Factorio Mod Debug (Profile)",
+    "hookMode": "profile"
+  }
+  ]
+}

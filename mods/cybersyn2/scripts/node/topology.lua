@@ -67,6 +67,7 @@ end
 
 ---@return LuaEntity[]
 function Topology:get_combinator_entities()
+	-- TODO: wtf is this for?
 	if not self.surface_index then return {} end
 	return game.get_surface(self.surface_index).find_entities_filtered({
 		name = cs2.COMBINATOR_NAME,

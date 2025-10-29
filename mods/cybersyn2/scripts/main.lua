@@ -39,12 +39,6 @@ local function on_built(event)
 		or entity.type == "curved-rail-b"
 	then
 		cs2.raise_built_rail(entity)
-	elseif entity.name == COMBINATOR_NAME then
-		cs2.raise_built_combinator(entity, event.tags)
-	elseif
-		entity.name == "entity-ghost" and entity.ghost_name == COMBINATOR_NAME
-	then
-		cs2.raise_built_combinator_ghost(entity)
 	elseif
 		cs2.lib.is_equipment_type(entity.type)
 		or cs2.lib.is_equipment_name(entity.name)
@@ -58,8 +52,6 @@ local filter_built = {
 	{ filter = "type", type = "straight-rail" },
 	{ filter = "type", type = "curved-rail-a" },
 	{ filter = "type", type = "curved-rail-b" },
-	{ filter = "name", name = COMBINATOR_NAME },
-	{ filter = "ghost_name", name = COMBINATOR_NAME },
 }
 for _, type in ipairs(cs2.lib.get_equipment_types()) do
 	table.insert(filter_built, { filter = "type", type = type })
@@ -131,22 +123,6 @@ events.bind(
 )
 
 --------------------------------------------------------------------------------
--- Blueprinting
---------------------------------------------------------------------------------
-
-events.bind(defines.events.on_player_setup_blueprint, function(event)
-	local bp_setup = BlueprintSetup:new(event)
-	if not bp_setup then return end
-	cs2.raise_blueprint_setup(bp_setup)
-end)
-
-events.bind(defines.events.on_pre_build, function(event)
-	local bp_build = BlueprintBuild:new(event)
-	if not bp_build then return end
-	cs2.raise_blueprint_built(bp_build)
-end)
-
---------------------------------------------------------------------------------
 -- Entity destruction
 --------------------------------------------------------------------------------
 
@@ -163,8 +139,6 @@ local function on_destroyed(event)
 		or entity.type == "curved-rail-b"
 	then
 		cs2.raise_broken_rail(entity)
-	elseif entity.name == COMBINATOR_NAME then
-		cs2.raise_broken_combinator(entity)
 	elseif
 		cs2.lib.is_equipment_type(entity.type)
 		or cs2.lib.is_equipment_name(entity.name)
@@ -216,26 +190,23 @@ events.bind(
 -- Combinator GUI
 --------------------------------------------------------------------------------
 
-events.bind(defines.events.on_gui_opened, function(event)
-	if not event.entity then return end
-	local player = game.get_player(event.player_index)
-	if not player then return end
-
-	-- Unfortunate spaghetti code case here: when creating a shared inventory
-	-- link, this is the event that ultimately gets raised. We have to distinguish
-	-- between this and someone actually wanting to open a combinator gui.
-	if cs2.try_finish_connection(player, event.entity) then
-		-- Close default combinator UI.
-		player.opened = nil
-	else
-		local comb = cs2.EphemeralCombinator.new(event.entity)
+events.bind(
+	defines.events.on_gui_opened,
+	---@param event EventData.on_gui_opened
+	function(event)
+		if not event.entity then return end
+		local player = game.get_player(event.player_index)
+		if not player then return end
+		local _, id = remote.call("things", "get_thing_id", event.entity)
+		local comb = cs2.get_combinator(id)
 		if not comb then return end
-		cs2.lib.open_combinator_gui(event.player_index, comb)
+
+		cs2.open_combinator_gui(event.player_index, comb)
 	end
-end)
+)
 
 events.bind(defines.events.on_gui_closed, function(event)
 	local element = event.element
 	if not element or element.name ~= cs2.WINDOW_NAME then return end
-	cs2.lib.close_combinator_gui(event.player_index)
+	cs2.close_combinator_gui(event.player_index)
 end)

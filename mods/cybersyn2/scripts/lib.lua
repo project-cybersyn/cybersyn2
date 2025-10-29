@@ -52,7 +52,7 @@ end
 ---Locate all combinators that could potentially be associated to a stop.
 ---@param stop_entity LuaEntity A *valid* train stop entity.
 ---@return LuaEntity[]
-function _G.cs2.lib.find_associable_combinators(stop_entity)
+function _G.cs2.find_associable_combinator_entities(stop_entity)
 	local pos_x = stop_entity.position.x
 	local pos_y = stop_entity.position.y
 	return cs2.lib.find_combinator_entities(stop_entity.surface, {

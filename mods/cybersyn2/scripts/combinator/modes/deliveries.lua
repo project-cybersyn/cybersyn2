@@ -20,19 +20,15 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
+---@class Cybersyn.Combinator
+---@field public get_deliveries_exclude_inbound fun(self: Cybersyn.Combinator): boolean
+---@field public get_deliveries_exclude_outbound fun(self: Cybersyn.Combinator): boolean
+
 -- Exclude inbounds from deliveries output
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("deliveries_exclude_inbound", "deliveries_flags", 0)
-)
+cs2.register_flag_setting("deliveries_exclude_inbound", "deliveries_flags", 0)
 
 -- Exclude outbounds from deliveries output
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting(
-		"deliveries_exclude_outbound",
-		"deliveries_flags",
-		1
-	)
-)
+cs2.register_flag_setting("deliveries_exclude_outbound", "deliveries_flags", 1)
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -52,14 +48,14 @@ relm.define_element({
 						{ "cybersyn2-combinator-mode-deliveries.include-inbound" },
 						{ "cybersyn2-combinator-mode-deliveries.include-inbound-tooltip" },
 						props.combinator,
-						combinator_settings.deliveries_exclude_inbound,
+						"deliveries_exclude_inbound",
 						true
 					),
 					gui.Checkbox(
 						{ "cybersyn2-combinator-mode-deliveries.include-outbound" },
 						{ "cybersyn2-combinator-mode-deliveries.include-outbound-tooltip" },
 						props.combinator,
-						combinator_settings.deliveries_exclude_outbound,
+						"deliveries_exclude_outbound",
 						true
 					),
 				}
@@ -117,10 +113,8 @@ cs2.register_combinator_mode({
 local function update_delivery_combinator(node, comb)
 	local deliveries = node:get_deliveries()
 	if not deliveries then return end
-	local exclude_inbound =
-		comb:read_setting(combinator_settings.deliveries_exclude_inbound)
-	local exclude_outbound =
-		comb:read_setting(combinator_settings.deliveries_exclude_outbound)
+	local exclude_inbound = comb:get_deliveries_exclude_inbound()
+	local exclude_outbound = comb:get_deliveries_exclude_outbound()
 
 	---@type SignalCounts
 	local signals = {}

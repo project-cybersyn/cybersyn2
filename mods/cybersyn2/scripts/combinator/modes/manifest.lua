@@ -19,15 +19,15 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
+---@class Cybersyn.Combinator
+---@field public get_dropoff_signal fun(): SignalID?
+---@field public get_pickup_signal fun(): SignalID?
+
 -- Virtual signal supplied when a train is dropping off
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("dropoff_signal", "dropoff_signal")
-)
+cs2.register_raw_setting("dropoff_signal", "dropoff_signal")
 
 -- Virtual signal supplied when a train is picking up
-cs2.register_combinator_setting(
-	cs2.lib.make_raw_setting("pickup_signal", "pickup_signal")
-)
+cs2.register_raw_setting("pickup_signal", "pickup_signal")
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -44,13 +44,9 @@ relm.define_element({
 						caption = { "cybersyn2-combinator-mode-manifest.signal-dropoff" },
 						top_margin = 6,
 					}, {
-						gui.VirtualSignalPicker(
-							props.combinator,
-							combinator_settings.dropoff_signal,
-							{
-								"cybersyn2-combinator-mode-manifest.tooltip-dropoff",
-							}
-						),
+						gui.VirtualSignalPicker(props.combinator, "dropoff_signal", {
+							"cybersyn2-combinator-mode-manifest.tooltip-dropoff",
+						}),
 					}),
 					ultros.Labeled({
 						caption = { "cybersyn2-combinator-mode-manifest.signal-pickup" },
@@ -58,7 +54,7 @@ relm.define_element({
 					}, {
 						gui.VirtualSignalPicker(
 							props.combinator,
-							combinator_settings.pickup_signal,
+							"pickup_signal",
 							{ "cybersyn2-combinator-mode-manifest.tooltip-pickup" }
 						),
 					}),
@@ -127,7 +123,7 @@ cs2.on_train_arrived(function(train, cstrain, stop)
 	if delivery.from_id == stop.id then
 		-- Pickup
 		for _, comb in pairs(combs) do
-			local pickup_signal = comb:read_setting(combinator_settings.pickup_signal)
+			local pickup_signal = comb:get_pickup_signal()
 			if pickup_signal then
 				comb:write_outputs(
 					delivery.manifest,
@@ -142,8 +138,7 @@ cs2.on_train_arrived(function(train, cstrain, stop)
 	elseif delivery.to_id == stop.id then
 		-- Dropoff
 		for _, comb in pairs(combs) do
-			local dropoff_signal =
-				comb:read_setting(combinator_settings.dropoff_signal)
+			local dropoff_signal = comb:get_dropoff_signal()
 			if dropoff_signal then
 				comb:write_outputs(
 					delivery.manifest,

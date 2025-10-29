@@ -120,7 +120,7 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	local comb = combs[1]
 
 	-- Read primary input wire
-	local primary_wire = comb:read_setting(combinator_settings.primary_wire)
+	local primary_wire = comb:get_primary_wire()
 	comb:read_inputs()
 	local inputs = comb.red_inputs
 	if primary_wire == "green" then inputs = comb.green_inputs end
@@ -137,22 +137,19 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	stop.threshold_item_out = nil
 
 	-- Autothresholds
-	local disable_auto_thresholds =
-		comb:read_setting(combinator_settings.disable_auto_thresholds)
+	local disable_auto_thresholds = comb:get_disable_auto_thresholds()
 	stop.disable_auto_thresholds = disable_auto_thresholds
 	if not disable_auto_thresholds then
 		stop.auto_threshold_fraction = mod_settings.default_auto_threshold_fraction
-		local auto_threshold_percent =
-			comb:read_setting(combinator_settings.auto_threshold_percent)
+		local auto_threshold_percent = comb:get_auto_threshold_percent()
 		if auto_threshold_percent then
 			stop.auto_threshold_fraction = auto_threshold_percent / 100
 		end
 	end
 
 	-- Read configuration values
-	stop.stack_thresholds =
-		not not comb:read_setting(combinator_settings.use_stack_thresholds)
-	local pr = comb:read_setting(combinator_settings.pr) or 0
+	stop.stack_thresholds = not not comb:get_use_stack_thresholds()
+	local pr = comb:get_pr() or 0
 	if pr == 0 then
 		stop.is_consumer = true
 		stop.is_producer = true
@@ -178,21 +175,20 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 		end
 	end
 	if not next(default_networks) then
-		local network_signal = comb:read_setting(combinator_settings.network_signal)
+		local network_signal = comb:get_network_signal()
 		if network_signal then default_networks = { [network_signal] = -1 } end
 	end
 	stop.default_networks = default_networks
-	stop.allow_departure_signal =
-		comb:read_setting(combinator_settings.allow_departure_signal)
-	stop.force_departure_signal =
-		comb:read_setting(combinator_settings.force_departure_signal)
-	local inact_sec = comb:read_setting(combinator_settings.inactivity_timeout)
+	stop.allow_departure_signal = comb:get_allow_departure_signal()
+	stop.force_departure_signal = comb:get_force_departure_signal()
+
+	local inact_sec = comb:get_inactivity_timeout()
 	if inact_sec then
 		stop.inactivity_timeout = inact_sec * 60 -- convert to ticks
 	else
 		stop.inactivity_timeout = nil
 	end
-	local im_setting = comb:read_setting(combinator_settings.inactivity_mode)
+	local im_setting = comb:get_inactivity_mode()
 	if im_setting == 0 then
 		stop.inactivity_mode = nil
 	elseif im_setting == 1 then
@@ -200,18 +196,12 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	elseif im_setting == 2 then
 		stop.inactivity_mode = "forceout"
 	end
-	stop.disable_cargo_condition =
-		comb:read_setting(combinator_settings.disable_cargo_condition)
-	stop.produce_single_item =
-		comb:read_setting(combinator_settings.produce_single_item)
-	stop.reserved_slots = comb:read_setting(combinator_settings.reserved_slots)
-		or 0
-	stop.reserved_capacity = comb:read_setting(
-		combinator_settings.reserved_capacity
-	) or 0
-	stop.spillover = comb:read_setting(combinator_settings.spillover) or 0
-	stop.ignore_secondary_thresholds =
-		comb:read_setting(combinator_settings.ignore_secondary_thresholds)
+	stop.disable_cargo_condition = comb:get_disable_cargo_condition()
+	stop.produce_single_item = comb:get_produce_single_item()
+	stop.reserved_slots = comb:get_reserved_slots() or 0
+	stop.reserved_capacity = comb:get_reserved_capacity() or 0
+	stop.spillover = comb:get_spillover() or 0
+	stop.ignore_secondary_thresholds = comb:get_ignore_secondary_thresholds()
 
 	-- Inventory has already been polled at this point so nothing left to do
 	-- at station comb.
@@ -232,8 +222,8 @@ function LogisticsThread:poll_dt_combs(stop)
 		comb:read_inputs()
 		local inputs = comb.inputs
 		if not inputs then return end
-		local is_in = comb:read_setting(combinator_settings.dt_inbound)
-		local is_out = comb:read_setting(combinator_settings.dt_outbound)
+		local is_in = comb:get_dt_inbound()
+		local is_out = comb:get_dt_outbound()
 		for k, v in pairs(inputs) do
 			if k == "cybersyn2-all-items" then
 				if is_in then stop.threshold_item_in = v end

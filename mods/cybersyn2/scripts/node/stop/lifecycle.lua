@@ -5,6 +5,8 @@
 
 local tlib = require("lib.core.table")
 local cs2 = _G.cs2
+local events = require("lib.core.event")
+
 local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
 local TrainStop = _G.cs2.TrainStop
@@ -61,9 +63,10 @@ function reassociate_recursive(combinators, depth)
 	local new_stop_entities = {}
 
 	for _, combinator in ipairs(combinators) do
+		if not combinator.real_entity then goto continue end
 		-- Find the preferred stop for association
 		local target_stop_entity, target_rail_entity =
-			cs2.lib.find_associable_entities_for_combinator(combinator.entity)
+			cs2.lib.find_associable_entities_for_combinator(combinator.real_entity)
 		-- Ignore entities that are being destroyed
 		local entities_being_destroyed = storage.entities_being_destroyed or empty
 		if
@@ -116,6 +119,7 @@ function reassociate_recursive(combinators, depth)
 			local old_node = Node.disassociate_combinator(combinator, true)
 			if old_node then affected_stop_set[old_node.id] = true end
 		end
+		::continue::
 	end
 
 	-- Fire batch set-change events for all affected stops
@@ -147,12 +151,12 @@ function create_recursive(stop_entities, depth)
 			-- Create the new stop state.
 			stop = TrainStop.new(stop_entity)
 			-- Recursively reassociate combinators near the new stop.
-			local combs = cs2.lib.find_associable_combinators(stop_entity)
+			local combs = cs2.find_associable_combinator_entities(stop_entity)
 			if #combs > 0 then
-				local comb_states = tlib.map(
-					combs,
-					function(comb) return Combinator.get(comb.unit_number) end
-				)
+				local comb_states = tlib.map(combs, function(comb)
+					local _, id = remote.call("things", "get_thing_id", comb)
+					return cs2.get_combinator(id, true)
+				end)
 				if #comb_states > 0 then
 					reassociate_recursive(comb_states, depth + 1)
 				end
@@ -174,12 +178,12 @@ end
 
 -- When a stop is built, check for combinators nearby and associate them.
 cs2.on_built_train_stop(function(stop_entity)
-	local combs = cs2.lib.find_associable_combinators(stop_entity)
+	local combs = cs2.find_associable_combinator_entities(stop_entity)
 	if #combs > 0 then
-		local comb_states = tlib.map(
-			combs,
-			function(comb) return Combinator.get(comb.unit_number) end
-		)
+		local comb_states = tlib.map(combs, function(comb)
+			local _, id = remote.call("things", "get_thing_id", comb)
+			return cs2.get_combinator(id, true)
+		end)
 		cs2.lib.reassociate_combinators(comb_states)
 	end
 end)
@@ -199,9 +203,13 @@ cs2.on_broken_train_stop(function(stop_entity)
 	stop:destroy()
 end)
 
--- When a combinator is created, try to associate it to train stops
-cs2.on_combinator_created(
-	function(combinator) cs2.lib.reassociate_combinators({ combinator }) end
+-- Try to bind real combinators to train stops.
+events.bind(
+	"cs2.combinator_status_changed",
+	---@param comb Cybersyn.Combinator
+	function(comb)
+		if comb.real_entity then cs2.lib.reassociate_combinators({ comb }) end
+	end
 )
 
 -- When a stop loses all its combinators, destroy it

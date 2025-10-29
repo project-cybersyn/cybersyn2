@@ -12,8 +12,8 @@ local HF = ultros.HFlow
 ---setting automatically.
 ---@param caption LocalisedString
 ---@param tooltip LocalisedString?
----@param combinator Cybersyn.Combinator.Ephemeral
----@param setting Cybersyn.Combinator.SettingDefinition
+---@param combinator Cybersyn.Combinator
+---@param setting string
 ---@param inverse boolean? If true, the checkbox will be inverted (checked when the setting is false).
 ---@param disabled boolean? If true, the checkbox will be disabled and not interactable.
 ---@param value_when_disabled boolean? If `disabled` is true, this will be the value shown in the checkbox.
@@ -26,7 +26,8 @@ function _G.cs2.gui.Checkbox(
 	disabled,
 	value_when_disabled
 )
-	local value = combinator:read_setting(setting)
+	local value = combinator["get_" .. setting](combinator)
+	local setter = combinator["set_" .. setting]
 	if inverse then value = not value end
 	if disabled and value_when_disabled ~= nil then
 		value = value_when_disabled
@@ -40,34 +41,38 @@ function _G.cs2.gui.Checkbox(
 		on_change = function(_, state)
 			local new_state = state
 			if inverse then new_state = not state end
-			combinator:write_setting(setting, new_state)
+			setter(combinator, new_state)
 		end,
 	})
 end
 
 ---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
 ---combinator setting.
+---@param setting string The name of the setting to read/write.
 function _G.cs2.gui.AnySignalPicker(combinator, setting, tooltip)
+	local setter = combinator["set_" .. setting]
 	return ultros.SignalPicker({
 		tooltip = tooltip,
-		value = combinator:read_setting(setting),
+		value = combinator["get_" .. setting](combinator),
 		on_change = function(_, signal)
 			if signal and signal.type == nil then signal.type = "item" end
-			combinator:write_setting(setting, signal)
+			setter(combinator, signal)
 		end,
 	})
 end
 
 ---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
 ---combinator setting. Only allows virtual signals.
+---@param setting string The name of the setting to read/write.
 function _G.cs2.gui.VirtualSignalPicker(combinator, setting, tooltip)
+	local setter = combinator["set_" .. setting]
 	return ultros.SignalPicker({
 		tooltip = tooltip,
-		value = combinator:read_setting(setting),
+		value = combinator["get_" .. setting](combinator),
 		on_change = function(_, signal, elem)
-			if not signal then return combinator:write_setting(setting, nil) end
+			if not signal then return setter(combinator, nil) end
 			if signal.type == "virtual" then
-				combinator:write_setting(setting, signal)
+				setter(combinator, signal)
 			else
 				game.print("Invalid signal type. Please select a virtual signal.", {
 					color = { 255, 128, 0 },
@@ -83,18 +88,20 @@ end
 
 ---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
 ---combinator setting. Only allows valid network signals.
+---@param setting string The name of the setting to read/write.
 function _G.cs2.gui.NetworkSignalPicker(combinator, setting, tooltip)
+	local setter = combinator["set_" .. setting]
 	return ultros.SignalPicker({
 		tooltip = tooltip,
-		virtual_signal = combinator:read_setting(setting),
+		virtual_signal = combinator["get_" .. setting](combinator),
 		on_change = function(_, signal, elem)
-			if not signal then return combinator:write_setting(setting, nil) end
+			if not signal then return setter(combinator, nil) end
 			if
 				signal.type == "virtual"
 				and not cs2.INVALID_NETWORK_SIGNAL_SET[signal.name]
 			then
 				local stored = signal.name
-				combinator:write_setting(setting, stored)
+				setter(combinator, stored)
 			else
 				game.print(
 					{ "cybersyn2-gui.virtual-signals-only" },
@@ -106,14 +113,14 @@ function _G.cs2.gui.NetworkSignalPicker(combinator, setting, tooltip)
 	})
 end
 
+---@param setting string
 function _G.cs2.gui.Dropdown(user_props, combinator, setting, options)
-	local value = combinator:read_setting(setting)
+	local value = combinator["get_" .. setting](combinator)
+	local setter = combinator["set_" .. setting]
 	local props = ultros.assign({
 		value = value,
 		options = options,
-		on_change = function(_, selected)
-			combinator:write_setting(setting, selected)
-		end,
+		on_change = function(_, selected) setter(combinator, selected) end,
 	}, user_props)
 	return ultros.Dropdown(props)
 end
@@ -126,22 +133,25 @@ _G.cs2.gui.InnerHeading = ultros.customize_primitive({
 })
 
 ---@param tooltip LocalisedString?
+---@param setting string
 function _G.cs2.gui.Switch(tooltip, is_tristate, L, R, combinator, setting)
+	local setter = combinator["set_" .. setting]
 	return ultros.Switch({
 		left_label_caption = L,
 		right_label_caption = R,
 		tooltip = tooltip,
 		allow_none_state = is_tristate,
-		value = combinator:read_setting(setting),
-		on_change = function(_, state) combinator:write_setting(setting, state) end,
+		value = combinator["get_" .. setting](combinator),
+		on_change = function(_, state) setter(combinator, state) end,
 	})
 end
 
 _G.cs2.gui.Input = relm.define_element({
 	name = "CombinatorGui.Input",
 	render = function(props, state)
+		local combinator = props.combinator
 		local dirty = not not (state and state.dirty)
-		local value = props.combinator:read_setting(props.setting)
+		local value = combinator["get_" .. props.setting](combinator)
 		if not value and props.displayed_default_value then
 			value = props.displayed_default_value
 		end
@@ -162,7 +172,7 @@ _G.cs2.gui.Input = relm.define_element({
 			return true
 		elseif message.key == "on_confirm" then
 			-- Handle on_confirm to save the value and clear dirty state
-			props.combinator:write_setting(props.setting, message.value)
+			props.combinator["set_" .. props.setting](props.combinator, message.value)
 			relm.set_state(me, { dirty = false })
 			return true
 		else

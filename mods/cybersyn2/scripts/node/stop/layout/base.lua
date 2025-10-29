@@ -104,7 +104,7 @@ function TrainStopLayout:clear_layout()
 		cs2.raise_train_stop_layout_changed(stop, self)
 		local combs = tlib.t_map_a(
 			stop.combinator_set,
-			function(_, combinator_id) return Combinator.get(combinator_id, true) end
+			function(_, combinator_id) return cs2.get_combinator(combinator_id, true) end
 		)
 		cs2.lib.reassociate_combinators(combs)
 	end
@@ -297,19 +297,25 @@ function TrainStop:compute_layout(ignored_entity_set)
 	-- that were associated but may be outside the new bbox must all be checked.
 	local comb_entities =
 		cs2.lib.find_combinator_entities(stop_entity.surface, bbox)
-	local comb_set = tlib.t_map_t(comb_entities, function(_, entity)
-		if not ignored_entity_set or not ignored_entity_set[entity.unit_number] then
-			return entity.unit_number, true
-		else
-			return nil, nil
+	local reassociable_comb_id_set = tlib.t_map_t(
+		comb_entities,
+		function(_, entity)
+			if
+				not ignored_entity_set or not ignored_entity_set[entity.unit_number]
+			then
+				local _, id = remote.call("things", "get_thing_id", entity)
+				return id, true
+			else
+				return nil, nil
+			end
 		end
-	end)
+	)
 	for comb_id in pairs(self.combinator_set) do
-		comb_set[comb_id] = true
+		reassociable_comb_id_set[comb_id] = true
 	end
 	local reassociable_combs = tlib.t_map_a(
-		comb_set,
-		function(_, comb_id) return Combinator.get(comb_id) end
+		reassociable_comb_id_set,
+		function(_, comb_id) return cs2.get_combinator(comb_id) end
 	)
 	cs2.lib.reassociate_combinators(reassociable_combs)
 
