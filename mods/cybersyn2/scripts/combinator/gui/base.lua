@@ -100,6 +100,7 @@ local Pr = relm.Primitive
 local ModePicker = relm.define_element({
 	name = "CombinatorGui.ModePicker",
 	render = function(props)
+		relm_util.use_event("cs2.combinator_settings_changed")
 		if not props.combinator then
 			return VF({
 				Pr({ type = "label", caption = { "cybersyn2-gui.no-combinator" } }),
@@ -123,7 +124,12 @@ local ModePicker = relm.define_element({
 		})
 	end,
 	message = function(me, payload, props)
-		if payload.key == "combinator_settings_updated" then
+		if
+			payload.key == "cs2.combinator_settings_changed"
+			and payload[1]
+			and props.combinator
+			and payload[1].id == props.combinator.id
+		then
 			relm.paint(me)
 			return true
 		elseif payload.key == "set_combinator_mode" then
