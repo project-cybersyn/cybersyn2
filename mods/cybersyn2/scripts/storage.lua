@@ -58,7 +58,7 @@ local function get_player_state(player_index)
 end
 _G.cs2.get_player_state = get_player_state
 
-events.bind("on_startup", function()
+local function clear_storage()
 	storage.players = {}
 	storage.vehicles = {}
 	storage.combinators = {}
@@ -79,4 +79,7 @@ events.bind("on_startup", function()
 	storage.alerts_by_entity = {}
 	storage.views = {}
 	storage.entities_being_destroyed = {}
-end, true)
+end
+
+events.bind("on_startup", clear_storage, true)
+events.bind("on_shutdown", clear_storage)
