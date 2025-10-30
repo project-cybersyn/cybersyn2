@@ -212,10 +212,10 @@ local function update_stop_overlay(stop)
 	local n_assoc = 0
 	for comb_id in pairs(stop.combinator_set) do
 		local comb = cs2.get_combinator(comb_id)
-		if comb and comb.real_entity then
+		if comb and comb:is_real() then
 			n_assoc = n_assoc + 1
 			local assoc = overlay.associations[n_assoc]
-			if not assoc then
+			if not assoc or not assoc.valid then
 				assoc = rendering.draw_line({
 					color = { r = 0, g = 1, b = 0.25, a = 0.25 },
 					width = 2,

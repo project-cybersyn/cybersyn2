@@ -63,7 +63,9 @@ function reassociate_recursive(combinators, depth)
 	local new_stop_entities = {}
 
 	for _, combinator in ipairs(combinators) do
-		if not combinator.real_entity then goto continue end
+		if (not combinator.real_entity) or not combinator.real_entity.valid then
+			goto continue
+		end
 		-- Find the preferred stop for association
 		local target_stop_entity, target_rail_entity =
 			cs2.lib.find_associable_entities_for_combinator(combinator.real_entity)
