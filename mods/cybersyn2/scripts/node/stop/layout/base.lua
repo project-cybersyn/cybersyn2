@@ -289,14 +289,26 @@ function TrainStop:compute_layout(ignored_entity_set)
 		b = b + reach
 		mlib.bbox_set(bbox, l, t, r, b)
 	end
-	mlib.bbox_round(bbox)
+	bbox = mlib.bbox_round(mlib.bbox_new(bbox))
 	stop_layout.bbox = bbox
 	stop_layout.direction = direction_from_stop
 
 	-- Reassociate combinators. Combinators in the bbox as well as combinators
 	-- that were associated but may be outside the new bbox must all be checked.
+	stlib.trace(
+		"compute_layout: reassociating combinators for stop",
+		stop_id,
+		"in bbox",
+		bbox
+	)
 	local comb_entities =
 		cs2.lib.find_combinator_entities(stop_entity.surface, bbox)
+	stlib.trace(
+		"compute_layout found",
+		#comb_entities,
+		"combinators in bbox for stop",
+		stop_id
+	)
 	local reassociable_comb_id_set = tlib.t_map_t(
 		comb_entities,
 		function(_, entity)
@@ -313,9 +325,21 @@ function TrainStop:compute_layout(ignored_entity_set)
 	for comb_id in pairs(self.combinator_set) do
 		reassociable_comb_id_set[comb_id] = true
 	end
+	stlib.trace(
+		"compute_layout found",
+		table_size(reassociable_comb_id_set),
+		"reassociable combinators for stop",
+		stop_id
+	)
 	local reassociable_combs = tlib.t_map_a(
 		reassociable_comb_id_set,
 		function(_, comb_id) return cs2.get_combinator(comb_id) end
+	)
+	stlib.trace(
+		"compute_layout: after filtering, reassociating",
+		#reassociable_combs,
+		"combinators for stop",
+		stop_id
 	)
 	cs2.lib.reassociate_combinators(reassociable_combs)
 

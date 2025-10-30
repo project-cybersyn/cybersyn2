@@ -6,6 +6,7 @@
 local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local events = require("lib.core.event")
+local strace = require("lib.core.strace")
 
 local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
@@ -53,6 +54,13 @@ function reassociate_recursive(combinators, depth)
 		-- 50 train stops linked to each other by ambiguous combinators.
 		error("reassociate_recursive: Recursion limit reached.")
 	end
+
+	if not next(combinators) then
+		strace.trace("reassociate_recursive: empty combinator list")
+		return
+	end
+
+	strace.trace("reassociate_recursive depth", depth, "combs", combinators)
 
 	-- Node ids of stops whose combinator sets are being changed.
 	---@type IdSet
@@ -133,6 +141,7 @@ function reassociate_recursive(combinators, depth)
 	-- Create new stops as needed, recursively reassociating combinators near
 	-- the created stops.
 	if #new_stop_entities > 0 then
+		strace.trace("reassociate_recursive: creating new stops", new_stop_entities)
 		create_recursive(new_stop_entities, depth + 1)
 	end
 end
@@ -145,6 +154,8 @@ function create_recursive(stop_entities, depth)
 		-- 50 train stops linked to each other by ambiguous combinators.
 		error("create_recursive: Recursion limit reached.")
 	end
+
+	strace.trace("create_recursive depth", depth, "stops", stop_entities)
 
 	for _, stop_entity in ipairs(stop_entities) do
 		local stop_id = stop_entity.unit_number --[[@as uint]]
