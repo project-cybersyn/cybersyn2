@@ -90,10 +90,11 @@ events.bind(
 			if ev.old_status == "void" and ev.new_status ~= "destroyed" then
 				comb = create_combinator(ev.thing)
 			else
-				error(
-					"Referential integrity failure: no matching Combinator for Thing "
-						.. ev.thing.id
+				stlib.error(
+					"Referential integrity failure: no matching Combinator for Thing",
+					ev.thing.id
 				)
+				return
 			end
 		end
 
