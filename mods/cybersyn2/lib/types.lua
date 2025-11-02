@@ -224,6 +224,14 @@ lib.NodeNetworkOperation = {
 ---@field public left_dirty? string If this field exists, the train left the `to` stop without being fully unloaded. The string contains engine diagnostic info.
 
 --------------------------------------------------------------------------------
+-- Plugin and API types.
+--------------------------------------------------------------------------------
+
+---@class Cybersyn2.RoutePlugin
+---@field reachable_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for reachability information.
+---@field route_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for routing decisions.
+
+--------------------------------------------------------------------------------
 -- Public type encodings for the query interface.
 --------------------------------------------------------------------------------
 

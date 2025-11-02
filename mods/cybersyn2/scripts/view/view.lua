@@ -57,6 +57,7 @@ function View:exit_nodes(topology) end
 
 function View:enter_vehicles() end
 
+---Visit a Vehicle object. NOTE: vehicle may be volatile.
 ---@param vehicle Cybersyn.Vehicle
 function View:enter_vehicle(vehicle) end
 

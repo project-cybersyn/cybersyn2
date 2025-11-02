@@ -58,7 +58,8 @@ function TrainMonitor:enum_luatrain(luatrain)
 
 	-- If train has no group, remove it if we know about it
 	if not group_name then
-		if vehicle then
+		-- Don't destroy volatile trains.
+		if vehicle and not vehicle.volatile then
 			strace(
 				stlib.DEBUG,
 				"Destroying vehicle for not being in a train group",
@@ -70,6 +71,10 @@ function TrainMonitor:enum_luatrain(luatrain)
 	end
 
 	self.seen_groups[group_name] = true
+
+	-- Don't consider volatile vehicles further.
+	if vehicle and vehicle.volatile then return end
+
 	local group = cs2.get_train_group(group_name)
 	if group then
 		if vehicle then
@@ -133,7 +138,13 @@ end
 function TrainMonitor:enum_cstrain(vehicle_id)
 	if not vehicle_id then return end
 	local train = Vehicle.get(vehicle_id, true)
-	if train and (not train:is_valid()) then
+	if not train then
+		-- Vehicle got async deleted somehow...
+		return
+	end
+	---@cast train Cybersyn.Train
+
+	if (not train.volatile) and (not train:is_valid()) then
 		strace(
 			stlib.INFO,
 			"message",
@@ -143,8 +154,6 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 		train:destroy()
 		return
 	end
-
-	---@cast train Cybersyn.Train
 
 	local layout_id = train.layout_id
 	if not layout_id then

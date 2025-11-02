@@ -138,7 +138,6 @@ function Train.new(lua_train)
 	local train = Vehicle.new("train") --[[@as Cybersyn.Train]]
 	setmetatable(train, Train)
 	train.lua_train = lua_train
-	train.stock = stock
 	train.lua_train_id = lua_train.id
 	train.topology_id = topology.id
 	train.home_surface_index = stock.surface_index
@@ -203,9 +202,50 @@ function Train:is_volatile()
 	end
 end
 
+---Place the train into a volatile state, where Cybersyn 2 no longer tracks
+---its LuaTrain object.
+function Train:set_volatile()
+	self.volatile = true
+	self.stock = nil
+end
+
+---Return a volatile train to CS2's control, replacing its LuaTrain if provided.
+---@param new_luatrain? LuaTrain
+function Train:clear_volatile(new_luatrain)
+	if not self.volatile then return end
+	self.volatile = false
+	if new_luatrain and new_luatrain.valid then
+		-- Swap out the LuaTrains.
+		if self.lua_train_id then
+			storage.luatrain_id_to_vehicle_id[self.lua_train_id] = nil
+		end
+		if self.lua_train and self.lua_train.valid then
+			storage.luatrain_id_to_vehicle_id[self.lua_train.id] = nil
+		end
+		self.lua_train = new_luatrain
+		storage.luatrain_id_to_vehicle_id[new_luatrain.id] = self.id
+		self.stock = nil
+	else
+		-- Incorrect recovery from volatility; destroy the vehicle.
+		if (not self.lua_train) or not self.lua_train.valid then self:destroy() end
+	end
+end
+
+---@return LuaEntity? #The main stock of the train, or `nil` if not available.
 function Train:get_stock()
-	-- TODO: volatility
-	return self.stock
+	if self.volatile then return nil end
+	if self.stock then return self.stock end
+	local lua_train = self.lua_train
+	local stock = lua_train
+		and lua_train.valid
+		and (
+			lua_train.front_stock
+			or lua_train.back_stock
+			or lua_train.carriages[1]
+		)
+	if not stock then stock = nil end
+	self.stock = stock
+	return stock
 end
 
 ---@param delivery Cybersyn.TrainDelivery
@@ -275,7 +315,9 @@ function Train:schedule(...)
 end
 
 function Train:is_available()
-	if self.delivery_id or not self:is_valid() then return false end
+	if self.delivery_id or self.volatile or not self:is_valid() then
+		return false
+	end
 	-- Honor vehicle warmup time
 	if
 		game.tick - (self.created_tick or 0)

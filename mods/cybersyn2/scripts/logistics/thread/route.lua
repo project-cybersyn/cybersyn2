@@ -22,6 +22,22 @@ local ERROR = stlib.ERROR
 local dist = _G.cs2.lib.dist
 local key_is_fluid = signal.key_is_fluid
 
+local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn2.RoutePlugin} ]]
+
+local reachable_callbacks = tlib.t_map_a(
+	route_plugins or {},
+	function(plugin) return plugin.reachable_callback end
+) --[[@as Core.RemoteCallbackSpec[] ]]
+
+local function query_reachable_callbacks(...)
+	for _, callback in pairs(reachable_callbacks) do
+		if callback then
+			local result = remote.call(callback[1], callback[2], ...)
+			if result then return result end
+		end
+	end
+end
+
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
@@ -270,6 +286,7 @@ local function train_score(train, allocation, train_capacity)
 	local cap_ratio = min(allocation.qty / train_capacity, 1.0)
 	-- Amongst the best-fitting trains, penalize those that are further away
 	local train_stock = train:get_stock()
+	if not train_stock then return -math.huge end
 	local stop = (allocation.from --[[@as Cybersyn.TrainStop]]).entity --[[@as LuaEntity]]
 	local dx = dist(stop, train_stock)
 
@@ -361,6 +378,22 @@ function LogisticsThread:route_train_allocation(allocation, index)
 		end
 		-- Check if allowlisted at both ends
 		if not (from:allows_train(train) and to:allows_train(train)) then
+			allowlist_rejections = allowlist_rejections + 1
+			goto continue
+		end
+		-- Check if any plugin vetoes reachability
+		if
+			query_reachable_callbacks(
+				train.id,
+				from.id,
+				to.id,
+				train:get_stock(),
+				train.home_surface_index,
+				from.entity,
+				to.entity
+			)
+		then
+			-- TODO: counting plugin rejection as an allowlist rejection for now...
 			allowlist_rejections = allowlist_rejections + 1
 			goto continue
 		end

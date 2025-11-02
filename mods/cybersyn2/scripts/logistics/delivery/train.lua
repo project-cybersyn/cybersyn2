@@ -242,11 +242,37 @@ local function dropoff_entry(stop)
 	return add
 end
 
+local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn2.RoutePlugin} ]]
+
+local route_callbacks = tlib.t_map_a(
+	route_plugins or {},
+	function(plugin) return plugin.route_callback end
+) --[[@as Core.RemoteCallbackSpec[] ]]
+
+local function query_route_plugins(...)
+	for _, route_callback in pairs(route_callbacks) do
+		if route_callback then
+			local result = remote.call(route_callback[1], route_callback[2], ...)
+			if result then return result end
+		end
+	end
+end
+
 function TrainDelivery:goto_from()
 	local train = Train.get(self.vehicle_id)
 	local from = TrainStop.get(self.from_id)
 	if not train or not from then return self:fail() end
 	if self.state == "to_from" then return end
+
+	if self.state ~= "plugin_handoff" then
+		local result = query_route_plugins(self.id, "pickup")
+		if result then
+			self.handoff_state = "to_from"
+			train:set_volatile()
+			return self:set_state("plugin_handoff")
+		end
+	end
+
 	local ok, reason = train:schedule(
 		coordinate_entry(from.entity),
 		pickup_entry(from, self.manifest)
@@ -263,9 +289,19 @@ end
 function TrainDelivery:goto_to()
 	local train = Train.get(self.vehicle_id)
 	local to = TrainStop.get(self.to_id)
-	if not train or not to then return self:fail() end
 	self:clear_from_charge()
+	if not train or not to then return self:fail() end
 	if self.state == "to_to" then return end
+
+	if self.state ~= "plugin_handoff" then
+		local result = query_route_plugins(self.id, "dropoff")
+		if result then
+			self.handoff_state = "to_to"
+			train:set_volatile()
+			return self:set_state("plugin_handoff")
+		end
+	end
+
 	local ok, reason =
 		train:schedule(coordinate_entry(to.entity), dropoff_entry(to))
 	if ok then
@@ -280,15 +316,24 @@ end
 function TrainDelivery:complete()
 	self:clear_from_charge()
 	self:clear_to_charge()
-	self:set_state("completed")
 	local train = Train.get(self.vehicle_id)
 	if train then
-		train:clear_delivery(self.id)
+		if self.state ~= "plugin_handoff" then
+			train:clear_delivery(self.id)
+			local result = query_route_plugins("completed", self.id)
+			if result then
+				self.handoff_state = "complete"
+				train:set_volatile()
+				return self:set_state("plugin_handoff")
+			end
+		end
+
 		if not train:is_empty() then
 			self.left_dirty = "Train was not fully unloaded at destination."
 			-- TODO: tainted train handling
 		end
 	end
+	self:set_state("completed")
 end
 
 ---Train stop invokes this to notify a train on this delivery left
@@ -363,6 +408,28 @@ function TrainDelivery:notify_interrupted()
 	end
 end
 
+---@param new_luatrain? LuaTrain A new LuaTrain object to replace the existing one.
+function TrainDelivery:notify_plugin_handoff(new_luatrain)
+	if self.state ~= "plugin_handoff" then return end
+
+	local train = Train.get(self.vehicle_id)
+	if not train then return end
+	train:clear_volatile(new_luatrain)
+
+	if self.handoff_state == "to_from" then
+		cs2.enqueue_delivery_operation(self, "goto_from")
+	elseif self.handoff_state == "to_to" then
+		cs2.enqueue_delivery_operation(self, "goto_to")
+	elseif self.handoff_state == "completed" then
+		-- Handoff completed after delivery was done.
+		self:set_state("completed")
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
 ---If a train arrives at or departs a non-Cybersyn station while it's
 ---interrupted, attempt to retry the delivery.
 ---@param cstrain Cybersyn.Train?
@@ -373,10 +440,6 @@ local function interrupt_checker(train, cstrain, stop)
 		if delivery then delivery:notify_interrupted() end
 	end
 end
-
---------------------------------------------------------------------------------
--- Events
---------------------------------------------------------------------------------
 
 cs2.on_train_arrived(interrupt_checker)
 
