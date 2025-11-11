@@ -59,7 +59,7 @@ function LogisticsThread:init()
 	end
 end
 
--- Start threads when topologies are created/destroyed.
+-- Start/stop threads when topologies are created/destroyed.
 cs2.on_topologies(function(topology, action)
 	if action == "created" then
 		local thread = LogisticsThread:new(topology)

@@ -109,11 +109,11 @@ function _G.cs2.query_handlers.topologies(arg)
 	---@type Cybersyn.Topology[]
 	local res = nil
 	if arg.ids then
-		res = map(arg.ids, function(id) return Topology.get(id) end)
+		res = map(arg.ids, function(id) return cs2.get_topology(id) end)
 	elseif arg.surface_index then
 		res = map(
 			arg.surface_index,
-			function(surface_index) return Topology.get_train_topology(surface_index) end
+			function(surface_index) return cs2.get_train_topology(surface_index) end
 		)
 	else
 		res = tlib.t_map_a(storage.topologies, function(t) return t end)

@@ -244,20 +244,26 @@ cs2.on_node_destroyed(function(node)
 	cs2.destroy_alerts(node.entity)
 end)
 
+local function topologize_stops()
+	strace.trace("Reassigning topologies for stops")
+	for _, stop in pairs(storage.nodes) do
+		if stop.type == "stop" and stop:is_valid() then
+			-- TODO: manual topologies
+			---@cast stop Cybersyn.TrainStop
+			local train_topology = cs2.get_train_topology(stop.entity.surface_index)
+			if train_topology then stop:set_topology(train_topology.id) end
+		end
+	end
+end
+
 -- When a topology is created, reassociate any stops with the appropriate
 -- train topology
 cs2.on_topologies(function(topology, what)
 	if what == "created" then
 		-- TODO: this is very brute force. we should try to figure out
 		-- exactly which nodes need to be updated.
-		for _, stop in pairs(storage.nodes) do
-			if stop.type == "stop" and stop:is_valid() then
-				-- TODO: manual topologies
-				---@cast stop Cybersyn.TrainStop
-				local train_topology =
-					Topology.get_train_topology(stop.entity.surface_index)
-				if train_topology then stop:set_topology(train_topology.id) end
-			end
-		end
+		topologize_stops()
 	end
 end)
+
+events.bind("cs2.topologies_rebuilt", topologize_stops)

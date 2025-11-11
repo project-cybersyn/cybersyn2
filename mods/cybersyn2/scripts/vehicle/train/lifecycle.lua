@@ -222,6 +222,27 @@ end
 events.bind("on_startup", function() TrainMonitor:new() end)
 
 --------------------------------------------------------------------------------
+-- Recompute train topologies
+--------------------------------------------------------------------------------
+
+local function retopologize_trains()
+	-- TODO: manual tops
+	stlib.trace("Reassigning train topologies")
+	for _, veh in pairs(storage.vehicles) do
+		if veh.type == "train" then
+			---@cast veh Cybersyn.Train
+			local stock = veh:get_stock()
+			if stock then
+				local topo = cs2.get_train_topology(stock.surface_index)
+				if topo then veh:set_topology(topo.id) end
+			end
+		end
+	end
+end
+
+events.bind("cs2.topologies_rebuilt", function() retopologize_trains() end)
+
+--------------------------------------------------------------------------------
 -- Handle trains arriving/leaving at stops
 --------------------------------------------------------------------------------
 

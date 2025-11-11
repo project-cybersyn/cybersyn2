@@ -61,6 +61,7 @@ function TrainDelivery.new(
 	delivery.manifest = manifest
 	delivery.from_id = from.id
 	delivery.to_id = to.id
+	delivery.topology_id = from.topology_id
 	delivery.from_inventory_id = from_inv.id
 	delivery.to_inventory_id = to_inv.id
 	delivery.spillover = spillover
@@ -265,7 +266,17 @@ function TrainDelivery:goto_from()
 	if self.state == "to_from" then return end
 
 	if self.state ~= "plugin_handoff" then
-		local result = query_route_plugins(self.id, "pickup")
+		local result = query_route_plugins(
+			self.id,
+			"pickup",
+			self.topology_id,
+			train.id,
+			train.lua_train,
+			train:get_stock(),
+			train.home_surface_index,
+			from.id,
+			from.entity
+		)
 		if result then
 			self.handoff_state = "to_from"
 			train:set_volatile()
@@ -294,7 +305,17 @@ function TrainDelivery:goto_to()
 	if self.state == "to_to" then return end
 
 	if self.state ~= "plugin_handoff" then
-		local result = query_route_plugins(self.id, "dropoff")
+		local result = query_route_plugins(
+			self.id,
+			"dropoff",
+			self.topology_id,
+			train.id,
+			train.lua_train,
+			train:get_stock(),
+			train.home_surface_index,
+			to.id,
+			to.entity
+		)
 		if result then
 			self.handoff_state = "to_to"
 			train:set_volatile()
@@ -320,9 +341,17 @@ function TrainDelivery:complete()
 	if train then
 		if self.state ~= "plugin_handoff" then
 			train:clear_delivery(self.id)
-			local result = query_route_plugins("completed", self.id)
+			local result = query_route_plugins(
+				self.id,
+				"complete",
+				self.topology_id,
+				train.id,
+				train.lua_train,
+				train:get_stock(),
+				train.home_surface_index
+			)
 			if result then
-				self.handoff_state = "complete"
+				self.handoff_state = "completed"
 				train:set_volatile()
 				return self:set_state("plugin_handoff")
 			end
@@ -412,17 +441,29 @@ end
 function TrainDelivery:notify_plugin_handoff(new_luatrain)
 	if self.state ~= "plugin_handoff" then return end
 
-	local train = Train.get(self.vehicle_id)
+	local train = Train.get(self.vehicle_id, true)
 	if not train then return end
 	train:clear_volatile(new_luatrain)
 
-	if self.handoff_state == "to_from" then
+	local handoff_state = self.handoff_state
+	self.handoff_state = nil
+
+	stlib.info(
+		"Performing plugin handback for delivery",
+		self.id,
+		"handoff state:",
+		handoff_state
+	)
+
+	if handoff_state == "to_from" then
 		cs2.enqueue_delivery_operation(self, "goto_from")
-	elseif self.handoff_state == "to_to" then
+	elseif handoff_state == "to_to" then
 		cs2.enqueue_delivery_operation(self, "goto_to")
-	elseif self.handoff_state == "completed" then
-		-- Handoff completed after delivery was done.
+	elseif handoff_state == "completed" then
 		self:set_state("completed")
+	else
+		-- TODO: invalid handoff state handling?
+		error("invalid plugin handoff state")
 	end
 end
 

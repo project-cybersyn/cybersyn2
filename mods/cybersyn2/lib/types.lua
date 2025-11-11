@@ -103,7 +103,7 @@ lib.NodeNetworkOperation = {
 ---An isolated group of `Node`s that can only communicate with each other.
 ---@class Cybersyn.Topology
 ---@field public id Id Unique id of the topology.
----@field public surface_index? uint The index of the surface this topology is associated with, if any. This is not a 1-1 association; a surface may have multiple topologies.
+---@field public surface_set? table<uint, boolean> A SET of surface indices associated with this topology, if any. This is used when multiple surfaces are logically connected.
 ---@field public name? string The name of the topology, if any.
 ---@field public thread_id? int The id of the thread servicing this topology if any.
 ---@field public global_combinators IdSet Set of global combinators (e.g. inventory combinators) associated with this topology. This DOES NOT include per-node combinators.
@@ -212,6 +212,7 @@ lib.NodeNetworkOperation = {
 ---@field public from_inventory_id Id The id of the inventory this delivery is from, if any.
 ---@field public to_inventory_id Id The id of the inventory this delivery is to, if any.
 ---@field public manifest SignalCounts The intended contents of the delivery.
+---@field public topology_id Id The id of the topology this delivery is operating within.
 
 ---@class Cybersyn.TrainDelivery: Cybersyn.Delivery
 ---@field public from_charge SignalCounts? Amount charged against the source station's inventory, which may differ from the manifest by spillover.
@@ -228,6 +229,7 @@ lib.NodeNetworkOperation = {
 --------------------------------------------------------------------------------
 
 ---@class Cybersyn2.RoutePlugin
+---@field public train_topology_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for train topology information.
 ---@field reachable_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for reachability information.
 ---@field route_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for routing decisions.
 

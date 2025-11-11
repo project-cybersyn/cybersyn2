@@ -9,18 +9,61 @@
 local class = require("lib.core.class").class
 local counters = require("lib.core.counters")
 local events = require("lib.core.event")
+local tlib = require("lib.core.table")
+local strace = require("lib.core.strace")
 local cs2 = _G.cs2
+
+--------------------------------------------------------------------------------
+-- Topology plugin interface
+--------------------------------------------------------------------------------
+
+local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn2.RoutePlugin} ]]
+
+local topo_callbacks = tlib.t_map_a(
+	route_plugins or tlib.EMPTY_STRICT,
+	function(plugin) return plugin.train_topology_callback end
+) --[[@as Core.RemoteCallbackSpec[] ]]
+
+---Query all registered topology plugins for additional surfaces connected
+---to the given surface.
+---@param original_surface_id uint The surface index to query from.
+---@return table<uint, boolean> #A SET of surface indices reachable from the given surface.
+local function query_topo_plugins(original_surface_id)
+	local surface_set = { [original_surface_id] = true }
+
+	for _, cb in pairs(topo_callbacks) do
+		if cb then
+			local result = remote.call(cb[1], cb[2], original_surface_id) --[[@as table<uint, boolean>? ]]
+			if result then tlib.set_union(surface_set, result) end
+		end
+	end
+
+	strace.trace("query_topo_plugins", original_surface_id, surface_set)
+
+	return surface_set
+end
+
+--------------------------------------------------------------------------------
+-- Topology
+--------------------------------------------------------------------------------
 
 ---@class Cybersyn.Topology
 local Topology = class("Topology")
 _G.cs2.Topology = Topology
 
 ---Create a new topology.
-function Topology.new()
+function Topology:new()
 	local id = counters.next("topology")
 	storage.topologies[id] =
-		setmetatable({ id = id, global_combinators = {} }, Topology)
+		setmetatable({ id = id, global_combinators = {} }, self)
 	return storage.topologies[id]
+end
+
+function Topology:destroy()
+	strace.info("Destroying topology", self.id, self.name)
+	events.raise("cs2.topology_destroyed", self)
+	cs2.raise_topologies(self, "destroyed")
+	storage.topologies[self.id] = nil
 end
 
 ---Get a topology by its id
@@ -45,7 +88,7 @@ _G.cs2.get_topology_by_name = get_topology_by_name
 local function get_or_create_topology_by_name(name)
 	local topology = get_topology_by_name(name)
 	if not topology then
-		topology = Topology.new()
+		topology = Topology:new()
 		topology.name = name
 		cs2.raise_topologies(topology, "created")
 	end
@@ -68,10 +111,7 @@ end
 ---@return LuaEntity[]
 function Topology:get_combinator_entities()
 	-- TODO: wtf is this for?
-	if not self.surface_index then return {} end
-	return game.get_surface(self.surface_index).find_entities_filtered({
-		name = cs2.COMBINATOR_NAME,
-	})
+	error("unimplemented")
 end
 
 ---Called to trigger the event indicating a topology's net inventory was
@@ -85,17 +125,24 @@ end
 
 ---@param surface_index uint
 local function create_train_topology(surface_index)
-	local t = Topology.new()
-	t.surface_index = surface_index
+	local surface_set = query_topo_plugins(surface_index)
+
+	local t = Topology:new()
 	t.name = game.get_surface(surface_index).name
-	storage.surface_index_to_train_topology[surface_index] = t.id
+	t.surface_set = surface_set
+	for s_index, _ in pairs(surface_set) do
+		storage.surface_index_to_train_topology[s_index] = t.id
+	end
+
+	strace.info("Created train topology", t)
 	cs2.raise_topologies(t, "created")
+	events.raise("cs2.topology_created", t)
 end
 
 ---Get train topology for a surface if it exists.
 ---@param surface_index uint
 ---@return Cybersyn.Topology?
-function Topology.get_train_topology(surface_index)
+function _G.cs2.get_train_topology(surface_index)
 	local topology_id = storage.surface_index_to_train_topology[surface_index]
 	if topology_id then return storage.topologies[topology_id] end
 end
@@ -108,7 +155,7 @@ local function recheck_surfaces()
 			name = cs2.COMBINATOR_NAME,
 		})
 		if #combs > 0 then
-			if not Topology.get_train_topology(surface.index) then
+			if not cs2.get_train_topology(surface.index) then
 				create_train_topology(surface.index)
 			end
 		end
@@ -120,9 +167,28 @@ events.bind("on_startup", function() recheck_surfaces() end)
 
 -- When a combinator is built, create topology if necessary
 cs2.on_combinator_created(function(comb)
-	if (not comb.entity) or not comb.entity.valid then return end
-	local surface_index = comb.entity.surface_index
-	if not Topology.get_train_topology(surface_index) then
+	if (not comb.real_entity) or not comb.real_entity.valid then return end
+	local surface_index = comb.real_entity.surface_index
+	if not cs2.get_train_topology(surface_index) then
 		create_train_topology(surface_index)
 	end
 end, true)
+
+--------------------------------------------------------------------------------
+-- Retopologize
+--------------------------------------------------------------------------------
+
+function _G.cs2.rebuild_train_topologies()
+	-- Destroy all pre-existing train topologies
+	for _, top_id in pairs(storage.surface_index_to_train_topology) do
+		local topology = storage.topologies[top_id]
+		if topology then topology:destroy() end
+	end
+	storage.surface_index_to_train_topology = {}
+
+	-- Regenerate topologies
+	recheck_surfaces()
+
+	-- Retopologize stops and vehicles
+	events.raise("cs2.topologies_rebuilt")
+end
