@@ -6,4 +6,8 @@ plugins["space-elevator"] = {
 		"reachable_callback",
 	},
 	route_callback = { "cybersyn2-plugin-space-elevator", "route_callback" },
+	train_topology_callback = {
+		"cybersyn2-plugin-space-elevator",
+		"train_topology_callback",
+	},
 }
