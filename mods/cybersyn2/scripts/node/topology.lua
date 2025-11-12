@@ -166,7 +166,7 @@ end
 events.bind("on_startup", function() recheck_surfaces() end)
 
 -- When a combinator is built, create topology if necessary
-cs2.on_combinator_created(function(comb)
+events.bind("cs2.combinator_status_changed", function(comb)
 	if (not comb.real_entity) or not comb.real_entity.valid then return end
 	local surface_index = comb.real_entity.surface_index
 	if not cs2.get_train_topology(surface_index) then
