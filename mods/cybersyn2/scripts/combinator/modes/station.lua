@@ -282,12 +282,13 @@ relm.define_element({
 					props.combinator,
 					"produce_single_item"
 				),
-				gui.Checkbox(
-					"Ignore minimum delivery size for secondary items",
-					"If checked, when loading secondary items onto an outgoing train, this station will ignore minimum delivery sizes for those items. This can result in multiple items being more efficiently packed onto trains.",
-					props.combinator,
-					"ignore_secondary_thresholds"
-				),
+				-- XXX: temp disabled until new algorithm
+				-- gui.Checkbox(
+				-- 	"Ignore minimum delivery size for secondary items",
+				-- 	"If checked, when loading secondary items onto an outgoing train, this station will ignore minimum delivery sizes for those items. This can result in multiple items being more efficiently packed onto trains.",
+				-- 	props.combinator,
+				-- 	"ignore_secondary_thresholds"
+				-- ),
 			}),
 		})
 	end,

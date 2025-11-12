@@ -108,7 +108,8 @@ function LogisticsThread:allocate(
 	local allocation = {
 		from = from_node,
 		from_inv = from_inv,
-		from_thresh = from_thresh,
+		-- XXX: temp fix until new algorithm
+		from_thresh = 1,
 		to = to_node,
 		to_inv = to_inv,
 		to_thresh = to_thresh,

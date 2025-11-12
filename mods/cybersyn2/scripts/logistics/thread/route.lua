@@ -86,9 +86,7 @@ local function try_allocation(
 	-- Honor "ignore secondary thresholds"
 	local from_thresh = allocation.from_thresh
 	local to_thresh = allocation.to_thresh
-	if
-		(allocation ~= original_allocation) and from.ignore_secondary_thresholds
-	then
+	if allocation ~= original_allocation then
 		from_thresh = 1
 		to_thresh = 1
 	end

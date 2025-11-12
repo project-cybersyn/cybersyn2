@@ -217,34 +217,25 @@ function LogisticsThread:poll_dt_combs(stop)
 	)
 	if #combs == 0 then return end
 	local thresholds_in = nil
-	local thresholds_out = nil
 	for _, comb in pairs(combs) do
 		comb:read_inputs()
 		local inputs = comb.inputs
 		if not inputs then return end
 		local is_in = comb:get_dt_inbound()
-		local is_out = comb:get_dt_outbound()
 		for k, v in pairs(inputs) do
 			if k == "cybersyn2-all-items" then
 				if is_in then stop.threshold_item_in = v end
-				if is_out then stop.threshold_item_out = v end
 			elseif k == "cybersyn2-all-fluids" then
 				if is_in then stop.threshold_fluid_in = v end
-				if is_out then stop.threshold_fluid_out = v end
 			elseif key_is_cargo(k) then
 				if is_in then
 					if not thresholds_in then thresholds_in = {} end
 					thresholds_in[k] = v
 				end
-				if is_out then
-					if not thresholds_out then thresholds_out = {} end
-					thresholds_out[k] = v
-				end
 			end
 		end
 	end
 	stop.thresholds_in = thresholds_in
-	stop.thresholds_out = thresholds_out
 end
 
 ---@param stop Cybersyn.TrainStop

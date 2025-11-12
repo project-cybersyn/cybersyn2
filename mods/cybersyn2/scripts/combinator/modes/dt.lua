@@ -34,7 +34,6 @@ relm.define_element({
 			ultros.WellSection(
 				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
 				{
-
 					gui.InnerHeading({
 						caption = { "cybersyn2-combinator-modes-labels.flags" },
 					}),
@@ -43,11 +42,6 @@ relm.define_element({
 					}, {
 						"cybersyn2-combinator-mode-delivery-size.set-inbound-delivery-size-tooltip",
 					}, props.combinator, "dt_inbound"),
-					gui.Checkbox({
-						"cybersyn2-combinator-mode-delivery-size.set-outbound-delivery-size",
-					}, {
-						"cybersyn2-combinator-mode-delivery-size.set-outbound-delivery-size-tooltip",
-					}, props.combinator, "dt_outbound"),
 				}
 			),
 		})
