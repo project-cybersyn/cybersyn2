@@ -131,12 +131,6 @@ relm.define_element({
 						caption = "Flags",
 					}),
 					gui.Checkbox(
-						"Use stack thresholds",
-						"If checked, all item delivery thresholds will be interpreted as stacks of items. If unchecked, all item delivery thresholds will be interpreted as individual items.",
-						props.combinator,
-						"use_stack_thresholds"
-					),
-					gui.Checkbox(
 						{ "cybersyn2-combinator-mode-station.provide-all" },
 						{ "cybersyn2-combinator-mode-station.provide-all-tooltip" },
 						props.combinator,
