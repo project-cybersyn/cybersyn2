@@ -292,7 +292,7 @@ local LeftCol = relm.define_element({
 local RightCol = relm.define_element({
 	name = "CombinatorGui.RightCol",
 	render = function(props)
-		return VF({ width = 250, left_margin = 8, visible = props.visible }, {
+		return VF({ width = 400, left_margin = 8, visible = props.visible }, {
 			Status({ combinator = props.combinator }),
 			Help({ combinator = props.combinator }),
 		})

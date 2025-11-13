@@ -22,7 +22,7 @@ local If = ultros.If
 ---@field public get_network_signal fun(self: Cybersyn.Combinator): string
 ---@field public get_pr fun(self: Cybersyn.Combinator): number
 ---@field public get_use_stack_thresholds fun(self: Cybersyn.Combinator): boolean
----@field public get_primary_wire fun(self: Cybersyn.Combinator): string
+---@field public get_primary_wire fun(self: Cybersyn.Combinator): "red"|"green"
 ---@field public get_provide_subset fun(self: Cybersyn.Combinator): boolean
 ---@field public get_disable_auto_thresholds fun(self: Cybersyn.Combinator): boolean
 ---@field public get_auto_threshold_percent fun(self: Cybersyn.Combinator): number
@@ -37,13 +37,17 @@ local If = ultros.If
 ---@field public get_produce_single_item fun(self: Cybersyn.Combinator): boolean
 ---@field public get_ignore_secondary_thresholds fun(self: Cybersyn.Combinator): boolean
 ---@field public get_topology_signal fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_signal_depletion_percentage fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_signal_fullness_percentage fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_signal_locked_slots fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_signal_locked_fluid fun(self: Cybersyn.Combinator): SignalID?
 
 -- Name of the network virtual signal.
 cs2.register_raw_setting("network_signal", "network")
 -- Whether the station should provide, request, or both.
 -- 0 = p/r, 1 = p, 2 = r
 cs2.register_raw_setting("pr", "pr")
--- Whether the station should interpret minimum delivery sizes as stacks or items.
+-- (DEPRECATED) Whether the station should interpret minimum delivery sizes as stacks or items.
 cs2.register_flag_setting("use_stack_thresholds", "station_flags", 0)
 -- Which input wire the primary/true inventory input is on.
 cs2.register_raw_setting("primary_wire", "primary_wire", "red")
@@ -51,8 +55,6 @@ cs2.register_raw_setting("primary_wire", "primary_wire", "red")
 cs2.register_flag_setting("provide_subset", "station_flags", 4)
 -- Whether to disable auto thresholds
 cs2.register_flag_setting("disable_auto_thresholds", "station_flags", 5)
--- Auto threshold percentage
-cs2.register_raw_setting("auto_threshold_percent", "auto_threshold_percent")
 
 -- Departure conditions
 cs2.register_raw_setting("allow_departure_signal", "allow_departure_signal")
@@ -73,6 +75,22 @@ cs2.register_flag_setting("ignore_secondary_thresholds", "station_flags", 3)
 -- Topology
 cs2.register_raw_setting("topology_signal", "topology_signal")
 
+-- Config input signals
+cs2.register_raw_setting(
+	"signal_depletion_percentage",
+	"signal_depletion_percentage"
+)
+cs2.register_raw_setting(
+	"signal_fullness_percentage",
+	"signal_fullness_percentage"
+)
+cs2.register_raw_setting("signal_locked_slots", "signal_locked_slots")
+cs2.register_raw_setting("signal_locked_fluid", "signal_locked_fluid")
+
+-- Inbound item handling
+cs2.register_raw_setting("auto_threshold_percent", "auto_threshold_percent")
+cs2.register_raw_setting("train_fullness_percent", "train_fullness_percent")
+
 --------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
@@ -85,11 +103,18 @@ local wire_dropdown_items = {
 relm.define_element({
 	name = "CombinatorGui.Mode.Station",
 	render = function(props)
-		local pr = props.combinator:get_pr()
+		---@type Cybersyn.Combinator
+		local combinator = props.combinator
+
+		local pr = combinator:get_pr()
 		local is_provider = pr == 1 or pr == 0
 		local is_requester = pr == 2 or pr == 0
 		local is_provide_only = pr == 1
 		local is_request_only = pr == 2
+
+		local primary_wire = combinator:get_primary_wire()
+		local secondary_wire = primary_wire == "red" and "green" or "red"
+
 		return VF({
 			ultros.WellSection(
 				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
@@ -105,16 +130,6 @@ relm.define_element({
 						),
 					}),
 					ultros.Labeled({
-						caption = { "cybersyn2-combinator-mode-station.network" },
-						top_margin = 6,
-					}, {
-						gui.NetworkSignalPicker(
-							props.combinator,
-							"network_signal",
-							{ "cybersyn2-combinator-mode-station.network-tooltip" }
-						),
-					}),
-					ultros.Labeled({
 						caption = {
 							"cybersyn2-combinator-mode-station.primary-input-wire",
 						},
@@ -125,6 +140,16 @@ relm.define_element({
 							props.combinator,
 							"primary_wire",
 							wire_dropdown_items
+						),
+					}),
+					ultros.Labeled({
+						caption = { "cybersyn2-combinator-mode-station.topology" },
+						top_margin = 6,
+					}, {
+						gui.VirtualSignalPicker(
+							props.combinator,
+							"topology_signal",
+							{ "cybersyn2-combinator-mode-station.topology-tooltip" }
 						),
 					}),
 					gui.InnerHeading({
@@ -139,21 +164,20 @@ relm.define_element({
 						is_requester,
 						false
 					),
-					HF({ vertical_align = "center" }, {
-						gui.Checkbox(
-							{ "cybersyn2-combinator-mode-station.auto-mds" },
-							{ "cybersyn2-combinator-mode-station.auto-mds-tooltip" },
-							props.combinator,
-							"disable_auto_thresholds",
-							true,
-							is_provide_only
-						),
-						HF({ horizontally_stretchable = true }, {}),
+				}
+			),
+			gui.OrderWireSettings({
+				combinator = combinator,
+				wire_color = secondary_wire,
+				arity = "primary",
+			}),
+			ultros.WellSection(
+				{ caption = "Inbound Item Handling", visible = is_requester },
+				{
+					ultros.Labeled({ caption = "Depletion threshold", top_margin = 6 }, {
 						gui.Input({
-							tooltip = {
-								"cybersyn2-combinator-mode-station.auto-mds-percent-tooltip",
-							},
-							combinator = props.combinator,
+							tooltip = "Percentage of any requested item that must be missing before a delivery is triggered.\n\nNOTE: All thresholds are hints to the system and may not be strictly enforced.",
+							combinator = combinator,
 							setting = "auto_threshold_percent",
 							displayed_default_value = math.floor(
 								mod_settings.default_auto_threshold_fraction * 100
@@ -162,32 +186,46 @@ relm.define_element({
 							numeric = true,
 							allow_decimal = false,
 							allow_negative = false,
-							enabled = not is_provide_only,
 						}),
 					}),
-					ultros.Labeled({
-						caption = { "cybersyn2-combinator-mode-station.topology" },
-						top_margin = 6,
-					}, {
-						gui.VirtualSignalPicker(
-							props.combinator,
-							"topology_signal",
-							{ "cybersyn2-combinator-mode-station.topology-tooltip" }
-						),
-					}),
+					ultros.Labeled(
+						{ caption = "Train fullness threshold", top_margin = 6 },
+						{
+							gui.Input({
+								tooltip = "Percentage of total train cargo capacity that should be filled before a train will deliver an outstanding request.\n\nNOTE: All thresholds are hints to the system and may not be strictly enforced.",
+								combinator = combinator,
+								setting = "train_fullness_percent",
+								displayed_default_value = math.floor(
+									mod_settings.default_train_fullness_fraction * 100
+								),
+								width = 75,
+								numeric = true,
+								allow_decimal = false,
+								allow_negative = false,
+							}),
+						}
+					),
 				}
 			),
 			ultros.WellFold({ caption = "Departure Conditions" }, {
 				ultros.Labeled(
 					{ caption = "Signal: Allow departure", top_margin = 6 },
 					{
-						gui.AnySignalPicker(props.combinator, "allow_departure_signal"),
+						gui.AnySignalPicker(
+							props.combinator,
+							"allow_departure_signal",
+							"Trains will only depart if this signal is present at the train stop.\n\nNOTE: The train stop must be set to send signals to the train."
+						),
 					}
 				),
 				ultros.Labeled(
 					{ caption = "Signal: Force departure", top_margin = 6 },
 					{
-						gui.AnySignalPicker(props.combinator, "force_departure_signal"),
+						gui.AnySignalPicker(
+							props.combinator,
+							"force_departure_signal",
+							"If this signal is present at the train stop, the train will be forced to leave, regardless of other conditions.\n\nNOTE: The train stop must be set to send signals to the train."
+						),
 					}
 				),
 				ultros.Labeled({ caption = "Inactivity mode", top_margin = 6 }, {
@@ -284,6 +322,50 @@ relm.define_element({
 				-- 	"ignore_secondary_thresholds"
 				-- ),
 			}),
+			ultros.WellFold({
+				caption = "Configuration via Circuit",
+			}, {
+				ultros.Labeled(
+					{ caption = "Input signal: Depletion percentage", top_margin = 6 },
+					{
+						gui.VirtualSignalPicker(
+							props.combinator,
+							"signal_depletion_percentage",
+							"The value of this signal on the primary input wire will be used as the depletion percentage for deliveries rather than the setting in the combinator."
+						),
+					}
+				),
+				ultros.Labeled({
+					caption = "Input signal: Train fullness percentage",
+					top_margin = 6,
+				}, {
+					gui.VirtualSignalPicker(
+						props.combinator,
+						"signal_fullness_percentage",
+						"The value of this signal on the primary input wire will be used as the train fullness percentage for deliveries rather than the setting in the combinator."
+					),
+				}),
+				ultros.Labeled({
+					caption = "Input signal: Reserved slots per cargo wagon",
+					top_margin = 6,
+				}, {
+					gui.VirtualSignalPicker(
+						props.combinator,
+						"signal_locked_slots",
+						"The value of this signal on the primary input wire will be used as the number of reserved slots per cargo wagon rather than the setting in the combinator."
+					),
+				}),
+				ultros.Labeled({
+					caption = "Input signal: Reserved capacity per fluid wagon",
+					top_margin = 6,
+				}, {
+					gui.VirtualSignalPicker(
+						props.combinator,
+						"signal_locked_fluid",
+						"The value of this signal on the primary input wire will be used as the reserved capacity per fluid wagon rather than the setting in the combinator."
+					),
+				}),
+			}),
 		})
 	end,
 })
@@ -295,6 +377,7 @@ relm.define_element({
 local MainWireHelp = relm.define_element({
 	name = "CombinatorGui.Mode.Station.Help.MainWire",
 	render = function(props)
+		local combinator = props.combinator
 		return {
 			ultros.RtBoldLabel({
 				"",
@@ -356,9 +439,11 @@ relm.define_element({
 				column_count = 2,
 			}, {
 				MainWireHelp({
+					combinator = props.combinator,
 					wire_color = primary_wire,
 				}),
 				OrderWireHelp({
+					combinator = props.combinator,
 					wire_color = opposite_wire,
 				}),
 			}),

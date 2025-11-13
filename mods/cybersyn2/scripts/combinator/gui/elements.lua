@@ -7,6 +7,7 @@ local ultros = require("lib.core.relm.ultros")
 local cs2 = _G.cs2
 local Pr = relm.Primitive
 local HF = ultros.HFlow
+local gui = _G.cs2.gui
 
 ---An `ultros.Checkbox` that reads from and writes to a combinator
 ---setting automatically.
@@ -201,6 +202,77 @@ _G.cs2.gui.Status = relm.define_element({
 				type = "label",
 				caption = props.caption,
 			}),
+		})
+	end,
+})
+
+--------------------------------------------------------------------------------
+-- ORDER INPUT WIRE SETTINGS
+-- This is lifted here because it's used by multiple combinator modes.
+--------------------------------------------------------------------------------
+
+local andor_dropdown_items = {
+	{ key = "and", caption = { "cybersyn2-combinator-mode-inventory.and" } },
+	{ key = "or", caption = { "cybersyn2-combinator-mode-inventory.or" } },
+}
+
+_G.cs2.gui.OrderWireSettings = relm.define_element({
+	name = "OrderWireSettings",
+	render = function(props)
+		local combinator = props.combinator
+		local wire_color = props.wire_color
+		local arity = props.arity or "primary"
+
+		return ultros.WellSection({
+			caption = {
+				"",
+				"[color=",
+				wire_color,
+				"]Order settings[/color]",
+			},
+		}, {
+			ultros.Labeled({
+				caption = "Item network",
+				top_margin = 6,
+			}, {
+				gui.NetworkSignalPicker(
+					props.combinator,
+					"order_" .. arity .. "_network",
+					"The item network for this order. If set to the 'Each' virtual signal, all input virtual signals will be treated as item networks."
+				),
+			}),
+			ultros.Labeled({
+				caption = "Network matching mode",
+				top_margin = 6,
+			}, {
+				gui.Dropdown(
+					{
+						tooltip = "Determines how network matching is performed for this order.\n\n[font=default-bold]OR[/font]: If this order has any networks in common with the opposing order, it is considered a match.\n[font=default-bold]AND[/font]: This order must share all networks with the opposing order to be considered a match.\n\nThe requesting order always determines the network matching mode.",
+					},
+					combinator,
+					"order_" .. arity .. "_network_matching_mode",
+					andor_dropdown_items
+				),
+			}),
+			ultros.Labeled(
+				{ caption = "Input signal: Force away", top_margin = 6 },
+				{
+					gui.VirtualSignalPicker(
+						props.combinator,
+						"order_" .. arity .. "_signal_force_away",
+						"If a signal is given and it has a nonzero value, 'force away' mode will be enabled on this station.\n\nIn 'force away' mode, items provided by this order will ignore thresholds of requesting stations."
+					),
+				}
+			),
+			gui.InnerHeading({
+				caption = "Flags",
+			}),
+			gui.Checkbox(
+				"Stacked requests",
+				"If checked, all requests will be interpreted as stacks of items rather than item counts.",
+				combinator,
+				"order_" .. arity .. "_stacked_requests"
+			),
 		})
 	end,
 })
