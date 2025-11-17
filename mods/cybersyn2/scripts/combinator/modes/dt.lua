@@ -17,11 +17,11 @@ local VF = ultros.VFlow
 --------------------------------------------------------------------------------
 
 ---@class Cybersyn.Combinator
----@field public get_dt_inbound fun(): boolean
----@field public get_dt_outbound fun(): boolean
+---@field public get_dt_unstacked fun(): boolean
 
-cs2.register_flag_setting("dt_inbound", "dt_flags", 0)
-cs2.register_flag_setting("dt_outbound", "dt_flags", 1)
+cs2.register_flag_setting("dt_inbound", "dt_flags", 0) -- DEPRECATED
+cs2.register_flag_setting("dt_outbound", "dt_flags", 1) -- DEPRECATED
+cs2.register_flag_setting("dt_unstacked", "dt_flags", 2)
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -38,10 +38,10 @@ relm.define_element({
 						caption = { "cybersyn2-combinator-modes-labels.flags" },
 					}),
 					gui.Checkbox({
-						"cybersyn2-combinator-mode-delivery-size.set-inbound-delivery-size",
+						"cybersyn2-combinator-mode-delivery-size.stacks",
 					}, {
-						"cybersyn2-combinator-mode-delivery-size.set-inbound-delivery-size-tooltip",
-					}, props.combinator, "dt_inbound"),
+						"cybersyn2-combinator-mode-delivery-size.stacks-tooltip",
+					}, props.combinator, "dt_unstacked", true),
 				}
 			),
 		})

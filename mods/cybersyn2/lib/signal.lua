@@ -45,6 +45,8 @@ local function get_signal_type_from_name(name)
 		return "fluid"
 	elseif prototypes.virtual_signal[name] ~= nil then
 		return "virtual"
+	elseif prototypes.quality[name] ~= nil then
+		return "quality"
 	elseif prototypes.entity[name] ~= nil then
 		return "entity"
 	elseif prototypes.recipe[name] ~= nil then
@@ -53,8 +55,6 @@ local function get_signal_type_from_name(name)
 		return "space-location"
 	elseif prototypes.asteroid_chunk[name] ~= nil then
 		return "asteroid-chunk"
-	elseif prototypes.quality[name] ~= nil then
-		return "quality"
 	else
 		return nil
 	end
@@ -77,9 +77,13 @@ local parameter_names = {
 ---@type table<SignalKey, SignalID>
 local key_to_sig = {}
 
----Cache of signal keys to virtual/product
+---Cached set of virtual signal keys
 ---@type table<SignalKey, boolean>
 local key_v = {}
+
+---Cached set of quality signal keys
+---@type table<SignalKey, boolean>
+local key_q = {}
 
 ---Cache mapping item signal keys to stack sizes
 ---@type table<SignalKey, uint>
@@ -114,6 +118,9 @@ local function signal_to_key(signal)
 	elseif stype == "virtual" then
 		key_to_sig[key] = signal
 		key_v[key] = true
+	elseif stype == "quality" then
+		key_to_sig[key] = signal
+		key_q[key] = true
 	end
 	return key --[[@as SignalKey]]
 end
@@ -156,6 +163,9 @@ local function key_to_signal(key)
 		elseif ty == "virtual" then
 			key_to_sig[key] = signal
 			key_v[key] = true
+		elseif ty == "quality" then
+			key_to_sig[key] = signal
+			key_q[key] = true
 		end
 		return signal
 	else
@@ -191,17 +201,29 @@ local function key_is_fluid(key)
 end
 lib.key_is_fluid = key_is_fluid
 
+---@param key SignalKey
+local function key_is_quality(key)
+	local verdict = key_q[key]
+	if verdict ~= nil then return verdict end
+	local sig = key_to_signal(key)
+	return sig.type == "quality"
+end
+lib.key_is_quality = key_is_quality
+
 ---Classify keys relevant to Cybersyn input mechanisms.
----@return "cargo"|"virtual"|nil genus Genus of the key
+---@return "cargo"|"virtual"|"quality"|nil genus Genus of the key
 ---@return "item"|"fluid"|nil species For `cargo` keys, species of the cargo.
 local function classify_key(key)
 	if parameter_names[key] then return end
 	local sig = key_to_signal(key)
 	if sig then
-		if sig.type == "item" or sig.type == "fluid" then
-			return "cargo", sig.type --[[@as "item"|"fluid"]]
-		elseif sig.type == "virtual" then
+		local sig_type = sig.type
+		if sig_type == "item" or sig_type == "fluid" then
+			return "cargo", sig_type --[[@as "item"|"fluid"]]
+		elseif sig_type == "virtual" then
 			return "virtual", nil
+		elseif sig_type == "quality" then
+			return "quality", nil
 		end
 	end
 end
@@ -211,16 +233,19 @@ lib.classify_key = classify_key
 local function key_to_richtext(key)
 	local sig = key_to_signal(key)
 	if not sig then return "(INVALID SIGNAL KEY '" .. key .. "')" end
-	if sig.type == "item" then
+	local sig_type = sig.type
+	if sig_type == "item" then
 		if sig.quality then
 			return strformat("[item=%s,quality=%s]", sig.name, sig.quality)
 		else
 			return strformat("[item=%s]", sig.name)
 		end
-	elseif sig.type == "fluid" then
+	elseif sig_type == "fluid" then
 		return strformat("[fluid=%s]", sig.name)
-	elseif sig.type == "virtual" then
+	elseif sig_type == "virtual" then
 		return strformat("[virtual-signal=%s]", sig.name)
+	elseif sig_type == "quality" then
+		return strformat("[quality=%s]", sig.name)
 	end
 end
 lib.key_to_richtext = key_to_richtext
@@ -241,26 +266,27 @@ local function key_to_stacksize(key)
 end
 lib.key_to_stacksize = key_to_stacksize
 
+local function si_format(count, divisor, si_symbol)
+	if abs(floor(count / divisor)) >= 10 then
+		count = floor(count / divisor)
+		return strformat("%.0f%s", count, si_symbol)
+	else
+		count = floor(count / (divisor / 10)) / 10
+		return strformat("%.1f%s", count, si_symbol)
+	end
+end
+
 ---Format the count of a signal as a small SI string for display on buttons.
 ---@param count int
 ---@return string
 function lib.format_signal_count(count)
-	local function si_format(divisor, si_symbol)
-		if abs(floor(count / divisor)) >= 10 then
-			count = floor(count / divisor)
-			return strformat("%.0f%s", count, si_symbol)
-		else
-			count = floor(count / (divisor / 10)) / 10
-			return strformat("%.1f%s", count, si_symbol)
-		end
-	end
-
 	local absv = abs(count)
 	return -- signals are 32bit integers so Giga is enough
-		absv >= 1e9 and si_format(1e9, "G") or absv >= 1e6 and si_format(
+		absv >= 1e9 and si_format(count, 1e9, "G") or absv >= 1e6 and si_format(
+		count,
 		1e6,
 		"M"
-	) or absv >= 1e3 and si_format(1e3, "k") or tostring(count)
+	) or absv >= 1e3 and si_format(count, 1e3, "k") or tostring(count)
 end
 
 ---Convert an array of signals to a table of signal counts.

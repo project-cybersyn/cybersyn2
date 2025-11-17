@@ -27,7 +27,8 @@ require("scripts.lib")
 require("scripts.threads")
 require("scripts.alerts")
 
-require("scripts.logistics.inventory")
+require("scripts.logistics.order")
+require("scripts.logistics.inventory") -- needs order
 require("scripts.logistics.delivery.base")
 
 require("scripts.combinator.base")

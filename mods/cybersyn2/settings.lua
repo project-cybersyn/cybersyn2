@@ -77,4 +77,13 @@ data:extend({
 		minimum_value = 1,
 		maximum_value = 100,
 	},
+	{
+		type = "int-setting",
+		name = "cybersyn2-setting-default-netmask",
+		order = "bf",
+		setting_type = "runtime-global",
+		default_value = -1,
+		minimum_value = -2147483648,
+		maximum_value = 2147483647,
+	},
 })

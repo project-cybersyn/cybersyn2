@@ -26,6 +26,7 @@ local If = ultros.If
 ---@field public get_provide_subset fun(self: Cybersyn.Combinator): boolean
 ---@field public get_disable_auto_thresholds fun(self: Cybersyn.Combinator): boolean
 ---@field public get_auto_threshold_percent fun(self: Cybersyn.Combinator): number
+---@field public get_train_fullness_percent fun(self: Cybersyn.Combinator): number
 ---@field public get_allow_departure_signal fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_force_departure_signal fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_inactivity_mode fun(self: Cybersyn.Combinator): number
@@ -39,8 +40,9 @@ local If = ultros.If
 ---@field public get_topology_signal fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_signal_depletion_percentage fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_signal_fullness_percentage fun(self: Cybersyn.Combinator): SignalID?
----@field public get_signal_locked_slots fun(self: Cybersyn.Combinator): SignalID?
----@field public get_signal_locked_fluid fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_signal_reserved_slots fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_signal_reserved_fluid fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_signal_spillover fun(self: Cybersyn.Combinator): SignalID?
 
 -- Name of the network virtual signal.
 cs2.register_raw_setting("network_signal", "network")
@@ -84,8 +86,9 @@ cs2.register_raw_setting(
 	"signal_fullness_percentage",
 	"signal_fullness_percentage"
 )
-cs2.register_raw_setting("signal_locked_slots", "signal_locked_slots")
-cs2.register_raw_setting("signal_locked_fluid", "signal_locked_fluid")
+cs2.register_raw_setting("signal_reserved_slots", "signal_reserved_slots")
+cs2.register_raw_setting("signal_reserved_fluid", "signal_reserved_fluid")
+cs2.register_raw_setting("signal_spillover", "signal_spillover")
 
 -- Inbound item handling
 cs2.register_raw_setting("auto_threshold_percent", "auto_threshold_percent")
@@ -351,7 +354,7 @@ relm.define_element({
 				}, {
 					gui.VirtualSignalPicker(
 						props.combinator,
-						"signal_locked_slots",
+						"signal_reserved_slots",
 						"The value of this signal on the primary input wire will be used as the number of reserved slots per cargo wagon rather than the setting in the combinator."
 					),
 				}),
@@ -361,8 +364,18 @@ relm.define_element({
 				}, {
 					gui.VirtualSignalPicker(
 						props.combinator,
-						"signal_locked_fluid",
+						"signal_reserved_fluid",
 						"The value of this signal on the primary input wire will be used as the reserved capacity per fluid wagon rather than the setting in the combinator."
+					),
+				}),
+				ultros.Labeled({
+					caption = "Input signal: Spillover",
+					top_margin = 6,
+				}, {
+					gui.VirtualSignalPicker(
+						props.combinator,
+						"signal_spillover",
+						"The value of this signal on the primary input wire will be used as the spillover rather than the setting in the combinator."
 					),
 				}),
 			}),
