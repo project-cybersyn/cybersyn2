@@ -303,14 +303,15 @@ function TrainStop:rebuild_inventory()
 end
 
 ---Update this stop's inventory
+---@param workload Core.Thread.Workload?
 ---@param is_opportunistic boolean? If `true`, this is an opportunistic update outside the main loop, e.g. when a train leaves a stop.
-function TrainStop:update_inventory(is_opportunistic)
+function TrainStop:update_inventory(workload, is_opportunistic)
 	-- If shared inventory, forward to master when relevant.
 	if self.shared_inventory_master then
 		-- Opportunistic reread at a slave station should forward to master.
 		if is_opportunistic then
 			local master = cs2.get_stop(self.shared_inventory_master)
-			if master then return master:update_inventory(true) end
+			if master then return master:update_inventory(workload, true) end
 		end
 		-- Otherwise, no need to read inventory at a slave station.
 		return
@@ -332,7 +333,7 @@ function TrainStop:update_inventory(is_opportunistic)
 		return
 	end
 
-	inventory:update(true)
+	inventory:update(workload, true)
 end
 
 function TrainStop:is_sharing_inventory()

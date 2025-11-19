@@ -25,21 +25,16 @@ local classify_key = slib.classify_key
 local key_to_stacksize = slib.key_to_stacksize
 local INF = math.huge
 local add_workload = thread_lib.add_workload
+local pairs = _G.pairs
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
-local function append_order(state, list_name, order)
-	local list = state[list_name]
-	if not list then
-		list = {}
-		state[list_name] = list
-	end
-	list[#list + 1] = order
-end
-
+---@param workload Core.Thread.Workload
 ---@param stop Cybersyn.TrainStop
-function LogisticsThread:classify_inventory(stop)
+function LogisticsThread:classify_inventory(workload, stop)
+	local providers = self.providers
+	local requesters = self.requesters
 	for _, view in pairs(storage.views) do
 		view:enter_node(stop)
 	end
@@ -62,31 +57,13 @@ function LogisticsThread:classify_inventory(stop)
 		for _, view in pairs(storage.views) do
 			view:enter_order(order, stop)
 		end
-		if stop.is_producer then
-			for item in pairs(order.provides) do
-				local providers = self.providers[item]
-				if not providers then
-					providers = {}
-					self.providers[item] = providers
-				end
-				providers[#providers + 1] = order
-			end
+		if stop.is_producer and order:is_provider() then
+			providers[#providers + 1] = order
 		end
-		if stop.is_consumer then
-			for item in pairs(order.requests) do
-				local requesters = self.requesters[item]
-				if not requesters then
-					requesters = {}
-					self.requesters[item] = requesters
-				end
-				requesters[#requesters + 1] = order
-			end
-			if order.request_all_items then
-				append_order(self, "request_all_items", order)
-			end
-			if order.request_all_fluids then
-				append_order(self, "request_all_fluids", order)
-			end
+		-- XXX: does this belong here?
+		order.needs = order:compute_needs(workload)
+		if stop.is_consumer and order.needs then
+			requesters[#requesters + 1] = order
 		end
 		for _, view in pairs(storage.views) do
 			view:exit_order(order, stop)
@@ -97,8 +74,10 @@ function LogisticsThread:classify_inventory(stop)
 	end
 end
 
+---@param workload Core.Thread.Workload
 ---@param stop Cybersyn.TrainStop
-function LogisticsThread:poll_train_stop_station_comb(stop)
+function LogisticsThread:poll_train_stop_station_comb(workload, stop)
+	add_workload(workload, 1)
 	local combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "station" end
 	)
@@ -125,10 +104,12 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	end
 	if not is_valid then return false end
 	local comb = combs[1]
+	add_workload(workload, 2)
 
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()
 	comb:read_inputs()
+	add_workload(workload, 5)
 	local inputs = comb.red_inputs
 	if primary_wire == "green" then inputs = comb.green_inputs end
 	if not inputs then
@@ -235,6 +216,8 @@ function LogisticsThread:poll_train_stop_station_comb(stop)
 	-- Outbound handling
 	stop.produce_single_item = comb:get_produce_single_item()
 
+	add_workload(workload, 3)
+
 	return true
 end
 
@@ -277,18 +260,20 @@ end
 
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop(stop)
+	local workload = self.workload_counter
+	add_workload(workload, 1)
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
 		return
 	end
 	-- Get station comb info
-	if not self:poll_train_stop_station_comb(stop) then return end
+	if not self:poll_train_stop_station_comb(workload, stop) then return end
 	-- Get delivery thresholds
-	self:poll_dt_combs(nil, stop)
+	self:poll_dt_combs(workload, stop)
 	-- Get inventory
-	stop:update_inventory(false)
+	stop:update_inventory(workload, false)
 	-- Classify inventory of stop
-	return self:classify_inventory(stop)
+	return self:classify_inventory(workload, stop)
 end
 
 ---@param node Cybersyn.Node
@@ -298,11 +283,13 @@ function LogisticsThread:poll_node(node)
 	end
 end
 
+--------------------------------------------------------------------------------
+-- State handlers
+--------------------------------------------------------------------------------
+
 function LogisticsThread:enter_poll_nodes()
 	self.providers = {}
 	self.requesters = {}
-	self.request_all_items = {}
-	self.request_all_fluids = {}
 	self:begin_async_loop(
 		self.nodes,
 		math.ceil(cs2.PERF_POLL_NODES_WORKLOAD * mod_settings.work_factor)

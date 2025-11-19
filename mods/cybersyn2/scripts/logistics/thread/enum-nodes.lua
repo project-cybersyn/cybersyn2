@@ -33,13 +33,11 @@ function LogisticsThread:enter_enum_nodes()
 	if n_nodes == 0 then
 		self:set_state("init")
 		self.workload = 1
-		self:sleep_for(2 * 60 * 60) -- 2 minutes
+		self.ema_workload = 1
+		self.workload_counter.workload = 1
+		self:sleep_for(30 * 60) -- 30 sec
 		return
 	end
-
-	-- Estimate thread workload based on number of nodes.
-	-- TODO: better workload calc
-	self.workload = n_nodes * 10
 end
 
 function LogisticsThread:enum_nodes() self:set_state("poll_nodes") end

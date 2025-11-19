@@ -6,6 +6,7 @@ local class = require("lib.core.class").class
 local tlib = require("lib.core.table")
 local counters = require("lib.core.counters")
 local signal_keys = require("lib.signal")
+local thread = require("lib.core.thread")
 local cs2 = _G.cs2
 
 -- TODO: This code is called in high performance dispatch loops. Take some
@@ -14,6 +15,7 @@ local cs2 = _G.cs2
 local next = _G.next
 local pairs = _G.pairs
 local signal_to_key = signal_keys.signal_to_key
+local key_to_signal = signal_keys.key_to_signal
 local key_to_stacksize = signal_keys.key_to_stacksize
 local key_is_cargo = signal_keys.key_is_cargo
 local key_is_fluid = signal_keys.key_is_fluid
@@ -27,6 +29,8 @@ local table_add = tlib.vector_add
 local combinator_settings = _G.cs2.combinator_settings
 local mod_settings = _G.cs2.mod_settings
 local Order = _G.cs2.Order
+local add_workload = thread.add_workload
+local table_size = _G.table_size
 
 ---@param base table<string,int>
 ---@param addend table<string,int>
@@ -60,6 +64,7 @@ function Inventory:new()
 		inflow = {},
 		outflow = {},
 		orders = {},
+		last_consumed_tick = {},
 	}, self)
 	local inv = storage.inventories[id]
 
@@ -170,6 +175,32 @@ function Inventory:add_single_item_outflow(item, qty)
 	end
 end
 
+---@param inflow_comp boolean? If `true`, inflows are added to the inventory counts.
+---@param outflow_comp boolean? If `true`, outflows are subtracted from the inventory counts.
+---@param workload Core.Thread.Workload?
+---@return SignalCounts net Inventory net of given flows
+function Inventory:net(inflow_comp, outflow_comp, workload)
+	local inv = self.inventory or empty
+	local outflow = outflow_comp and (self.outflow or empty) or empty
+	local inflow = inflow_comp and (self.inflow or empty) or empty
+	local net_inventory = {}
+
+	for key, count in pairs(inv) do
+		local real = count - (outflow[key] or 0) + (inflow[key] or 0)
+		if real > 0 then net_inventory[key] = real end
+	end
+	if workload then add_workload(workload, table_size(inv)) end
+
+	for key, count in pairs(inflow) do
+		if not inv[key] then
+			if count > 0 then net_inventory[key] = count end
+		end
+	end
+	if workload then add_workload(workload, table_size(inflow)) end
+
+	return net_inventory
+end
+
 ---Compute used capacity of this inventory, in stacks (for items) and units
 ---(for fluids).
 ---@return uint used_item_stack_capacity
@@ -248,9 +279,10 @@ function Inventory:is_volatile() return false end
 
 ---Attempt to update the inventory using best available data. Does nothing
 ---when inventory is volatile.
+---@param workload Core.Thread.Workload?
 ---@param reread boolean `true` if the inventory's base data should be reread immediately from combinators. `false` if cached combinator reads should be used.
 ---@return boolean #`true` if the inventory was updated.
-function Inventory:update(reread) return false end
+function Inventory:update(workload, reread) return false end
 
 --------------------------------------------------------------------------------
 -- Fast inventory accessors
@@ -317,7 +349,8 @@ function StopInventory:is_volatile()
 	end
 end
 
-function StopInventory:update(reread)
+function StopInventory:update(workload, reread)
+	add_workload(workload, 1)
 	if self:is_volatile() then return false end
 	local stop = cs2.get_stop(self.created_for_node_id, true)
 	if not stop then return false end
@@ -330,13 +363,21 @@ function StopInventory:update(reread)
 				local mode = comb.mode
 				if mode == "inventory" then
 					comb:read_inputs()
+					add_workload(workload, 5)
 				elseif mode == "station" then
 					comb:read_inputs()
+					add_workload(workload, 5)
 					local primary_wire = comb:get_primary_wire()
 					if primary_wire == "green" then
 						self:set_base(comb.green_inputs)
+						if workload then
+							add_workload(workload, table_size(comb.green_inputs))
+						end
 					else
 						self:set_base(comb.red_inputs)
+						if workload then
+							add_workload(workload, table_size(comb.red_inputs))
+						end
 					end
 				end
 			end
@@ -346,7 +387,7 @@ function StopInventory:update(reread)
 	-- Reread orders
 	for _, order in pairs(self.orders) do
 		-- XXX: this if is only here to prevent a crash during Alpha.
-		if order.read then order:read() end
+		if order.read then order:read(workload) end
 	end
 
 	return true

@@ -77,24 +77,38 @@ local inventory_renderers = {
 
 local order_renderers = {
 	item_mode = default_renderer,
-	fluid_mode = default_renderer,
+	request_stacks = default_renderer,
 	quality_spread = default_renderer,
 	priority = default_renderer,
 	busy_value = default_renderer,
 	network_matching_mode = default_renderer,
 	stacked_requests = default_renderer,
 	force_away = default_renderer,
+	needs = default_renderer,
 	provides = function(_, counts)
-		return ultros.BoldLabel("provides"), render_counts(counts)
+		if next(counts) then
+			return ultros.BoldLabel("provides"), render_counts(counts)
+		end
 	end,
 	requests = function(_, counts)
-		return ultros.BoldLabel("requests"), render_counts(counts)
+		if next(counts) then
+			return ultros.BoldLabel("requests"), render_counts(counts)
+		end
+	end,
+	requested_fluids = function(_, counts)
+		if next(counts) then
+			return ultros.BoldLabel("requested_fluids"), render_counts(counts)
+		end
 	end,
 	networks = function(_, counts)
-		return ultros.BoldLabel("networks"), render_counts(counts)
+		if next(counts) then
+			return ultros.BoldLabel("networks"), render_counts(counts)
+		end
 	end,
 	thresholds_in = function(_, counts)
-		return ultros.BoldLabel("thresholds"), render_counts(counts)
+		if next(counts) then
+			return ultros.BoldLabel("thresholds"), render_counts(counts)
+		end
 	end,
 }
 

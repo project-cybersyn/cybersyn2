@@ -166,13 +166,17 @@ lib.CarriageType = {
 ---@field public combinator_id? Id The id of the governing combinator that created this order if it exists.
 ---@field public combinator_input "red"|"green" Input wire this order was read from on its governing combinator.
 ---@field public arity "primary"|"secondary" Whether this order is primary or secondary on its governing combinator.
----@field public item_mode "and"|"or"|"all" Item request mode
+---@field public item_mode "and"|"or"|"all"|"none" Item request mode
 ---@field public quality_spread SignalSet? Set of quality names to spread this order over.
 ---@field public requests SignalCounts The requested items for this order.
+---@field public requested_fluids SignalCounts The requested fluids for this order.
+---@field public request_stacks uint? Number of stacks requested for an "or" or "all" order.
 ---@field public provides SignalCounts The provided items for this order.
 ---@field public thresholds_in SignalCounts Inbound thresholds for this order.
 ---@field public networks SignalCounts The computed network masks of this order.
----@field public last_consumed_tick SignalCounts Last consumed ticks for the order's associated inventory.
+---@field public last_fulfilled_tick int64 Last tick on which this order received any delivery.
+---@field public starvation int64? Oldest starvation tick
+---@field public starvation_item string? Oldest starved item
 ---@field public priority int The computed priority of this order.
 ---@field public busy_value number Cached value computed at poll time regarding how busy the associated node is.
 ---@field public network_matching_mode "and"|"or" Network matching mode for this order.
@@ -180,6 +184,7 @@ lib.CarriageType = {
 ---@field public force_away boolean `true` if this order is forcing away provided items
 ---@field public depletion_fraction number
 ---@field public train_fullness_fraction number
+---@field public needs Cybersyn.Internal.Needs?
 
 ---@class Cybersyn.Inventory
 ---@field public id Id

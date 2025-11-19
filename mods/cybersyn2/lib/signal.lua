@@ -89,6 +89,31 @@ local key_q = {}
 ---@type table<SignalKey, uint>
 local key_stack_size = {}
 
+---@param name string
+---@param stype SignalIDType?
+---@param quality (string|LuaQualityPrototype)?
+---@return SignalKey
+local function exploded_signal_to_key(name, stype, quality)
+	local quality_name
+	if not quality then
+		quality_name = nil
+	elseif type(quality) == "string" then
+		quality_name = quality
+	else
+		quality_name = quality.name
+	end
+	-- TODO: benchmark caching this in a 2d hash like hash[quality][type]
+	---@type string
+	local key
+	if quality_name == nil or quality_name == "normal" then
+		key = name
+	else
+		key = name .. "|" .. quality_name
+	end
+	return key --[[@as SignalKey]]
+end
+lib.exploded_signal_to_key = exploded_signal_to_key
+
 ---Convert a signal to a key.
 ---@param signal SignalID
 ---@return SignalKey
@@ -213,17 +238,19 @@ lib.key_is_quality = key_is_quality
 ---Classify keys relevant to Cybersyn input mechanisms.
 ---@return "cargo"|"virtual"|"quality"|nil genus Genus of the key
 ---@return "item"|"fluid"|nil species For `cargo` keys, species of the cargo.
+---@return SignalID|nil signal Parsed signal determined during classification.
 local function classify_key(key)
 	if parameter_names[key] then return end
 	local sig = key_to_signal(key)
 	if sig then
 		local sig_type = sig.type
 		if sig_type == "item" or sig_type == "fluid" then
-			return "cargo", sig_type --[[@as "item"|"fluid"]]
+			---@cast sig_type "item"|"fluid"
+			return "cargo", sig_type, sig
 		elseif sig_type == "virtual" then
-			return "virtual", nil
+			return "virtual", nil, sig
 		elseif sig_type == "quality" then
-			return "quality", nil
+			return "quality", nil, sig
 		end
 	end
 end

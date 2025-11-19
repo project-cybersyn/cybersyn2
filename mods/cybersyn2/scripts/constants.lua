@@ -27,6 +27,8 @@ _G.cs2.PERF_ALLOC_WORKLOAD = 15
 _G.cs2.PERF_ROUTE_WORKLOAD = 1
 -- Number of deliveries to examine per delivery monitor iteration.
 _G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 5
+-- Base logistics workload
+_G.cs2.PERF_BASE_LOGISTICS_WORKLOAD = 100
 
 -- Expiration time in ticks for a finished delivery to be deleted from storage.
 -- TODO: possibly make this a setting
