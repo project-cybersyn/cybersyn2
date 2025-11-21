@@ -1,7 +1,10 @@
+---@diagnostic disable: different-requires
+
 local class = require("lib.core.class").class
 local tlib = require("lib.core.table")
 local siglib = require("lib.signal")
 local thread_lib = require("lib.core.thread")
+local strace = require("lib.core.strace")
 local cs2 = _G.cs2
 
 local assign = tlib.assign
@@ -21,6 +24,9 @@ local INF = math.huge
 local min = math.min
 local max = math.max
 local ceil = math.ceil
+local network_match_and = siglib.network_match_and
+local network_match_or = siglib.network_match_or
+local trace = strace.trace
 
 ---@param item SignalKey
 ---@param species "fluid"|"item"|nil
@@ -70,7 +76,9 @@ function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 		requests = {},
 		requested_fluids = {},
 		provides = {},
-		thresholds_in = {},
+		thresh_explicit = {},
+		thresh_depletion = {},
+		thresh_in = {},
 		networks = {},
 		last_fulfilled_tick = 0,
 		starvations = {},
@@ -137,8 +145,14 @@ function Order:read(workload)
 	self.force_away = false
 	self.busy_value = stop:get_occupancy()
 	self.priority = stop.priority or 0
-	self.depletion_fraction = stop.auto_threshold_fraction
-	self.train_fullness_fraction = stop.train_fullness_fraction
+	self.thresh_depletion_fraction = stop.auto_threshold_fraction
+	self.thresh_fullness_fraction = stop.train_fullness_fraction
+	local depletion_fraction = self.thresh_depletion_fraction or 1
+	local fullness_fraction = self.thresh_fullness_fraction or 0
+	self.thresh_min_slots = (stop.allowed_min_item_slot_capacity or 0)
+		* fullness_fraction
+	self.thresh_min_fluid = (stop.allowed_min_fluid_capacity or 0)
+		* fullness_fraction
 
 	-- Workload for accumulating settings
 	add_workload(workload, 10)
@@ -158,10 +172,13 @@ function Order:read(workload)
 		end
 	end
 
-	if next(self.thresholds_in) then self.thresholds_in = {} end
+	if next(self.thresh_depletion) then self.thresh_depletion = {} end
+	if next(self.thresh_in) then self.thresh_in = {} end
 	if next(self.networks) then self.networks = {} end
 	local requests = self.requests
 	local requested_fluids = self.requested_fluids
+	local thresh_depletion = self.thresh_depletion
+	local thresh_in = self.thresh_in
 
 	-- Signal enumeration
 	---@type SignalSet?
@@ -185,14 +202,16 @@ function Order:read(workload)
 				else
 					requested_fluids[signal_key] = requested_amt
 				end
-				self.thresholds_in[signal_key] = compute_auto_threshold(
+				local dt = compute_auto_threshold(
 					requested_amt,
-					self.depletion_fraction,
+					depletion_fraction,
 					signal_key,
 					species,
 					stop_amfc,
 					stop_amisc
 				)
+				thresh_depletion[signal_key] = dt
+				thresh_in[signal_key] = dt
 			end
 		elseif genus == "virtual" then
 			if signal_key == "cybersyn2-priority" then
@@ -250,6 +269,8 @@ function Order:read(workload)
 	end
 
 	-- Manual item thresholds.
+	if next(self.thresh_explicit) then self.thresh_explicit = {} end
+	local thresh_explicit = self.thresh_explicit
 	if
 		(self.item_mode == "and")
 		and not quality_spread
@@ -260,13 +281,15 @@ function Order:read(workload)
 		for signal_key in pairs(requests) do
 			local direct_threshold = direct_thresholds[signal_key]
 			if direct_threshold then
-				self.thresholds_in[signal_key] = direct_threshold
+				thresh_in[signal_key] = direct_threshold
+				thresh_explicit[signal_key] = direct_threshold
 			elseif generic_item_threshold then
-				self.thresholds_in[signal_key] = generic_item_threshold
-					* key_to_stacksize(signal_key)
+				local th = generic_item_threshold * key_to_stacksize(signal_key)
+				thresh_in[signal_key] = th
+				thresh_explicit[signal_key] = th
 			end
 		end
-		if workload then add_workload(workload, table_size(self.thresholds_in)) end
+		if workload then add_workload(workload, table_size(requests)) end
 	end
 
 	-- Manual fluid thresholds
@@ -276,9 +299,11 @@ function Order:read(workload)
 		for signal_key in pairs(requested_fluids) do
 			local direct_threshold = direct_thresholds[signal_key]
 			if direct_threshold then
-				self.thresholds_in[signal_key] = direct_threshold
+				thresh_in[signal_key] = direct_threshold
+				thresh_explicit[signal_key] = direct_threshold
 			elseif generic_fluid_threshold then
-				self.thresholds_in[signal_key] = generic_fluid_threshold
+				thresh_in[signal_key] = generic_fluid_threshold
+				thresh_explicit[signal_key] = generic_fluid_threshold
 			end
 		end
 
@@ -303,6 +328,22 @@ function Order:read(workload)
 	self.starvation_item = oldest_starvation_item
 
 	return true
+end
+
+---Determine if this requesting order is a netmatch for the given provider.
+---Must always be called from requester side, as that side determines order
+---matching mode.
+---@param provider Cybersyn.Order
+---@return boolean
+function Order:matches_networks(provider)
+	local rmode = self.network_matching_mode
+	local rnet = self.networks
+	local pnet = provider.networks
+	if rmode == "and" then
+		return network_match_and(rnet, pnet)
+	else
+		return network_match_or(rnet, pnet)
+	end
 end
 
 ---Is this order requesting anything? Note that this does not consider whether
@@ -372,10 +413,11 @@ end
 ---@field spread SignalSet? Quality spread for needs supporting it.
 ---@field and_spread SignalCounts? Needs for "and" mode with quality spread.
 ---@field or_stacks uint? If set, the number of stacks requested for "or" mode.
----@field or_mask SignalSet? If set, the set of items requested for "or" mode. Should be considered spread over qualities if quality_spread is set.
----@field all_stacks uint? If set, the number of stacks requested for "all" mode. May be spread if quality_spread is set.
----@field stack_dt uint? Threshold of stacks for "or"/"all" mode.
----@field explicit_dts SignalCounts? Thresholds for explicit needs. (fluids/items)
+---@field or_mask SignalSet? If set, the set of items requested for "or" mode. Should be considered spread over qualities if spread is set.
+---@field all_stacks uint? If set, the number of stacks requested for "all" mode. `spread` applies if set.
+---@field thresh_explicit SignalCounts? Explicit thresholds set by user using dt comb.
+---@field thresh_min_slots uint Minimum item slots dictated by fullness fraction.
+---@field thresh_min_fluid uint Minimum fluid quantity dictated by fullness fraction.
 
 ---Determine if this order is requesting any items above relevant thresholds.
 ---If so generate a Needs object.
@@ -384,46 +426,48 @@ end
 function Order:compute_needs(workload)
 	if self.item_mode == "none" then return nil end
 
-	local inv_inv = self.inventory.inventory or EMPTY
-	local inv_outflow = self.inventory.outflow or EMPTY
-	local inv_inflow = self.inventory.inflow or EMPTY
-	local thresh = self.thresholds_in or EMPTY
+	local req_inv = self.inventory.inventory or EMPTY
+	local req_inflow = self.inventory.inflow or EMPTY
+	local thresh = self.thresh_in or EMPTY
+	local thresh_explicit = self.thresh_explicit or EMPTY
 	local spread = self.quality_spread
 	local requests = self.requests
 	local requested_fluids = self.requested_fluids
 	local requested_stacks = self.request_stacks or 0
-	local fluid_thresh = thresh
+	local depletion_fraction = self.thresh_depletion_fraction or 1
+	local thresh_min_slots = self.thresh_min_slots or 0
+	local thresh_min_fluid = self.thresh_min_fluid or 0
 
 	-- Explicit needs
 	local items = {}
 	local fluids = {}
 	-- Explicit fluids
 	for key, qty in pairs(requested_fluids) do
-		local deficit = qty - (inv_inv[key] or 0) - (inv_inflow[key] or 0)
+		local deficit = qty - (req_inv[key] or 0) - (req_inflow[key] or 0)
 		local threshold = thresh[key] or 0
 		if deficit >= threshold and deficit > 0 then fluids[key] = deficit end
 	end
 	if workload then add_workload(workload, table_size(requested_fluids)) end
-	if not next(fluids) then
-		fluids = nil
-		---@diagnostic disable-next-line: cast-local-type
-		fluid_thresh = nil
-	end
+	if not next(fluids) then fluids = nil end
 	-- Explicit items
 	if self.item_mode == "and" and not spread then
 		for key, qty in pairs(requests) do
-			local deficit = qty - (inv_inv[key] or 0) - (inv_inflow[key] or 0)
+			local deficit = qty - (req_inv[key] or 0) - (req_inflow[key] or 0)
 			local threshold = thresh[key] or 0
 			if deficit >= threshold and deficit > 0 then items[key] = deficit end
 		end
 		if workload then add_workload(workload, table_size(requests)) end
 		local ni = next(items)
 		if ni or fluids then
-			return {
+			---@type Cybersyn.Internal.Needs
+			local res = {
 				items = ni and items,
 				fluids = fluids,
-				explicit_dts = thresh,
+				thresh_explicit = thresh_explicit,
+				thresh_min_slots = thresh_min_slots,
+				thresh_min_fluid = thresh_min_fluid,
 			}
+			return res
 		else
 			return nil
 		end
@@ -431,7 +475,7 @@ function Order:compute_needs(workload)
 	if not next(items) then items = nil end
 
 	-- For exotica, we need inv net of inflow
-	local inv_net = self.inventory:net(true, false)
+	local inv_net = self.inventory:net(true, false, workload)
 
 	-- AND with spread
 	if self.item_mode == "and" then
@@ -461,12 +505,16 @@ function Order:compute_needs(workload)
 		if workload then add_workload(workload, table_size(requests)) end
 
 		if next(and_spread) then
-			return {
+			---@type Cybersyn.Internal.Needs
+			local res = {
 				fluids = fluids,
-				explicit_dts = thresh,
+				thresh_explicit = thresh_explicit,
+				thresh_min_slots = thresh_min_slots,
+				thresh_min_fluid = thresh_min_fluid,
 				and_spread = and_spread,
 				spread = spread,
 			}
+			return res
 		end
 	elseif self.item_mode == "or" then
 		-- OR order
@@ -504,17 +552,21 @@ function Order:compute_needs(workload)
 			if workload then add_workload(workload, table_size(inv_net)) end
 			or_mask = requests
 		end
-		local stack_threshold = requested_stacks * (self.depletion_fraction or 0)
+		-- TODO: honor fullness threshold here
+		local stack_threshold = requested_stacks * (depletion_fraction or 0)
 		local deficit_stacks = requested_stacks - net_stacks
 		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
-			return {
+			---@type Cybersyn.Internal.Needs
+			local res = {
 				fluids = fluids,
-				explicit_dts = fluid_thresh,
+				thresh_explicit = thresh_explicit,
+				thresh_min_slots = thresh_min_slots,
+				thresh_min_fluid = thresh_min_fluid,
 				or_stacks = deficit_stacks,
 				or_mask = or_mask,
 				spread = spread,
-				stack_dt = stack_threshold,
 			}
+			return res
 		end
 	elseif self.item_mode == "all" then
 		-- ALL order
@@ -537,27 +589,283 @@ function Order:compute_needs(workload)
 			end)
 			if workload then add_workload(workload, table_size(inv_net)) end
 		end
-		local stack_threshold = requested_stacks * (self.depletion_fraction or 0)
+		-- TODO: honor fullness_threshold here
+		local stack_threshold = requested_stacks * (depletion_fraction or 0)
 		local deficit_stacks = requested_stacks - net_stacks
 		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
-			return {
+			---@type Cybersyn.Internal.Needs
+			local res = {
 				fluids = fluids,
-				explicit_dts = fluid_thresh,
+				thresh_explicit = thresh_explicit,
+				thresh_min_slots = thresh_min_slots,
+				thresh_min_fluid = thresh_min_fluid,
 				all_stacks = deficit_stacks,
 				spread = spread,
 			}
+			return res
 		end
 	end
 
 	-- Fallthrough: explicit fluids only here.
 	if fluids then
-		return { fluids = fluids, explicit_dts = fluid_thresh }
+		---@type Cybersyn.Internal.Needs
+		local res = {
+			fluids = fluids,
+			thresh_explicit = thresh_explicit,
+			thresh_min_slots = thresh_min_slots,
+			thresh_min_fluid = thresh_min_fluid,
+		}
+		return res
 	else
 		return nil
 	end
 end
 
+---@class (exact) Cybersyn.Internal.Satisfaction
+---@field fluids SignalCounts? Satisfied fluid manifest
+---@field items SignalCounts? Satisfied item manifest
+---@field total_fluid uint32 Total satisfied fluid quantity
+---@field total_stacks uint32 Total satisfied item stacks
+
 ---Determine if this order can provide anything that meets the given needs.
 ---@param workload Core.Thread.Workload
 ---@param needs Cybersyn.Internal.Needs
-function Order:meet_needs(workload, needs) end
+---@return Cybersyn.Internal.Satisfaction? satisfaction
+function Order:satisfy_needs(workload, needs)
+	trace(
+		"Providing order",
+		self.node_id,
+		"computing satisfaction for needs",
+		needs
+	)
+	local total_stacks = 0
+	local total_fluid = 0
+
+	local thresh_explicit = needs.thresh_explicit or EMPTY
+	local thresh_min_stacks = needs.thresh_min_slots or 0
+	local thresh_min_fluid = needs.thresh_min_fluid or 0
+
+	local prov_inv = self.inventory.inventory or EMPTY
+	local prov_outflow = self.inventory.outflow or EMPTY
+	local prov_inflow = self.inventory.inflow or EMPTY
+
+	-- Fluids
+	local fluids = nil
+	local needs_fluids = needs.fluids
+	if needs_fluids then
+		fluids = {}
+		for key, qty in pairs(needs_fluids) do
+			local available =
+				min(max((prov_inv[key] or 0) - (prov_outflow[key] or 0), 0), qty)
+			if available > 0 and available >= (thresh_explicit[key] or 0) then
+				fluids[key] = available
+				total_fluid = total_fluid + available
+			end
+		end
+		if workload then add_workload(workload, table_size(needs_fluids)) end
+		if total_fluid == 0 or total_fluid < thresh_min_fluid then
+			trace(
+				"Providing order",
+				self.node_id,
+				"fluids: no fluid match above threshold"
+			)
+			fluids = nil
+			total_fluid = 0
+		else
+			trace("Providing order", self.node_id, "fluids: fluid match", fluids)
+		end
+	end
+
+	-- Explicit items
+	local items = nil
+	local needs_items = needs.items
+	if needs_items then
+		items = {}
+		for key, qty in pairs(needs_items) do
+			local available =
+				min(max((prov_inv[key] or 0) - (prov_outflow[key] or 0), 0), qty)
+			if available > 0 and available >= (thresh_explicit[key] or 0) then
+				items[key] = available
+				local stack_size = key_to_stacksize(key) or 1
+				total_stacks = total_stacks + ceil(available / stack_size)
+			end
+		end
+		if workload then add_workload(workload, table_size(needs_items)) end
+
+		if total_stacks >= thresh_min_stacks and next(items) then
+			---@type Cybersyn.Internal.Satisfaction
+			local res = {
+				items = items,
+				fluids = fluids,
+				total_fluid = total_fluid,
+				total_stacks = total_stacks,
+			}
+			trace(
+				"Providing order",
+				self.node_id,
+				"explicit_items: matched items",
+				res
+			)
+			return res
+		elseif fluids then
+			---@type Cybersyn.Internal.Satisfaction
+			local res = {
+				fluids = fluids,
+				total_fluid = total_fluid,
+				total_stacks = total_stacks,
+			}
+			trace(
+				"Providing order",
+				self.node_id,
+				"explicit_items: no item match above threshold (fluids only)",
+				res
+			)
+			return res
+		else
+			trace(
+				"Providing order",
+				self.node_id,
+				"explicit_items: no item match above threshold"
+			)
+			return nil
+		end
+	end
+
+	-- AND spread
+	local qualities = needs.spread
+	local and_spread = needs.and_spread
+	if and_spread and qualities then
+		-- TODO: probably unnecessary, we can just mutate and_spread
+		local mutable_and_spread = tlib.assign({}, and_spread)
+		if workload then add_workload(workload, table_size(and_spread)) end
+
+		items = tlib.t_reduce(prov_inv, {}, function(itm, key, qty)
+			local avail = qty - (prov_outflow[key] or 0)
+			if avail > 0 then
+				local sig = key_to_signal(key) --[[@as SignalID]]
+				local name = sig.name --[[@as string]]
+				local as_name = mutable_and_spread[name] or 0
+				local wanted = min(as_name, avail)
+				if wanted > 0 and qualities[sig.quality or "normal"] then
+					itm[key] = wanted
+					mutable_and_spread[name] = as_name - wanted
+				end
+			end
+			return itm
+		end)
+		if workload then add_workload(workload, table_size(prov_inv)) end
+	end
+
+	-- OR
+	local or_mask = needs.or_mask
+	local or_stacks = needs.or_stacks
+	if or_mask and or_stacks and (or_stacks >= thresh_min_stacks) then
+		items = tlib.t_reduce(prov_inv, {}, function(itm, key, qty)
+			local avail = qty - (prov_outflow[key] or 0)
+			local matches_quality = true
+			local mask_key = key
+			if qualities then
+				local sig = key_to_signal(key) --[[@as SignalID]]
+				mask_key = sig.name --[[@as string]]
+				matches_quality = qualities[sig.quality or "normal"]
+			end
+			if
+				avail > 0
+				and or_stacks > 0
+				and matches_quality
+				and or_mask[mask_key]
+			then
+				local stack_size = key_to_stacksize(key) or 1
+				local avail_stacks = ceil(avail / stack_size)
+				if avail_stacks > or_stacks then
+					avail = or_stacks * stack_size
+					or_stacks = 0
+				elseif avail_stacks == or_stacks then
+					or_stacks = 0
+				else
+					or_stacks = or_stacks - avail_stacks
+				end
+				itm[key] = avail
+			end
+			return itm
+		end)
+		if workload then add_workload(workload, table_size(prov_inv)) end
+	end
+
+	-- ALL
+	local all_stacks = needs.all_stacks
+	if all_stacks and all_stacks >= thresh_min_stacks then
+		items = tlib.t_reduce(prov_inv, {}, function(itm, key, qty)
+			local avail = qty - (prov_outflow[key] or 0)
+			local matches_quality = true
+			if qualities then
+				local sig = key_to_signal(key) --[[@as SignalID]]
+				matches_quality = qualities[sig.quality or "normal"]
+			end
+			if avail > 0 and all_stacks > 0 and matches_quality then
+				local stack_size = key_to_stacksize(key) or 1
+				local avail_stacks = ceil(avail / stack_size)
+				if avail_stacks > all_stacks then
+					avail = all_stacks * stack_size
+					all_stacks = 0
+				elseif avail_stacks == all_stacks then
+					all_stacks = 0
+				else
+					all_stacks = all_stacks - avail_stacks
+				end
+				itm[key] = avail
+			end
+			return itm
+		end)
+		if workload then add_workload(workload, table_size(prov_inv)) end
+	end
+
+	if not items or (not next(items)) then
+		items = nil
+		total_stacks = 0
+	else
+		total_stacks = tlib.t_reduce(items, 0, function(stacks, key, qty)
+			local stack_size = key_to_stacksize(key) or 1
+			stacks = stacks + ceil(qty / stack_size)
+			return stacks
+		end)
+		if workload then add_workload(workload, table_size(items)) end
+	end
+
+	if items then
+		---@type Cybersyn.Internal.Satisfaction
+		local res = {
+			items = items,
+			fluids = fluids,
+			total_fluid = total_fluid,
+			total_stacks = total_stacks,
+		}
+		trace(
+			"Providing order",
+			self.node_id,
+			"exotic_items: found item match above threshold",
+			res
+		)
+		return res
+	elseif fluids then
+		---@type Cybersyn.Internal.Satisfaction
+		local res = {
+			fluids = fluids,
+			total_fluid = total_fluid,
+			total_stacks = total_stacks,
+		}
+		trace(
+			"Providing order",
+			self.node_id,
+			"exotic_items: no item match above threshold (fluids only)"
+		)
+		return res
+	else
+		trace(
+			"Providing order",
+			self.node_id,
+			"exotic_items: no item match above threshold"
+		)
+		return nil
+	end
+end

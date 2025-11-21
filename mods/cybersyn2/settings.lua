@@ -7,12 +7,12 @@ data:extend({
 		default_value = true,
 	},
 	{
-		type = "bool-setting",
-		name = "cybersyn2-setting-debug",
-		order = "ab",
+		type = "string-setting",
+		name = "cybersyn2-setting-debug-level",
+		order = "ac",
 		setting_type = "runtime-global",
-		-- TODO: set this to false for release
-		default_value = true,
+		default_value = "NONE",
+		allowed_values = { "NONE", "INFO", "TRACE" },
 	},
 	{
 		type = "int-setting",

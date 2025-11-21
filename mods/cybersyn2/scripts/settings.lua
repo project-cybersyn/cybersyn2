@@ -1,10 +1,12 @@
 local cs2 = _G.cs2
 
 local events = require("lib.core.event")
+local strace = require("lib.core.strace")
 
 ---@class (exact) Cybersyn.ModSettings
 ---@field public enable_logistics boolean Enable or disable scheduling globally.
 ---@field public debug boolean Enable debug mode.
+---@field public debug_level string Debug level ("NONE", "INFO", "TRACE").
 ---@field public work_period uint Number of ticks between work cycles.
 ---@field public work_factor number Multiplier applied to work done per cycle.
 ---@field public warmup_time number Warmup time in seconds.
@@ -24,7 +26,9 @@ _G.cs2.mod_settings = mod_settings
 local function update_mod_settings()
 	mod_settings.enable_logistics =
 		settings.global["cybersyn2-setting-enable-logistics"].value --[[@as boolean]]
-	mod_settings.debug = settings.global["cybersyn2-setting-debug"].value --[[@as boolean]]
+	local debug_level = settings.global["cybersyn2-setting-debug-level"].value --[[@as string]]
+	mod_settings.debug = debug_level ~= "NONE"
+	mod_settings.debug_level = debug_level
 	mod_settings.work_period =
 		settings.startup["cybersyn2-setting-work-period"].value --[[@as uint]]
 	mod_settings.work_factor =
@@ -48,10 +52,32 @@ _G.cs2.update_mod_settings = update_mod_settings
 update_mod_settings()
 
 -- On init we must treat settings as having been changed
-events.bind("on_startup", function() cs2.raise_mod_settings_changed(nil) end)
+events.bind("on_startup", function()
+	cs2.raise_mod_settings_changed(nil)
+	events.raise("cs2.mod_settings_changed", nil)
+end)
 
 -- Change settings when settings change
 events.bind(defines.events.on_runtime_mod_setting_changed, function(event)
 	update_mod_settings()
 	cs2.raise_mod_settings_changed(event.setting)
+	events.raise("cs2.mod_settings_changed", event.setting)
+end)
+
+-- Update debug log level when settings change
+-- TODO: find a better home for this...
+events.bind("cs2.mod_settings_changed", function(setting_name)
+	if setting_name == nil or setting_name == "cybersyn2-setting-debug-level" then
+		local debug_level = mod_settings.debug_level
+		if debug_level == "NONE" then
+			storage._LOG_LEVEL = 50
+			strace.warn("Log level set to WARN")
+		elseif debug_level == "INFO" then
+			storage._LOG_LEVEL = 30
+			strace.warn("Log level set to INFO")
+		elseif debug_level == "TRACE" then
+			storage._LOG_LEVEL = 1
+			strace.warn("Log level set to ALL")
+		end
+	end
 end)

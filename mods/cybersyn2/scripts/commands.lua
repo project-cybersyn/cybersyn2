@@ -33,14 +33,3 @@ commands.add_command(
 	{ "cybersyn2-commands.log-all-command-help" },
 	function() cs2.debug.set_strace(0, 0, nil) end
 )
-
-commands.add_command(
-	"cs2-clear-bugged-render-objects",
-	"Remove bugged render objects created by Cybersyn2. Run only when necessary and only during shutdown, or you'll make things worse.",
-	function()
-		local objs = rendering.get_all_objects("cybersyn2")
-		for _, o in pairs(objs) do
-			o.destroy()
-		end
-	end
-)

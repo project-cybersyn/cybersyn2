@@ -17,18 +17,10 @@ _G.cs2.MAX_RAILS_TO_SEARCH = 112
 -- This is a bit of a hack, but it is what it is.
 _G.cs2.LONGEST_INSERTER_REACH = 2
 
--- Base number of trains to examine per iteration of the train group monitor.
-_G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 4
--- Base number of nodes to examine per `poll_nodes` iteration
-_G.cs2.PERF_POLL_NODES_WORKLOAD = 4
--- Base empirical work units per `alloc` iteration.
-_G.cs2.PERF_ALLOC_WORKLOAD = 15
--- Base number of allocations to examine per `route` iteration.
-_G.cs2.PERF_ROUTE_WORKLOAD = 1
--- Number of deliveries to examine per delivery monitor iteration.
-_G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 5
 -- Base logistics workload
 _G.cs2.PERF_BASE_LOGISTICS_WORKLOAD = 100
+-- Base workload for general threads
+_G.cs2.PERF_BASE_THREAD_WORKLOAD = 50
 
 -- Expiration time in ticks for a finished delivery to be deleted from storage.
 -- TODO: possibly make this a setting

@@ -187,7 +187,7 @@ function TrainStop:train_departed(train)
 	-- update_inventory can clear them optimistcally.
 	if delivery then delivery:notify_departed(self) end
 	-- Then try to opportunistically re-read the station's inventory.
-	self:update_inventory(true)
+	self:update_inventory(nil, true)
 end
 
 ---Determine if the queue of this train stop exceeds the user-set global limit.

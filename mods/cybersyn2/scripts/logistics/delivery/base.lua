@@ -8,11 +8,13 @@ local counters = require("lib.core.counters")
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
 local events = require("lib.core.event")
+local thread_lib = require("lib.core.thread")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
 local strace = stlib.strace
 local WARN = stlib.WARN
+local add_workload = thread_lib.add_workload
 
 ---@class Cybersyn.Delivery: StateMachine
 local Delivery = class("Delivery", StateMachine)
@@ -157,10 +159,7 @@ function DeliveryMonitor:init()
 end
 
 function DeliveryMonitor:enter_enum_deliveries()
-	self:begin_async_loop(
-		tlib.keys(storage.deliveries),
-		math.ceil(cs2.PERF_DELIVERY_MONITOR_WORKLOAD * mod_settings.work_factor)
-	)
+	self:begin_async_loop(tlib.keys(storage.deliveries), 1)
 	for _, view in pairs(storage.views) do
 		view:enter_deliveries()
 	end
@@ -184,6 +183,7 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 		view:enter_delivery(delivery)
 		view:exit_delivery(delivery)
 	end
+	add_workload(self.workload_counter, 3)
 end
 
 function DeliveryMonitor:enum_deliveries()

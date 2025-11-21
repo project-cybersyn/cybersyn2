@@ -172,7 +172,13 @@ lib.CarriageType = {
 ---@field public requested_fluids SignalCounts The requested fluids for this order.
 ---@field public request_stacks uint? Number of stacks requested for an "or" or "all" order.
 ---@field public provides SignalCounts The provided items for this order.
----@field public thresholds_in SignalCounts Inbound thresholds for this order.
+---@field public thresh_explicit SignalCounts Explicit user thresholds for this order.
+---@field public thresh_depletion SignalCounts Depletion-based computed thresholds.
+---@field public thresh_in SignalCounts Inbound thresholds for this order.
+---@field public thresh_depletion_fraction number Fraction used when computing depletion thresholds.
+---@field public thresh_fullness_fraction number Fraction used when computing fullness thresholds.
+---@field public thresh_min_slots uint Min slots that must be filled to meet fullness. Computed using smallest vehicle size.
+---@field public thresh_min_fluid uint Min fluid that must be filled to meet fullness. Computed using smallest vehicle size.
 ---@field public networks SignalCounts The computed network masks of this order.
 ---@field public last_fulfilled_tick int64 Last tick on which this order received any delivery.
 ---@field public starvation int64? Oldest starvation tick
@@ -182,8 +188,6 @@ lib.CarriageType = {
 ---@field public network_matching_mode "and"|"or" Network matching mode for this order.
 ---@field public stacked_requests boolean `true` if this order uses stacked requests.
 ---@field public force_away boolean `true` if this order is forcing away provided items
----@field public depletion_fraction number
----@field public train_fullness_fraction number
 ---@field public needs Cybersyn.Internal.Needs?
 
 ---@class Cybersyn.Inventory

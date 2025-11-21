@@ -6,6 +6,7 @@
 
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
+local thread_lib = require("lib.core.thread")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
@@ -15,6 +16,8 @@ local strace = stlib.strace
 local DEBUG = stlib.DEBUG
 local TRACE = stlib.TRACE
 local empty = tlib.empty
+local add_workload = thread_lib.add_workload
+local table_size = _G.table_size
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -27,6 +30,7 @@ function LogisticsThread:enter_enum_nodes()
 	end)
 	self.nodes = nodes
 	local n_nodes = #nodes
+	add_workload(self.workload_counter, table_size(storage.nodes))
 
 	-- If no nodes, no work needs to be done, so sleep the thread and check
 	-- again later.

@@ -27,6 +27,7 @@ require("scripts.lib")
 require("scripts.threads")
 require("scripts.alerts")
 
+require("scripts.api.plugins.route")
 require("scripts.logistics.order")
 require("scripts.logistics.inventory") -- needs order
 require("scripts.logistics.delivery.base")
@@ -68,8 +69,7 @@ require("scripts.combinator.modes.surface")
 require("scripts.logistics.thread.base")
 require("scripts.logistics.thread.enum-nodes")
 require("scripts.logistics.thread.poll-nodes")
-require("scripts.logistics.thread.alloc")
-require("scripts.logistics.thread.route")
+require("scripts.logistics.thread.logistics")
 
 require("scripts.view.view")
 require("scripts.view.net-inventory")

@@ -5,6 +5,7 @@
 local class = require("lib.core.class").class
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
+local thread_lib = require("lib.core.thread")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
@@ -16,6 +17,7 @@ local ALL_TRAINS_FILTER = {}
 local strace = stlib.strace
 local WARN = stlib.WARN
 local INF = math.huge
+local add_workload = thread_lib.add_workload
 
 --------------------------------------------------------------------------------
 -- Train group monitor background thread
@@ -32,7 +34,6 @@ local TrainMonitor = class("TrainMonitor", cs2.StatefulThread)
 function TrainMonitor:new()
 	local thread = cs2.StatefulThread.new(self) --[[@as Cybersyn.Internal.TrainMonitor]]
 	thread.friendly_name = "train_monitor"
-	thread.workload = 20
 	thread:set_state("init")
 	thread:wake()
 	return thread
@@ -44,10 +45,7 @@ end
 
 function TrainMonitor:enter_enum_luatrains()
 	self.seen_groups = {}
-	self:begin_async_loop(
-		game.train_manager.get_trains(ALL_TRAINS_FILTER),
-		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
-	)
+	self:begin_async_loop(game.train_manager.get_trains(ALL_TRAINS_FILTER), 1)
 end
 
 ---@param luatrain LuaTrain
@@ -55,6 +53,7 @@ function TrainMonitor:enum_luatrain(luatrain)
 	if (not luatrain) or not luatrain.valid then return end
 	local group_name = luatrain.group
 	local vehicle = Train.get_from_luatrain_id(luatrain.id)
+	add_workload(self.workload_counter, 1)
 
 	-- If train has no group, remove it if we know about it
 	if not group_name then
@@ -76,6 +75,7 @@ function TrainMonitor:enum_luatrain(luatrain)
 	if vehicle and vehicle.volatile then return end
 
 	local group = cs2.get_train_group(group_name)
+	add_workload(self.workload_counter, 1)
 	if group then
 		if vehicle then
 			if vehicle.group == group_name then
@@ -113,6 +113,7 @@ function TrainMonitor:enum_luatrain(luatrain)
 		return
 	end
 	cs2.add_train_to_group(vehicle, group_name)
+	add_workload(self.workload_counter, 2)
 end
 
 function TrainMonitor:enum_luatrains()
@@ -124,15 +125,14 @@ end
 
 function TrainMonitor:enter_enum_cstrains()
 	self.seen_layouts = {}
-	self:begin_async_loop(
-		tlib.t_map_a(Vehicle.all(), function(veh)
-			if veh.type == "train" then return veh.id end
-		end),
-		math.ceil(cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD * mod_settings.work_factor)
-	)
+	local cstrains = tlib.t_map_a(Vehicle.all(), function(veh)
+		if veh.type == "train" then return veh.id end
+	end)
+	self:begin_async_loop(cstrains, 1)
 	for _, view in pairs(storage.views) do
 		view:enter_vehicles()
 	end
+	add_workload(self.workload_counter, 1 + #cstrains)
 end
 
 function TrainMonitor:enum_cstrain(vehicle_id)
@@ -143,6 +143,8 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 		return
 	end
 	---@cast train Cybersyn.Train
+
+	add_workload(self.workload_counter, 2)
 
 	if (not train.volatile) and (not train:is_valid()) then
 		strace(
@@ -216,6 +218,8 @@ function TrainMonitor:exit_enum_cstrains()
 
 	-- Cleanup
 	self.seen_layouts = nil
+
+	add_workload(self.workload_counter, 5)
 end
 
 -- Start thread on startup.

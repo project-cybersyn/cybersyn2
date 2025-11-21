@@ -60,9 +60,7 @@ function LogisticsThread:classify_inventory(workload, stop)
 		if stop.is_producer and order:is_provider() then
 			providers[#providers + 1] = order
 		end
-		-- XXX: does this belong here?
-		order.needs = order:compute_needs(workload)
-		if stop.is_consumer and order.needs then
+		if stop.is_consumer and order:is_requester() then
 			requesters[#requesters + 1] = order
 		end
 		for _, view in pairs(storage.views) do
@@ -290,10 +288,7 @@ end
 function LogisticsThread:enter_poll_nodes()
 	self.providers = {}
 	self.requesters = {}
-	self:begin_async_loop(
-		self.nodes,
-		math.ceil(cs2.PERF_POLL_NODES_WORKLOAD * mod_settings.work_factor)
-	)
+	self:begin_async_loop(self.nodes, 1)
 	local topology = cs2.get_topology(self.topology_id)
 	if topology then
 		for _, view in pairs(storage.views) do
@@ -312,5 +307,8 @@ function LogisticsThread:exit_poll_nodes()
 end
 
 function LogisticsThread:poll_nodes()
-	self:step_async_loop(self.poll_node, function(thr) thr:set_state("init") end)
+	self:step_async_loop(
+		self.poll_node,
+		function(thr) thr:set_state("logistics") end
+	)
 end

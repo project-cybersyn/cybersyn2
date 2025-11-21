@@ -51,28 +51,20 @@ local inventory_renderers = {
 	id = function() end,
 	created_for_node_id = default_renderer,
 	inventory = function(_, counts)
-		return ultros.BoldLabel("inventory"), render_counts(counts)
+		if next(counts) then
+			return ultros.BoldLabel("inventory"), render_counts(counts)
+		end
 	end,
 	inflow = function(_, counts)
-		return ultros.BoldLabel("inflow"), render_counts(counts)
+		if next(counts) then
+			return ultros.BoldLabel("inflow"), render_counts(counts)
+		end
 	end,
 	outflow = function(_, counts)
-		return ultros.BoldLabel("outflow"), render_counts(counts)
+		if next(counts) then
+			return ultros.BoldLabel("outflow"), render_counts(counts)
+		end
 	end,
-	-- orders = function(_, orders)
-	-- 	local res = {}
-	-- 	for _, order in pairs(orders) do
-	-- 		res[#res + 1] = ultros.RtBoldLabel(
-	-- 			"order [color="
-	-- 				.. (order.combinator_input or "default")
-	-- 				.. "]"
-	-- 				.. order.combinator_id
-	-- 				.. "[/color]"
-	-- 		)
-	-- 		res[#res + 1] = render_order(order)
-	-- 	end
-	-- 	return table.unpack(res)
-	-- end,
 }
 
 local order_renderers = {
@@ -105,11 +97,25 @@ local order_renderers = {
 			return ultros.BoldLabel("networks"), render_counts(counts)
 		end
 	end,
-	thresholds_in = function(_, counts)
+	thresh_in = function(_, counts)
 		if next(counts) then
-			return ultros.BoldLabel("thresholds"), render_counts(counts)
+			return ultros.BoldLabel("thresh_in"), render_counts(counts)
 		end
 	end,
+	thresh_depletion = function(_, counts)
+		if next(counts) then
+			return ultros.BoldLabel("thresh_depletion"), render_counts(counts)
+		end
+	end,
+	thresh_explicit = function(_, counts)
+		if next(counts) then
+			return ultros.BoldLabel("thresh_explicit"), render_counts(counts)
+		end
+	end,
+	thresh_depletion_fraction = default_renderer,
+	thresh_fullness_fraction = default_renderer,
+	thresh_min_slots = default_renderer,
+	thresh_min_fluid = default_renderer,
 }
 
 relm.define_element({
