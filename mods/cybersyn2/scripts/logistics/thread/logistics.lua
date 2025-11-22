@@ -361,9 +361,28 @@ function LogisticsThread:sort_matches()
 		local b_db = match_score(b, requester_stop_entity)
 		return a_db > b_db
 	end)
+	-- This is an expensive sort.
+	local n = 3 * #self.matches
+	add_workload(self.workload_counter, n * math.log(n))
 
 	self.match = self.matches[1]
 	self:start_train_loop()
+end
+
+--------------------------------------------------------------------------------
+-- Train loop
+--------------------------------------------------------------------------------
+
+function LogisticsThread:start_train_loop()
+	self.train_index = 0
+	self.best_train = nil
+	self.best_train_index = nil
+	self.best_train_score = -INF
+	self.busy_rejections = 0
+	self.capacity_rejections = 0
+	self.allowlist_rejections = 0
+	self.plugin_rejections = 0
+	self:set_state("loop_trains")
 end
 
 ---Determine a numerical score for a train processing a given allocation.
@@ -391,18 +410,6 @@ local function train_score(train, from, to, satisfaction)
 	local dx = dist(stop, train_stock)
 
 	return (10000 * material_moved) + (1000 * cap_ratio) - dx
-end
-
-function LogisticsThread:start_train_loop()
-	self.train_index = 0
-	self.best_train = nil
-	self.best_train_index = nil
-	self.best_train_score = -INF
-	self.busy_rejections = 0
-	self.capacity_rejections = 0
-	self.allowlist_rejections = 0
-	self.plugin_rejections = 0
-	self:set_state("loop_trains")
 end
 
 function LogisticsThread:loop_trains()
@@ -496,7 +503,10 @@ function LogisticsThread:sort_requesters()
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
 		local a_needs, b_needs = a.needs, b.needs
+		-- Nothing gets in the requesters array without having `needs` set.
+		---@diagnostic disable-next-line: need-check-nil
 		local a_last = a_needs.starvation_tick or 0
+		---@diagnostic disable-next-line: need-check-nil
 		local b_last = b_needs.starvation_tick or 0
 		if a_last < b_last then return true end
 		if a_last > b_last then return false end

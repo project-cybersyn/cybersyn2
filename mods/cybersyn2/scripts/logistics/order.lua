@@ -392,7 +392,7 @@ end
 function Order:get_provided_qty(signal_key)
 	local inv_qty = self.inventory:qty(signal_key)
 	local provided_qty = self.provides[signal_key] or 0
-	return self.provides[signal_key] or 0
+	return min(inv_qty, provided_qty)
 end
 
 ---@class Cybersyn.Internal.Needs
@@ -430,51 +430,60 @@ function Order:compute_needs(workload)
 	local thresh_min_fluid = self.thresh_min_fluid or 0
 	local starvation_tick = self.last_fulfilled_tick or 0
 	local starvation_item = nil
+	local game_tick = game.tick
+	add_workload(workload, 2)
 
 	-- Explicit needs
 	local items = {}
 	local fluids = {}
 	-- Explicit fluids
+	local met_thresh = false
 	for key, qty in pairs(requested_fluids) do
 		local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
 		local deficit = qty - has
-		local threshold = thresh[key] or 0
-		if deficit >= threshold and deficit > 0 then
-			fluids[key] = deficit
-			if has == 0 then
+		if deficit > 0 then
+			if deficit >= (thresh_explicit[key] or 0) then
+				fluids[key] = deficit
 				local tick = req_starv[key] or 0
 				if tick <= starvation_tick then
-					starvation_item = key
+					if (game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS then
+						starvation_item = key
+					end
 					starvation_tick = tick
 				end
 			end
+			if deficit >= (thresh[key] or 0) then met_thresh = true end
 		end
 	end
 	if workload then add_workload(workload, table_size(requested_fluids)) end
-	if not next(fluids) then fluids = nil end
+	if (not met_thresh) or (not next(fluids)) then fluids = nil end
+
 	-- Explicit items
 	if self.item_mode == "and" and not spread then
+		met_thresh = false
 		for key, qty in pairs(requests) do
 			local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
 			local deficit = qty - has
-			local threshold = thresh[key] or 0
-			if deficit >= threshold and deficit > 0 then
-				items[key] = deficit
-				if has == 0 then
+			if deficit > 0 then
+				if deficit >= (thresh_explicit[key] or 0) then
+					items[key] = deficit
 					local tick = req_starv[key] or 0
 					if tick <= starvation_tick then
-						starvation_item = key
+						if (game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS then
+							starvation_item = key
+						end
 						starvation_tick = tick
 					end
 				end
+				if deficit >= (thresh[key] or 0) then met_thresh = true end
 			end
 		end
 		if workload then add_workload(workload, table_size(requests)) end
-		local ni = next(items)
-		if ni or fluids then
+		if (not met_thresh) or (not next(items)) then items = nil end
+		if items or fluids then
 			---@type Cybersyn.Internal.Needs
 			local res = {
-				items = ni and items,
+				items = items,
 				fluids = fluids,
 				thresh_explicit = thresh_explicit,
 				thresh_min_slots = thresh_min_slots,
@@ -487,7 +496,7 @@ function Order:compute_needs(workload)
 			return nil
 		end
 	end
-	if not next(items) then items = nil end
+	if (not items) or (not next(items)) then items = nil end
 
 	-- For exotica, we need inv net of inflow
 	local inv_net = self.inventory:net(true, false, workload)
@@ -512,14 +521,20 @@ function Order:compute_needs(workload)
 		if workload then add_workload(workload, table_size(inv_net)) end
 
 		local and_spread = {}
+		met_thresh = false
 		for key, qty in pairs(requests) do
 			local deficit = qty - (spread_net[key] or 0)
-			local threshold = thresh[key] or 0
-			if deficit >= threshold and deficit > 0 then and_spread[key] = deficit end
+			if deficit > 0 then
+				if deficit >= (thresh_explicit[key] or 0) then
+					and_spread[key] = deficit
+				end
+				if deficit >= (thresh[key] or 0) then met_thresh = true end
+			end
 		end
 		if workload then add_workload(workload, table_size(requests)) end
+		if (not met_thresh) or (not next(and_spread)) then and_spread = nil end
 
-		if next(and_spread) then
+		if and_spread then
 			---@type Cybersyn.Internal.Needs
 			local res = {
 				fluids = fluids,
@@ -569,7 +584,6 @@ function Order:compute_needs(workload)
 			if workload then add_workload(workload, table_size(inv_net)) end
 			or_mask = requests
 		end
-		-- TODO: honor fullness threshold here
 		local stack_threshold = requested_stacks * (depletion_fraction or 0)
 		local deficit_stacks = requested_stacks - net_stacks
 		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
@@ -611,7 +625,6 @@ function Order:compute_needs(workload)
 			end)
 			if workload then add_workload(workload, table_size(inv_net)) end
 		end
-		-- TODO: honor fullness_threshold here
 		local stack_threshold = requested_stacks * (depletion_fraction or 0)
 		local deficit_stacks = requested_stacks - net_stacks
 		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
