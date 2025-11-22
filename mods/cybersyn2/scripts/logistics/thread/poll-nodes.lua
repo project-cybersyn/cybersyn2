@@ -26,51 +26,71 @@ local key_to_stacksize = slib.key_to_stacksize
 local INF = math.huge
 local add_workload = thread_lib.add_workload
 local pairs = _G.pairs
+local clamp = nmlib.clamp
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
----@param workload Core.Thread.Workload
----@param stop Cybersyn.TrainStop
-function LogisticsThread:classify_inventory(workload, stop)
-	local providers = self.providers
-	local requesters = self.requesters
-	for _, view in pairs(storage.views) do
-		view:enter_node(stop)
-	end
-	-- Inventory is classified at shared master, so skip this step for slaves.
-	if stop.shared_inventory_master then
+--------------------------------------------------------------------------------
+-- Classify
+--------------------------------------------------------------------------------
+
+function LogisticsThread:enter_poll_train_stop_classify_inventory()
+	-- Only run on first entry
+	if not self.order_index then
+		local stop = self.node --[[@as Cybersyn.TrainStop]]
 		for _, view in pairs(storage.views) do
-			view:exit_node(stop)
+			view:enter_node(stop)
 		end
-		return true
+		if stop.shared_inventory_master then
+			-- Shared inventory slave; allow the master to classify inventory
+			return self:set_state("poll_nodes")
+		end
+
+		self.orders = stop:get_orders()
+		if not self.orders then return self:set_state("poll_nodes") end
+
+		self.order_index = 0
 	end
-	local orders = stop:get_orders()
-	if not orders then
-		strace(stlib.ERROR, "message", "No orders found for stop", stop)
-		for _, view in pairs(storage.views) do
-			view:exit_node(stop)
-		end
-		return false
-	end
-	for _, order in pairs(orders) do
-		for _, view in pairs(storage.views) do
-			view:enter_order(order, stop)
-		end
-		if stop.is_producer and order:is_provider() then
-			providers[#providers + 1] = order
-		end
-		if stop.is_consumer and order:is_requester() then
-			requesters[#requesters + 1] = order
-		end
-		for _, view in pairs(storage.views) do
-			view:exit_order(order, stop)
-		end
-	end
+end
+
+function LogisticsThread:exit_poll_train_stop_classify_inventory()
+	self.order_index = nil
+	self.orders = nil
+	local stop = self.node --[[@as Cybersyn.TrainStop]]
 	for _, view in pairs(storage.views) do
 		view:exit_node(stop)
 	end
 end
+
+function LogisticsThread:poll_train_stop_classify_inventory()
+	self.order_index = self.order_index + 1
+	local index = self.order_index --[[@as int]]
+	local order = self.orders[index]
+	if not order then return self:set_state("poll_nodes") end
+
+	local stop = self.node --[[@as Cybersyn.TrainStop]]
+	local providers = self.providers
+	local requesters = self.requesters
+
+	for _, view in pairs(storage.views) do
+		view:enter_order(order, stop)
+	end
+	if stop.is_producer and order:is_provider() then
+		providers[#providers + 1] = order
+	end
+	if stop.is_consumer and order:is_requester() then
+		order.needs = order:compute_needs(self.workload_counter)
+		if order.needs then requesters[#requesters + 1] = order end
+	end
+	for _, view in pairs(storage.views) do
+		view:exit_order(order, stop)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Poll
+--------------------------------------------------------------------------------
 
 ---@param workload Core.Thread.Workload
 ---@param stop Cybersyn.TrainStop
@@ -147,7 +167,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	stop.auto_threshold_fraction = mod_settings.default_auto_threshold_fraction
 	if signal_depletion_percentage then
 		local auto_threshold_percent =
-			nmlib.clamp(inputs[signal_depletion_percentage.name], 0, 100, 0)
+			clamp(inputs[signal_depletion_percentage.name], 0, 100, 0)
 		stop.auto_threshold_fraction = auto_threshold_percent / 100
 	else
 		local auto_threshold_percent = comb:get_auto_threshold_percent()
@@ -159,7 +179,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	stop.train_fullness_fraction = mod_settings.default_train_fullness_fraction
 	if signal_fullness_percentage then
 		local fullness_percent =
-			nmlib.clamp(inputs[signal_fullness_percentage.name], 0, 100, 0)
+			clamp(inputs[signal_fullness_percentage.name], 0, 100, 0)
 		stop.train_fullness_fraction = fullness_percent / 100
 	else
 		local fullness_percent = comb:get_train_fullness_percent()
@@ -169,21 +189,20 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	end
 
 	if signal_reserved_slots then
-		stop.reserved_slots =
-			nmlib.clamp(inputs[signal_reserved_slots.name], 0, INF, 0)
+		stop.reserved_slots = clamp(inputs[signal_reserved_slots.name], 0, INF, 0)
 	else
 		stop.reserved_slots = comb:get_reserved_slots() or 0
 	end
 
 	if signal_reserved_fluid then
 		stop.reserved_capacity =
-			nmlib.clamp(inputs[signal_reserved_fluid.name], 0, INF, 0)
+			clamp(inputs[signal_reserved_fluid.name], 0, INF, 0)
 	else
 		stop.reserved_capacity = comb:get_reserved_capacity() or 0
 	end
 
 	if signal_spillover then
-		stop.spillover = nmlib.clamp(inputs[signal_spillover.name], 0, INF, 0)
+		stop.spillover = clamp(inputs[signal_spillover.name], 0, INF, 0)
 	else
 		stop.spillover = comb:get_spillover() or 0
 	end
@@ -256,29 +275,27 @@ function LogisticsThread:poll_dt_combs(workload, stop)
 	stop.thresholds_in = thresholds_in
 end
 
----@param stop Cybersyn.TrainStop
-function LogisticsThread:poll_train_stop(stop)
+function LogisticsThread:poll_train_stop_update_inventory()
+	local stop = self.node --[[@as Cybersyn.TrainStop]]
+	stop:update_inventory(self.workload_counter, true)
+	self:set_state("poll_train_stop_classify_inventory")
+end
+
+function LogisticsThread:poll_train_stop()
+	local stop = self.node --[[@as Cybersyn.TrainStop]]
 	local workload = self.workload_counter
 	add_workload(workload, 1)
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
-		return
+		return self:set_state("poll_nodes")
 	end
 	-- Get station comb info
-	if not self:poll_train_stop_station_comb(workload, stop) then return end
+	if not self:poll_train_stop_station_comb(workload, stop) then
+		return self:set_state("poll_nodes")
+	end
 	-- Get delivery thresholds
 	self:poll_dt_combs(workload, stop)
-	-- Get inventory
-	stop:update_inventory(workload, false)
-	-- Classify inventory of stop
-	return self:classify_inventory(workload, stop)
-end
-
----@param node Cybersyn.Node
-function LogisticsThread:poll_node(node)
-	if node.type == "stop" then
-		return self:poll_train_stop(node --[[@as Cybersyn.TrainStop]])
-	end
+	self:set_state("poll_train_stop_update_inventory")
 end
 
 --------------------------------------------------------------------------------
@@ -286,29 +303,36 @@ end
 --------------------------------------------------------------------------------
 
 function LogisticsThread:enter_poll_nodes()
-	self.providers = {}
-	self.requesters = {}
-	self:begin_async_loop(self.nodes, 1)
-	local topology = cs2.get_topology(self.topology_id)
-	if topology then
-		for _, view in pairs(storage.views) do
-			view:enter_nodes(topology)
-		end
-	end
-end
+	-- Only run on first entry
+	if not self.node_index then
+		self.providers = {}
+		self.requesters = {}
+		self.node_index = 0
 
-function LogisticsThread:exit_poll_nodes()
-	local topology = cs2.get_topology(self.topology_id)
-	if topology then
-		for _, view in pairs(storage.views) do
-			view:exit_nodes(topology)
+		local topology = cs2.get_topology(self.topology_id)
+		if topology then
+			for _, view in pairs(storage.views) do
+				view:enter_nodes(topology)
+			end
 		end
 	end
 end
 
 function LogisticsThread:poll_nodes()
-	self:step_async_loop(
-		self.poll_node,
-		function(thr) thr:set_state("logistics") end
-	)
+	self.node_index = self.node_index + 1
+	local index = self.node_index --[[@as int]]
+	local node = self.nodes[index]
+	self.node = node
+	if not node then
+		self.node_index = nil
+		local topology = cs2.get_topology(self.topology_id)
+		if topology then
+			for _, view in pairs(storage.views) do
+				view:exit_nodes(topology)
+			end
+		end
+		return self:set_state("logistics")
+	end
+
+	if node.type == "stop" then self:set_state("poll_train_stop") end
 end

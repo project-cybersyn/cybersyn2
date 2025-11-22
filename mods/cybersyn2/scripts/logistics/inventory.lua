@@ -24,7 +24,7 @@ local min = math.min
 local max = math.max
 local ceil = math.ceil
 local assign = tlib.assign
-local empty = tlib.empty
+local empty = tlib.EMPTY
 local table_add = tlib.vector_add
 local combinator_settings = _G.cs2.combinator_settings
 local mod_settings = _G.cs2.mod_settings
@@ -201,60 +201,10 @@ function Inventory:net(inflow_comp, outflow_comp, workload)
 	return net_inventory
 end
 
----Compute used capacity of this inventory, in stacks (for items) and units
----(for fluids).
----@return uint used_item_stack_capacity
----@return uint used_fluid_capacity
-function Inventory:get_used_capacities()
-	if self.used_item_stack_capacity then
-		return self.used_item_stack_capacity, self.used_fluid_capacity
-	end
-
-	local used_item_stack_capacity = 0
-	local used_fluid_capacity = 0
-	local base = self.inventory or empty
-	local inflow = self.inflow or empty
-
-	for k, v in pairs(base) do
-		local net = v + (inflow[k] or 0)
-
-		if key_is_fluid(k) then
-			used_fluid_capacity = used_fluid_capacity + net
-		else
-			local ss = key_to_stacksize(k)
-			if ss and ss > 0 then
-				used_item_stack_capacity = used_item_stack_capacity + ceil(net / ss)
-			end
-		end
-	end
-	for k, v in pairs(inflow) do
-		if not base[k] then
-			if key_is_fluid(k) then
-				used_fluid_capacity = used_fluid_capacity + v
-			else
-				local ss = key_to_stacksize(k)
-				if ss and ss > 0 then
-					used_item_stack_capacity = used_item_stack_capacity + ceil(v / ss)
-				end
-			end
-		end
-	end
-
-	self.used_item_stack_capacity = used_item_stack_capacity
-	self.used_fluid_capacity = used_fluid_capacity
-
-	return used_item_stack_capacity, used_fluid_capacity
-end
-
----@param item_stack_capacity uint|nil
----@param fluid_capacity uint|nil
-function Inventory:set_capacities(item_stack_capacity, fluid_capacity)
-	self.item_stack_capacity = item_stack_capacity
-	self.fluid_capacity = fluid_capacity
-end
-
-function Inventory:get_capacities()
-	return self.item_stack_capacity, self.fluid_capacity
+function Inventory:qty(item)
+	local inv = self.inventory or empty
+	local outflow = self.outflow or empty
+	return max((inv[item] or 0) - (outflow[item] or 0), 0)
 end
 
 function Inventory:clear()
@@ -263,10 +213,6 @@ function Inventory:clear()
 	self.inflow_rebate = nil
 	self.outflow = {}
 	self.outflow_rebate = nil
-	self.item_stack_capacity = nil
-	self.fluid_capacity = nil
-	self.used_item_stack_capacity = nil
-	self.used_fluid_capacity = nil
 end
 
 ---Determine if this inventory is volatile. A volatile inventory is one whose

@@ -50,6 +50,7 @@ function StatefulThread:main()
 		strace.trace("Stepping paused thread:", self.id, self.friendly_name)
 	end
 	local total_workload
+	local loops = 0
 	while true do
 		local state = self.state
 		if not state then
@@ -65,6 +66,17 @@ function StatefulThread:main()
 		total_workload = add_workload(self.workload_counter, 1)
 		-- Always break when paused to allow granular stepping in the debugger
 		if self.paused or (total_workload >= self.max_workload) then break end
+		loops = loops + 1
+		if loops >= 10000 then
+			strace.trace(
+				"Thread",
+				self.id,
+				self.friendly_name,
+				"exceeded max loop iterations without yielding in state",
+				self.state
+			)
+			break
+		end
 	end
 	self.ema_workload = (ONE_MINUS_ALPHA * self.ema_workload)
 		+ (ALPHA * total_workload)

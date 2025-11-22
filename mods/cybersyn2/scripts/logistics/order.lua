@@ -80,8 +80,7 @@ function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 		thresh_depletion = {},
 		thresh_in = {},
 		networks = {},
-		last_fulfilled_tick = 0,
-		starvations = {},
+		last_fulfilled_tick = game.tick,
 		priority = 0,
 		busy_value = 0,
 		network_matching_mode = "or",
@@ -310,23 +309,6 @@ function Order:read(workload)
 		if workload then add_workload(workload, table_size(requested_fluids)) end
 	end
 
-	-- Starvations
-	local starvations = inventory.last_consumed_tick or EMPTY
-	local oldest_starvation = self.last_fulfilled_tick or game.tick
-	---@type string?
-	local oldest_starvation_item = nil
-	if self.item_mode == "and" then
-		for key, tick in pairs(starvations) do
-			if tick <= oldest_starvation and self:is_requesting(key) then
-				oldest_starvation = tick
-				oldest_starvation_item = key
-			end
-		end
-		if workload then add_workload(workload, table_size(starvations)) end
-	end
-	self.starvation = oldest_starvation
-	self.starvation_item = oldest_starvation_item
-
 	return true
 end
 
@@ -407,6 +389,12 @@ function Order:is_requesting(signal_key)
 	return false
 end
 
+function Order:get_provided_qty(signal_key)
+	local inv_qty = self.inventory:qty(signal_key)
+	local provided_qty = self.provides[signal_key] or 0
+	return self.provides[signal_key] or 0
+end
+
 ---@class Cybersyn.Internal.Needs
 ---@field fluids SignalCounts? Explicit fluid needs.
 ---@field items SignalCounts? Explicit item needs.
@@ -418,6 +406,8 @@ end
 ---@field thresh_explicit SignalCounts? Explicit thresholds set by user using dt comb.
 ---@field thresh_min_slots uint Minimum item slots dictated by fullness fraction.
 ---@field thresh_min_fluid uint Minimum fluid quantity dictated by fullness fraction.
+---@field starvation_tick uint The last tick at which this need was fulfilled.
+---@field starvation_item SignalKey? The item which has been starved the longest.
 
 ---Determine if this order is requesting any items above relevant thresholds.
 ---If so generate a Needs object.
@@ -428,6 +418,7 @@ function Order:compute_needs(workload)
 
 	local req_inv = self.inventory.inventory or EMPTY
 	local req_inflow = self.inventory.inflow or EMPTY
+	local req_starv = self.inventory.last_consumed_tick or EMPTY
 	local thresh = self.thresh_in or EMPTY
 	local thresh_explicit = self.thresh_explicit or EMPTY
 	local spread = self.quality_spread
@@ -437,24 +428,46 @@ function Order:compute_needs(workload)
 	local depletion_fraction = self.thresh_depletion_fraction or 1
 	local thresh_min_slots = self.thresh_min_slots or 0
 	local thresh_min_fluid = self.thresh_min_fluid or 0
+	local starvation_tick = self.last_fulfilled_tick or 0
+	local starvation_item = nil
 
 	-- Explicit needs
 	local items = {}
 	local fluids = {}
 	-- Explicit fluids
 	for key, qty in pairs(requested_fluids) do
-		local deficit = qty - (req_inv[key] or 0) - (req_inflow[key] or 0)
+		local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
+		local deficit = qty - has
 		local threshold = thresh[key] or 0
-		if deficit >= threshold and deficit > 0 then fluids[key] = deficit end
+		if deficit >= threshold and deficit > 0 then
+			fluids[key] = deficit
+			if has == 0 then
+				local tick = req_starv[key] or 0
+				if tick <= starvation_tick then
+					starvation_item = key
+					starvation_tick = tick
+				end
+			end
+		end
 	end
 	if workload then add_workload(workload, table_size(requested_fluids)) end
 	if not next(fluids) then fluids = nil end
 	-- Explicit items
 	if self.item_mode == "and" and not spread then
 		for key, qty in pairs(requests) do
-			local deficit = qty - (req_inv[key] or 0) - (req_inflow[key] or 0)
+			local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
+			local deficit = qty - has
 			local threshold = thresh[key] or 0
-			if deficit >= threshold and deficit > 0 then items[key] = deficit end
+			if deficit >= threshold and deficit > 0 then
+				items[key] = deficit
+				if has == 0 then
+					local tick = req_starv[key] or 0
+					if tick <= starvation_tick then
+						starvation_item = key
+						starvation_tick = tick
+					end
+				end
+			end
 		end
 		if workload then add_workload(workload, table_size(requests)) end
 		local ni = next(items)
@@ -466,6 +479,8 @@ function Order:compute_needs(workload)
 				thresh_explicit = thresh_explicit,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
+				starvation_tick = starvation_tick,
+				starvation_item = starvation_item,
 			}
 			return res
 		else
@@ -513,6 +528,8 @@ function Order:compute_needs(workload)
 				thresh_min_fluid = thresh_min_fluid,
 				and_spread = and_spread,
 				spread = spread,
+				starvation_tick = starvation_tick,
+				starvation_item = starvation_item,
 			}
 			return res
 		end
@@ -563,8 +580,13 @@ function Order:compute_needs(workload)
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
 				or_stacks = deficit_stacks,
+				-- This is OK; don't waste cpu generating a new mask when we can
+				-- just use the input table as a mask.
+				---@diagnostic disable-next-line: assign-type-mismatch
 				or_mask = or_mask,
 				spread = spread,
+				starvation_tick = starvation_tick,
+				starvation_item = starvation_item,
 			}
 			return res
 		end
@@ -601,6 +623,8 @@ function Order:compute_needs(workload)
 				thresh_min_fluid = thresh_min_fluid,
 				all_stacks = deficit_stacks,
 				spread = spread,
+				starvation_tick = starvation_tick,
+				starvation_item = starvation_item,
 			}
 			return res
 		end
@@ -614,6 +638,8 @@ function Order:compute_needs(workload)
 			thresh_explicit = thresh_explicit,
 			thresh_min_slots = thresh_min_slots,
 			thresh_min_fluid = thresh_min_fluid,
+			starvation_tick = starvation_tick,
+			starvation_item = starvation_item,
 		}
 		return res
 	else

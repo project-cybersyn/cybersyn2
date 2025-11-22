@@ -17,6 +17,16 @@ _G.cs2.MAX_RAILS_TO_SEARCH = 112
 -- This is a bit of a hack, but it is what it is.
 _G.cs2.LONGEST_INSERTER_REACH = 2
 
+-- Bonus to provider evaluation per normalized unit of cargo available.
+_G.cs2.LOGISTICS_PROVIDER_CARGO_WEIGHT = 0.001
+-- Penalty to provider evaluation per tile of distance from requester.
+_G.cs2.LOGISTICS_PROVIDER_DISTANCE_WEIGHT = -1
+-- Penalty to provider evaluation per train in queue.
+_G.cs2.LOGISTICS_PROVIDER_BUSY_WEIGHT = -100
+-- Number of ticks between deliveries of an item before a station is considered
+-- "starving" for that item.
+_G.cs2.LOGISTICS_STARVATION_TICKS = 3600 * 5 -- 5 minutes
+
 -- Base logistics workload
 _G.cs2.PERF_BASE_LOGISTICS_WORKLOAD = 100
 -- Base workload for general threads

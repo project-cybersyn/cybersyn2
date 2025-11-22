@@ -168,6 +168,7 @@ function LogisticsThread:route_train()
 	-- Generate and mark delivery
 	self.avail_trains[self.best_train_index] = false
 	local tick = game.tick
+	match.requester.last_fulfilled_tick = tick
 	local to_inv = match.requester.inventory
 	for item in pairs(manifest) do
 		to_inv.last_consumed_tick[item] = tick
@@ -306,19 +307,59 @@ function LogisticsThread:loop_providers()
 	end
 end
 
-function LogisticsThread:sort_matches()
-	-- Sort by biggest match (???)
-	table.sort(self.matches, function(a, b)
-		local a_qty = normalize_capacity(
-			a.satisfaction.total_stacks,
-			a.satisfaction.total_fluid
-		)
+---@param match Cybersyn.Internal.Match
+---@param req_stop_entity LuaEntity?
+local function match_score(match, req_stop_entity)
+	local prov_stop_entity = (match.provider_node --[[@as Cybersyn.TrainStop]]).entity
+	local prov_busy = match.provider.busy_value
+	local dx
+	if
+		not req_stop_entity
+		or not prov_stop_entity
+		or not req_stop_entity.valid
+		or not prov_stop_entity.valid
+	then
+		dx = 20000000
+	else
+		dx = dist(req_stop_entity, prov_stop_entity)
+	end
+	local cargo = normalize_capacity(
+		match.satisfaction.total_stacks,
+		match.satisfaction.total_fluid
+	)
 
-		local b_qty = normalize_capacity(
-			b.satisfaction.total_stacks,
-			b.satisfaction.total_fluid
-		)
-		return a_qty > b_qty
+	return cargo * cs2.LOGISTICS_PROVIDER_CARGO_WEIGHT
+		+ dx * cs2.LOGISTICS_PROVIDER_DISTANCE_WEIGHT
+		+ prov_busy * cs2.LOGISTICS_PROVIDER_BUSY_WEIGHT
+end
+
+function LogisticsThread:sort_matches()
+	local requester = self.requester
+	local requester_node = cs2.get_node(requester.node_id, true) --[[@as Cybersyn.TrainStop]]
+	local requester_stop_entity = requester_node and requester_node.entity
+	if not requester then
+		error("Logic error: sort_matches called with no requester set")
+	end
+	local starvation_item = requester.needs.starvation_item
+
+	table.sort(self.matches, function(a, b)
+		-- If starvation_item is set, prioritize who has more.
+		if starvation_item then
+			local a_qty = a.provider:get_provided_qty(starvation_item)
+			local b_qty = b.provider:get_provided_qty(starvation_item)
+			if a_qty > b_qty then return true end
+			if a_qty < b_qty then return false end
+		end
+
+		-- Check provider priority
+		local a_prio, b_prio = a.provider.priority, b.provider.priority
+		if a_prio > b_prio then return true end
+		if a_prio < b_prio then return false end
+
+		-- Scoring
+		local a_db = match_score(a, requester_stop_entity)
+		local b_db = match_score(b, requester_stop_entity)
+		return a_db > b_db
 	end)
 
 	self.match = self.matches[1]
@@ -447,30 +488,21 @@ end
 -- Init ops
 --------------------------------------------------------------------------------
 
-function LogisticsThread:enum_requesters()
+function LogisticsThread:sort_requesters()
 	local n = #self.requesters
 	-- Requester sort
 	table.sort(self.requesters, function(a, b)
 		local a_prio, b_prio = a.priority, b.priority
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
-		local a_last = a.starvation or 0
-		local b_last = b.starvation or 0
+		local a_needs, b_needs = a.needs, b.needs
+		local a_last = a_needs.starvation_tick or 0
+		local b_last = b_needs.starvation_tick or 0
 		if a_last < b_last then return true end
 		if a_last > b_last then return false end
 		return a.busy_value < b.busy_value
 	end)
 	add_workload(self.workload_counter, n * math.log(n))
-	trace("logistics_enum_requesters", n, "requesters sorted")
-	self:set_state("enum_providers")
-end
-
-function LogisticsThread:enum_providers()
-	local providers = self.providers --[[@as Cybersyn.Order[] ]]
-	local n = #providers
-	table.sort(providers, function(a, b) return a.priority <= b.priority end)
-	add_workload(self.workload_counter, n * math.log(n))
-	trace("logistics_enum_providers", n, "providers sorted")
 	self:set_state("enum_trains")
 end
 
@@ -484,7 +516,6 @@ function LogisticsThread:enum_trains()
 	self.trains = trains
 	self.avail_trains = avail_trains
 	add_workload(self.workload_counter, table_size(storage.vehicles))
-	trace("logistics_enum_trains", #trains, "trains found")
 	self:set_state("loop_requesters")
 end
 
@@ -500,7 +531,6 @@ function LogisticsThread:enter_logistics()
 		or (not next(self.providers))
 		or (not next(self.requesters))
 	then
-		trace("logistics: no providers or no requesters, skipping logistics phase")
 		self:set_state("init")
 		return
 	end
@@ -508,5 +538,5 @@ end
 
 function LogisticsThread:logistics()
 	self.req_index = 0
-	self:set_state("enum_requesters")
+	self:set_state("sort_requesters")
 end

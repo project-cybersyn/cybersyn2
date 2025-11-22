@@ -181,8 +181,6 @@ lib.CarriageType = {
 ---@field public thresh_min_fluid uint Min fluid that must be filled to meet fullness. Computed using smallest vehicle size.
 ---@field public networks SignalCounts The computed network masks of this order.
 ---@field public last_fulfilled_tick int64 Last tick on which this order received any delivery.
----@field public starvation int64? Oldest starvation tick
----@field public starvation_item string? Oldest starved item
 ---@field public priority int The computed priority of this order.
 ---@field public busy_value number Cached value computed at poll time regarding how busy the associated node is.
 ---@field public network_matching_mode "and"|"or" Network matching mode for this order.
