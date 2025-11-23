@@ -22,10 +22,12 @@ _G.cs2.LOGISTICS_PROVIDER_CARGO_WEIGHT = 0.001
 -- Penalty to provider evaluation per tile of distance from requester.
 _G.cs2.LOGISTICS_PROVIDER_DISTANCE_WEIGHT = -1
 -- Penalty to provider evaluation per train in queue.
-_G.cs2.LOGISTICS_PROVIDER_BUSY_WEIGHT = -100
+_G.cs2.LOGISTICS_PROVIDER_BUSY_WEIGHT = -300
 -- Number of ticks between deliveries of an item before a station is considered
 -- "starving" for that item.
 _G.cs2.LOGISTICS_STARVATION_TICKS = 3600 * 5 -- 5 minutes
+-- Maximum number of passes over the provider match array to perform for a given requester.
+_G.cs2.LOGISTICS_MAX_PROVIDER_PASSES = 2
 
 -- Base logistics workload
 _G.cs2.PERF_BASE_LOGISTICS_WORKLOAD = 100
