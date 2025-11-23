@@ -86,6 +86,7 @@ function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 		network_matching_mode = "or",
 		stacked_requests = false,
 		force_away = false,
+		no_starvation = false,
 	}
 	setmetatable(obj, self)
 	return obj
@@ -122,17 +123,21 @@ function Order:read(workload)
 	local network
 	---@type boolean
 	local stacked_requests
+	---@type boolean
+	local no_starvation
 	---@type SignalID | nil
 	local signal_force_away
 	if arity == "primary" then
 		network_matching_mode = comb:get_order_primary_network_matching_mode()
 		network = comb:get_order_primary_network()
 		stacked_requests = comb:get_order_primary_stacked_requests()
+		no_starvation = comb:get_order_primary_no_starvation()
 		signal_force_away = comb:get_order_primary_signal_force_away()
 	else
 		network_matching_mode = comb:get_order_secondary_network_matching_mode()
 		network = comb:get_order_secondary_network()
 		stacked_requests = comb:get_order_secondary_stacked_requests()
+		no_starvation = comb:get_order_secondary_no_starvation()
 		signal_force_away = comb:get_order_secondary_signal_force_away()
 	end
 	local is_each = network == "signal-each"
@@ -141,6 +146,7 @@ function Order:read(workload)
 	-- Direct config options
 	self.network_matching_mode = network_matching_mode
 	self.stacked_requests = stacked_requests
+	self.no_starvation = no_starvation
 	self.force_away = false
 	self.busy_value = stop:get_occupancy()
 	self.priority = stop.priority or 0
@@ -446,7 +452,10 @@ function Order:compute_needs(workload)
 				fluids[key] = deficit
 				local tick = req_starv[key] or 0
 				if tick <= starvation_tick then
-					if (game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS then
+					if
+						not self.no_starvation
+						and ((game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS)
+					then
 						starvation_item = key
 					end
 					starvation_tick = tick
@@ -469,7 +478,10 @@ function Order:compute_needs(workload)
 					items[key] = deficit
 					local tick = req_starv[key] or 0
 					if tick <= starvation_tick then
-						if (game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS then
+						if
+							not self.no_starvation
+							and ((game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS)
+						then
 							starvation_item = key
 						end
 						starvation_tick = tick

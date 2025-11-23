@@ -187,6 +187,7 @@ lib.CarriageType = {
 ---@field public stacked_requests boolean `true` if this order uses stacked requests.
 ---@field public force_away boolean `true` if this order is forcing away provided items
 ---@field public needs Cybersyn.Internal.Needs?
+---@field public no_starvation boolean? `true` if this order ignores starvation logic
 
 ---@class Cybersyn.Inventory
 ---@field public id Id

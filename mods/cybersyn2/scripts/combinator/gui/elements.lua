@@ -273,6 +273,13 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 				combinator,
 				"order_" .. arity .. "_stacked_requests"
 			),
+			gui.Checkbox(
+				"Mitigate starvation for requested items",
+				"When checked, requests for this order will receive special handling to prevent starvation. Uncheck for orders to which starvation doesn't apply, such as void or dump orders.",
+				combinator,
+				"order_" .. arity .. "_no_starvation",
+				true
+			),
 		})
 	end,
 })
