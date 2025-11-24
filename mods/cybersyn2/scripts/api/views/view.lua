@@ -1,18 +1,30 @@
 local class = require("lib.core.class").class
 local counters = require("lib.core.counters")
 local events = require("lib.core.event")
+local scheduler = require("lib.core.scheduler")
+
+local max = math.max
 
 ---@class Cybersyn.View
 ---@field public id Id
 ---@field public last_read_tick uint64 Last ticks_played when the view was read.
+---@field public last_update_tick uint64 Last tick (not ticks_played) when the view was updated.
+---@field public update_throttle_ticks uint64 Minimum ticks between updates.
+---@field public update_task Scheduler.TaskId|nil The scheduled update task ID.
 local View = class("View")
 _G.cs2.View = View
 
 ---Create a new view.
 function View:new()
 	local id = counters.next("view")
-	storage.views[id] = setmetatable({ id = id }, self)
-	return storage.views[id]
+	local obj = setmetatable({
+		id = id,
+		last_read_tick = game.ticks_played,
+		last_update_tick = game.tick,
+		update_throttle_ticks = 300,
+	}, self)
+	storage.views[id] = obj
+	return obj
 end
 
 ---Set filter and configuration information for a view.
@@ -32,8 +44,27 @@ function View:destroy()
 	return events.raise("cs2.view_destroyed", self)
 end
 
+function View:_update()
+	self.last_update_tick = game.tick
+	self.update_task = nil
+	return events.raise("cs2.view_updated", self)
+end
+
 ---Notify consumers that the view has been updated.
-function View:update() return events.raise("cs2.view_updated", self) end
+function View:update()
+	if self.update_task then return end
+	local tick = game.tick
+	local dt = tick - self.last_update_tick
+	if dt >= self.update_throttle_ticks then
+		return self:_update()
+	else
+		self.update_task = scheduler.at_method(
+			max(self.last_update_tick + self.update_throttle_ticks, tick + 1),
+			self,
+			"_update"
+		)
+	end
+end
 
 ---Read current contents of the view.
 function View:read() self.last_read_tick = game.ticks_played end
