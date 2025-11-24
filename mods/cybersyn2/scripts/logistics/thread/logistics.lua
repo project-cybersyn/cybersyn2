@@ -573,7 +573,9 @@ function LogisticsThread:route_train()
 	add_workload(self.workload_counter, 10)
 	if mod_settings.debug then
 		trace(
-			"DELIVERY CREATED: Examined",
+			"DELIVERY CREATED: Topology",
+			self.topology_id,
+			": Examined",
 			#self.trains,
 			"trains (rejected busy:",
 			self.busy_rejections,
@@ -643,9 +645,12 @@ end
 function LogisticsThread:enum_trains()
 	local trains = {}
 	local avail_trains = {}
+	local topology_id = self.topology_id
 	for _, veh in pairs(storage.vehicles) do
-		trains[#trains + 1] = veh
-		avail_trains[#avail_trains + 1] = true
+		if veh.type == "train" and veh.topology_id == topology_id then
+			trains[#trains + 1] = veh
+			avail_trains[#avail_trains + 1] = true
+		end
 	end
 	self.trains = trains
 	self.avail_trains = avail_trains
