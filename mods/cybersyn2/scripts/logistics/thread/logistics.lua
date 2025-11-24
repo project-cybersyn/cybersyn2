@@ -240,8 +240,7 @@ function LogisticsThread:sort_matches()
 	local n = 3 * #self.matches
 	add_workload(self.workload_counter, n * math.log(n))
 
-	self.match = self.matches[1]
-	self:start_train_loop()
+	self:start_match_loop()
 end
 
 --------------------------------------------------------------------------------
@@ -269,6 +268,12 @@ function LogisticsThread:loop_matches()
 			-- No match routed, or max passes reached: move to next requester
 			return self:set_state("loop_requesters")
 		end
+		trace(
+			"Match pass",
+			self.match_pass,
+			"for requester",
+			self.requester.node_id
+		)
 		self.pass_match_routed = false
 		self.match_index = 1
 		match = self.matches[1]
@@ -287,6 +292,12 @@ function LogisticsThread:loop_matches()
 		if self.this_match_routed then
 			-- If we routed a match, recompute full needs
 			requester.needs = requester:compute_needs(self.workload_counter)
+			trace(
+				"Recomputed needs for requester",
+				requester.node_id,
+				"after successful routing",
+				requester.needs
+			)
 		end
 		needs = requester.needs
 
@@ -481,7 +492,7 @@ function LogisticsThread:route_train()
 		self:set_state("loop_matches")
 		return
 	end
-	add_workload(self.workload_counter, 10)
+	add_workload(self.workload_counter, 5)
 
 	local n_cargo_wagons, n_fluid_wagons = train:get_wagon_counts()
 	local reserved_slots = from.reserved_slots or 0
@@ -528,7 +539,7 @@ function LogisticsThread:route_train()
 			spillover_manifest[item] = spillover_qty
 		end
 	end
-	add_workload(self.workload_counter, table_size(items))
+	add_workload(self.workload_counter, 2 * table_size(items))
 
 	-- Verify we have a manifest
 	local mi1, mq1 = next(manifest)

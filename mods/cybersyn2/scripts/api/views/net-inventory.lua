@@ -2,6 +2,7 @@ local class = require("lib.core.class").class
 local tlib = require("lib.core.table")
 local siglib = require("lib.signal")
 local thread_lib = require("lib.core.thread")
+local events = require("lib.core.event")
 
 local cs2 = _G.cs2
 local View = _G.cs2.View
@@ -37,7 +38,7 @@ function NetInventoryView:new()
 	view.n_prov = {}
 	view.n_req = {}
 	view.n_needed = {}
-	cs2.raise_view_created(self)
+	events.raise("cs2.view_created", view)
 	return view
 end
 

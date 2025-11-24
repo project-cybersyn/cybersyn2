@@ -702,12 +702,6 @@ end
 ---@param needs Cybersyn.Internal.Needs
 ---@return Cybersyn.Internal.Satisfaction? satisfaction
 function Order:satisfy_needs(workload, needs)
-	trace(
-		"Providing order",
-		self.node_id,
-		"computing satisfaction for needs",
-		needs
-	)
 	local total_stacks = 0
 	local total_fluid = 0
 
