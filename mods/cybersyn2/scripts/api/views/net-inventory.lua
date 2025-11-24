@@ -68,16 +68,6 @@ function NetInventoryView:snapshot(workload)
 	self:exit_nodes(workload, top)
 end
 
-function NetInventoryView:read()
-	View.read(self)
-	return {
-		provides = self.provides,
-		requests = self.requests,
-		needed = self.needed,
-		inventory = self.inventory,
-	}
-end
-
 function NetInventoryView:enter_nodes(workload, topology)
 	if topology.id == self.topology_id then
 		self.provides = {}
@@ -143,16 +133,18 @@ function NetInventoryView:exit_order(workload, order, node)
 		for item in pairs(order.requested_fluids) do
 			if item_filter_any_quality_OR(item, self.item_filter) then
 				local req, needed = order:get_requested_qty(item)
+				local max_needed = max(n_needed[item] or 0, needed)
 				n_req[item] = max(n_req[item] or 0, req)
-				n_needed[item] = max(n_needed[item] or 0, needed)
+				if max_needed > 0 then n_needed[item] = max_needed end
 			end
 		end
 		add_workload(workload, 2 * table_size(order.requested_fluids))
 		for item in pairs(order.requests) do
 			if item_filter_any_quality_OR(item, self.item_filter) then
 				local req, needed = order:get_requested_qty(item)
+				local max_needed = max(n_needed[item] or 0, needed)
 				n_req[item] = max(n_req[item] or 0, req)
-				n_needed[item] = max(n_needed[item] or 0, needed)
+				if max_needed > 0 then n_needed[item] = max_needed end
 			end
 		end
 		add_workload(workload, 2 * table_size(order.requests))
@@ -160,5 +152,12 @@ function NetInventoryView:exit_order(workload, order, node)
 end
 
 function NetInventoryView:exit_nodes(workload, topology)
-	if topology.id == self.topology_id then self:update() end
+	if topology.id == self.topology_id then
+		self:update({
+			provides = self.provides,
+			requests = self.requests,
+			needed = self.needed,
+			inventory = self.inventory,
+		})
+	end
 end

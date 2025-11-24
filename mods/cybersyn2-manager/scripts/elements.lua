@@ -72,7 +72,7 @@ _G.mgr.ViewWrapper = relm.define_element({
 	state = function() return {} end,
 	message = function(me, payload, props, state)
 		---@cast state table
-		if payload.key == "on_view_updated" then
+		if payload.key == "mgr.on_view_updated" then
 			local updated_view_id = payload[1]
 			local view_id = state.view_id
 			if updated_view_id == view_id then

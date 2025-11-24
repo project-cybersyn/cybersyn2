@@ -2,12 +2,14 @@ local class = require("lib.core.class").class
 local counters = require("lib.core.counters")
 local events = require("lib.core.event")
 local scheduler = require("lib.core.scheduler")
+local strace = require("lib.core.strace")
 
 local max = math.max
 
 ---@class Cybersyn.View
 ---@field public id Id
 ---@field public last_read_tick uint64 Last ticks_played when the view was read.
+---@field public value table? Most recent known good value.
 ---@field public last_update_tick uint64 Last tick (not ticks_played) when the view was updated.
 ---@field public update_throttle_ticks uint64 Minimum ticks between updates.
 ---@field public update_task Scheduler.TaskId|nil The scheduled update task ID.
@@ -21,7 +23,7 @@ function View:new()
 		id = id,
 		last_read_tick = game.ticks_played,
 		last_update_tick = game.tick,
-		update_throttle_ticks = 300,
+		update_throttle_ticks = 120,
 	}, self)
 	storage.views[id] = obj
 	return obj
@@ -33,7 +35,7 @@ function View:set_filter(filter) end
 
 ---Take an immediate snapshot of the view from current gamestate.
 ---@param workload Core.Thread.Workload
-function View:snapshot(workload) self:update() end
+function View:snapshot(workload) end
 
 ---Determine if the view is valid.
 function View:is_valid() return storage.views[self.id] ~= nil end
@@ -45,13 +47,16 @@ function View:destroy()
 end
 
 function View:_update()
+	strace.trace("Updating view", self.id)
 	self.last_update_tick = game.tick
 	self.update_task = nil
 	return events.raise("cs2.view_updated", self)
 end
 
----Notify consumers that the view has been updated.
-function View:update()
+---Apply a new value to the view, triggering update events if needed.
+---@param value table New value of the view.
+function View:update(value)
+	self.value = value
 	if self.update_task then return end
 	local tick = game.tick
 	local dt = tick - self.last_update_tick
@@ -67,7 +72,10 @@ function View:update()
 end
 
 ---Read current contents of the view.
-function View:read() self.last_read_tick = game.ticks_played end
+function View:read()
+	self.last_read_tick = game.ticks_played
+	return self.value
+end
 
 ---@param workload Core.Thread.Workload
 ---@param topology Cybersyn.Topology

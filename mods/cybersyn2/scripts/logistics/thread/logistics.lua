@@ -252,6 +252,7 @@ function LogisticsThread:start_match_loop()
 	self.match_pass = 1
 	self.this_match_routed = false
 	self.pass_match_routed = false
+	trace("Match pass 1 for requester", self.requester.node_id)
 	self:set_state("loop_matches")
 end
 
