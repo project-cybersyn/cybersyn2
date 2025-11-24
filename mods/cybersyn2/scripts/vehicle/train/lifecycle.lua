@@ -130,7 +130,7 @@ function TrainMonitor:enter_enum_cstrains()
 	end)
 	self:begin_async_loop(cstrains, 1)
 	for _, view in pairs(storage.views) do
-		view:enter_vehicles()
+		view:enter_vehicles(self.workload_counter)
 	end
 	add_workload(self.workload_counter, 1 + #cstrains)
 end
@@ -168,8 +168,8 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 
 	-- View vehicle visitors
 	for _, view in pairs(storage.views) do
-		view:enter_vehicle(train)
-		view:exit_vehicle(train)
+		view:enter_vehicle(self.workload_counter, train)
+		view:exit_vehicle(self.workload_counter, train)
 	end
 end
 
@@ -213,7 +213,7 @@ function TrainMonitor:exit_enum_cstrains()
 	if layouts_deleted then cs2.raise_train_layouts_destroyed() end
 
 	for _, view in pairs(storage.views) do
-		view:exit_vehicles()
+		view:exit_vehicles(self.workload_counter)
 	end
 
 	-- Cleanup
@@ -290,4 +290,4 @@ end)
 
 -- TODO: if a train arrives at a stop, and it's a stop given by a non
 -- temp schedule entry, assume it is the depot and wake the interrupted
--- delivery.
+-- delivery. (Actually dont do this because of SE/space elevators)

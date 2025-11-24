@@ -40,7 +40,7 @@ function LogisticsThread:enter_poll_train_stop_classify_inventory()
 	if not self.order_index then
 		local stop = self.node --[[@as Cybersyn.TrainStop]]
 		for _, view in pairs(storage.views) do
-			view:enter_node(stop)
+			view:enter_node(self.workload_counter, stop)
 		end
 		if stop.shared_inventory_master then
 			-- Shared inventory slave; allow the master to classify inventory
@@ -59,7 +59,7 @@ function LogisticsThread:exit_poll_train_stop_classify_inventory()
 	self.orders = nil
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
 	for _, view in pairs(storage.views) do
-		view:exit_node(stop)
+		view:exit_node(self.workload_counter, stop)
 	end
 end
 
@@ -74,7 +74,7 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	local requesters = self.requesters
 
 	for _, view in pairs(storage.views) do
-		view:enter_order(order, stop)
+		view:enter_order(self.workload_counter, order, stop)
 	end
 	if stop.is_producer and order:is_provider() then
 		providers[#providers + 1] = order
@@ -84,7 +84,7 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 		if order.needs then requesters[#requesters + 1] = order end
 	end
 	for _, view in pairs(storage.views) do
-		view:exit_order(order, stop)
+		view:exit_order(self.workload_counter, order, stop)
 	end
 end
 
@@ -312,7 +312,7 @@ function LogisticsThread:enter_poll_nodes()
 		local topology = cs2.get_topology(self.topology_id)
 		if topology then
 			for _, view in pairs(storage.views) do
-				view:enter_nodes(topology)
+				view:enter_nodes(self.workload_counter, topology)
 			end
 		end
 	end
@@ -328,7 +328,7 @@ function LogisticsThread:poll_nodes()
 		local topology = cs2.get_topology(self.topology_id)
 		if topology then
 			for _, view in pairs(storage.views) do
-				view:exit_nodes(topology)
+				view:exit_nodes(self.workload_counter, topology)
 			end
 		end
 		return self:set_state("logistics")

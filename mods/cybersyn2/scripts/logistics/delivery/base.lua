@@ -147,8 +147,6 @@ local DeliveryMonitor = class("DeliveryMonitor", cs2.StatefulThread)
 function DeliveryMonitor:new()
 	local thread = cs2.StatefulThread.new(self) --[[@as Cybersyn.Internal.DeliveryMonitor]]
 	thread.friendly_name = "delivery_monitor"
-	-- TODO: better workload measurement
-	thread.workload = 10
 	thread:set_state("init")
 	thread:wake()
 	return thread
@@ -161,7 +159,7 @@ end
 function DeliveryMonitor:enter_enum_deliveries()
 	self:begin_async_loop(tlib.keys(storage.deliveries), 1)
 	for _, view in pairs(storage.views) do
-		view:enter_deliveries()
+		view:enter_deliveries(self.workload_counter)
 	end
 end
 
@@ -180,10 +178,10 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 	end
 
 	for _, view in pairs(storage.views) do
-		view:enter_delivery(delivery)
-		view:exit_delivery(delivery)
+		view:enter_delivery(self.workload_counter, delivery)
+		view:exit_delivery(self.workload_counter, delivery)
 	end
-	add_workload(self.workload_counter, 3)
+	add_workload(self.workload_counter, 2)
 end
 
 function DeliveryMonitor:enum_deliveries()
@@ -197,7 +195,7 @@ function DeliveryMonitor:exit_enum_deliveries()
 	self.delivery_ids = nil
 
 	for _, view in pairs(storage.views) do
-		view:exit_deliveries()
+		view:exit_deliveries(self.workload_counter)
 	end
 end
 

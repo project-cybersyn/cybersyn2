@@ -395,10 +395,29 @@ function Order:is_requesting(signal_key)
 	return false
 end
 
+---Get logistically-corrected provided quantity for the given item.
+---@param signal_key SignalKey
 function Order:get_provided_qty(signal_key)
-	local inv_qty = self.inventory:qty(signal_key)
+	local inv_qty = self.inventory:qty(signal_key, false, true)
 	local provided_qty = self.provides[signal_key] or 0
 	return min(inv_qty, provided_qty)
+end
+
+---Get requested quantities for the given item, both corrected and base.
+---@param signal_key SignalKey
+---@return uint requested_qty Base request for the given item.
+---@return uint needed_qty Logistically-corrected requested quantity for the given item.
+function Order:get_requested_qty(signal_key)
+	local inv_qty = self.inventory:qty(signal_key, true, false)
+	local requested_qty = 0
+	local sig = key_to_signal(signal_key)
+	if not sig then return 0, 0 end
+	if sig.type == "fluid" then
+		requested_qty = self.requested_fluids[signal_key] or 0
+	else
+		requested_qty = self.requests[signal_key] or 0
+	end
+	return requested_qty, max(requested_qty - inv_qty, 0)
 end
 
 ---@class Cybersyn.Internal.Needs

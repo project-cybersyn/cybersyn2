@@ -100,8 +100,7 @@ _G.cs2.get_or_create_topology_by_name = get_or_create_topology_by_name
 ---ensure that the event handlers, which are likely to be expensive, are
 ---lifted out of the main thread.
 function Topology:raise_inventory_updated()
-	-- TODO: implement this properly. For now, just raise the event.
-	cs2.raise_topology_inventory_updated(self)
+	-- TODO: implement this properly. is it even needed???
 end
 
 ---@param surface_index uint

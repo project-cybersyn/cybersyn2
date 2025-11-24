@@ -125,7 +125,6 @@ local renderers = {
 local LoopState = relm.define_element({
 	name = "LogisticsLoopDebugger.State",
 	render = function(props, state)
-		relm_helpers.use_event("on_debug_loop")
 		-- TODO: factor logistics thread id up to a prop
 		local data = cs2.debug.get_logistics_thread()
 		if not data then return nil end

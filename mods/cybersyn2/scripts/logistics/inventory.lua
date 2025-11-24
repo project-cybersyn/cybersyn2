@@ -201,10 +201,15 @@ function Inventory:net(inflow_comp, outflow_comp, workload)
 	return net_inventory
 end
 
-function Inventory:qty(item)
+---@param item SignalKey
+---@param inflow_comp boolean? If `true`, inflows are added to the inventory counts
+---@param outflow_comp boolean? If `true`, outflows are subtracted from the inventory counts
+---@return int qty Quantity of the given item in the inventory net of given flows
+function Inventory:qty(item, inflow_comp, outflow_comp)
 	local inv = self.inventory or empty
-	local outflow = self.outflow or empty
-	return max((inv[item] or 0) - (outflow[item] or 0), 0)
+	local outflow = outflow_comp and (self.outflow or empty) or empty
+	local inflow = inflow_comp and (self.inflow or empty) or empty
+	return max((inv[item] or 0) - (outflow[item] or 0) + (inflow[item] or 0), 0)
 end
 
 function Inventory:clear()
@@ -229,37 +234,6 @@ function Inventory:is_volatile() return false end
 ---@param reread boolean `true` if the inventory's base data should be reread immediately from combinators. `false` if cached combinator reads should be used.
 ---@return boolean #`true` if the inventory was updated.
 function Inventory:update(workload, reread) return false end
-
---------------------------------------------------------------------------------
--- Fast inventory accessors
---------------------------------------------------------------------------------
-
----@param inventory Cybersyn.Inventory
----@param item SignalKey
-function _G.cs2.inventory_avail_qty(inventory, item)
-	return max(
-		(inventory.inventory[item] or 0) - (inventory.outflow[item] or 0),
-		0
-	)
-end
-
----@param order Cybersyn.Order
----@param item SignalKey
-function _G.cs2.order_provided_qty(order, item)
-	local inv = order.inventory
-	local base = min(order.provides[item] or 0, inv.inventory[item] or 0)
-	return max(base - (inv.outflow[item] or 0), 0)
-end
-
----@param order Cybersyn.Order
----@param item SignalKey
-function _G.cs2.order_requested_qty(order, item)
-	local inv = order.inventory
-	local deficit = (order.requests[item] or 0)
-		- (inv.inventory[item] or 0)
-		- (inv.inflow[item] or 0)
-	return max(deficit, 0)
-end
 
 --------------------------------------------------------------------------------
 -- StopInventory

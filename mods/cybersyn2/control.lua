@@ -71,8 +71,8 @@ require("scripts.logistics.thread.enum-nodes")
 require("scripts.logistics.thread.poll-nodes")
 require("scripts.logistics.thread.logistics")
 
-require("scripts.view.view")
-require("scripts.view.net-inventory")
+require("scripts.api.views.view")
+require("scripts.api.views.net-inventory")
 
 require("scripts.debug.base")
 require("scripts.debug.overlay")

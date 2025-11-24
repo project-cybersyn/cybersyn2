@@ -1,8 +1,12 @@
 local class = require("lib.core.class").class
 local tlib = require("lib.core.table")
 local siglib = require("lib.signal")
+local thread_lib = require("lib.core.thread")
 
 local cs2 = _G.cs2
+local View = _G.cs2.View
+local add_workload = thread_lib.add_workload
+local table_size = _G.table_size
 local max = math.max
 local network_match_or = siglib.network_match_or
 local order_requested_qty = _G.cs2.order_requested_qty
@@ -43,27 +47,28 @@ function NetInventoryView:set_filter(filter)
 	self.item_filter = filter.item_filter
 end
 
-function NetInventoryView:snapshot()
+function NetInventoryView:snapshot(workload)
 	local top = cs2.get_topology(self.topology_id)
 	if not top then return end
-	self:enter_nodes(top)
+	self:enter_nodes(workload, top)
 	for _, node in pairs(storage.nodes) do
 		if node.topology_id == self.topology_id then
-			self:enter_node(node)
+			self:enter_node(workload, node)
 			local inv = node:get_inventory()
 			if inv then
 				for _, order in pairs(inv.orders) do
-					self:enter_order(order, node)
-					self:exit_order(order, node)
+					self:enter_order(workload, order, node)
+					self:exit_order(workload, order, node)
 				end
 			end
-			self:exit_node(node)
+			self:exit_node(workload, node)
 		end
 	end
-	self:exit_nodes(top)
+	self:exit_nodes(workload, top)
 end
 
 function NetInventoryView:read()
+	View.read(self)
 	return {
 		provides = self.provides,
 		requests = self.requests,
@@ -72,7 +77,7 @@ function NetInventoryView:read()
 	}
 end
 
-function NetInventoryView:enter_nodes(topology)
+function NetInventoryView:enter_nodes(workload, topology)
 	if topology.id == self.topology_id then
 		self.provides = {}
 		self.requests = {}
@@ -81,28 +86,36 @@ function NetInventoryView:enter_nodes(topology)
 	end
 end
 
-function NetInventoryView:enter_node(node)
+function NetInventoryView:enter_node(workload, node)
+	-- Skip nodes with potentially invalid inventory
 	self.skip_node = true
 	if node.topology_id ~= self.topology_id then return end
+	-- Don't count slave inventories
 	if node.shared_inventory_master then return end
 	local inv = node:get_inventory()
 	if not inv then return end
+	-- Node is live, clear skip flag.
 	self.skip_node = false
 	tlib.vector_add(self.inventory, 1, inv.inventory)
+	add_workload(workload, 0.5 * table_size(inv.inventory))
 	self.n_prov = {}
 	self.n_req = {}
 	self.n_needed = {}
 end
 
-function NetInventoryView:exit_node(node)
+function NetInventoryView:exit_node(workload, node)
 	if self.skip_node or not self.n_prov or not self.n_req then return end
 	tlib.vector_add(self.provides, 1, self.n_prov)
+	add_workload(workload, 0.5 * table_size(self.n_prov))
 	tlib.vector_add(self.requests, 1, self.n_req)
+	add_workload(workload, 0.5 * table_size(self.n_req))
 	tlib.vector_add(self.needed, 1, self.n_needed)
+	add_workload(workload, 0.5 * table_size(self.n_needed))
+	-- Set skip flag until we enter another live node.
 	self.skip_node = true
 end
 
-function NetInventoryView:enter_order(order, node)
+function NetInventoryView:exit_order(workload, order, node)
 	if self.skip_node or not self.n_prov or not self.n_req then return end
 	local inv = node:get_inventory()
 	if not inv then return end
@@ -114,26 +127,37 @@ function NetInventoryView:enter_order(order, node)
 	end
 	if node.is_producer then
 		local n_prov = self.n_prov
-		for item, qty in pairs(order.provides) do
+		for item, _ in pairs(order.provides) do
 			if item_filter_any_quality_OR(item, self.item_filter) then
-				local n = max(n_prov[item] or 0, qty)
+				local n = max(n_prov[item] or 0, order:get_provided_qty(item))
 				if n > 0 then n_prov[item] = n end
 			end
 		end
+		add_workload(workload, table_size(order.provides))
 	end
 	if node.is_consumer then
 		local n_req = self.n_req
 		local n_needed = self.n_needed
-		for item, qty in pairs(order.requests) do
+		local needs = order.needs
+		for item in pairs(order.requested_fluids) do
 			if item_filter_any_quality_OR(item, self.item_filter) then
-				n_req[item] = max(n_req[item] or 0, qty)
-				local n = order_requested_qty(order, item)
-				if n > 0 then n_needed[item] = n end
+				local req, needed = order:get_requested_qty(item)
+				n_req[item] = max(n_req[item] or 0, req)
+				n_needed[item] = max(n_needed[item] or 0, needed)
 			end
 		end
+		add_workload(workload, 2 * table_size(order.requested_fluids))
+		for item in pairs(order.requests) do
+			if item_filter_any_quality_OR(item, self.item_filter) then
+				local req, needed = order:get_requested_qty(item)
+				n_req[item] = max(n_req[item] or 0, req)
+				n_needed[item] = max(n_needed[item] or 0, needed)
+			end
+		end
+		add_workload(workload, 2 * table_size(order.requests))
 	end
 end
 
-function NetInventoryView:exit_nodes(topology)
+function NetInventoryView:exit_nodes(workload, topology)
 	if topology.id == self.topology_id then self:update() end
 end
