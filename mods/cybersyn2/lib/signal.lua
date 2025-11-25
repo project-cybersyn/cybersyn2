@@ -279,7 +279,7 @@ local function key_to_richtext(key)
 end
 lib.key_to_richtext = key_to_richtext
 
----@param key SignalKey
+---@param key SignalKey?
 local function key_to_stacksize(key)
 	if not key then return nil end
 	local sz = key_stack_size[key]
