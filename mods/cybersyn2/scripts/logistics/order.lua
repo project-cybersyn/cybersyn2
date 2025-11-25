@@ -739,6 +739,7 @@ function Order:satisfy_needs(workload, needs)
 	local prov_inv = self.inventory.inventory or EMPTY
 	local prov_outflow = self.inventory.outflow or EMPTY
 	local prov_inflow = self.inventory.inflow or EMPTY
+	local provides = self.provides
 
 	-- Fluids
 	local fluids = nil
@@ -746,8 +747,11 @@ function Order:satisfy_needs(workload, needs)
 	if needs_fluids then
 		fluids = {}
 		for key, qty in pairs(needs_fluids) do
-			local available =
-				min(max((prov_inv[key] or 0) - (prov_outflow[key] or 0), 0), qty)
+			local available = min(
+				(prov_inv[key] or 0) - (prov_outflow[key] or 0),
+				provides[key] or 0,
+				qty
+			)
 			if available > 0 and available >= (thresh_explicit[key] or 0) then
 				fluids[key] = available
 				total_fluid = total_fluid + available
@@ -773,8 +777,11 @@ function Order:satisfy_needs(workload, needs)
 	if needs_items then
 		items = {}
 		for key, qty in pairs(needs_items) do
-			local available =
-				min(max((prov_inv[key] or 0) - (prov_outflow[key] or 0), 0), qty)
+			local available = min(
+				(prov_inv[key] or 0) - (prov_outflow[key] or 0),
+				provides[key] or 0,
+				qty
+			)
 			if available > 0 and available >= (thresh_explicit[key] or 0) then
 				items[key] = available
 				local stack_size = key_to_stacksize(key) or 1
@@ -805,19 +812,9 @@ function Order:satisfy_needs(workload, needs)
 				total_fluid = total_fluid,
 				total_stacks = total_stacks,
 			}
-			trace(
-				"Providing order",
-				self.node_id,
-				"explicit_items: no item match above threshold (fluids only)",
-				res
-			)
+			trace("Providing order", self.node_id, "explicit_items: fluid match", res)
 			return res
 		else
-			trace(
-				"Providing order",
-				self.node_id,
-				"explicit_items: no item match above threshold"
-			)
 			return nil
 		end
 	end
@@ -830,8 +827,8 @@ function Order:satisfy_needs(workload, needs)
 		local mutable_and_spread = tlib.assign({}, and_spread)
 		if workload then add_workload(workload, table_size(and_spread)) end
 
-		items = tlib.t_reduce(prov_inv, {}, function(itm, key, qty)
-			local avail = qty - (prov_outflow[key] or 0)
+		items = tlib.t_reduce(provides, {}, function(itm, key, qty)
+			local avail = min((prov_inv[key] or 0) - (prov_outflow[key] or 0), qty)
 			if avail > 0 then
 				local sig = key_to_signal(key) --[[@as SignalID]]
 				local name = sig.name --[[@as string]]
@@ -844,15 +841,15 @@ function Order:satisfy_needs(workload, needs)
 			end
 			return itm
 		end)
-		if workload then add_workload(workload, table_size(prov_inv)) end
+		if workload then add_workload(workload, table_size(provides)) end
 	end
 
 	-- OR
 	local or_mask = needs.or_mask
 	local or_stacks = needs.or_stacks
 	if or_mask and or_stacks and (or_stacks >= thresh_min_stacks) then
-		items = tlib.t_reduce(prov_inv, {}, function(itm, key, qty)
-			local avail = qty - (prov_outflow[key] or 0)
+		items = tlib.t_reduce(provides, {}, function(itm, key, qty)
+			local avail = min((prov_inv[key] or 0) - (prov_outflow[key] or 0), qty)
 			local matches_quality = true
 			local mask_key = key
 			if qualities then
@@ -880,14 +877,14 @@ function Order:satisfy_needs(workload, needs)
 			end
 			return itm
 		end)
-		if workload then add_workload(workload, table_size(prov_inv)) end
+		if workload then add_workload(workload, table_size(provides)) end
 	end
 
 	-- ALL
 	local all_stacks = needs.all_stacks
 	if all_stacks and all_stacks >= thresh_min_stacks then
-		items = tlib.t_reduce(prov_inv, {}, function(itm, key, qty)
-			local avail = qty - (prov_outflow[key] or 0)
+		items = tlib.t_reduce(provides, {}, function(itm, key, qty)
+			local avail = min((prov_inv[key] or 0) - (prov_outflow[key] or 0), qty)
 			local matches_quality = true
 			if qualities then
 				local sig = key_to_signal(key) --[[@as SignalID]]
@@ -908,7 +905,7 @@ function Order:satisfy_needs(workload, needs)
 			end
 			return itm
 		end)
-		if workload then add_workload(workload, table_size(prov_inv)) end
+		if workload then add_workload(workload, table_size(provides)) end
 	end
 
 	if not items or (not next(items)) then
@@ -949,18 +946,9 @@ function Order:satisfy_needs(workload, needs)
 			total_fluid = total_fluid,
 			total_stacks = total_stacks,
 		}
-		trace(
-			"Providing order",
-			self.node_id,
-			"exotic_items: no item match above threshold (fluids only)"
-		)
+		trace("Providing order", self.node_id, "exotic_items: fluid match")
 		return res
 	else
-		trace(
-			"Providing order",
-			self.node_id,
-			"exotic_items: no item match above threshold"
-		)
 		return nil
 	end
 end
