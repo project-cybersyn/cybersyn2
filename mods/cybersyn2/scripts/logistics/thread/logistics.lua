@@ -394,7 +394,7 @@ function LogisticsThread:loop_trains()
 	local satisfaction = self.match.satisfaction
 	if
 		(satisfaction.total_fluid > 0 and train.fluid_capacity == 0)
-		and (satisfaction.total_stacks > 0 and train.item_slot_capacity == 0)
+		or (satisfaction.total_stacks > 0 and train.item_slot_capacity == 0)
 	then
 		self.capacity_rejections = self.capacity_rejections + 1
 		return
