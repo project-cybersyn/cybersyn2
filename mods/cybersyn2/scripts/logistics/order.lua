@@ -35,7 +35,7 @@ local trace = strace.trace
 ---@param amfc uint?
 ---@param amisc uint?
 ---@return uint
-local function compute_auto_threshold(
+local function compute_depletion_threshold(
 	request_qty,
 	frac,
 	item,
@@ -207,7 +207,7 @@ function Order:read(workload)
 				else
 					requested_fluids[signal_key] = requested_amt
 				end
-				local dt = compute_auto_threshold(
+				local dt = compute_depletion_threshold(
 					requested_amt,
 					depletion_fraction,
 					signal_key,
@@ -455,6 +455,7 @@ function Order:compute_needs(workload)
 	local thresh_min_fluid = self.thresh_min_fluid or 0
 	local starvation_tick = self.last_fulfilled_tick or 0
 	local starvation_item = nil
+	local starvation_is_fluid = false
 	local game_tick = game.tick
 	add_workload(workload, 2)
 
@@ -472,10 +473,12 @@ function Order:compute_needs(workload)
 				local tick = req_starv[key] or 0
 				if tick <= starvation_tick then
 					if
-						not self.no_starvation
+						has <= 0
+						and not self.no_starvation
 						and ((game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS)
 					then
 						starvation_item = key
+						starvation_is_fluid = true
 					end
 					starvation_tick = tick
 				end
@@ -484,7 +487,16 @@ function Order:compute_needs(workload)
 		end
 	end
 	if workload then add_workload(workload, table_size(requested_fluids)) end
-	if (not met_thresh) or (not next(fluids)) then fluids = nil end
+	if (not met_thresh) or (not next(fluids)) then
+		fluids = nil
+	else
+		if starvation_item then
+			-- When starving, don't let deliveries be cutoff because of train
+			-- fullness thresholds.
+			thresh_min_fluid =
+				min(thresh_min_fluid, requested_fluids[starvation_item])
+		end
+	end
 
 	-- Explicit items
 	if self.item_mode == "and" and not spread then
@@ -498,10 +510,12 @@ function Order:compute_needs(workload)
 					local tick = req_starv[key] or 0
 					if tick <= starvation_tick then
 						if
-							not self.no_starvation
+							has <= 0
+							and not self.no_starvation
 							and ((game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS)
 						then
 							starvation_item = key
+							starvation_is_fluid = false
 						end
 						starvation_tick = tick
 					end
@@ -510,7 +524,20 @@ function Order:compute_needs(workload)
 			end
 		end
 		if workload then add_workload(workload, table_size(requests)) end
-		if (not met_thresh) or (not next(items)) then items = nil end
+		if (not met_thresh) or (not next(items)) then
+			items = nil
+		else
+			if starvation_item and not starvation_is_fluid then
+				-- When starving, don't let deliveries be cutoff because of train
+				-- fullness thresholds.
+				thresh_min_slots = min(
+					thresh_min_slots,
+					ceil(
+						requests[starvation_item] / (key_to_stacksize(starvation_item) or 1)
+					)
+				)
+			end
+		end
 		if items or fluids then
 			---@type Cybersyn.Internal.Needs
 			local res = {
@@ -894,6 +921,10 @@ function Order:satisfy_needs(workload, needs)
 			return stacks
 		end)
 		if workload then add_workload(workload, table_size(items)) end
+		if total_stacks == 0 or total_stacks < thresh_min_stacks then
+			items = nil
+			total_stacks = 0
+		end
 	end
 
 	if items then
