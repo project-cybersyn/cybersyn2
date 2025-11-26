@@ -60,7 +60,7 @@ end
 local function create_combinator(thing)
 	local comb = Combinator:new(thing)
 	comb.mode = (thing.tags or EMPTY).mode or "unknown" --[[@as string]]
-	clear_combinator_outputs(thing.entity)
+	if thing.entity then clear_combinator_outputs(thing.entity) end
 	events.raise("cs2.combinator_created", comb)
 	events.raise("cs2.combinator_status_changed", comb)
 	cs2.raise_combinator_created(comb)
