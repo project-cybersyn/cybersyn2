@@ -167,7 +167,7 @@ local function create_or_destroy_hidden_chest(combinator, force_destroy)
 		)
 		remote.call(
 			"things",
-			"set_transient_child",
+			"add_transient_child",
 			combinator.id,
 			"proxy_chest",
 			chest
