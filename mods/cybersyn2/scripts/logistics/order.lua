@@ -759,11 +759,6 @@ function Order:satisfy_needs(workload, needs)
 		end
 		if workload then add_workload(workload, table_size(needs_fluids)) end
 		if total_fluid == 0 or total_fluid < thresh_min_fluid then
-			trace(
-				"Providing order",
-				self.node_id,
-				"fluids: no fluid match above threshold"
-			)
 			fluids = nil
 			total_fluid = 0
 		else

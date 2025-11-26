@@ -138,15 +138,7 @@ function LogisticsThread:loop_providers()
 	end
 
 	-- Check for netmatch
-	if not requester:matches_networks(provider) then
-		trace(
-			"Provider",
-			provider.node_id,
-			"network mismatch with requester",
-			requester.node_id
-		)
-		return
-	end
+	if not requester:matches_networks(provider) then return end
 
 	-- Check for satisfying quantity
 	local satisfaction =
