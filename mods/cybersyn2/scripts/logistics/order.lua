@@ -468,7 +468,7 @@ function Order:compute_needs(workload)
 		local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
 		local deficit = qty - has
 		if deficit > 0 then
-			if deficit >= (thresh_explicit[key] or 0) then
+			if deficit >= (thresh[key] or 0) then
 				fluids[key] = deficit
 				local tick = req_starv[key] or 0
 				if tick <= starvation_tick then
@@ -505,7 +505,7 @@ function Order:compute_needs(workload)
 			local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
 			local deficit = qty - has
 			if deficit > 0 then
-				if deficit >= (thresh_explicit[key] or 0) then
+				if deficit >= (thresh[key] or 0) then
 					items[key] = deficit
 					local tick = req_starv[key] or 0
 					if tick <= starvation_tick then
@@ -583,9 +583,7 @@ function Order:compute_needs(workload)
 		for key, qty in pairs(requests) do
 			local deficit = qty - (spread_net[key] or 0)
 			if deficit > 0 then
-				if deficit >= (thresh_explicit[key] or 0) then
-					and_spread[key] = deficit
-				end
+				if deficit >= (thresh[key] or 0) then and_spread[key] = deficit end
 				if deficit >= (thresh[key] or 0) then met_thresh = true end
 			end
 		end
