@@ -27,6 +27,7 @@ local INF = math.huge
 local add_workload = thread_lib.add_workload
 local pairs = _G.pairs
 local clamp = nmlib.clamp
+local STATUS_WORKING = defines.entity_status.working
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -123,6 +124,16 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	if not is_valid then return false end
 	local comb = combs[1]
 	add_workload(workload, 2)
+
+	-- Verify status of station comb entity
+	local comb_entity = comb.real_entity
+	if
+		not comb_entity
+		or not comb_entity.valid
+		or (comb_entity.status ~= STATUS_WORKING)
+	then
+		return false
+	end
 
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()
