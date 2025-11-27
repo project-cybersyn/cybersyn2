@@ -41,6 +41,7 @@ local function compute_depletion_threshold(
 	frac,
 	item,
 	species,
+	stack_size,
 	amfc,
 	amisc
 )
@@ -50,7 +51,7 @@ local function compute_depletion_threshold(
 		return min(ceil(thresh), amfc)
 	elseif species == "item" then
 		if not amisc then return nil end
-		local max_thresh = amisc * (key_to_stacksize(item) or 1)
+		local max_thresh = amisc * stack_size
 		return min(ceil(thresh), max_thresh)
 	else
 		-- TODO: error log here
@@ -210,6 +211,7 @@ function Order:read(workload)
 					depletion_fraction,
 					signal_key,
 					species,
+					stack_size,
 					stop_amfc,
 					stop_amisc
 				)
