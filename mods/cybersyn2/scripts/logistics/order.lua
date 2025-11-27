@@ -557,7 +557,7 @@ function Order:compute_needs(workload)
 				-- fullness thresholds.
 				thresh_min_slots = min(
 					thresh_min_slots,
-					floor(
+					ceil(
 						requests[starvation_item] / (key_to_stacksize(starvation_item) or 1)
 					)
 				)
