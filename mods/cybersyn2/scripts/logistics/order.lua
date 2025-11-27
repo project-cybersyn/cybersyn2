@@ -24,6 +24,7 @@ local INF = math.huge
 local min = math.min
 local max = math.max
 local ceil = math.ceil
+local floor = math.floor
 local network_match_and = siglib.network_match_and
 local network_match_or = siglib.network_match_or
 local trace = strace.trace
@@ -34,7 +35,7 @@ local trace = strace.trace
 ---@param frac number
 ---@param amfc uint?
 ---@param amisc uint?
----@return uint
+---@return uint?
 local function compute_depletion_threshold(
 	request_qty,
 	frac,
@@ -45,19 +46,15 @@ local function compute_depletion_threshold(
 )
 	local thresh = request_qty * frac
 	if species == "fluid" then
-		if not amfc then
-			return 2000000000 -- effectively infinite
-		end
+		if not amfc then return nil end
 		return min(ceil(thresh), amfc)
 	elseif species == "item" then
-		if not amisc then
-			return 2000000000 -- effectively infinite
-		end
+		if not amisc then return nil end
 		local max_thresh = amisc * (key_to_stacksize(item) or 1)
 		return min(ceil(thresh), max_thresh)
 	else
 		-- TODO: error log here
-		return 2000000000 -- effectively infinite
+		return nil
 	end
 end
 
@@ -154,10 +151,10 @@ function Order:read(workload)
 	self.thresh_fullness_fraction = stop.train_fullness_fraction
 	local depletion_fraction = self.thresh_depletion_fraction or 1
 	local fullness_fraction = self.thresh_fullness_fraction or 0
-	self.thresh_min_slots = (stop.allowed_min_item_slot_capacity or 0)
-		* fullness_fraction
-	self.thresh_min_fluid = (stop.allowed_min_fluid_capacity or 0)
-		* fullness_fraction
+	local thresh_fullness_slots = (stop_amisc or 0) * fullness_fraction
+	local thresh_fullness_fluid = (stop_amfc or 0) * fullness_fraction
+	local thresh_depletion_slots = INF
+	local thresh_depletion_fluid = INF
 
 	-- Workload for accumulating settings
 	add_workload(workload, 10)
@@ -199,9 +196,10 @@ function Order:read(workload)
 			elseif count < 0 then
 				-- Request
 				local requested_amt = abs(count)
+				local stack_size = key_to_stacksize(signal_key) or 1
 				if species == "item" then
 					if stacked_requests then
-						requested_amt = requested_amt * (key_to_stacksize(signal_key) or 1)
+						requested_amt = requested_amt * stack_size
 					end
 					requests[signal_key] = requested_amt
 				else
@@ -215,8 +213,21 @@ function Order:read(workload)
 					stop_amfc,
 					stop_amisc
 				)
-				thresh_depletion[signal_key] = dt
-				thresh_in[signal_key] = dt
+				if dt then
+					thresh_depletion[signal_key] = dt
+					thresh_in[signal_key] = dt
+					if species == "item" then
+						thresh_depletion_slots =
+							min(thresh_depletion_slots, floor(dt / stack_size), stop_amisc)
+					else
+						thresh_depletion_fluid = min(thresh_depletion_fluid, dt, stop_amfc)
+					end
+				else
+					-- No threshold could be computed...
+					-- TODO: evaluate what to do here, just remove item from order perhaps?
+					thresh_depletion[signal_key] = 2000000000
+					thresh_in[signal_key] = 2000000000
+				end
 			end
 		elseif genus == "virtual" then
 			if signal_key == "cybersyn2-priority" then
@@ -261,9 +272,11 @@ function Order:read(workload)
 		if next(requests) then
 			self.item_mode = "or"
 			self.request_stacks = all_items_value
+			thresh_depletion_slots = 0
 		else
 			self.item_mode = "all"
 			self.request_stacks = all_items_value
+			thresh_depletion_slots = 0
 		end
 	elseif next(requests) or next(requested_fluids) then
 		self.item_mode = "and"
@@ -314,6 +327,16 @@ function Order:read(workload)
 
 		if workload then add_workload(workload, table_size(requested_fluids)) end
 	end
+
+	-- Compute final thresholds
+	-- Prevent degeneracy
+	if thresh_depletion_fluid > 2000000000 then thresh_depletion_fluid = 0 end
+	if thresh_depletion_slots > 2000000000 then thresh_depletion_slots = 0 end
+	-- Fullness takes precedence if enabled
+	self.thresh_min_slots = (thresh_fullness_slots > 0) and thresh_fullness_slots
+		or thresh_depletion_slots
+	self.thresh_min_fluid = (thresh_fullness_fluid > 0) and thresh_fullness_fluid
+		or thresh_depletion_fluid
 
 	return true
 end
@@ -532,7 +555,7 @@ function Order:compute_needs(workload)
 				-- fullness thresholds.
 				thresh_min_slots = min(
 					thresh_min_slots,
-					ceil(
+					floor(
 						requests[starvation_item] / (key_to_stacksize(starvation_item) or 1)
 					)
 				)
