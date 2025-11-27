@@ -154,8 +154,6 @@ function Order:read(workload)
 	local fullness_fraction = self.thresh_fullness_fraction or 0
 	local thresh_fullness_slots = (stop_amisc or 0) * fullness_fraction
 	local thresh_fullness_fluid = (stop_amfc or 0) * fullness_fraction
-	local thresh_depletion_slots = INF
-	local thresh_depletion_fluid = INF
 
 	-- Workload for accumulating settings
 	add_workload(workload, 10)
@@ -218,12 +216,6 @@ function Order:read(workload)
 				if dt then
 					thresh_depletion[signal_key] = dt
 					thresh_in[signal_key] = dt
-					if species == "item" then
-						thresh_depletion_slots =
-							min(thresh_depletion_slots, floor(dt / stack_size), stop_amisc)
-					else
-						thresh_depletion_fluid = min(thresh_depletion_fluid, dt, stop_amfc)
-					end
 				else
 					-- No threshold could be computed...
 					-- TODO: evaluate what to do here, just remove item from order perhaps?
@@ -274,11 +266,9 @@ function Order:read(workload)
 		if next(requests) then
 			self.item_mode = "or"
 			self.request_stacks = all_items_value
-			thresh_depletion_slots = 0
 		else
 			self.item_mode = "all"
 			self.request_stacks = all_items_value
-			thresh_depletion_slots = 0
 		end
 	elseif next(requests) or next(requested_fluids) then
 		self.item_mode = "and"
@@ -331,14 +321,8 @@ function Order:read(workload)
 	end
 
 	-- Compute final thresholds
-	-- Prevent degeneracy
-	if thresh_depletion_fluid > 2000000000 then thresh_depletion_fluid = 0 end
-	if thresh_depletion_slots > 2000000000 then thresh_depletion_slots = 0 end
-	-- Fullness takes precedence if enabled
-	self.thresh_min_slots = (thresh_fullness_slots > 0) and thresh_fullness_slots
-		or thresh_depletion_slots
-	self.thresh_min_fluid = (thresh_fullness_fluid > 0) and thresh_fullness_fluid
-		or thresh_depletion_fluid
+	self.thresh_min_slots = thresh_fullness_slots
+	self.thresh_min_fluid = thresh_fullness_fluid
 
 	return true
 end
