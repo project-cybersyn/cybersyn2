@@ -625,7 +625,13 @@ function Order:compute_needs(workload)
 			end
 		end
 		if workload then add_workload(workload, table_size(requests)) end
-		if (not met_thresh) or (not next(and_spread)) then and_spread = nil end
+		if (not met_thresh) or (not next(and_spread)) then
+			and_spread = nil
+		else
+			if not thresh_was_preset and min_thresh then
+				thresh_min_slots = min_thresh
+			end
+		end
 
 		if and_spread then
 			---@type Cybersyn.Internal.Needs
