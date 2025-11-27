@@ -462,6 +462,7 @@ function Order:compute_needs(workload)
 	local depletion_fraction = self.thresh_depletion_fraction or 1
 	local thresh_min_slots = self.thresh_min_slots or 0
 	local thresh_min_fluid = self.thresh_min_fluid or 0
+	local thresh_was_preset = (thresh_min_slots > 0) or (thresh_min_fluid > 0)
 	local starvation_tick = self.last_fulfilled_tick or 0
 	local starvation_item = nil
 	local starvation_is_fluid = false
@@ -473,12 +474,17 @@ function Order:compute_needs(workload)
 	local fluids = {}
 	-- Explicit fluids
 	local met_thresh = false
+	local min_thresh = nil
 	for key, qty in pairs(requested_fluids) do
 		local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
 		local deficit = qty - has
 		if deficit > 0 then
-			if deficit >= (thresh[key] or 0) then
+			local item_threshold = thresh[key] or 0
+			if deficit >= item_threshold then
 				fluids[key] = deficit
+				if (not min_thresh) or (item_threshold < min_thresh) then
+					min_thresh = item_threshold
+				end
 				local tick = req_starv[key] or 0
 				if tick <= starvation_tick then
 					if
@@ -492,13 +498,16 @@ function Order:compute_needs(workload)
 					starvation_tick = tick
 				end
 			end
-			if deficit >= (thresh[key] or 0) then met_thresh = true end
+			if deficit >= item_threshold then met_thresh = true end
 		end
 	end
 	if workload then add_workload(workload, table_size(requested_fluids)) end
 	if (not met_thresh) or (not next(fluids)) then
 		fluids = nil
 	else
+		if not thresh_was_preset and min_thresh then
+			thresh_min_fluid = min_thresh
+		end
 		if starvation_item then
 			-- When starving, don't let deliveries be cutoff because of train
 			-- fullness thresholds.
@@ -510,12 +519,19 @@ function Order:compute_needs(workload)
 	-- Explicit items
 	if self.item_mode == "and" and not spread then
 		met_thresh = false
+		min_thresh = nil
 		for key, qty in pairs(requests) do
 			local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
 			local deficit = qty - has
 			if deficit > 0 then
-				if deficit >= (thresh[key] or 0) then
+				local item_threshold = thresh[key] or 0
+				if deficit >= item_threshold then
 					items[key] = deficit
+					local thresh_stacks =
+						ceil(item_threshold / (key_to_stacksize(key) or 1))
+					if (not min_thresh) or (thresh_stacks < min_thresh) then
+						min_thresh = thresh_stacks
+					end
 					local tick = req_starv[key] or 0
 					if tick <= starvation_tick then
 						if
@@ -529,13 +545,16 @@ function Order:compute_needs(workload)
 						starvation_tick = tick
 					end
 				end
-				if deficit >= (thresh[key] or 0) then met_thresh = true end
+				if deficit >= item_threshold then met_thresh = true end
 			end
 		end
 		if workload then add_workload(workload, table_size(requests)) end
 		if (not met_thresh) or (not next(items)) then
 			items = nil
 		else
+			if not thresh_was_preset and min_thresh then
+				thresh_min_slots = min_thresh
+			end
 			if starvation_item and not starvation_is_fluid then
 				-- When starving, don't let deliveries be cutoff because of train
 				-- fullness thresholds.
@@ -589,11 +608,20 @@ function Order:compute_needs(workload)
 
 		local and_spread = {}
 		met_thresh = false
+		min_thresh = nil
 		for key, qty in pairs(requests) do
 			local deficit = qty - (spread_net[key] or 0)
 			if deficit > 0 then
-				if deficit >= (thresh[key] or 0) then and_spread[key] = deficit end
-				if deficit >= (thresh[key] or 0) then met_thresh = true end
+				local item_threshold = thresh[key] or 0
+				if deficit >= item_threshold then
+					and_spread[key] = deficit
+					local stack_size = key_to_stacksize(key) or 1
+					local thresh_stacks = ceil(item_threshold / stack_size)
+					if (not min_thresh) or (thresh_stacks < min_thresh) then
+						min_thresh = thresh_stacks
+					end
+					met_thresh = true
+				end
 			end
 		end
 		if workload then add_workload(workload, table_size(requests)) end
