@@ -33,6 +33,7 @@ function LogisticsThread:new(topology)
 	thread.friendly_name = "logistics_" .. (topology.name or topology.id)
 	thread.topology_id = topology.id
 	thread.max_workload = cs2.PERF_BASE_LOGISTICS_WORKLOAD
+		* cs2.mod_settings.work_factor
 	thread.workload = 1
 	thread:set_state("init")
 	return thread
