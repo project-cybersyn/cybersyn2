@@ -65,7 +65,7 @@ data:extend({
 		order = "bd",
 		setting_type = "runtime-global",
 		default_value = 50,
-		minimum_value = 1,
+		minimum_value = 0,
 		maximum_value = 100,
 	},
 	{
@@ -74,7 +74,7 @@ data:extend({
 		order = "be",
 		setting_type = "runtime-global",
 		default_value = 0,
-		minimum_value = 1,
+		minimum_value = 0,
 		maximum_value = 100,
 	},
 	{
