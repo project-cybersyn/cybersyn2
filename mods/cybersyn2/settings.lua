@@ -73,7 +73,7 @@ data:extend({
 		name = "cybersyn2-setting-default-train-fullness-percent",
 		order = "be",
 		setting_type = "runtime-global",
-		default_value = 50,
+		default_value = 0,
 		minimum_value = 1,
 		maximum_value = 100,
 	},
