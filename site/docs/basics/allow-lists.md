@@ -17,8 +17,8 @@ This algorithm will allow a train at a station if it can infer that **the statio
 The automatic algorithm does not support:
 
 - Trains with more than 32 carriages.
-- Loading equipment entities that are not `inserter`, `pump`, `loader`, or `loader-1x1`. (Unless added by another mod through the Cybersyn API.)
-- Modified wagons that are not 6 tiles long or have a gap between wagons other than 1 tile.
+- Stations with more than 32 carriages worth of loading equipment alongside.
+- Loading equipment entities that are not `inserter`, `pump`, `loader`, or `loader-1x1`.
 
 In those cases, another allow list option must be used.
 
@@ -49,16 +49,6 @@ The layouts are stored as an exact list of the rolling stock entities that make 
 :::tip
 
 If a layout containing both forward and reverse locomotives is added to the allow list, the reversed direction of the train is implicitly allowed as well. Make sure your bidirectional layouts are symmetrical or that your stations can support reversed trains!
-
-:::
-
-### Manually allow specific train groups
-
-In `Group` mode you can specify exactly which train groups are allowed to visit the station.
-
-:::note
-
-Groups are stored by their group name. When applying a blueprint of a `Group` combinator across saves, trains will not be allowed unless the train groups in the destination save have exactly the same names as the corresponding groups in the source save.
 
 :::
 

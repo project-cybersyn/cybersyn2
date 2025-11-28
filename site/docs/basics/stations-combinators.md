@@ -29,9 +29,12 @@ will see a yellow box around your cursor:
 TODO: screenshot
 
 This represents the radius that will be searched when binding the combinator to a stop or rail. You
-must position the combinator so its target is within the yellow box.
+must position the combinator so its target stop or rail is within the yellow box. When building your
+first combinator, it must go next to a train stop.
 
 ### Configuring
+
+Clicking on a Cybersyn combinator will open a menu GUI allowing control of its settings.
 
 ### Controlling
 
