@@ -61,3 +61,17 @@ If the `All Items` virtual signal is given with a negative value along with a nu
 The item signals are treated as a mask, so their values do not matter as long as they are nonzero.
 
 OR orders support quality spread, so if `quality` signals are present, the items must be among those qualities.
+
+## Network Matching
+
+In advanced mode, you may change how orders are matched to determine network overlap.
+
+In addition to the default option, called `OR`, advanced mode offers an `AND` option.
+
+When set to `AND` mode, a providing station must be on **ALL** of the networks of the requesting station in order to be considered a match. In other words, the requesting station's networks must be a subset of the providing station's networks.
+
+This is distinct from the default `OR` mode where only one network intersection is required.
+
+:::info
+The requesting station **always** determines the network matching mode, as well as the set of networks which must be matched.
+:::

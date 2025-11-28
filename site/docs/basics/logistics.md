@@ -6,11 +6,11 @@ sidebar_position: 3
 
 This section assumes you have read the previous sections and have set up at least one train and two stations. You will now learn to connect those stations and exchange items between them via train logistics.
 
-Information about what items are available or wanted at a given station is provided to Cybersyn through the circuit network.
-
 ## Inputs to the Station Combinator
 
-The Station combinator treats the red and green wires differently.
+Information about what items are available or wanted at a given station is provided to Cybersyn through the circuit network. Most simple logistics can be done by providing a few particular inputs to the Station combinator.
+
+The Station combinator treats inputs coming in on the red and green wires differently, as explained in the following:
 
 ### Primary Wire/True Inventory
 
@@ -23,16 +23,16 @@ Most often, this is as simple as connecting *all* of your buffer chests and flui
 (todo: image)
 
 :::note
-
 For those coming from Cybersyn 1, this represents a considerable change. You *MUST NOT* pre-subtract requests from this value as you would have in Cybersyn 1. You *MUST* provide the unaltered total value of present cargo. If you do not, logistics will not function properly.
-
 :::
 
 ### Order Wire
 
 The **order wire** of the Station combinator is the opposite wire from the primary wire. By default, the green wire is the order wire. The order wire is used to control the logistics of the station, as will be explained below.
 
+:::info
 To provide basic signals to the order wire, it is customary to connect it to a constant combinator, which will cover most simple use cases.
+:::
 
 ## Auto-Providers
 
@@ -50,10 +50,10 @@ With an auto-provider, there is no need to provide input on the order wire, exce
 
 A station may also request items to be brought there. To do so, you must set the Station combinator's **Cargo** setting to allow inbound cargo. (Using either *Inbound Only* or the center setting which allows both inbound and outbound)
 
-Requests are given by providing circuit inputs to the Station combinator's order wire. You must provide a *negative signal* on the order wire indicating how much of what item you would like to request. The value of the signal must be negative and is interpreted as the number of *stacks* of the given item to be requested. You may request multiple distinct items by providing multiple negative signals.
+Requests are then given by providing circuit inputs to the Station combinator's order wire. You must provide a *negative signal* on the order wire for each item you would like to request, indicating how much of that item you would like. The value of the signal must be negative and is interpreted as the number of *stacks* of the given item to be requested. You may request multiple distinct items by providing multiple negative signals.
 
 :::note
-Requests are interpreted in stacks by default. You may uncheck the *Stacked Requests* checkbox to change this.
+Requests are interpreted in stacks by default. You may uncheck the *Stacked Requests* checkbox within the Station combinator to change this.
 :::
 
 ## Providing Specific Items
@@ -63,21 +63,21 @@ Sometimes you may not wish to provide the entire inventory of a station, but onl
 The value of each *positive* signal is interpreted as the quantity of that cargo that should be provided. You may provide multiple items by providing multiple distinct positive signals.
 
 :::info
-Quantities for provided items are always rounded down to the true inventory provided on the main wire. You may not use the order wire to offer an item that is not present in the true inventory, or quantities beyond what the true inventory shows.
+Quantities for provided items are always rounded down to the true inventory provided on the main wire. You may not use the order wire to offer an item that is not present in the true inventory, or to offer quantities beyond what the true inventory shows.
 :::
 
 ## Loading and Unloading
 
 Once you've set up a provider and a requester, Cybersyn will begin routing trains between them. When trains arrive, they must be loaded and unloaded by your equipment at the station. By convention in the Cybersyn world, *it is the responsibility of the providing station to correctly load a train to the requester's specifications*. Requesters can then simply unload the train's contents knowing that they are getting the proper items.
 
-This can be a challenging problem, which you must solve using standard Factorio train loading and unloading tech. Cybersyn provides a few additional tools to help you in this effort.
+This can be a challenging problem, which you must solve using standard Factorio train loading and unloading methodology. Cybersyn provides a few additional tools to help you in this effort.
 
 :::note
 Bugs crop up in all of our designs from time to time, so despite the provider's responsibility, it is often smart to implement filtering/checking at the requester side too!
 :::
 
 :::warning
-Due to general imprecision in train loading processes, it can be a challenge to load a train correctly according to the manifest. Naive strategies will often overload the train and/or leave cargo stuck in pumps/inserters/loaders. Various strategies for dealing with imprecision are covered in the advanced sections of this documentation.
+Due to general imprecision in train loading processes, it can be a challenge to load a train correctly according to the manifest. Naive strategies will often overload the train and/or leave cargo stuck in pumps/inserters/loaders. Various strategies for dealing with imprecision are covered in the Advanced and Cookbook sections of this documentation.
 :::
 
 ### Getting the train manifest
@@ -90,9 +90,9 @@ This combinator will output the manifest of any parked train. Negative signals r
 
 For trains with multiple wagons, it can be helpful to have the manifest split for you on a per-wagon basis. This is where combinators in **Wagon mode** come in. Placing one of these next to the tracks where a wagon will go will cause the manifest to be split on a per-wagon basis. This combinator will then output the wagon-specific manifest.
 
-Wagon mode also applies a cargo slot filter to its connected wagon ensuring that items are slotted correctly. This can be necessary in complex multi-item setups to prevent partial stacks being split over slots.
+Wagon mode also applies a cargo slot filter to its connected wagon ensuring that items are slotted correctly. This can be necessary in complex multi-item setups to prevent partial stacks being split over slots by loading equipment.
 
-The Wagon combinator can also be configured to take a UPS-efficient snapshot of the wagon's inventory and automatically add it to the manifest. This can be useful when precisely loading wagons.
+The Wagon combinator can also be configured to take a UPS-efficient realtime count of the wagon's inventory and automatically add it to the manifest. This can be useful when precisely loading wagons.
 
 :::info
 Wagon control does not affect how deliveries are generated. It provides an even split of the delivery between wagons. You cannot use it to ensure that specific cargo is always loaded onto a specific wagon.
@@ -100,15 +100,17 @@ Wagon control does not affect how deliveries are generated. It provides an even 
 
 ## Algorithmic Thresholds
 
-Cybersyn's algorithm automatically decides when it is appropriate to send trains. It does so based primarily on two inputs, both of which can be changed in the *Inbound Item Handling* section of the **Station combinator** options.
+Cybersyn's algorithm automatically decides when it is appropriate to send trains. It does so based primarily on two numerical parameters, both of which can be changed in the *Inbound Item Handling* section of the **Station combinator** options.
 
 ### Depletion Threshold
 
-The **depletion threshold** is the percentage of a requested item that must be missing in order for a delivery of that item to be triggered. The threshold is considered separately for each item. Each item whose inventory is depleted by this percentage relative to its requested value will be considered a candidate for delivery. Setting the depletion threshold to 100 means only items that are completely empty are eligible. Setting the depletion threshold to 0 means that any item or fluid missing even one unit is eligible.
+The **depletion threshold** is the percentage of a requested item that must be missing in order for a delivery of that item to be triggered. The threshold is considered separately for each item. Each item whose inventory is depleted by this percentage relative to its requested value will be considered a candidate for delivery.
+
+The value is interpreted as a percentage of the requested quantity that is missing. In other words, setting the depletion threshold to 100 means only items that are completely empty are eligible. Setting the depletion threshold to 0 means that any item or fluid missing even one unit is eligible.
 
 ### Train fullness threshold
 
-The **train fullness threshold** decides the percentage of a train that should be full before it is dispatched on a delivery. A delivery will only be dispatched if all of the items in the delivery, totaled up, would fill this percentage of the train's item slots, and likewise for fluids.
+The **train fullness threshold** decides the percentage of a train that should be full before it is dispatched on a delivery. A delivery will only be dispatched if all of the items on the manifest, totaled up, would fill this percentage of the train's item slots. The same is true of fluids and fluid capacity.
 
 The fullness threshold can be useful at multi-item stations when it is not desirable to set a high item depletion threshold, but you still don't want excessively empty trains.
 

@@ -68,44 +68,16 @@ const config: Config = {
           label: 'Docs',
         },
         {
+          label: 'Discord',
+          position: 'right',
+          href: 'https://discord.gg/pg6yQx8EXV',
+        },
+        {
           href: 'https://github.com/project-cybersyn/cybersyn2',
           label: 'GitHub',
           position: 'right',
         },
       ],
-    },
-    footer: {
-      style: 'dark',
-      links: [
-        {
-          title: 'Docs',
-          items: [
-            {
-              label: 'Docs',
-              to: '/',
-            },
-          ],
-        },
-        {
-          title: 'Community',
-          items: [
-            {
-              label: 'Discord',
-              href: 'https://discord.gg/pg6yQx8EXV',
-            },
-          ],
-        },
-        {
-          title: 'More',
-          items: [
-            {
-              label: 'GitHub',
-              href: 'https://github.com/project-cybersyn/cybersyn2',
-            },
-          ],
-        },
-      ],
-      copyright: `Copyright © ${new Date().getFullYear()} The Cybersyn 2 Authors. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,
