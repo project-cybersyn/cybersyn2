@@ -54,8 +54,7 @@ _G.cs2.Topology = Topology
 ---Create a new topology.
 function Topology:new()
 	local id = counters.next("topology")
-	storage.topologies[id] =
-		setmetatable({ id = id, global_combinators = {} }, self)
+	storage.topologies[id] = setmetatable({ id = id }, self)
 	return storage.topologies[id]
 end
 
@@ -96,31 +95,12 @@ local function get_or_create_topology_by_name(name)
 end
 _G.cs2.get_or_create_topology_by_name = get_or_create_topology_by_name
 
-function Topology:add_global_combinator(comb)
-	if not self.global_combinators[comb.id] then
-		self.global_combinators[comb.id] = true
-	end
-end
-
-function Topology:remove_global_combinator(comb)
-	if self.global_combinators[comb.id] then
-		self.global_combinators[comb.id] = nil
-	end
-end
-
----@return LuaEntity[]
-function Topology:get_combinator_entities()
-	-- TODO: wtf is this for?
-	error("unimplemented")
-end
-
 ---Called to trigger the event indicating a topology's net inventory was
 ---computed by the logistics thread. Special handling must be taken to
 ---ensure that the event handlers, which are likely to be expensive, are
 ---lifted out of the main thread.
 function Topology:raise_inventory_updated()
-	-- TODO: implement this properly. For now, just raise the event.
-	cs2.raise_topology_inventory_updated(self)
+	-- TODO: implement this properly. is it even needed???
 end
 
 ---@param surface_index uint

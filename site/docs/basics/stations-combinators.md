@@ -29,9 +29,12 @@ will see a yellow box around your cursor:
 TODO: screenshot
 
 This represents the radius that will be searched when binding the combinator to a stop or rail. You
-must position the combinator so its target is within the yellow box.
+must position the combinator so its target stop or rail is within the yellow box. When building your
+first combinator, it must go next to a train stop.
 
 ### Configuring
+
+Clicking on a Cybersyn combinator will open a menu GUI allowing control of its settings.
 
 ### Controlling
 
@@ -51,26 +54,22 @@ feature can be implemented easily in circuits.
 Cybersyn respects the native Factorio train limit value set on a stop, but due to limitations in the Factorio API, there are some caveats to be aware of:
 
 :::warning
-
 Sending a train outside the control of Cybersyn to a Cybersyn stop will cause Cybersyn to undercount
 the train limit of that stop, possibly resulting in an over-limit situation.
-
 :::
 
 :::warning
-
 Changing the train limit dynamically will not have any impact on deliveries in flight to the station, even if that number exceeds the newly set limit.
 
 Future deliveries will not be scheduled if they would put the total number of deliveries over the newly set limit, but currently scheduled deliveries must still be dealt with.
 
+For this reason, we recommend against the use of dynamic train limits.
 :::
 
 :::danger
-
 **Changing the train limit of a Cybersyn station to 0 will prevent Cybersyn's train routing from working and break the station, resulting in stuck trains.**
 
 Do not attempt to decommission a station by setting its limit to 0. Instead, disable all inventory input signals. This will prevent further deliveries to the station.
-
 :::
 
 ### Factorio Priorities

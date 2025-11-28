@@ -21,7 +21,6 @@ const config: Config = {
   projectName: 'cybersyn2', // Usually your repo name.
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -33,7 +32,7 @@ const config: Config = {
 
   presets: [
     [
-      'classic',
+      '@docusaurus/preset-classic',
       {
         docs: {
           sidebarPath: './sidebars.ts',
@@ -41,10 +40,13 @@ const config: Config = {
           // Remove this to remove the "edit this page" links.
           editUrl:
             'https://github.com/project-cybersyn/cybersyn2/tree/main/site/',
+          routeBasePath: '/',
         },
         theme: {
           customCss: './src/css/custom.css',
         },
+        blog: false,
+        pages: false,
       } satisfies Preset.Options,
     ],
   ],
@@ -66,44 +68,16 @@ const config: Config = {
           label: 'Docs',
         },
         {
+          label: 'Discord',
+          position: 'right',
+          href: 'https://discord.gg/pg6yQx8EXV',
+        },
+        {
           href: 'https://github.com/project-cybersyn/cybersyn2',
           label: 'GitHub',
           position: 'right',
         },
       ],
-    },
-    footer: {
-      style: 'dark',
-      links: [
-        {
-          title: 'Docs',
-          items: [
-            {
-              label: 'Docs',
-              to: '/docs/intro',
-            },
-          ],
-        },
-        {
-          title: 'Community',
-          items: [
-            {
-              label: 'Discord',
-              href: 'https://discord.gg/pg6yQx8EXV',
-            },
-          ],
-        },
-        {
-          title: 'More',
-          items: [
-            {
-              label: 'GitHub',
-              href: 'https://github.com/project-cybersyn/cybersyn2',
-            },
-          ],
-        },
-      ],
-      copyright: `Copyright © ${new Date().getFullYear()} The Cybersyn 2 Authors. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

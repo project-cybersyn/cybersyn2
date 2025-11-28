@@ -6,6 +6,7 @@ local pos_lib = require("lib.core.math.pos")
 local bbox_lib = require("lib.core.math.bbox")
 local tlib = require("lib.core.table")
 local events = require("lib.core.event")
+local strace = require("lib.core.strace")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
@@ -269,7 +270,10 @@ local function create_all_overlays() create_stop_overlays() end
 
 local function clear_all_overlays()
 	local ovl_data = storage.debug_state.overlay
-	if not ovl_data then return end
+	if not ovl_data then
+		strace.trace("clear_all_overlays: no overlay data to clear")
+		return
+	end
 	for _, ovl in pairs(ovl_data.comb_overlays or {}) do
 		ovl.destroy()
 	end
@@ -298,7 +302,10 @@ local function enable_or_disable_overlays()
 	end
 end
 
-events.bind("on_shutdown", clear_all_overlays)
+events.bind("on_shutdown", function()
+	strace.info("debug_overlays: on_shutdown - clearing all overlays")
+	clear_all_overlays()
+end)
 
 cs2.on_mod_settings_changed(enable_or_disable_overlays)
 cs2.on_combinator_destroyed(destroy_combinator_overlay)

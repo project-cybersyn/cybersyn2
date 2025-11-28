@@ -17,16 +17,22 @@ _G.cs2.MAX_RAILS_TO_SEARCH = 112
 -- This is a bit of a hack, but it is what it is.
 _G.cs2.LONGEST_INSERTER_REACH = 2
 
--- Base number of trains to examine per iteration of the train group monitor.
-_G.cs2.PERF_TRAIN_GROUP_MONITOR_WORKLOAD = 4
--- Base number of nodes to examine per `poll_nodes` iteration
-_G.cs2.PERF_POLL_NODES_WORKLOAD = 4
--- Base empirical work units per `alloc` iteration.
-_G.cs2.PERF_ALLOC_WORKLOAD = 15
--- Base number of allocations to examine per `route` iteration.
-_G.cs2.PERF_ROUTE_WORKLOAD = 1
--- Number of deliveries to examine per delivery monitor iteration.
-_G.cs2.PERF_DELIVERY_MONITOR_WORKLOAD = 5
+-- Bonus to provider evaluation per normalized unit of cargo available.
+_G.cs2.LOGISTICS_PROVIDER_CARGO_WEIGHT = 0.001
+-- Penalty to provider evaluation per tile of distance from requester.
+_G.cs2.LOGISTICS_PROVIDER_DISTANCE_WEIGHT = -1
+-- Penalty to provider evaluation per train in queue.
+_G.cs2.LOGISTICS_PROVIDER_BUSY_WEIGHT = -300
+-- Number of ticks between deliveries of an item before a station is considered
+-- "starving" for that item.
+_G.cs2.LOGISTICS_STARVATION_TICKS = 3600 * 5 -- 5 minutes
+-- Maximum number of passes over the provider match array to perform for a given requester.
+_G.cs2.LOGISTICS_MAX_PROVIDER_PASSES = 2
+
+-- Base logistics workload
+_G.cs2.PERF_BASE_LOGISTICS_WORKLOAD = 100
+-- Base workload for general threads
+_G.cs2.PERF_BASE_THREAD_WORKLOAD = 50
 
 -- Expiration time in ticks for a finished delivery to be deleted from storage.
 -- TODO: possibly make this a setting
@@ -60,6 +66,8 @@ _G.cs2.INVALID_NETWORK_SIGNAL_SET = {
 _G.cs2.DEFAULT_COMBINATOR_SETTINGS = {
 	mode = "station",
 	order_primary_network = "signal-A",
+	order_secondary_network = "signal-A",
+	order_flags = 3,
 	pr = 0,
 	inactivity_mode = 0,
 	inactivity_timeout = 1,

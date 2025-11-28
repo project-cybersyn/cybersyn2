@@ -35,7 +35,6 @@ function Node.new(type)
 		type = type or "generic", -- default type
 		combinator_set = {},
 		created_tick = game.tick,
-		last_consumed_tick = {},
 		deliveries = {},
 		log_size = 20,
 		log_current = 1,

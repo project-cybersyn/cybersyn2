@@ -41,18 +41,6 @@ end
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
----@class (exact) Cybersyn.Internal.TrainCargoState
----@field public base_item_slots uint Base item slots. Before locked slots are subtracted.
----@field public total_item_slots uint Total item slots. Locked slots already subtracted.
----@field public remaining_item_slots uint Remaining item slots. Locked slots already subtracted.
----@field public base_fluid_capacity uint Base fluid capacity. Before reserved cap is subtracted.
----@field public fluid_capacity uint Train fluid capacity. Reserved cap already subtracted.
----@field public seen_items table<SignalKey, boolean> Seen items.
----@field public item_spillover uint Per-item spillover from provider PREMULTIPLIED BY NUMBER OF CARGO WAGONS
----@field public fluid_was_allocated boolean True if fluid was allocated.
----@field public manifest SignalCounts Manifest accumulated so far
----@field public spillover SignalCounts? Manifest with spillover included
-
 ---@param logistics_thread Cybersyn.LogisticsThread
 ---@param original_allocation Cybersyn.Internal.LogisticsAllocation
 ---@param allocation Cybersyn.Internal.LogisticsAllocation

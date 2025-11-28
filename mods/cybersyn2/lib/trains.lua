@@ -196,4 +196,11 @@ function lib.get_carriage_capacity(carriage)
 	end
 end
 
+---Generate a normalized train capacity that attempts to equalize over cargo
+---and fluid capacity.
+function lib.normalize_capacity(solid_stacks, fluid_amount)
+	-- 1250 = 50000/40 = ratio between full fluid and full solid wagon
+	return 1250 * solid_stacks + fluid_amount
+end
+
 return lib

@@ -1,6 +1,7 @@
 local strace_lib = require("__cybersyn2__.lib.core.strace")
 local relm = require("__cybersyn2__.lib.core.relm.relm")
 local relm_helpers = require("__cybersyn2__.lib.core.relm.util")
+local relm_table = require("__cybersyn2__.lib.core.relm.table-renderer")
 local ultros = require("__cybersyn2__.lib.core.relm.ultros")
 local tlib = require("__cybersyn2__.lib.core.table")
 local nlib = require("__cybersyn2__.lib.core.math.numeric")
@@ -11,6 +12,8 @@ local Pr = relm.Primitive
 local VF = ultros.VFlow
 local HF = ultros.HFlow
 local empty = tlib.empty
+local default_renderer = relm_table.default_renderer
+local render_table = relm_table.render_table
 
 local function render_counts(counts)
 	return Pr({ type = "table", column_count = 5 }, {
@@ -43,10 +46,6 @@ local function render_entity_minimap(k, v)
 		})
 end
 
-local function default_renderer(k, v)
-	return ultros.BoldLabel(k), ultros.RtMultilineLabel(strace_lib.stringify(v))
-end
-
 local function reltime_renderer(k, v)
 	local t = game and game.tick or 0
 	return ultros.BoldLabel(k),
@@ -69,21 +68,6 @@ local delivery_renderers = {
 	misrouted_to = default_renderer,
 	left_dirty = default_renderer,
 }
-
-local function render_table(tbl, renderers, default)
-	renderers = renderers or empty
-	local children = {}
-	for k, v in pairs(tbl) do
-		local renderer = renderers[k]
-		if (renderer == nil) and default then renderer = default end
-		if renderer then tlib.append(children, renderer(k, v)) end
-	end
-	return Pr({
-		type = "table",
-		horizontally_stretchable = true,
-		column_count = 2,
-	}, children)
-end
 
 local function render_delivery(delivery)
 	return VF({ horizontally_stretchable = true }, {
@@ -116,7 +100,7 @@ local function render_delivery(delivery)
 		}),
 		ultros.Label("Manifest"),
 		render_counts(delivery.manifest),
-		render_table(delivery, delivery_renderers, nil),
+		render_table(2, delivery, delivery_renderers, nil),
 	})
 end
 
@@ -131,7 +115,7 @@ relm.define_element({
 		local children = {}
 		tlib.append(
 			children,
-			render_table(vehicle, vehicle_renderers, default_renderer)
+			render_table(2, vehicle, vehicle_renderers, default_renderer)
 		)
 		for _, d in pairs(deliveries) do
 			tlib.append(children, render_delivery(d))

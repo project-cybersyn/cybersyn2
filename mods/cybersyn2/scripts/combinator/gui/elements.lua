@@ -247,7 +247,7 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 			}, {
 				gui.Dropdown(
 					{
-						tooltip = "Determines how network matching is performed for this order.\n\n[font=default-bold]OR[/font]: If this order has any networks in common with the opposing order, it is considered a match.\n[font=default-bold]AND[/font]: This order must share all networks with the opposing order to be considered a match.\n\nThe requesting order always determines the network matching mode.",
+						tooltip = "Determines how network matching is performed for this order.\n\n[font=default-bold]OR[/font]: If the requesting order has any networks in common with the providing order, it is considered a match.\n[font=default-bold]AND[/font]: The requesting order must share ALL of its networks with the providing order to be considered a match.\n\nThe requesting order always determines the network matching mode.",
 					},
 					combinator,
 					"order_" .. arity .. "_network_matching_mode",
@@ -272,6 +272,13 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 				"If checked, all requests will be interpreted as stacks of items rather than item counts.",
 				combinator,
 				"order_" .. arity .. "_stacked_requests"
+			),
+			gui.Checkbox(
+				"Mitigate starvation for requested items",
+				"When checked, requests for this order will receive special handling to prevent starvation. Uncheck for orders to which starvation doesn't apply, such as void or dump orders.",
+				combinator,
+				"order_" .. arity .. "_no_starvation",
+				true
 			),
 		})
 	end,

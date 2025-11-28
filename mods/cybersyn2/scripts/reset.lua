@@ -32,11 +32,20 @@ function _G.cs2.shutdown(force)
 		return
 	end
 
+	-- Perform shutdown
 	---@type Core.ResetData
 	local shutdown_state = { init = false, handoff = false }
 	strace.info("invoking on_shutdown")
 	events.raise("on_shutdown", shutdown_state)
 	storage._SHUTDOWN_DATA = shutdown_state
+
+	-- Destroy lingering render objects. (this resolves a bug in some
+	-- previous versions of cs2.)
+	local objs = rendering.get_all_objects("cybersyn2")
+	for _, o in pairs(objs) do
+		o.destroy()
+	end
+
 	game.print("Cybersyn 2 shutdown complete.")
 end
 

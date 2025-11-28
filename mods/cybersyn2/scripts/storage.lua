@@ -81,5 +81,10 @@ local function clear_storage()
 	storage.entities_being_destroyed = {}
 end
 
+events.register_dynamic_handler("clear-storage", clear_storage)
+
 events.bind("on_startup", clear_storage, true)
-events.bind("on_shutdown", clear_storage)
+events.bind("on_shutdown", function()
+	-- Defer clearing storage until after other shutdown handlers.
+	events.dynamic_subtick_trigger("clear-storage", "clear-storage")
+end)

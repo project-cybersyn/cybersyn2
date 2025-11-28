@@ -7,12 +7,12 @@ data:extend({
 		default_value = true,
 	},
 	{
-		type = "bool-setting",
-		name = "cybersyn2-setting-debug",
-		order = "ab",
+		type = "string-setting",
+		name = "cybersyn2-setting-debug-level",
+		order = "ac",
 		setting_type = "runtime-global",
-		-- TODO: set this to false for release
-		default_value = true,
+		default_value = "NONE",
+		allowed_values = { "NONE", "INFO", "TRACE" },
 	},
 	{
 		type = "int-setting",
@@ -76,5 +76,14 @@ data:extend({
 		default_value = 50,
 		minimum_value = 1,
 		maximum_value = 100,
+	},
+	{
+		type = "int-setting",
+		name = "cybersyn2-setting-default-netmask",
+		order = "bf",
+		setting_type = "runtime-global",
+		default_value = -1,
+		minimum_value = -2147483648,
+		maximum_value = 2147483647,
 	},
 })
