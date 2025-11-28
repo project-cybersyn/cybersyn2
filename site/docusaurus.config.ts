@@ -41,6 +41,7 @@ const config: Config = {
           // Remove this to remove the "edit this page" links.
           editUrl:
             'https://github.com/project-cybersyn/cybersyn2/tree/main/site/',
+          routeBasePath: '/',
         },
         theme: {
           customCss: './src/css/custom.css',
