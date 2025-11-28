@@ -33,7 +33,7 @@ const config: Config = {
 
   presets: [
     [
-      'classic',
+      '@docusaurus/preset-classic',
       {
         docs: {
           sidebarPath: './sidebars.ts',
@@ -46,6 +46,8 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
+        blog: false,
+        pages: false,
       } satisfies Preset.Options,
     ],
   ],
@@ -81,7 +83,7 @@ const config: Config = {
           items: [
             {
               label: 'Docs',
-              to: '/docs/intro',
+              to: '/',
             },
           ],
         },
