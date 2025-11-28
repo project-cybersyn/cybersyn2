@@ -11,6 +11,7 @@ local Topology = _G.cs2.Topology
 
 local strsub = string.sub
 local mod_settings = _G.cs2.mod_settings
+local NO_FUEL = defines.entity_status.no_fuel
 
 --------------------------------------------------------------------------------
 -- Group tracking
@@ -380,4 +381,18 @@ function Train:is_empty()
 	if not train then return false end
 	return next(train.get_contents()) == nil
 		and next(train.get_fluid_contents()) == nil
+end
+
+---Check if all locomotives have fuel.
+---@return boolean fueled `true` if all locomotives have fuel, `false` otherwise.
+function Train:has_fuel()
+	local train = self.lua_train
+	if (not train) or not train.valid then return false end
+	for _, locos in pairs(train.locomotives) do
+		---@cast locos LuaEntity[]
+		for _, loco in pairs(locos) do
+			if loco.status == NO_FUEL then return false end
+		end
+	end
+	return true
 end
