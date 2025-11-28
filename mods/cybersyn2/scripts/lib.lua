@@ -1,10 +1,12 @@
 local mlib = require("lib.core.math.pos")
+local tlib = require("lib.core.table")
 
 local distsq = mlib.pos_distsq
 local pos_get = mlib.pos_get
 local sqrt = math.sqrt
 local INF = math.huge
 local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
+local EMPTY = tlib.EMPTY_STRICT
 
 local DIFFERENT_SURFACE_DISTANCE = 1000000000
 
@@ -52,7 +54,7 @@ end
 ---Locate all combinators that could potentially be associated to a stop.
 ---@param stop_entity LuaEntity A *valid* train stop entity.
 ---@return LuaEntity[]
-function _G.cs2.lib.find_associable_combinators(stop_entity)
+function _G.cs2.find_associable_combinator_entities(stop_entity)
 	local pos_x = stop_entity.position.x
 	local pos_y = stop_entity.position.y
 	return cs2.lib.find_combinator_entities(stop_entity.surface, {
@@ -175,4 +177,17 @@ function _G.cs2.lib.find_associable_entities_for_combinator(combinator_entity)
 		end
 	end
 	return stop, rail
+end
+
+---@param cset {[int64]: true}
+---@param idx int64|nil
+local function comb_iter(cset, idx)
+	local next_idx = next(cset, idx)
+	if next_idx then return next_idx, cs2.get_combinator(next_idx, true) end
+end
+
+---Lua iterator over all combinators associated with a node.
+---@param node Cybersyn.Node
+function _G.cs2.iterate_combinators(node)
+	return comb_iter, node.combinator_set or EMPTY, nil
 end

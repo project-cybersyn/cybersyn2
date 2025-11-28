@@ -97,13 +97,6 @@ _G.cs2.on_luatrain_changed_state, _G.cs2.raise_luatrain_changed_state = event(
 	"nil"
 )
 
----Event raised when a blueprint is pasted into the world.
-_G.cs2.on_blueprint_built, _G.cs2.raise_blueprint_built =
-	event("blueprint_built", "bplib.BlueprintBuild", "nil", "nil", "nil", "nil")
-
-_G.cs2.on_blueprint_setup, _G.cs2.raise_blueprint_setup =
-	event("blueprint_setup", "bplib.BlueprintSetup", "nil", "nil", "nil", "nil")
-
 ---Event raised when a relevant entity is "selected" as defined by
 ---Factorio.
 _G.cs2.on_selected, _G.cs2.raise_selected =
@@ -201,21 +194,6 @@ _G.cs2.on_combinator_node_associated, _G.cs2.raise_combinator_node_associated =
 		"nil"
 	)
 
----Event raised when a setting changes on a combinator OR a ghost.
---- * Arg 1 - `Cybersyn.Combinator.Ephemeral` - The combinator or ghost.
---- * Arg 2 - `string|nil` - The name of the setting that changed. If `nil`, you must assume that any or all of the settings have changed.
---- * Arg 3 - `any` - The new value of the setting, if known.
---- * Arg 4 - `any` - The old value of the setting, if known.
-_G.cs2.on_combinator_or_ghost_setting_changed, _G.cs2.raise_combinator_or_ghost_setting_changed =
-	event(
-		"combinator_or_ghost_setting_changed",
-		"Cybersyn.Combinator.Ephemeral",
-		"StringOrNil",
-		"any",
-		"any",
-		"nil"
-	)
-
 ---Event raised when a real combinator's settings change, including when it
 ---is first built.
 --- * Arg 1 - `Cybersyn.Combinator` - The combinator.
@@ -308,11 +286,6 @@ _G.cs2.on_train_stop_shared_inventory_changed, _G.cs2.raise_train_stop_shared_in
 -- Inventories and deliveries.
 --------------------------------------------------------------------------------
 
----Event raised only when the dispatch loop is paused and then stepped
----manually by the user.
-_G.cs2.on_debug_loop, _G.cs2.raise_debug_loop =
-	event("debug_loop", "string", "Cybersyn.LogisticsThread", "nil", "nil", "nil")
-
 _G.cs2.on_inventory_created, _G.cs2.raise_inventory_created =
 	event("inventory_created", "Cybersyn.Inventory", "nil", "nil", "nil", "nil")
 
@@ -342,28 +315,3 @@ _G.cs2.on_delivery_state_changed, _G.cs2.raise_delivery_state_changed = event(
 ---Event raised when the collection of deliveries targeting a node changes.
 _G.cs2.on_node_deliveries_changed, _G.cs2.raise_node_deliveries_changed =
 	event("node_deliveries_changed", "Cybersyn.Node", "nil", "nil", "nil", "nil")
-
----Event raised when the logistics thread has finished computing net inventory
----for an entire topology.
-_G.cs2.on_topology_inventory_updated, _G.cs2.raise_topology_inventory_updated =
-	event(
-		"topology_inventory_updated",
-		"Cybersyn.Topology",
-		"nil",
-		"nil",
-		"nil",
-		"nil"
-	)
-
---------------------------------------------------------------------------------
--- Views
---------------------------------------------------------------------------------
-
-_G.cs2.on_view_created, _G.cs2.raise_view_created =
-	event("view_created", "Cybersyn.View", "nil", "nil", "nil", "nil")
-
-_G.cs2.on_view_destroyed, _G.cs2.raise_view_destroyed =
-	event("view_destroyed", "Cybersyn.View", "nil", "nil", "nil", "nil")
-
-_G.cs2.on_view_updated, _G.cs2.raise_view_updated =
-	event("view_updated", "Cybersyn.View", "nil", "nil", "nil", "nil")

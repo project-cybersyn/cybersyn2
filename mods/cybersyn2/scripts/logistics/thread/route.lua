@@ -22,20 +22,24 @@ local ERROR = stlib.ERROR
 local dist = _G.cs2.lib.dist
 local key_is_fluid = signal.key_is_fluid
 
+local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn2.RoutePlugin} ]]
+
+local reachable_callbacks = tlib.t_map_a(
+	route_plugins or {},
+	function(plugin) return plugin.reachable_callback end
+) --[[@as Core.RemoteCallbackSpec[] ]]
+
+local function query_reachable_callbacks(...)
+	for _, callback in pairs(reachable_callbacks) do
+		if callback then
+			local result = remote.call(callback[1], callback[2], ...)
+			if result then return result end
+		end
+	end
+end
+
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
-
----@class (exact) Cybersyn.Internal.TrainCargoState
----@field public base_item_slots uint Base item slots. Before locked slots are subtracted.
----@field public total_item_slots uint Total item slots. Locked slots already subtracted.
----@field public remaining_item_slots uint Remaining item slots. Locked slots already subtracted.
----@field public base_fluid_capacity uint Base fluid capacity. Before reserved cap is subtracted.
----@field public fluid_capacity uint Train fluid capacity. Reserved cap already subtracted.
----@field public seen_items table<SignalKey, boolean> Seen items.
----@field public item_spillover uint Per-item spillover from provider PREMULTIPLIED BY NUMBER OF CARGO WAGONS
----@field public fluid_was_allocated boolean True if fluid was allocated.
----@field public manifest SignalCounts Manifest accumulated so far
----@field public spillover SignalCounts? Manifest with spillover included
 
 ---@param logistics_thread Cybersyn.LogisticsThread
 ---@param original_allocation Cybersyn.Internal.LogisticsAllocation
@@ -70,9 +74,7 @@ local function try_allocation(
 	-- Honor "ignore secondary thresholds"
 	local from_thresh = allocation.from_thresh
 	local to_thresh = allocation.to_thresh
-	if
-		(allocation ~= original_allocation) and from.ignore_secondary_thresholds
-	then
+	if allocation ~= original_allocation then
 		from_thresh = 1
 		to_thresh = 1
 	end
@@ -270,6 +272,7 @@ local function train_score(train, allocation, train_capacity)
 	local cap_ratio = min(allocation.qty / train_capacity, 1.0)
 	-- Amongst the best-fitting trains, penalize those that are further away
 	local train_stock = train:get_stock()
+	if not train_stock then return -math.huge end
 	local stop = (allocation.from --[[@as Cybersyn.TrainStop]]).entity --[[@as LuaEntity]]
 	local dx = dist(stop, train_stock)
 
@@ -361,6 +364,22 @@ function LogisticsThread:route_train_allocation(allocation, index)
 		end
 		-- Check if allowlisted at both ends
 		if not (from:allows_train(train) and to:allows_train(train)) then
+			allowlist_rejections = allowlist_rejections + 1
+			goto continue
+		end
+		-- Check if any plugin vetoes reachability
+		if
+			query_reachable_callbacks(
+				train.id,
+				from.id,
+				to.id,
+				train:get_stock(),
+				train.home_surface_index,
+				from.entity,
+				to.entity
+			)
+		then
+			-- TODO: counting plugin rejection as an allowlist rejection for now...
 			allowlist_rejections = allowlist_rejections + 1
 			goto continue
 		end

@@ -5,11 +5,7 @@
 
 local cs2 = _G.cs2
 local events = require("lib.core.event")
-
----@class Cybersyn.ResetData
----@field public combinator_settings_cache? table<UnitNumber, Tags> On reset, combinator settings must be handed off.
----@field public inventory_links? Cybersyn.Internal.StoredLink[] On reset, inventory links must be handed off.
----@field public reasons? string[] On attempted reset, reasons the reset should not proceed. If `nil` or empty, the reset will proceed.
+local strace = require("lib.core.strace")
 
 ---Shuts down Cybersyn 2.
 ---@param force boolean If `true`, forces shutdown even if there are vetoes.
@@ -17,6 +13,7 @@ function _G.cs2.shutdown(force)
 	---@type Core.ResetData
 	local try_shutdown_state =
 		{ init = false, handoff = false, veto_shutdown = {} }
+	strace.info("invoking on_try_shutdown")
 	events.raise("on_try_shutdown", try_shutdown_state)
 	if (not force) and (#try_shutdown_state.veto_shutdown > 0) then
 		table.insert(try_shutdown_state.veto_shutdown, 1, "")
@@ -28,11 +25,27 @@ function _G.cs2.shutdown(force)
 		})
 		return
 	end
+	if not force and storage._SHUTDOWN_DATA then
+		game.print(
+			"Cybersyn 2 shutdown failed: must restart with `/cs2-restart` before shutting down again. Use `/cs2-shutdown force` to shut down anyway."
+		)
+		return
+	end
 
+	-- Perform shutdown
 	---@type Core.ResetData
 	local shutdown_state = { init = false, handoff = false }
+	strace.info("invoking on_shutdown")
 	events.raise("on_shutdown", shutdown_state)
 	storage._SHUTDOWN_DATA = shutdown_state
+
+	-- Destroy lingering render objects. (this resolves a bug in some
+	-- previous versions of cs2.)
+	local objs = rendering.get_all_objects("cybersyn2")
+	for _, o in pairs(objs) do
+		o.destroy()
+	end
+
 	game.print("Cybersyn 2 shutdown complete.")
 end
 
@@ -47,6 +60,7 @@ function _G.cs2.restart()
 	local shutdown_data = storage._SHUTDOWN_DATA
 	storage._SHUTDOWN_DATA = nil
 
+	strace.info("invoking on_startup")
 	shutdown_data.init = false
 	shutdown_data.handoff = true
 	events.raise("on_startup", shutdown_data)

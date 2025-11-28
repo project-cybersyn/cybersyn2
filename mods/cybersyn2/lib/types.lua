@@ -34,13 +34,10 @@ local lib = {}
 ---@field public log_current uint Index of the current log entry
 ---@field public log_buffer any[] The full log ring buffer.
 
----An opaque reference to EITHER a live combinator OR its ghost.
----@class Cybersyn.Combinator.Ephemeral
----@field public entity? LuaEntity The primary entity of the combinator OR its ghost.
-
----An opaque reference to a fully realized and built combinator that has been indexed by Cybersyn and tracked in game state.
----@class Cybersyn.Combinator: Cybersyn.Combinator.Ephemeral
----@field public id UnitNumber The unique unit number of the combinator entity.
+---Combinator game state.
+---@class Cybersyn.Combinator
+---@field public id int64 The unique Thing ID associated with this combinator.
+---@field public real_entity LuaEntity? If the combinator is real and not a ghost, this is the LuaEntity representing it. NOTE: This is a cached value and must ALWAYS be checked for validity before use.
 ---@field public node_id? uint The id of the node this combinator is associated with, if any.
 ---@field public is_being_destroyed true? `true` if the combinator is being removed from state at this time.
 ---@field public mode? string The mode value set on this combinator, if known. Cached for performance reasons.
@@ -48,7 +45,6 @@ local lib = {}
 ---@field public red_inputs? SignalCounts As `inputs` but for only the red wire. Exists only for modes with `independent_input_wires` set.
 ---@field public green_inputs? SignalCounts As `inputs` but for only the green wire. Exists only for modes with `independent_input_wires` set.
 ---@field public last_read_tick uint The tick this combinator was last read.
----@field public associated_entities table<string, LuaEntity>? Hidden or related entities that must be created or destroyed along with the combinator.
 ---@field public connected_rail LuaEntity? If this combinator was built next to a rail, this is that rail.
 
 ---A vehicle managed by Cybersyn.
@@ -98,19 +94,12 @@ lib.CarriageType = {
 ---@field public n_fluid_wagons uint Number of fluid wagons in the train.
 ---@field public no_trains boolean? `true` if no extant trains match this layout.
 
----@enum Cybersyn.Node.NetworkOperation
-lib.NodeNetworkOperation = {
-	Any = 1,
-	All = 2,
-}
-
 ---An isolated group of `Node`s that can only communicate with each other.
 ---@class Cybersyn.Topology
 ---@field public id Id Unique id of the topology.
----@field public surface_index? uint The index of the surface this topology is associated with, if any. This is not a 1-1 association; a surface may have multiple topologies.
+---@field public surface_set? table<uint, boolean> A SET of surface indices associated with this topology, if any. This is used when multiple surfaces are logically connected.
 ---@field public name? string The name of the topology, if any.
 ---@field public thread_id? int The id of the thread servicing this topology if any.
----@field public global_combinators IdSet Set of global combinators (e.g. inventory combinators) associated with this topology. This DOES NOT include per-node combinators.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
 ---@class Cybersyn.Node: RingBufferLog
@@ -127,16 +116,11 @@ lib.NodeNetworkOperation = {
 ---@field public is_consumer boolean? `true` if the node can receive deliveries
 ---@field public priority int? Default priority of the node.
 ---@field public default_networks SignalCounts? Default item networks of the node.
----@field public threshold_item_in uint? General inbound item threshold
+---@field public threshold_item_in uint? General inbound item threshold, always measured in stacks.
 ---@field public threshold_fluid_in uint? General inbound fluid threshold
----@field public threshold_item_out uint? General outbound item threshold
----@field public threshold_fluid_out uint? General outbound fluid threshold
----@field public thresholds_in SignalCounts? Per-item inbound thresholds
----@field public thresholds_out SignalCounts? Per-item outbound thresholds
----@field public stack_thresholds boolean? `true` if item thresholds should be interpreted as stacks
----@field public last_consumed_tick SignalCounts The last tick a delivery of the given item was scheduled to this node.
----@field public disable_auto_thresholds boolean? `true` if the node should not automatically set thresholds based on its requests.
----@field public auto_threshold_fraction? number Fraction of requests to use for auto-thresholding.
+---@field public thresholds_in SignalCounts? Per-item inbound thresholds, always measured in units, not stacks.
+---@field public auto_threshold_fraction number Fraction of requests to use for auto-thresholding.
+---@field public train_fullness_fraction number Fraction of train fullness to use for delivery triggering.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
@@ -156,7 +140,6 @@ lib.NodeNetworkOperation = {
 ---@field public reserved_slots uint? Reserved slots per cargo wagon
 ---@field public reserved_capacity uint? Reserved capacity per fluid wagon
 ---@field public spillover uint? Spillover per item per cargo wagon
----@field public ignore_secondary_thresholds boolean? `true` if station should ignore thresholds when adding secondary items to outgoing trains.
 ---@field public per_wagon_mode boolean? `true` if the station is in per-wagon mode due to the presence of a wagon comb.
 ---@field public shared_inventory_slaves IdSet? Exists only if this station is a shared-inventory master and contains the ids of the slaves.
 ---@field public shared_inventory_master Id? The id of the shared inventory master, if this station is a slave.
@@ -181,28 +164,39 @@ lib.NodeNetworkOperation = {
 ---@field public inventory Cybersyn.Inventory The inventory against which this order is placed.
 ---@field public node_id Id The id of the node this order will deliver to/from
 ---@field public combinator_id? Id The id of the governing combinator that created this order if it exists.
----@field public combinator_input? "red"|"green" Input wire this order was read from on its governing combinator.
+---@field public combinator_input "red"|"green" Input wire this order was read from on its governing combinator.
+---@field public arity "primary"|"secondary" Whether this order is primary or secondary on its governing combinator.
+---@field public item_mode "and"|"or"|"all"|"none" Item request mode
+---@field public quality_spread SignalSet? Set of quality names to spread this order over.
 ---@field public requests SignalCounts The requested items for this order.
+---@field public requested_fluids SignalCounts The requested fluids for this order.
+---@field public request_stacks uint? Number of stacks requested for an "or" or "all" order.
 ---@field public provides SignalCounts The provided items for this order.
----@field public thresholds_in SignalCounts Inbound thresholds for this order.
----@field public thresholds_out SignalCounts Outbound thresholds for this order.
+---@field public thresh_explicit SignalCounts Explicit user thresholds for this order.
+---@field public thresh_depletion SignalCounts Depletion-based computed thresholds.
+---@field public thresh_in SignalCounts Inbound thresholds for this order.
+---@field public thresh_depletion_fraction number Fraction used when computing depletion thresholds.
+---@field public thresh_fullness_fraction number Fraction used when computing fullness thresholds.
+---@field public thresh_min_slots uint Min slots that must be filled to meet fullness. Computed using smallest vehicle size.
+---@field public thresh_min_fluid uint Min fluid that must be filled to meet fullness. Computed using smallest vehicle size.
 ---@field public networks SignalCounts The computed network masks of this order.
----@field public last_consumed_tick SignalCounts Last consumed ticks for the order's associated inventory.
+---@field public last_fulfilled_tick int64 Last tick on which this order received any delivery.
 ---@field public priority int The computed priority of this order.
----@field public request_all_items boolean? `true` if this order should request all items in the network.
----@field public request_all_fluids boolean? `true` if this order should request all fluids in the network.
 ---@field public busy_value number Cached value computed at poll time regarding how busy the associated node is.
+---@field public network_matching_mode "and"|"or" Network matching mode for this order.
+---@field public stacked_requests boolean `true` if this order uses stacked requests.
+---@field public force_away boolean `true` if this order is forcing away provided items
+---@field public needs Cybersyn.Internal.Needs?
+---@field public no_starvation boolean? `true` if this order ignores starvation logic
 
 ---@class Cybersyn.Inventory
 ---@field public id Id
----@field public topology_id? Id The id of the topology this inventory is associated with, if known.
 ---@field public created_for_node_id? Id If this inventory was created implicitly for a node, that node's id.
 ---@field public inventory SignalCounts True full contents of the inventory.
 ---@field public orders Cybersyn.Order[] The orders associated with this inventory.
+---@field public last_consumed_tick SignalCounts Last tick when this inventory received the given item.
 ---@field public inflow SignalCounts Future incoming cargo
 ---@field public outflow SignalCounts Future outgoing cargo
----@field public item_stack_capacity? uint The number of item slots available in this inventory, if known.
----@field public fluid_capacity? uint The total fluid capacity of this inventory, if known.
 
 ---@class Cybersyn.Delivery: StateMachine
 ---@field public id Id
@@ -216,6 +210,7 @@ lib.NodeNetworkOperation = {
 ---@field public from_inventory_id Id The id of the inventory this delivery is from, if any.
 ---@field public to_inventory_id Id The id of the inventory this delivery is to, if any.
 ---@field public manifest SignalCounts The intended contents of the delivery.
+---@field public topology_id Id The id of the topology this delivery is operating within.
 
 ---@class Cybersyn.TrainDelivery: Cybersyn.Delivery
 ---@field public from_charge SignalCounts? Amount charged against the source station's inventory, which may differ from the manifest by spillover.
@@ -226,6 +221,15 @@ lib.NodeNetworkOperation = {
 ---@field public misrouted_from? string If this field exists, the train was misrouted to its `from` stop. The string contains engine diagnostic info.
 ---@field public misrouted_to? string If this field exists, the train was misrouted to its `to` stop. The string contains engine diagnostic info.
 ---@field public left_dirty? string If this field exists, the train left the `to` stop without being fully unloaded. The string contains engine diagnostic info.
+
+--------------------------------------------------------------------------------
+-- Plugin and API types.
+--------------------------------------------------------------------------------
+
+---@class Cybersyn2.RoutePlugin
+---@field public train_topology_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for train topology information.
+---@field reachable_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for reachability information.
+---@field route_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for routing decisions.
 
 --------------------------------------------------------------------------------
 -- Public type encodings for the query interface.

@@ -3,11 +3,13 @@
 --------------------------------------------------------------------------------
 
 local relm = require("lib.core.relm.relm")
+local relm_table = require("lib.core.relm.table-renderer")
 local ultros = require("lib.core.relm.ultros")
 local relm_helpers = require("lib.core.relm.util")
 local tlib = require("lib.core.table")
 local strace_lib = require("lib.core.strace")
 local signal = require("lib.signal")
+local thread = require("lib.core.thread")
 local cs2 = _G.cs2
 
 local strformat = string.format
@@ -16,6 +18,8 @@ local strace = strace_lib.strace
 local Pr = relm.Primitive
 local VF = ultros.VFlow
 local HF = ultros.HFlow
+local default_renderer = relm_table.default_renderer
+local EMPTY = tlib.EMPTY_STRICT
 
 local DISPLAYED_LIMIT = 1000
 
@@ -118,14 +122,9 @@ local renderers = {
 	avail_trains = rt(rt_set(rt_val, DISPLAYED_LIMIT)),
 }
 
-local function default_renderer(k, v)
-	return ultros.BoldLabel(k), ultros.RtMultilineLabel(strace_lib.stringify(v))
-end
-
 local LoopState = relm.define_element({
 	name = "LogisticsLoopDebugger.State",
 	render = function(props, state)
-		relm_helpers.use_event("on_debug_loop")
 		-- TODO: factor logistics thread id up to a prop
 		local data = cs2.debug.get_logistics_thread()
 		if not data then return nil end
@@ -339,6 +338,92 @@ local Strace = relm.define_element({
 })
 
 --------------------------------------------------------------------------------
+-- Threads
+--------------------------------------------------------------------------------
+
+local thread_renderers = {
+	state = default_renderer,
+	submode = default_renderer,
+	workload = default_renderer,
+	paused = default_renderer,
+	workload_counter = default_renderer,
+	prov_index = default_renderer,
+	req_index = default_renderer,
+	train_index = default_renderer,
+	providers = rt(rt_array(rt_fields("node_id", rt_val), DISPLAYED_LIMIT)),
+	requesters = rt(rt_array(rt_fields("node_id", rt_val), DISPLAYED_LIMIT)),
+}
+
+local ThreadDebugger = relm.define_element({
+	name = "Cybersyn.Debugger.Threads",
+	render = function(props, state)
+		relm.use_effect(1, function(me) relm.msg(me, { key = "update" }) end)
+		relm_helpers.use_event("cs2.debug_thread_step")
+		local me = relm.use_handle()
+
+		---@cast state table
+		local dropdown_options = tlib.t_map_a(state.threads, function(thr, id)
+			local name = thr and thr.friendly_name
+			return {
+				key = id,
+				caption = (name and name ~= "") and name or ("Unnamed thread " .. id),
+			}
+		end)
+
+		local thr = thread.get_thread(state.selected_thread) or EMPTY
+
+		return VF({
+			ultros.Dropdown({
+				value = state.selected_thread,
+				options = dropdown_options,
+				on_change = function(_, selected)
+					relm_helpers.assign_state(me, { selected_thread = selected })
+				end,
+			}),
+			ultros.ShallowSection({ caption = "Thread state" }, {
+				relm_table.render_table(2, thr, thread_renderers, nil, {
+					style = "relm_table_white_lines",
+					draw_vertical_lines = true,
+					draw_horizontal_lines = true,
+				}),
+			}),
+			HF({
+				ultros.Button({ caption = "Pause", on_click = "pause" }),
+				ultros.Button({ caption = "Start", on_click = "start" }),
+				ultros.Button({ caption = "Step", on_click = "step" }),
+			}),
+		})
+	end,
+	message = function(me, payload, props, state)
+		---@cast state table
+		local key = payload.key
+		if key == "update" then
+			local threads = thread.debug_get_threads()
+			relm_helpers.assign_state(me, { threads = threads })
+			return true
+		elseif key == "cs2.debug_thread_step" then
+			relm.paint(me)
+			return true
+		elseif key == "pause" then
+			local thr = thread.get_thread(state.selected_thread)
+			if thr then thr.paused = true end
+			return true
+		elseif key == "start" then
+			local thr = thread.get_thread(state.selected_thread)
+			if thr then thr.paused = false end
+			return true
+		elseif key == "step" then
+			local thr = thread.get_thread(state.selected_thread)
+			if thr then thr.stepped = true end
+			return true
+		else
+			return false
+		end
+	end,
+	state = function() return { threads = {} } end,
+})
+
+--------------------------------------------------------------------------------
 -- Debugger GUI
 --------------------------------------------------------------------------------
 
@@ -349,10 +434,8 @@ relm.define_element({
 			caption = "Cybersyn Debugger",
 		}, {
 			Pr({ type = "tabbed-pane" }, {
-				Pr({ type = "tab", caption = "Loop" }),
-				LoopDebugger(),
-				Pr({ type = "tab", caption = "strace" }),
-				Strace(),
+				Pr({ type = "tab", caption = "Threads" }),
+				ThreadDebugger(),
 			}),
 		})
 	end,

@@ -11,7 +11,6 @@ local TRACE = strace_lib.TRACE
 ---@param query Cybersyn.QueryInput Query type and arguments.
 ---@return Cybersyn.QueryResult result The result of executing the given query.
 function _G.cs2.remote_api.query(query)
-	strace(TRACE, "cs2", "query_exec", "message", query)
 	local handler = query_handlers[query.type]
 	if not handler then
 		return {

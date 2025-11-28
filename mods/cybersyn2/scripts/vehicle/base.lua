@@ -53,6 +53,7 @@ function Vehicle:destroy()
 	storage.vehicles[self.id] = nil
 end
 
+---@param topology_id int64?
 function Vehicle:set_topology(topology_id)
 	local previous_topology_id = self.topology_id
 	if previous_topology_id == topology_id then return end

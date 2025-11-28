@@ -16,12 +16,12 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("dt_inbound", "dt_flags", 0)
-)
-cs2.register_combinator_setting(
-	cs2.lib.make_flag_setting("dt_outbound", "dt_flags", 1)
-)
+---@class Cybersyn.Combinator
+---@field public get_dt_unstacked fun(): boolean
+
+cs2.register_flag_setting("dt_inbound", "dt_flags", 0) -- DEPRECATED
+cs2.register_flag_setting("dt_outbound", "dt_flags", 1) -- DEPRECATED
+cs2.register_flag_setting("dt_unstacked", "dt_flags", 2)
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -34,20 +34,14 @@ relm.define_element({
 			ultros.WellSection(
 				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
 				{
-
 					gui.InnerHeading({
 						caption = { "cybersyn2-combinator-modes-labels.flags" },
 					}),
 					gui.Checkbox({
-						"cybersyn2-combinator-mode-delivery-size.set-inbound-delivery-size",
+						"cybersyn2-combinator-mode-delivery-size.stacks",
 					}, {
-						"cybersyn2-combinator-mode-delivery-size.set-inbound-delivery-size-tooltip",
-					}, props.combinator, combinator_settings.dt_inbound),
-					gui.Checkbox({
-						"cybersyn2-combinator-mode-delivery-size.set-outbound-delivery-size",
-					}, {
-						"cybersyn2-combinator-mode-delivery-size.set-outbound-delivery-size-tooltip",
-					}, props.combinator, combinator_settings.dt_outbound),
+						"cybersyn2-combinator-mode-delivery-size.stacks-tooltip",
+					}, props.combinator, "dt_unstacked", true),
 				}
 			),
 		})

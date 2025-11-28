@@ -6,6 +6,7 @@
 
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
+local thread_lib = require("lib.core.thread")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
 
@@ -15,6 +16,8 @@ local strace = stlib.strace
 local DEBUG = stlib.DEBUG
 local TRACE = stlib.TRACE
 local empty = tlib.empty
+local add_workload = thread_lib.add_workload
+local table_size = _G.table_size
 
 ---@class Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -27,19 +30,18 @@ function LogisticsThread:enter_enum_nodes()
 	end)
 	self.nodes = nodes
 	local n_nodes = #nodes
+	add_workload(self.workload_counter, table_size(storage.nodes))
 
 	-- If no nodes, no work needs to be done, so sleep the thread and check
 	-- again later.
 	if n_nodes == 0 then
 		self:set_state("init")
 		self.workload = 1
-		self:sleep_for(2 * 60 * 60) -- 2 minutes
+		self.ema_workload = 1
+		self.workload_counter.workload = 1
+		self:sleep_for(30 * 60) -- 30 sec
 		return
 	end
-
-	-- Estimate thread workload based on number of nodes.
-	-- TODO: better workload calc
-	self.workload = n_nodes * 10
 end
 
 function LogisticsThread:enum_nodes() self:set_state("poll_nodes") end

@@ -6,6 +6,7 @@ local class = require("lib.core.class").class
 local tlib = require("lib.core.table")
 local counters = require("lib.core.counters")
 local signal_keys = require("lib.signal")
+local thread = require("lib.core.thread")
 local cs2 = _G.cs2
 
 -- TODO: This code is called in high performance dispatch loops. Take some
@@ -14,6 +15,7 @@ local cs2 = _G.cs2
 local next = _G.next
 local pairs = _G.pairs
 local signal_to_key = signal_keys.signal_to_key
+local key_to_signal = signal_keys.key_to_signal
 local key_to_stacksize = signal_keys.key_to_stacksize
 local key_is_cargo = signal_keys.key_is_cargo
 local key_is_fluid = signal_keys.key_is_fluid
@@ -22,10 +24,13 @@ local min = math.min
 local max = math.max
 local ceil = math.ceil
 local assign = tlib.assign
-local empty = tlib.empty
+local empty = tlib.EMPTY
 local table_add = tlib.vector_add
 local combinator_settings = _G.cs2.combinator_settings
 local mod_settings = _G.cs2.mod_settings
+local Order = _G.cs2.Order
+local add_workload = thread.add_workload
+local table_size = _G.table_size
 
 ---@param base table<string,int>
 ---@param addend table<string,int>
@@ -59,6 +64,7 @@ function Inventory:new()
 		inflow = {},
 		outflow = {},
 		orders = {},
+		last_consumed_tick = {},
 	}, self)
 	local inv = storage.inventories[id]
 
@@ -169,60 +175,41 @@ function Inventory:add_single_item_outflow(item, qty)
 	end
 end
 
----Compute used capacity of this inventory, in stacks (for items) and units
----(for fluids).
----@return uint used_item_stack_capacity
----@return uint used_fluid_capacity
-function Inventory:get_used_capacities()
-	if self.used_item_stack_capacity then
-		return self.used_item_stack_capacity, self.used_fluid_capacity
+---@param inflow_comp boolean? If `true`, inflows are added to the inventory counts.
+---@param outflow_comp boolean? If `true`, outflows are subtracted from the inventory counts.
+---@param workload Core.Thread.Workload?
+---@return SignalCounts net Inventory net of given flows
+function Inventory:net(inflow_comp, outflow_comp, workload)
+	local inv = self.inventory or empty
+	local outflow = outflow_comp and (self.outflow or empty) or empty
+	local inflow = inflow_comp and (self.inflow or empty) or empty
+	local net_inventory = {}
+
+	for key, count in pairs(inv) do
+		local real = count - (outflow[key] or 0) + (inflow[key] or 0)
+		if real > 0 then net_inventory[key] = real end
 	end
+	if workload then add_workload(workload, table_size(inv)) end
 
-	local used_item_stack_capacity = 0
-	local used_fluid_capacity = 0
-	local base = self.inventory or empty
-	local inflow = self.inflow or empty
-
-	for k, v in pairs(base) do
-		local net = v + (inflow[k] or 0)
-
-		if key_is_fluid(k) then
-			used_fluid_capacity = used_fluid_capacity + net
-		else
-			local ss = key_to_stacksize(k)
-			if ss and ss > 0 then
-				used_item_stack_capacity = used_item_stack_capacity + ceil(net / ss)
-			end
+	for key, count in pairs(inflow) do
+		if not inv[key] then
+			if count > 0 then net_inventory[key] = count end
 		end
 	end
-	for k, v in pairs(inflow) do
-		if not base[k] then
-			if key_is_fluid(k) then
-				used_fluid_capacity = used_fluid_capacity + v
-			else
-				local ss = key_to_stacksize(k)
-				if ss and ss > 0 then
-					used_item_stack_capacity = used_item_stack_capacity + ceil(v / ss)
-				end
-			end
-		end
-	end
+	if workload then add_workload(workload, table_size(inflow)) end
 
-	self.used_item_stack_capacity = used_item_stack_capacity
-	self.used_fluid_capacity = used_fluid_capacity
-
-	return used_item_stack_capacity, used_fluid_capacity
+	return net_inventory
 end
 
----@param item_stack_capacity uint|nil
----@param fluid_capacity uint|nil
-function Inventory:set_capacities(item_stack_capacity, fluid_capacity)
-	self.item_stack_capacity = item_stack_capacity
-	self.fluid_capacity = fluid_capacity
-end
-
-function Inventory:get_capacities()
-	return self.item_stack_capacity, self.fluid_capacity
+---@param item SignalKey
+---@param inflow_comp boolean? If `true`, inflows are added to the inventory counts
+---@param outflow_comp boolean? If `true`, outflows are subtracted from the inventory counts
+---@return int qty Quantity of the given item in the inventory net of given flows
+function Inventory:qty(item, inflow_comp, outflow_comp)
+	local inv = self.inventory or empty
+	local outflow = outflow_comp and (self.outflow or empty) or empty
+	local inflow = inflow_comp and (self.inflow or empty) or empty
+	return max((inv[item] or 0) - (outflow[item] or 0) + (inflow[item] or 0), 0)
 end
 
 function Inventory:clear()
@@ -231,10 +218,6 @@ function Inventory:clear()
 	self.inflow_rebate = nil
 	self.outflow = {}
 	self.outflow_rebate = nil
-	self.item_stack_capacity = nil
-	self.fluid_capacity = nil
-	self.used_item_stack_capacity = nil
-	self.used_fluid_capacity = nil
 end
 
 ---Determine if this inventory is volatile. A volatile inventory is one whose
@@ -247,40 +230,10 @@ function Inventory:is_volatile() return false end
 
 ---Attempt to update the inventory using best available data. Does nothing
 ---when inventory is volatile.
+---@param workload Core.Thread.Workload?
 ---@param reread boolean `true` if the inventory's base data should be reread immediately from combinators. `false` if cached combinator reads should be used.
 ---@return boolean #`true` if the inventory was updated.
-function Inventory:update(reread) return false end
-
---------------------------------------------------------------------------------
--- Fast inventory accessors
---------------------------------------------------------------------------------
-
----@param inventory Cybersyn.Inventory
----@param item SignalKey
-function _G.cs2.inventory_avail_qty(inventory, item)
-	return max(
-		(inventory.inventory[item] or 0) - (inventory.outflow[item] or 0),
-		0
-	)
-end
-
----@param order Cybersyn.Order
----@param item SignalKey
-function _G.cs2.order_provided_qty(order, item)
-	local inv = order.inventory
-	local base = min(order.provides[item] or 0, inv.inventory[item] or 0)
-	return max(base - (inv.outflow[item] or 0), 0)
-end
-
----@param order Cybersyn.Order
----@param item SignalKey
-function _G.cs2.order_requested_qty(order, item)
-	local inv = order.inventory
-	local deficit = (order.requests[item] or 0)
-		- (inv.inventory[item] or 0)
-		- (inv.inflow[item] or 0)
-	return max(deficit, 0)
-end
+function Inventory:update(workload, reread) return false end
 
 --------------------------------------------------------------------------------
 -- StopInventory
@@ -316,155 +269,48 @@ function StopInventory:is_volatile()
 	end
 end
 
----@param stop Cybersyn.TrainStop
----@param item SignalKey
----@param species "fluid"|"item"|nil
----@param request_qty uint
----@return uint
-local function compute_auto_threshold(stop, item, species, request_qty)
-	local thresh = request_qty
-		* (
-			stop.auto_threshold_fraction
-			or mod_settings.default_auto_threshold_fraction
-		)
-	if species == "fluid" then
-		local amfc = stop.allowed_min_fluid_capacity
-		if not amfc then
-			return 2000000000 -- effectively infinite
-		end
-		return min(ceil(thresh), amfc)
-	elseif species == "item" then
-		local amisc = stop.allowed_min_item_slot_capacity
-		if not amisc then
-			return 2000000000 -- effectively infinite
-		end
-		local max_thresh = amisc * (key_to_stacksize(item) or 1)
-		return min(ceil(thresh), max_thresh)
-	else
-		-- TODO: error log here
-		return 2000000000 -- effectively infinite
-	end
-end
-
-function StopInventory:update(reread)
+function StopInventory:update(workload, reread)
+	add_workload(workload, 1)
 	if self:is_volatile() then return false end
-	self.item_stack_capacity = nil
-	self.fluid_capacity = nil
-	for _, order in pairs(self.orders) do
-		local stop = cs2.get_stop(order.node_id, true)
-		if not stop then return false end
-		-- Clear existing order
-		if next(order.requests) then order.requests = {} end
-		if next(order.provides) then order.provides = {} end
-		if next(order.networks) then order.networks = {} end
-		if next(order.thresholds_in) then order.thresholds_in = {} end
-		if next(order.thresholds_out) then order.thresholds_out = {} end
-		order.priority = stop.priority or 0
-		order.request_all_items = nil
-		order.request_all_fluids = nil
-		-- Copy stop data
-		-- TODO: move last_consumed_tick to inventory
-		order.last_consumed_tick = stop.last_consumed_tick or {}
-		-- TODO: tekbox equation?
-		order.busy_value = stop:get_occupancy()
+	local stop = cs2.get_stop(self.created_for_node_id, true)
+	if not stop then return false end
 
-		-- Rebuild order from its governing combinator
-		local comb = cs2.get_combinator(order.combinator_id, true)
-		if comb then
-			if reread then comb:read_inputs() end
-			-- Station combinator has a single unique order associated to it.
-			if comb.mode == "station" then
-				local primary_wire = comb:read_setting(combinator_settings.primary_wire)
-				if primary_wire == "green" then
-					self:set_base(comb.green_inputs)
-				else
-					self:set_base(comb.red_inputs)
-				end
-				-- Implement auto-provide setting.
-				if
-					stop.is_producer
-					and not stop.is_consumer
-					and not comb:read_setting(combinator_settings.provide_subset)
-				then
-					assign(order.provides, self.inventory or empty)
-					for cargo in pairs(order.provides) do
-						order.thresholds_out[cargo] = stop:get_outbound_threshold(cargo)
-					end
-				end
-			end
-			local inputs = order.combinator_input == "green" and comb.green_inputs
-				or comb.red_inputs
-			for signal_key, count in pairs(inputs or empty) do
-				local genus, species = classify_key(signal_key)
-				if genus == "cargo" then
-					if count < 0 then
-						order.requests[signal_key] = -count
-						if not stop.disable_auto_thresholds then
-							local explicit_threshold =
-								stop:get_explicit_inbound_threshold(signal_key)
-							if explicit_threshold then
-								order.thresholds_in[signal_key] = explicit_threshold
-							else
-								order.thresholds_in[signal_key] =
-									compute_auto_threshold(stop, signal_key, species, -count)
-							end
-						else
-							order.thresholds_in[signal_key] =
-								stop:get_inbound_threshold(signal_key)
+	-- Reread inv combs
+	if reread then
+		for combinator_id in pairs(stop.combinator_set) do
+			local comb = cs2.get_combinator(combinator_id, true)
+			if comb then
+				local mode = comb.mode
+				if mode == "inventory" then
+					comb:read_inputs()
+					add_workload(workload, 5)
+				elseif mode == "station" then
+					comb:read_inputs()
+					add_workload(workload, 5)
+					local primary_wire = comb:get_primary_wire()
+					if primary_wire == "green" then
+						self:set_base(comb.green_inputs)
+						if workload then
+							add_workload(workload, table_size(comb.green_inputs))
 						end
-					elseif count > 0 then
-						order.provides[signal_key] = count
-						order.thresholds_out[signal_key] =
-							stop:get_outbound_threshold(signal_key)
-					end
-				elseif genus == "virtual" then
-					if signal_key == "cybersyn2-priority" then
-						order.priority = count
-					elseif signal_key == "cybersyn2-all-items" and count < 0 then
-						order.request_all_items = true
-						self.item_stack_capacity = max(-count, 0)
-					elseif signal_key == "cybersyn2-all-fluids" and count < 0 then
-						order.request_all_fluids = true
-						self.fluid_capacity = max(-count, 0)
-					elseif cs2.CONFIGURATION_VIRTUAL_SIGNAL_SET[signal_key] then
-						-- no CS2 config signals as networks
 					else
-						order.networks[signal_key] = count
+						self:set_base(comb.red_inputs)
+						if workload then
+							add_workload(workload, table_size(comb.red_inputs))
+						end
 					end
 				end
 			end
-			-- Default network if no networks are set.
-			if not next(order.networks) and stop.default_networks then
-				order.networks = stop.default_networks
-			end
-		else
-			-- Order has no governing combinator.
 		end
 	end
-	return true
-end
 
----@param inv Cybersyn.Inventory
----@param comb_id Id
----@param node_id Id
----@param comb_input "green"|"red"
-local function create_blank_order(inv, comb_id, node_id, comb_input)
-	---@type Cybersyn.Order
-	local order = {
-		inventory = inv,
-		combinator_id = comb_id,
-		node_id = node_id,
-		combinator_input = comb_input,
-		requests = {},
-		provides = {},
-		networks = {},
-		thresholds_in = {},
-		thresholds_out = {},
-		last_consumed_tick = {},
-		priority = 0,
-		busy_value = 0,
-	}
-	return order
+	-- Reread orders
+	for _, order in pairs(self.orders) do
+		-- XXX: this if is only here to prevent a crash during Alpha.
+		if order.read then order:read(workload) end
+	end
+
+	return true
 end
 
 ---Destroy and rebuild all orders for this inventory.
@@ -474,30 +320,26 @@ function StopInventory:rebuild_orders()
 	self.orders = orders
 	local controlling_stop = cs2.get_stop(self.created_for_node_id)
 	if not controlling_stop then return end
-	local station_comb = controlling_stop:get_combinator_with_mode("station")
-	if not station_comb then return end
-	local primary_wire =
-		station_comb:read_setting(combinator_settings.primary_wire)
-	local opposite_wire = primary_wire == "green" and "red" or "green"
-	-- Opposite wire on station comb treated as an order.
-	orders[#orders + 1] = create_blank_order(
-		self,
-		station_comb.id,
-		controlling_stop.id,
-		opposite_wire
-	)
-	-- Green- and red-wire orders for each inventory comb
-	local inventory_combs = controlling_stop:get_associated_combinators(
-		function(c) return c.mode == "inventory" end
-	)
-	for _, comb in pairs(inventory_combs) do
-		orders[#orders + 1] =
-			create_blank_order(self, comb.id, controlling_stop.id, "green")
 
-		orders[#orders + 1] =
-			create_blank_order(self, comb.id, controlling_stop.id, "red")
+	for _, comb in cs2.iterate_combinators(controlling_stop) do
+		if comb.mode == "station" then
+			-- Opposite wire on station comb treated as an order.
+			local primary_wire = comb:get_primary_wire()
+			local opposite_wire = primary_wire == "green" and "red" or "green"
+			orders[#orders + 1] =
+				Order:new(self, controlling_stop.id, "primary", comb.id, opposite_wire)
+		elseif comb.mode == "inventory" then
+			-- Both wires on inventory comb treated as orders.
+			orders[#orders + 1] =
+				Order:new(self, controlling_stop.id, "primary", comb.id, "red")
+
+			orders[#orders + 1] =
+				Order:new(self, controlling_stop.id, "secondary", comb.id, "green")
+		end
 	end
+
 	-- Copy orders for slaves
+	-- TODO: Fix shared inventory.
 	if controlling_stop.shared_inventory_slaves then
 		local n_orders_to_copy = #orders
 		for slave_id in pairs(controlling_stop.shared_inventory_slaves) do

@@ -11,6 +11,7 @@ local Topology = _G.cs2.Topology
 
 local strsub = string.sub
 local mod_settings = _G.cs2.mod_settings
+local NO_FUEL = defines.entity_status.no_fuel
 
 --------------------------------------------------------------------------------
 -- Group tracking
@@ -132,14 +133,14 @@ function Train.new(lua_train)
 		)
 	if not stock then return nil end
 
-	local topology = Topology.get_train_topology(stock.surface_index)
+	local topology = cs2.get_train_topology(stock.surface_index)
 	if not topology then return nil end
 
 	local train = Vehicle.new("train") --[[@as Cybersyn.Train]]
 	setmetatable(train, Train)
 	train.lua_train = lua_train
-	train.stock = stock
 	train.lua_train_id = lua_train.id
+	train.stock = stock
 	train.topology_id = topology.id
 	train.home_surface_index = stock.surface_index
 	train.item_slot_capacity = 0
@@ -203,9 +204,50 @@ function Train:is_volatile()
 	end
 end
 
+---Place the train into a volatile state, where Cybersyn 2 no longer tracks
+---its LuaTrain object.
+function Train:set_volatile()
+	self.volatile = true
+	self.stock = nil
+end
+
+---Return a volatile train to CS2's control, replacing its LuaTrain if provided.
+---@param new_luatrain? LuaTrain
+function Train:clear_volatile(new_luatrain)
+	if not self.volatile then return end
+	self.volatile = false
+	if new_luatrain and new_luatrain.valid then
+		-- Swap out the LuaTrains.
+		if self.lua_train_id then
+			storage.luatrain_id_to_vehicle_id[self.lua_train_id] = nil
+		end
+		if self.lua_train and self.lua_train.valid then
+			storage.luatrain_id_to_vehicle_id[self.lua_train.id] = nil
+		end
+		self.lua_train = new_luatrain
+		storage.luatrain_id_to_vehicle_id[new_luatrain.id] = self.id
+		self.stock = nil
+	else
+		-- Incorrect recovery from volatility; destroy the vehicle.
+		if (not self.lua_train) or not self.lua_train.valid then self:destroy() end
+	end
+end
+
+---@return LuaEntity? #The main stock of the train, or `nil` if not available.
 function Train:get_stock()
-	-- TODO: volatility
-	return self.stock
+	if self.volatile then return nil end
+	if self.stock then return self.stock end
+	local lua_train = self.lua_train
+	local stock = lua_train
+		and lua_train.valid
+		and (
+			lua_train.front_stock
+			or lua_train.back_stock
+			or lua_train.carriages[1]
+		)
+	if not stock then stock = nil end
+	self.stock = stock
+	return stock
 end
 
 ---@param delivery Cybersyn.TrainDelivery
@@ -275,7 +317,9 @@ function Train:schedule(...)
 end
 
 function Train:is_available()
-	if self.delivery_id or not self:is_valid() then return false end
+	if self.delivery_id or self.volatile or not self:is_valid() then
+		return false
+	end
 	-- Honor vehicle warmup time
 	if
 		game.tick - (self.created_tick or 0)
@@ -306,20 +350,24 @@ end
 function Train:evaluate_capacity()
 	local old_item_slot_capacity = self.item_slot_capacity
 	local old_fluid_capacity = self.fluid_capacity
+	local pwfc = {} -- per-wagon fluid capacity cache
+	local pwisc = {} -- per-wagon item slot capacity cache
+
 	local carriages = self.lua_train.carriages
 	local item_slot_capacity = 0
 	local fluid_capacity = 0
 	for i = 1, #carriages do
 		local carriage = carriages[i]
 		local ic, fc = train_lib.get_carriage_capacity(carriage)
+		pwfc[i] = fc
+		pwisc[i] = ic
 		item_slot_capacity = item_slot_capacity + ic
 		fluid_capacity = fluid_capacity + fc
 	end
 	self.item_slot_capacity = item_slot_capacity
 	self.fluid_capacity = fluid_capacity
-	-- These will be recomputed on demand by wagon control subsystem.
-	self.per_wagon_fluid_capacity = nil
-	self.per_wagon_item_slot_capacity = nil
+	self.per_wagon_fluid_capacity = pwfc
+	self.per_wagon_item_slot_capacity = pwisc
 	return (
 		old_item_slot_capacity ~= item_slot_capacity
 		or old_fluid_capacity ~= fluid_capacity
@@ -333,4 +381,18 @@ function Train:is_empty()
 	if not train then return false end
 	return next(train.get_contents()) == nil
 		and next(train.get_fluid_contents()) == nil
+end
+
+---Check if all locomotives have fuel.
+---@return boolean fueled `true` if all locomotives have fuel, `false` otherwise.
+function Train:has_fuel()
+	local train = self.lua_train
+	if (not train) or not train.valid then return false end
+	for _, locos in pairs(train.locomotives) do
+		---@cast locos LuaEntity[]
+		for _, loco in pairs(locos) do
+			if loco.status == NO_FUEL then return false end
+		end
+	end
+	return true
 end
