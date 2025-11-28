@@ -487,6 +487,16 @@ function LogisticsThread:route_train()
 	end
 	add_workload(self.workload_counter, 5)
 
+	-- Check fuel
+	if not train:has_fuel() then
+		-- Train has no fuel, abort
+		warn("route_train: Train has no fuel during logistics processing", train.id)
+		self.avail_trains[self.best_train_index] = false
+		self:set_state("loop_matches")
+		return
+	end
+	add_workload(self.workload_counter, 2)
+
 	local n_cargo_wagons, n_fluid_wagons = train:get_wagon_counts()
 	local reserved_slots = from.reserved_slots or 0
 	local reserved_capacity = from.reserved_capacity or 0
