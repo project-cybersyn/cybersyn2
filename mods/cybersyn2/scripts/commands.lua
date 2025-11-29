@@ -87,3 +87,24 @@ commands.add_command(
 	"Fix missing order networks due to failed alpha migration.",
 	function() enum_real_combs(set_order_networks) end
 )
+
+--------------------------------------------------------------------------------
+-- Alpha: allow mass switching of stations to single item mode
+-- XXX: REMOVE FOR RELEASE
+--------------------------------------------------------------------------------
+
+local function set_single_item_mode(entity)
+	local err, thing = remote.call("things", "get", entity)
+	if not thing then return end
+	local combinator = storage.combinators[thing.id]
+	if not combinator then return end
+	if combinator.mode ~= "station" then return end
+	---@diagnostic disable-next-line: undefined-field
+	combinator:set_produce_single_item(true)
+end
+
+commands.add_command(
+	"cs2-alpha-set-single-item-mode",
+	"Set all stations to 'provide single item' mode.",
+	function() enum_real_combs(set_single_item_mode) end
+)
