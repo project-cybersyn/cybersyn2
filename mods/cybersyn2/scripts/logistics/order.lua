@@ -150,6 +150,7 @@ function Order:read(workload)
 	self.priority = stop.priority or 0
 	self.thresh_depletion_fraction = stop.auto_threshold_fraction
 	self.thresh_fullness_fraction = stop.train_fullness_fraction
+	self.provide_single_item = stop.produce_single_item
 	local depletion_fraction = self.thresh_depletion_fraction or 1
 	local fullness_fraction = self.thresh_fullness_fraction or 0
 	local thresh_fullness_slots = (stop_amisc or 0) * fullness_fraction
@@ -781,6 +782,7 @@ function Order:satisfy_needs(workload, needs)
 	local prov_outflow = self.inventory.outflow or EMPTY
 	local prov_inflow = self.inventory.inflow or EMPTY
 	local provides = self.provides
+	local provide_single_item = self.provide_single_item
 
 	-- Fluids
 	local fluids = nil
@@ -820,39 +822,9 @@ function Order:satisfy_needs(workload, needs)
 			)
 			if available > 0 and available >= (thresh_explicit[key] or 0) then
 				items[key] = available
-				local stack_size = key_to_stacksize(key) or 1
-				total_stacks = total_stacks + ceil(available / stack_size)
 			end
 		end
 		if workload then add_workload(workload, table_size(needs_items)) end
-
-		if total_stacks >= thresh_min_stacks and next(items) then
-			---@type Cybersyn.Internal.Satisfaction
-			local res = {
-				items = items,
-				fluids = fluids,
-				total_fluid = total_fluid,
-				total_stacks = total_stacks,
-			}
-			trace(
-				"Providing order",
-				self.node_id,
-				"explicit_items: matched items",
-				res
-			)
-			return res
-		elseif fluids then
-			---@type Cybersyn.Internal.Satisfaction
-			local res = {
-				fluids = fluids,
-				total_fluid = total_fluid,
-				total_stacks = total_stacks,
-			}
-			trace("Providing order", self.node_id, "explicit_items: fluid match", res)
-			return res
-		else
-			return nil
-		end
 	end
 
 	-- AND spread
@@ -944,20 +916,51 @@ function Order:satisfy_needs(workload, needs)
 		if workload then add_workload(workload, table_size(provides)) end
 	end
 
+	-- Item cleanup phase.
 	if not items or (not next(items)) then
-		items = nil
+		-- Empty case
 		total_stacks = 0
+	elseif provide_single_item then
+		-- Single-item case
+		-- Provide only a single item type, the one with the highest stack count
+		local max_key = nil
+		local max_stacks = 0
+		local max_qty = 0
+		for key, qty in pairs(items) do
+			local stack_size = key_to_stacksize(key) or 1
+			local stacks = ceil(qty / stack_size)
+			if stacks > max_stacks then
+				max_stacks = stacks
+				max_key = key
+				max_qty = qty
+			end
+		end
+		if workload then add_workload(workload, table_size(items)) end
+		if max_key then
+			total_stacks = max_stacks
+			if total_stacks >= thresh_min_stacks then
+				items = {
+					[max_key] = max_qty,
+				}
+			else
+				total_stacks = 0
+			end
+		else
+			total_stacks = 0
+		end
 	else
+		-- General case, total up the stacks.
 		total_stacks = tlib.t_reduce(items, 0, function(stacks, key, qty)
 			local stack_size = key_to_stacksize(key) or 1
 			stacks = stacks + ceil(qty / stack_size)
 			return stacks
 		end)
 		if workload then add_workload(workload, table_size(items)) end
-		if total_stacks == 0 or total_stacks < thresh_min_stacks then
-			items = nil
-			total_stacks = 0
-		end
+	end
+	-- Verify items still meet threshold
+	if total_stacks == 0 or total_stacks < thresh_min_stacks then
+		items = nil
+		total_stacks = 0
 	end
 
 	if items then
@@ -971,7 +974,7 @@ function Order:satisfy_needs(workload, needs)
 		trace(
 			"Providing order",
 			self.node_id,
-			"exotic_items: found item match above threshold",
+			": found item match above threshold",
 			res
 		)
 		return res
@@ -982,7 +985,7 @@ function Order:satisfy_needs(workload, needs)
 			total_fluid = total_fluid,
 			total_stacks = total_stacks,
 		}
-		trace("Providing order", self.node_id, "exotic_items: fluid match")
+		trace("Providing order", self.node_id, ": fluid only match")
 		return res
 	else
 		return nil

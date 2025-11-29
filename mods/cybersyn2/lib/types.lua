@@ -188,6 +188,7 @@ lib.CarriageType = {
 ---@field public force_away boolean `true` if this order is forcing away provided items
 ---@field public needs Cybersyn.Internal.Needs?
 ---@field public no_starvation boolean? `true` if this order ignores starvation logic
+---@field public provide_single_item boolean? `true` if this order provides only single items per delivery
 
 ---@class Cybersyn.Inventory
 ---@field public id Id
