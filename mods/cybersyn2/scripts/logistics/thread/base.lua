@@ -44,6 +44,9 @@ function LogisticsThread:enter_init() self.nodes = nil end
 function LogisticsThread:init()
 	if mod_settings.enable_logistics then
 		self:set_state("enum_nodes")
+		-- Resample workload to pick up changes in work factor.
+		self.max_workload = cs2.PERF_BASE_LOGISTICS_WORKLOAD
+			* cs2.mod_settings.work_factor
 	else
 		self:sleep_for(5 * 60) -- 5 sec
 	end
