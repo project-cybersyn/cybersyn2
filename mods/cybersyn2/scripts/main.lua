@@ -4,13 +4,8 @@
 
 local events = require("lib.core.event")
 local tlib = require("lib.core.table")
-local bplib = require("__bplib__.blueprint")
 local cs2 = _G.cs2
 local cs2_lib = _G.cs2.lib
-
-local COMBINATOR_NAME = cs2.COMBINATOR_NAME
-local BlueprintBuild = bplib.BlueprintBuild
-local BlueprintSetup = bplib.BlueprintSetup
 
 --------------------------------------------------------------------------------
 -- LuaTrains
