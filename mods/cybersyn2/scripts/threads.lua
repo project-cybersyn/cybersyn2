@@ -27,6 +27,7 @@ local add_workload = thread.add_workload
 ---@field public workload_counter Core.Thread.Workload Current workload.
 ---@field public ema_workload number Exponential moving average of workload.
 ---@field public max_workload number Target max workload.
+---@field public yielded boolean? `true` if the thread yielded this cycle
 ---@field public paused boolean? `true` if loop is paused
 ---@field public stepped boolean? `true` if user wants to execute one step
 local StatefulThread = class("StatefulThread", Thread, StateMachine)
@@ -44,6 +45,8 @@ function StatefulThread:new(initial_state)
 	return thr
 end
 
+function StatefulThread:yield() self.yielded = true end
+
 function StatefulThread:main()
 	if self.paused then
 		if not self.stepped then return end
@@ -56,6 +59,7 @@ function StatefulThread:main()
 	end
 	local total_workload
 	local loops = 0
+	self.yielded = nil
 	while true do
 		local state = self.state
 		if not state then
@@ -70,10 +74,12 @@ function StatefulThread:main()
 		handler(self)
 		total_workload = add_workload(self.workload_counter, 1)
 		-- Always break when paused to allow granular stepping in the debugger
-		if self.paused or (total_workload >= self.max_workload) then break end
+		if self.yielded or self.paused or (total_workload >= self.max_workload) then
+			break
+		end
 		loops = loops + 1
 		if loops >= 10000 then
-			strace.trace(
+			strace.warn(
 				"Thread",
 				self.id,
 				self.friendly_name,

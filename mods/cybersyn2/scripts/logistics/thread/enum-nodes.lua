@@ -39,7 +39,8 @@ function LogisticsThread:enter_enum_nodes()
 		self.workload = 1
 		self.ema_workload = 1
 		self.workload_counter.workload = 1
-		self:sleep_for(30 * 60) -- 30 sec
+		self:sleep_for(10 * 60) -- 10 sec
+		self:yield()
 		return
 	end
 end
