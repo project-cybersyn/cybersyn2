@@ -26,7 +26,6 @@ local ceil = math.ceil
 local assign = tlib.assign
 local empty = tlib.EMPTY
 local table_add = tlib.vector_add
-local combinator_settings = _G.cs2.combinator_settings
 local mod_settings = _G.cs2.mod_settings
 local Order = _G.cs2.Order
 local add_workload = thread.add_workload

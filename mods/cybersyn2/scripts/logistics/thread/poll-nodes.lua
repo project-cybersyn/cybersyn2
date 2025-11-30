@@ -12,7 +12,6 @@ local thread_lib = require("lib.core.thread")
 local cs2 = _G.cs2
 
 local mod_settings = _G.cs2.mod_settings
-local combinator_settings = _G.cs2.combinator_settings
 local Topology = _G.cs2.Topology
 
 local strace = stlib.strace

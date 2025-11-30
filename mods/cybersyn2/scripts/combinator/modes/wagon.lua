@@ -9,7 +9,6 @@ local signal_lib = require("lib.signal")
 local stlib = require("lib.core.strace")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
 
 local strace = stlib.strace

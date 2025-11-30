@@ -9,7 +9,6 @@ local Node = _G.cs2.Node
 local Topology = _G.cs2.Topology
 local Delivery = _G.cs2.Delivery
 local mod_settings = _G.cs2.mod_settings
-local combinator_settings = _G.cs2.combinator_settings
 
 local strace = stlib.strace
 local TRACE = stlib.TRACE
