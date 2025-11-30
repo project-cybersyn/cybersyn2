@@ -18,8 +18,7 @@
   "Lua.diagnostics.neededFileStatus": { "global-element": "Any" },
   "Lua.workspace.library": [
     "c:\\Users\\wcjoh\\AppData\\Roaming\\Code\\User\\workspaceStorage\\ff0daf09ac565b7c3b8c8421f5530089\\justarandomgeek.factoriomod-debug\\sumneko-3rd",
-    "C:\\Users\\wcjoh\\.vscode\\extensions\\sumneko.lua-1.4.0\\types\\",
-    "C:\\Users\\wcjoh\\AppData\\Roaming\\Factorio\\mods\\bplib\\"
+    "C:\\Users\\wcjoh\\.vscode\\extensions\\sumneko.lua-1.4.0\\types\\"
   ],
   "[lua]": {
     "editor.defaultFormatter": "JohnnyMorganz.stylua",
