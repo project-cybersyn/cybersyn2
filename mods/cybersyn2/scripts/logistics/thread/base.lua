@@ -49,6 +49,7 @@ function LogisticsThread:init()
 			* cs2.mod_settings.work_factor
 	else
 		self:sleep_for(5 * 60) -- 5 sec
+		self:yield()
 	end
 end
 
