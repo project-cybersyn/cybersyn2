@@ -63,6 +63,11 @@ end
 local Order = class("Order")
 _G.cs2.Order = Order
 
+---@param inventory Cybersyn.Inventory
+---@param node_id Id
+---@param arity "primary" | "secondary"
+---@param combinator_id Id
+---@param combinator_input "red" | "green"
 function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 	local obj = {
 		inventory = inventory,

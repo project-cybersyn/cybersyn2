@@ -2,6 +2,8 @@ local class = require("lib.core.class").class
 local tlib = require("lib.core.table")
 local stlib = require("lib.core.strace")
 local scheduler = require("lib.core.scheduler")
+local events = require("lib.core.event")
+
 local cs2 = _G.cs2
 local Node = _G.cs2.Node
 local Topology = _G.cs2.Topology
@@ -15,6 +17,7 @@ local INF = math.huge
 local tremove = table.remove
 local abs = math.abs
 local empty = tlib.empty
+local EMPTY = tlib.EMPTY_STRICT
 local min = math.min
 
 ---@class Cybersyn.TrainStop
@@ -224,20 +227,6 @@ scheduler.register_handler("pop_stop_queue", function(task)
 	if stop:is_valid() then stop:process_queue() end
 end)
 
-function TrainStop:fail_all_shared_deliveries(reason)
-	if self.shared_inventory_master then
-		local master = cs2.get_stop(self.shared_inventory_master)
-		if master then return master:fail_all_shared_deliveries(reason) end
-	end
-	if self.shared_inventory_slaves then
-		for slave_id in pairs(self.shared_inventory_slaves) do
-			local slave = cs2.get_stop(slave_id)
-			if slave then slave:fail_all_deliveries(reason) end
-		end
-	end
-	self:fail_all_deliveries(reason)
-end
-
 ---Gets the total number of deliveries, present and queued, for this stop.
 ---@return uint
 function TrainStop:get_occupancy() return table_size(self.deliveries) end
@@ -255,49 +244,19 @@ end
 -- INVENTORY
 --------------------------------------------------------------------------------
 
----Based on the combinators present at the station and its sharing state,
----update the inventory of the station as needed.
-function TrainStop:update_inventory_sharing()
-	strace(
-		stlib.DEBUG,
-		"cs2",
-		"inventory",
-		"message",
-		"Updating inventory sharing mode for stop",
-		self
-	)
-
-	-- If slave station, set inventory to master stop
-	if self.shared_inventory_master then
-		local master = cs2.get_stop(self.shared_inventory_master)
-		if master then
-			if self:set_inventory(master.inventory_id) then
-				self:fail_all_deliveries("INVENTORY_CHANGED")
-			end
-		end
-		return
-	end
-
-	local failed_deliveries = false
-
-	-- Reset to internal inventory if we don't have a master. No-op if already
-	-- set.
-	if
-		self:set_inventory(self.created_inventory_id) and not failed_deliveries
-	then
-		self:fail_all_deliveries("INVENTORY_CHANGED")
-		failed_deliveries = true
-	end
-
-	self:rebuild_inventory()
-end
-
 function TrainStop:rebuild_inventory()
-	-- If shared inventory, master handles generating slave orders.
-	if self.shared_inventory_master then return end
 	local inventory = self:get_inventory()
-	if inventory then
-		---@cast inventory Cybersyn.StopInventory
+	if not inventory then return end
+	---@cast inventory Cybersyn.StopInventory
+	local station_comb = self:get_combinator_with_mode("station")
+	if not station_comb then return end
+
+	if self.shared_inventory_master then
+		-- Case: slave; rebuild from master
+		local master = cs2.get_stop(self.shared_inventory_master)
+		if master then master:rebuild_inventory() end
+	else
+		-- Case: normal inventory, rebuild locally
 		inventory:rebuild_orders()
 	end
 end
@@ -318,93 +277,140 @@ function TrainStop:update_inventory(workload, is_opportunistic)
 	end
 
 	local inventory = self:get_inventory()
-	-- XXX: the or condition here is just for preventing a migration
-	-- crash during alpha.
-	if not inventory or not inventory.update then
-		strace(
-			stlib.ERROR,
-			"cs2",
-			"inventory",
-			"stop",
-			self,
-			"message",
-			"Train stop has no inventory."
-		)
+	if not inventory then
+		error("LOGIC ERROR: Train stop has no inventory" .. self.id)
 		return
 	end
 
 	inventory:update(workload, true)
 end
 
-function TrainStop:is_sharing_inventory()
-	if self.shared_inventory_master or self.shared_inventory_slaves then
-		return true
+--------------------------------------------------------------------------------
+-- SHARED INVENTORY
+--------------------------------------------------------------------------------
+
+---Get information about this stop's inventory sharing from the Thing graph.
+---@return boolean is_sharing `true` if this stop is sharing inventory, `false` otherwise.
+---@return Id|nil master_comb_id The shared inventory master combinator id, or `nil` if none.
+---@return {[Id]: things.GraphEdge}|nil slave_combs A map of shared inventory slave combinator ids to their graph edges, or `nil` if none.
+---@return Cybersyn.Combinator|nil station_comb The station combinator for this stop, or `nil` if none.
+function TrainStop:get_sharing_info()
+	local station_comb = self:get_combinator_with_mode("station")
+	if not station_comb then return false, nil, nil, nil end
+	local _, slaves, master = remote.call(
+		"things",
+		"get_edges",
+		"cybersyn2-shared-inventory",
+		station_comb.id
+	)
+	local master_id = master and next(master)
+	if (not slaves) or (not next(slaves)) then slaves = nil end
+	if master_id or slaves then
+		return true, master_id, slaves, station_comb
 	else
-		return false
+		return false, nil, nil, station_comb
 	end
 end
 
-function TrainStop:is_sharing_master()
-	if self.shared_inventory_slaves then
-		return true
-	else
-		return false
-	end
+---@return Cybersyn.TrainStop[] slaves All slave stops sharing inventory from this stop.
+function TrainStop:get_slaves()
+	local station_comb = self:get_combinator_with_mode("station")
+	if not station_comb then return EMPTY end
+	local _, slaves = remote.call(
+		"things",
+		"get_edges",
+		"cybersyn2-shared-inventory",
+		station_comb.id
+	)
+	if (not slaves) or (not next(slaves)) then return EMPTY end
+	return tlib.t_map_a(slaves, function(_, slave_comb_id)
+		local slave_comb = cs2.get_combinator(slave_comb_id)
+		if slave_comb then
+			local slave_stop = slave_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+			if slave_stop and slave_stop:is_valid() then return slave_stop end
+		end
+	end)
 end
 
-function TrainStop:is_sharing_slave()
-	if self.shared_inventory_master then
-		return true
-	else
-		return false
-	end
+---Share this stop's inventory to a slave.
+---@param slave_comb Cybersyn.Combinator The combinator representing the slave stop.
+---@return boolean linked `true` if the link was created, `false` if could not be.
+function TrainStop:share_inventory_with(slave_comb)
+	local is_sharing, master_comb_id, slave_combs, station_comb =
+		self:get_sharing_info()
+	if not station_comb then return false end
+	-- Slaves can't reshare.
+	if master_comb_id then return false end
+	-- Already linked.
+	if slave_combs and slave_combs[slave_comb.id] then return false end
+	-- Create edge
+	remote.call(
+		"things",
+		"modify_edge",
+		"cybersyn2-shared-inventory",
+		"create",
+		station_comb.id,
+		slave_comb.id
+	)
+	return true
 end
 
----Make this stop a shared inventory master.
-function TrainStop:share_inventory()
-	self.shared_inventory_slaves = {}
-	cs2.raise_train_stop_shared_inventory_changed(self)
-end
-
+---Stop sharing this stop's inventory.
 function TrainStop:stop_sharing_inventory()
-	if self.shared_inventory_master then
-		local master = cs2.get_stop(self.shared_inventory_master)
-		self.shared_inventory_master = nil
-		cs2.raise_train_stop_shared_inventory_changed(self)
-		if master and master.shared_inventory_slaves then
-			master.shared_inventory_slaves[self.id] = nil
-			cs2.raise_train_stop_shared_inventory_changed(master)
-		end
+	local is_sharing, master_comb_id, slave_combs, station_comb =
+		self:get_sharing_info()
+	if not station_comb then return end
+	-- Remove all edges
+	if master_comb_id then
+		remote.call(
+			"things",
+			"modify_edge",
+			"cybersyn2-shared-inventory",
+			"delete",
+			master_comb_id,
+			station_comb.id
+		)
 	end
-	if self.shared_inventory_slaves then
-		local slaves = self.shared_inventory_slaves --[[@as IdSet]]
-		self.shared_inventory_slaves = nil
-		cs2.raise_train_stop_shared_inventory_changed(self)
-		for slave_id in pairs(slaves) do
-			local slave = cs2.get_stop(slave_id)
-			if slave then
-				slave.shared_inventory_master = nil
-				cs2.raise_train_stop_shared_inventory_changed(slave)
-			end
+	if slave_combs then
+		self.is_master = nil
+		for slave_comb_id in pairs(slave_combs) do
+			remote.call(
+				"things",
+				"modify_edge",
+				"cybersyn2-shared-inventory",
+				"delete",
+				station_comb.id,
+				slave_comb_id
+			)
 		end
 	end
 end
 
----@param slave_stop Cybersyn.TrainStop
-function TrainStop:share_inventory_with(slave_stop)
-	if not self.shared_inventory_slaves then self.shared_inventory_slaves = {} end
-	if slave_stop.shared_inventory_master ~= self.id then
-		slave_stop.shared_inventory_master = self.id
-		cs2.raise_train_stop_shared_inventory_changed(slave_stop)
-	end
-	if not self.shared_inventory_slaves[slave_stop.id] then
-		self.shared_inventory_slaves[slave_stop.id] = true
-		cs2.raise_train_stop_shared_inventory_changed(self)
+---Update inventory to point to shared inventory or internal inventory as
+---needed.
+function TrainStop:update_inventory_sharing(master_stop)
+	stlib.info(
+		"Updating shared inventory for stop",
+		self.id,
+		"connecting to master stop",
+		master_stop and master_stop.id
+	)
+
+	if master_stop then
+		-- If slave station, set inventory to master stop
+		if self:set_inventory(master_stop.inventory_id) then
+			self:fail_all_deliveries("INVENTORY_CHANGED")
+		end
+	else
+		-- Reset to internal inventory if we don't have a master.
+		if self:set_inventory(self.created_inventory_id) then
+			self:fail_all_deliveries("INVENTORY_CHANGED")
+		end
 	end
 end
 
 --------------------------------------------------------------------------------
--- Stop events
+-- Events
 --------------------------------------------------------------------------------
 
 -- Forward train_arrived events to stops
@@ -417,7 +423,83 @@ cs2.on_train_departed(function(train, cstrain, stop)
 	if cstrain and stop then stop:train_departed(cstrain) end
 end)
 
--- Shared inventory recalcs
-cs2.on_train_stop_shared_inventory_changed(
-	function(stop) stop:update_inventory_sharing() end
+--------------------------------------------------------------------------------
+-- Events: High-level shared inventory management
+--------------------------------------------------------------------------------
+
+events.bind(
+	"cs2.train_stop_shared_inventory_slave",
+	function(slave_stop, master_stop)
+		if slave_stop then slave_stop:update_inventory_sharing(master_stop) end
+	end
+)
+
+--------------------------------------------------------------------------------
+-- Events: Low-level shared inventory graph management
+--------------------------------------------------------------------------------
+
+events.bind(
+	"cybersyn2-combinator-on_edge_changed",
+	---@param ev things.EventData.on_edge_changed
+	function(ev)
+		if ev.change == "create" then
+			local slave_comb = cs2.get_combinator(ev.to.id, true)
+			local slave_stop = slave_comb and slave_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+			if slave_stop then
+				local master_comb = cs2.get_combinator(ev.from.id, true)
+				local master_stop = master_comb and master_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+				if master_stop then
+					slave_stop.shared_inventory_master = master_stop.id
+					slave_stop.is_master = nil
+					master_stop.is_master = true
+					events.raise(
+						"cs2.train_stop_shared_inventory_slave",
+						slave_stop,
+						master_stop
+					)
+				end
+			end
+		elseif ev.change == "delete" then
+			local slave_comb = cs2.get_combinator(ev.to.id, true)
+			local slave_stop = slave_comb and slave_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+			if slave_stop and slave_stop.shared_inventory_master then
+				slave_stop.shared_inventory_master = nil
+				events.raise("cs2.train_stop_shared_inventory_slave", slave_stop, nil)
+			end
+		end
+	end
+)
+
+events.bind(
+	"cybersyn2-combinator-on_edge_status",
+	---@param ev things.EventData.on_edge_status
+	function(ev)
+		local slave_comb = cs2.get_combinator(ev.edge.to, true)
+		local slave_stop = slave_comb and slave_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+		local master_comb = cs2.get_combinator(ev.edge.from, true)
+		local master_stop = master_comb and master_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+		if not slave_stop then
+			-- Nothing to do here.
+			return
+		end
+		if master_stop and master_stop:is_valid() then
+			-- Create link if needed
+			if slave_stop.shared_inventory_master ~= master_stop.id then
+				slave_stop.shared_inventory_master = master_stop.id
+				slave_stop.is_master = nil
+				master_stop.is_master = true
+				events.raise(
+					"cs2.train_stop_shared_inventory_slave",
+					slave_stop,
+					master_stop
+				)
+			end
+		else
+			-- Remove link if needed
+			if slave_stop.shared_inventory_master then
+				slave_stop.shared_inventory_master = nil
+				events.raise("cs2.train_stop_shared_inventory_slave", slave_stop, nil)
+			end
+		end
+	end
 )

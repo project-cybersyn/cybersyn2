@@ -272,16 +272,6 @@ _G.cs2.on_train_stop_pattern_changed, _G.cs2.raise_train_stop_pattern_changed =
 		"nil"
 	)
 
-_G.cs2.on_train_stop_shared_inventory_changed, _G.cs2.raise_train_stop_shared_inventory_changed =
-	event(
-		"train_stop_shared_inventory_changed",
-		"Cybersyn.TrainStop",
-		"nil",
-		"nil",
-		"nil",
-		"nil"
-	)
-
 --------------------------------------------------------------------------------
 -- Inventories and deliveries.
 --------------------------------------------------------------------------------

@@ -288,7 +288,7 @@ end
 
 function LogisticsThread:poll_train_stop_update_inventory()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
-	stop:update_inventory(self.workload_counter, true)
+	stop:update_inventory(self.workload_counter, false)
 	self:set_state("poll_train_stop_classify_inventory")
 end
 

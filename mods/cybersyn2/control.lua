@@ -38,6 +38,7 @@ require("scripts.combinator.lifecycle")
 require("scripts.combinator.mode")
 require("scripts.combinator.gui.base")
 require("scripts.combinator.gui.elements")
+require("scripts.combinator.connection")
 
 require("scripts.node.base") -- needs inventory
 require("scripts.node.topology")
@@ -62,7 +63,6 @@ require("scripts.combinator.modes.dt")
 require("scripts.combinator.modes.manifest")
 require("scripts.combinator.modes.wagon")
 require("scripts.combinator.modes.inventory")
-require("scripts.combinator.modes.shared-inventory")
 require("scripts.combinator.modes.deliveries")
 require("scripts.combinator.modes.surface")
 
