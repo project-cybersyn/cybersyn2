@@ -58,6 +58,7 @@ function Node:destroy()
 	end
 	self.is_being_destroyed = true
 	cs2.raise_node_destroyed(self)
+	events.raise("cs2.node_destroyed", self)
 	-- If type-specific destructors bound to the event failed to clear the
 	-- combinator set, we must do so here.
 	if next(self.combinator_set) then

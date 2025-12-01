@@ -341,7 +341,8 @@ function StopInventory:append_orders(orders, master_stop, target_stop)
 end
 
 ---Destroy and rebuild all orders for this inventory.
-function StopInventory:rebuild_orders()
+---@param workload Core.Thread.Workload?
+function StopInventory:rebuild_orders(workload)
 	local master_stop = cs2.get_stop(self.created_for_node_id)
 	if not master_stop then return end
 	self.orders = self:append_orders({}, master_stop)

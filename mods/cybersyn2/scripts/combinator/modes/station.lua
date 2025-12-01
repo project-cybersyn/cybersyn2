@@ -144,7 +144,8 @@ relm.define_element({
 				is_master = true
 			end
 		end
-		relm_util.use_event("cs2.train_stop_shared_inventory_slave")
+		relm_util.use_event("cs2.train_stop_shared_inventory_link")
+		relm_util.use_event("cs2.train_stop_shared_inventory_unlink")
 
 		local pr = combinator:get_pr()
 		local is_provider = pr == 1 or pr == 0
@@ -437,7 +438,10 @@ relm.define_element({
 		})
 	end,
 	message = function(me, payload, props)
-		if payload.key == "cs2.train_stop_shared_inventory_slave" then
+		if
+			(payload.key == "cs2.train_stop_shared_inventory_link")
+			or (payload.key == "cs2.train_stop_shared_inventory_unlink")
+		then
 			relm.paint(me)
 			return true
 		elseif payload.key == "stop_sharing" then
@@ -581,7 +585,7 @@ cs2.on_combinator_setting_changed(
 			)
 			or setting == "primary_wire"
 			or setting == "shared_inventory_independent_orders"
-			or setting == nil
+			or (combinator.mode == "station" and setting == nil)
 		then
 			local node = combinator:get_node()
 			if node then node:rebuild_inventory() end

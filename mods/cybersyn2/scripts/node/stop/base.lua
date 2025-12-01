@@ -427,15 +427,85 @@ end)
 --------------------------------------------------------------------------------
 
 events.bind(
-	"cs2.train_stop_shared_inventory_slave",
+	"cs2.train_stop_shared_inventory_link",
 	function(slave_stop, master_stop)
 		if slave_stop then slave_stop:update_inventory_sharing(master_stop) end
+	end
+)
+
+events.bind(
+	"cs2.train_stop_shared_inventory_unlink",
+	function(slave_stop, master_stop)
+		if slave_stop and slave_stop:is_valid() then
+			slave_stop:update_inventory_sharing(nil)
+		end
+		if master_stop and master_stop:is_valid() then
+			master_stop:rebuild_inventory()
+		end
 	end
 )
 
 --------------------------------------------------------------------------------
 -- Events: Low-level shared inventory graph management
 --------------------------------------------------------------------------------
+
+---@param master Cybersyn.TrainStop
+---@param slave Cybersyn.TrainStop
+local function link(master, slave)
+	if slave.shared_inventory_master == master.id then
+		-- Already linked
+		return
+	end
+	slave.shared_inventory_master = master.id
+	slave.is_master = nil
+	master.is_master = true
+	events.raise("cs2.train_stop_shared_inventory_link", slave, master)
+end
+
+---@param slave Cybersyn.TrainStop
+local function unlink(slave)
+	if not slave.shared_inventory_master then
+		-- Not linked
+		return
+	end
+	local master = cs2.get_stop(slave.shared_inventory_master)
+	slave.shared_inventory_master = nil
+	if master then
+		local _, _, slaves = master:get_sharing_info()
+		if not slaves or not next(slaves) then master.is_master = nil end
+	end
+	events.raise("cs2.train_stop_shared_inventory_unlink", slave, master)
+end
+
+---@param stop Cybersyn.TrainStop
+local function unlink_all(stop)
+	-- If this stop is a master, unlink all slaves.
+	if stop.is_master then
+		local slaves = stop:get_slaves()
+		for _, slave_stop in pairs(slaves) do
+			unlink(slave_stop)
+		end
+	end
+	-- If this stop is a slave, unlink from master.
+	if stop.shared_inventory_master then unlink(stop) end
+end
+
+---@param stop Cybersyn.TrainStop
+local function relink_all(stop)
+	local is_sharing, master_comb_id, slaves = stop:get_sharing_info()
+	if not is_sharing then return end
+	if master_comb_id then
+		local master_comb = cs2.get_combinator(master_comb_id, true)
+		local master_stop = master_comb and master_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+		if master_stop and master_stop:is_valid() then link(master_stop, stop) end
+	elseif slaves then
+		for slave_comb_id in pairs(slaves) do
+			local slave_comb = cs2.get_combinator(slave_comb_id, true)
+			local slave_stop = slave_comb and slave_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+			if slave_stop and slave_stop:is_valid() then link(stop, slave_stop) end
+		end
+	end
+end
 
 events.bind(
 	"cybersyn2-combinator-on_edge_changed",
@@ -444,27 +514,18 @@ events.bind(
 		if ev.change == "create" then
 			local slave_comb = cs2.get_combinator(ev.to.id, true)
 			local slave_stop = slave_comb and slave_comb:get_node() --[[@as Cybersyn.TrainStop?]]
-			if slave_stop then
+			if slave_stop and slave_stop:is_valid() then
 				local master_comb = cs2.get_combinator(ev.from.id, true)
 				local master_stop = master_comb and master_comb:get_node() --[[@as Cybersyn.TrainStop?]]
-				if master_stop then
-					slave_stop.shared_inventory_master = master_stop.id
-					slave_stop.is_master = nil
-					master_stop.is_master = true
-					events.raise(
-						"cs2.train_stop_shared_inventory_slave",
-						slave_stop,
-						master_stop
-					)
+				if master_stop and master_stop:is_valid() then
+					-- Create link
+					link(master_stop, slave_stop)
 				end
 			end
 		elseif ev.change == "delete" then
 			local slave_comb = cs2.get_combinator(ev.to.id, true)
 			local slave_stop = slave_comb and slave_comb:get_node() --[[@as Cybersyn.TrainStop?]]
-			if slave_stop and slave_stop.shared_inventory_master then
-				slave_stop.shared_inventory_master = nil
-				events.raise("cs2.train_stop_shared_inventory_slave", slave_stop, nil)
-			end
+			if slave_stop then unlink(slave_stop) end
 		end
 	end
 )
@@ -482,23 +543,21 @@ events.bind(
 			return
 		end
 		if master_stop and master_stop:is_valid() then
-			-- Create link if needed
-			if slave_stop.shared_inventory_master ~= master_stop.id then
-				slave_stop.shared_inventory_master = master_stop.id
-				slave_stop.is_master = nil
-				master_stop.is_master = true
-				events.raise(
-					"cs2.train_stop_shared_inventory_slave",
-					slave_stop,
-					master_stop
-				)
-			end
+			link(master_stop, slave_stop)
 		else
-			-- Remove link if needed
-			if slave_stop.shared_inventory_master then
-				slave_stop.shared_inventory_master = nil
-				events.raise("cs2.train_stop_shared_inventory_slave", slave_stop, nil)
-			end
+			unlink(slave_stop)
 		end
 	end
 )
+
+cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
+	if combinator.mode ~= "station" then return end
+	if old_node and old_node.type == "stop" then
+		local stop = old_node --[[@as Cybersyn.TrainStop]]
+		unlink_all(stop)
+	end
+	if new_node and new_node.type == "stop" then
+		local stop = new_node --[[@as Cybersyn.TrainStop]]
+		relink_all(stop)
+	end
+end)
