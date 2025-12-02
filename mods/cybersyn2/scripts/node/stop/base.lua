@@ -507,6 +507,7 @@ local function relink_all(stop)
 	end
 end
 
+-- Rebuild links when graph edges change.
 events.bind(
 	"cybersyn2-combinator-on_edge_changed",
 	---@param ev things.EventData.on_edge_changed
@@ -530,6 +531,7 @@ events.bind(
 	end
 )
 
+-- Rebuild links when status of an entity on either end of an edge changes.
 events.bind(
 	"cybersyn2-combinator-on_edge_status",
 	---@param ev things.EventData.on_edge_status
@@ -542,7 +544,7 @@ events.bind(
 			-- Nothing to do here.
 			return
 		end
-		if master_stop and master_stop:is_valid() then
+		if master_stop and master_stop:is_valid() and slave_stop:is_valid() then
 			link(master_stop, slave_stop)
 		else
 			unlink(slave_stop)
@@ -550,6 +552,7 @@ events.bind(
 	end
 )
 
+-- Rebuild links when combinators are associated or disassociated.
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
 	if combinator.mode ~= "station" then return end
 	if old_node and old_node.type == "stop" then

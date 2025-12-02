@@ -97,45 +97,40 @@ local function render_connection(player)
 	end
 
 	-- Draw connections between selected combinator and associated ones
-	-- TODO: fix this
-	-- if selected_thing and selected_combinator then
-	-- 	local stop = cs2.get_stop(selected_combinator.node_id)
-	-- 	if stop and stop.shared_inventory_slaves then
-	-- 		for slave_id in pairs(stop.shared_inventory_slaves) do
-	-- 			local slave_stop = cs2.get_stop(slave_id)
-	-- 			if slave_stop then
-	-- 				local slave_combinator =
-	-- 					slave_stop:get_combinator_with_mode("shared-inventory")
-	-- 				if slave_combinator then
-	-- 					draw_connection(
-	-- 						objects,
-	-- 						colors.green,
-	-- 						false,
-	-- 						player.index,
-	-- 						selected_combinator.entity,
-	-- 						slave_combinator.entity
-	-- 					)
-	-- 				end
-	-- 			end
-	-- 		end
-	-- 	elseif stop and stop.shared_inventory_master then
-	-- 		local master_stop = cs2.get_stop(stop.shared_inventory_master)
-	-- 		if master_stop then
-	-- 			local master_combinator =
-	-- 				master_stop:get_combinator_with_mode("shared-inventory")
-	-- 			if master_combinator then
-	-- 				draw_connection(
-	-- 					objects,
-	-- 					colors.green,
-	-- 					false,
-	-- 					player.index,
-	-- 					selected_combinator.entity,
-	-- 					master_combinator.entity
-	-- 				)
-	-- 			end
-	-- 		end
-	-- 	end
-	-- end
+	if selected_stop then
+		local _, master_comb_id, slave_ids = selected_stop:get_sharing_info()
+
+		if master_comb_id then
+			local master_comb = cs2.get_combinator(master_comb_id, true)
+			local master_stop = master_comb and master_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+			if master_stop and master_stop:is_valid() then
+				draw_connection(
+					objects,
+					colors.green,
+					false,
+					player.index,
+					selected_stop.entity,
+					master_stop.entity
+				)
+			end
+		end
+		if slave_ids then
+			for slave_comb_id in pairs(slave_ids) do
+				local slave_comb = cs2.get_combinator(slave_comb_id, true)
+				local slave_stop = slave_comb and slave_comb:get_node() --[[@as Cybersyn.TrainStop?]]
+				if slave_stop and slave_stop:is_valid() then
+					draw_connection(
+						objects,
+						colors.green,
+						false,
+						player.index,
+						selected_stop.entity,
+						slave_stop.entity
+					)
+				end
+			end
+		end
+	end
 
 	if objects[1] then
 		pstate.connection_render_objects = objects
@@ -195,13 +190,13 @@ events.bind(
 		local target_stop =
 			cs2.get_stop(storage.stop_id_to_node_id[target_entity.unit_number or ""])
 		if not target_stop then
-			-- TODO: error message
+			-- TODO: error message "must target a cybersyn train stop"
 			player.clear_cursor()
 			return
 		end
 		local target_combinator = target_stop:get_combinator_with_mode("station")
 		if not target_combinator then
-			-- TODO: error message
+			-- TODO: error message "invalid target stop"
 			player.clear_cursor()
 			return
 		end
@@ -214,6 +209,12 @@ events.bind(
 		end
 		local source_stop = cs2.get_stop(state.connection_source)
 		if not source_stop then
+			player.clear_cursor()
+			return
+		end
+
+		if source_stop.id == target_stop.id then
+			-- TODO: error message "cannot connect to self"
 			player.clear_cursor()
 			return
 		end
