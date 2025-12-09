@@ -70,16 +70,19 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	if not order then return self:set_state("poll_nodes") end
 
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
+	-- Shared inventory: order may be for a different stop.
+	local order_stop = stop --[[@as Cybersyn.TrainStop?]]
+	if order.node_id ~= stop.id then order_stop = cs2.get_stop(order.node_id) end
 	local providers = self.providers
 	local requesters = self.requesters
 
 	for _, view in pairs(storage.views) do
 		view:enter_order(self.workload_counter, order, stop)
 	end
-	if stop.is_producer and order:is_provider() then
+	if order_stop and order_stop.is_producer and order:is_provider() then
 		providers[#providers + 1] = order
 	end
-	if stop.is_consumer and order:is_requester() then
+	if order_stop and order_stop.is_consumer and order:is_requester() then
 		order.needs = order:compute_needs(self.workload_counter)
 		if order.needs then requesters[#requesters + 1] = order end
 	end
