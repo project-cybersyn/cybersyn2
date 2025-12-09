@@ -53,8 +53,7 @@ function StatefulThread:main()
 		strace.trace(
 			"---------------- STEPPING THREAD:",
 			self.id,
-			self.friendly_name,
-			self.state
+			self.friendly_name
 		)
 	end
 	local total_workload
@@ -95,13 +94,7 @@ function StatefulThread:main()
 	if self.stepped and self.paused then
 		self.stepped = false
 		events.raise("cs2.debug_thread_step", self)
-		strace.trace(self)
-		strace.trace(
-			"---------------- STEP COMPLETE:",
-			self.id,
-			self.friendly_name,
-			self.state
-		)
+		strace.trace("---------------- STEP COMPLETE:", self.id, self.friendly_name)
 	end
 	self.workload_counter.workload = 0
 end
