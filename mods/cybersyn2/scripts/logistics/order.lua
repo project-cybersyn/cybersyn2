@@ -841,11 +841,7 @@ function Order:satisfy_needs(workload, needs)
 		if workload then add_workload(workload, table_size(and_spread)) end
 
 		items = tlib.t_reduce(provides, {}, function(itm, key, qty)
-			local avail = min(
-				(prov_inv[key] or 0) - (prov_outflow[key] or 0),
-				provides[key] or 0,
-				qty
-			)
+			local avail = min((prov_inv[key] or 0) - (prov_outflow[key] or 0), qty)
 			if avail > 0 then
 				local sig = key_to_signal(key) --[[@as SignalID]]
 				local name = sig.name --[[@as string]]
@@ -866,11 +862,7 @@ function Order:satisfy_needs(workload, needs)
 	local or_stacks = needs.or_stacks
 	if or_mask and or_stacks and (or_stacks >= thresh_min_stacks) then
 		items = tlib.t_reduce(provides, {}, function(itm, key, qty)
-			local avail = min(
-				(prov_inv[key] or 0) - (prov_outflow[key] or 0),
-				provides[key] or 0,
-				qty
-			)
+			local avail = min((prov_inv[key] or 0) - (prov_outflow[key] or 0), qty)
 			local matches_quality = true
 			local mask_key = key
 			if qualities then
@@ -905,11 +897,7 @@ function Order:satisfy_needs(workload, needs)
 	local all_stacks = needs.all_stacks
 	if all_stacks and all_stacks >= thresh_min_stacks then
 		items = tlib.t_reduce(provides, {}, function(itm, key, qty)
-			local avail = min(
-				(prov_inv[key] or 0) - (prov_outflow[key] or 0),
-				provides[key] or 0,
-				qty
-			)
+			local avail = min((prov_inv[key] or 0) - (prov_outflow[key] or 0), qty)
 			local matches_quality = true
 			if qualities then
 				local sig = key_to_signal(key) --[[@as SignalID]]
