@@ -8,6 +8,7 @@ local counters = require("lib.core.counters")
 local signal_keys = require("lib.signal")
 local thread = require("lib.core.thread")
 local cs2 = _G.cs2
+local strace = require("lib.core.strace")
 
 -- TODO: This code is called in high performance dispatch loops. Take some
 -- care to microoptimize here.
@@ -249,18 +250,29 @@ function StopInventory:new()
 	return inv --[[@as Cybersyn.StopInventory]]
 end
 
-function StopInventory:is_volatile(workload)
-	local controlling_stop = cs2.get_stop(self.created_for_node_id)
-	if not controlling_stop then
-		error(
-			"LOGIC ERROR: StopInventory without associated controlling stop, should be impossible"
-		)
-	end
+---@param controlling_stop Cybersyn.TrainStop
+---@param slaves Cybersyn.TrainStop[]|nil
+function StopInventory:is_volatile(controlling_stop, slaves)
 	if controlling_stop.entity.get_stopped_train() then return true end
 
-	if controlling_stop.is_master then
+	if slaves then
 		-- A master inventory is volatile if any of its slaves has a parked train
-		for _, slave in pairs(controlling_stop:get_slaves()) do
+		for _, slave in pairs(slaves) do
+			if slave.entity.get_stopped_train() then return true end
+		end
+	end
+
+	return false
+end
+
+---@param controlling_stop Cybersyn.TrainStop
+---@param slaves Cybersyn.TrainStop[]|nil
+local function stop_inventory_is_volatile(controlling_stop, slaves)
+	if controlling_stop.entity.get_stopped_train() then return true end
+
+	if slaves then
+		-- A master inventory is volatile if any of its slaves has a parked train
+		for _, slave in pairs(slaves) do
 			if slave.entity.get_stopped_train() then return true end
 		end
 	end
@@ -270,36 +282,45 @@ end
 
 function StopInventory:update(workload, reread)
 	add_workload(workload, 1)
-	if self:is_volatile(workload) then return false end
 	local stop = cs2.get_stop(self.created_for_node_id, true)
 	if not stop then return false end
+	if stop.shared_inventory_master then
+		strace.warn(
+			"Attempted to update a shared inventory slave's inventory directly. This should only be done from the master stop."
+		)
+		return false
+	end
+	local slaves = nil
+	if stop.is_master then
+		add_workload(workload, 2)
+		slaves = stop:get_slaves()
+	end
+
+	if stop_inventory_is_volatile(stop, slaves) then return false end
 
 	-- Reread inv combs
 	if reread then
-		for combinator_id in pairs(stop.combinator_set) do
-			local comb = cs2.get_combinator(combinator_id, true)
-			if comb then
-				local mode = comb.mode
-				if mode == "inventory" then
-					comb:read_inputs(nil, workload)
-				elseif mode == "station" then
-					comb:read_inputs(nil, workload)
-					-- If not slave, read station comb into base inventory
-					if not stop.shared_inventory_master then
-						local primary_wire = comb:get_primary_wire()
-						if primary_wire == "green" then
-							self:set_base(comb.green_inputs)
-							if workload then
-								add_workload(workload, table_size(comb.green_inputs))
-							end
-						else
-							self:set_base(comb.red_inputs)
-							if workload then
-								add_workload(workload, table_size(comb.red_inputs))
-							end
-						end
-					end
+		local master_station_comb = stop:read_inventory_combinator_inputs(workload)
+		-- Set base from station comb primary wire
+		if master_station_comb then
+			local primary_wire = master_station_comb:get_primary_wire()
+			if primary_wire == "green" then
+				self:set_base(master_station_comb.green_inputs)
+				if workload then
+					add_workload(workload, table_size(master_station_comb.green_inputs))
 				end
+			else
+				self:set_base(master_station_comb.red_inputs)
+				if workload then
+					add_workload(workload, table_size(master_station_comb.red_inputs))
+				end
+			end
+		end
+
+		-- Reread slave combs
+		if slaves then
+			for _, slave in pairs(slaves) do
+				slave:read_inventory_combinator_inputs(workload)
 			end
 		end
 	end

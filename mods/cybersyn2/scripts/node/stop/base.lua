@@ -260,6 +260,26 @@ function TrainStop:rebuild_inventory()
 	end
 end
 
+---Reread this stop's inventory combinators.
+---@param workload Core.Thread.Workload?
+---@return Cybersyn.Combinator? station_combinator The station combinator, if any.
+function TrainStop:read_inventory_combinator_inputs(workload)
+	local station_combinator = nil
+	for combinator_id in pairs(self.combinator_set) do
+		local combinator = cs2.get_combinator(combinator_id)
+		if combinator then
+			local mode = combinator.mode
+			if mode == "inventory" then
+				combinator:read_inputs(nil, workload)
+			elseif mode == "station" then
+				station_combinator = combinator
+				combinator:read_inputs(nil, workload)
+			end
+		end
+	end
+	return station_combinator
+end
+
 ---Update this stop's inventory
 ---@param workload Core.Thread.Workload?
 ---@param is_opportunistic boolean? If `true`, this is an opportunistic update outside the main loop, e.g. when a train leaves a stop.
