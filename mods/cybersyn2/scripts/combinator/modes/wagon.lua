@@ -309,7 +309,7 @@ local function lock_item_slots(cw_manifests, n_slots, item, count, stack_size)
 		if sig then
 			item_filter = {
 				name = sig.name,
-				quality = sig.quality,
+				quality = sig.quality or "normal",
 				comparator = "=",
 			}
 		end
