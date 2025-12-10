@@ -281,11 +281,9 @@ function StopInventory:update(workload, reread)
 			if comb then
 				local mode = comb.mode
 				if mode == "inventory" then
-					comb:read_inputs()
-					add_workload(workload, 5)
+					comb:read_inputs(nil, workload)
 				elseif mode == "station" then
-					comb:read_inputs()
-					add_workload(workload, 5)
+					comb:read_inputs(nil, workload)
 					-- If not slave, read station comb into base inventory
 					if not stop.shared_inventory_master then
 						local primary_wire = comb:get_primary_wire()

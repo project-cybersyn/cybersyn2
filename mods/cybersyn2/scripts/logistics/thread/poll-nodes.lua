@@ -139,8 +139,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()
-	comb:read_inputs()
-	add_workload(workload, 5)
+	comb:read_inputs(nil, workload)
 	local inputs = comb.red_inputs
 	if primary_wire == "green" then inputs = comb.green_inputs end
 	if not inputs then
@@ -257,8 +256,7 @@ function LogisticsThread:poll_dt_combs(workload, stop)
 	local thresholds_in = nil
 	for _, comb in cs2.iterate_combinators(stop) do
 		if comb.mode ~= "dt" then goto continue end
-		comb:read_inputs()
-		add_workload(workload, 5)
+		comb:read_inputs(nil, workload)
 		local inputs = comb.inputs
 		if not inputs then goto continue end
 		local stacked = not comb:get_dt_unstacked()
