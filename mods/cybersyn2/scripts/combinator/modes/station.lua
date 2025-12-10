@@ -211,6 +211,8 @@ relm.define_element({
 				combinator = combinator,
 				wire_color = secondary_wire,
 				arity = "primary",
+				is_request_only = is_request_only,
+				is_provide_only = is_provide_only,
 			}),
 			ultros.WellSection(
 				{ caption = "Inbound Item Handling", visible = is_requester },

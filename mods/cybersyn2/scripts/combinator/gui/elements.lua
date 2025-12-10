@@ -18,6 +18,7 @@ local gui = _G.cs2.gui
 ---@param inverse boolean? If true, the checkbox will be inverted (checked when the setting is false).
 ---@param disabled boolean? If true, the checkbox will be disabled and not interactable.
 ---@param value_when_disabled boolean? If `disabled` is true, this will be the value shown in the checkbox.
+---@param hidden boolean? If true, the entire control will be hidden.
 function _G.cs2.gui.Checkbox(
 	caption,
 	tooltip,
@@ -25,7 +26,8 @@ function _G.cs2.gui.Checkbox(
 	setting,
 	inverse,
 	disabled,
-	value_when_disabled
+	value_when_disabled,
+	hidden
 )
 	local value = combinator["get_" .. setting](combinator)
 	local setter = combinator["set_" .. setting]
@@ -35,6 +37,7 @@ function _G.cs2.gui.Checkbox(
 	end
 	local enabled = not disabled
 	return ultros.Checkbox({
+		visible = not hidden,
 		caption = caption,
 		tooltip = tooltip,
 		value = value,
@@ -222,6 +225,8 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 		local combinator = props.combinator
 		local wire_color = props.wire_color
 		local arity = props.arity or "primary"
+		local is_request_only = props.is_request_only
+		local is_provide_only = props.is_provide_only
 
 		return ultros.WellSection({
 			caption = {
@@ -244,6 +249,7 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 			ultros.Labeled({
 				caption = "Network matching mode",
 				top_margin = 6,
+				visible = not is_provide_only,
 			}, {
 				gui.Dropdown(
 					{
@@ -254,31 +260,40 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 					andor_dropdown_items
 				),
 			}),
-			ultros.Labeled(
-				{ caption = "Input signal: Force away", top_margin = 6 },
-				{
-					gui.VirtualSignalPicker(
-						props.combinator,
-						"order_" .. arity .. "_signal_force_away",
-						"If a signal is given and it has a nonzero value, 'force away' mode will be enabled on this station.\n\nIn 'force away' mode, items provided by this order will ignore thresholds of requesting stations."
-					),
-				}
-			),
+			ultros.Labeled({
+				caption = "Input signal: Force away",
+				top_margin = 6,
+				visible = not is_request_only,
+			}, {
+				gui.VirtualSignalPicker(
+					props.combinator,
+					"order_" .. arity .. "_signal_force_away",
+					"If a signal is given and it has a nonzero value, 'force away' mode will be enabled on this station.\n\nIn 'force away' mode, items provided by this order will ignore thresholds of requesting stations."
+				),
+			}),
 			gui.InnerHeading({
 				caption = "Flags",
+				visible = not is_provide_only,
 			}),
 			gui.Checkbox(
 				"Stacked requests",
 				"If checked, all requests will be interpreted as stacks of items rather than item counts.",
 				combinator,
-				"order_" .. arity .. "_stacked_requests"
+				"order_" .. arity .. "_stacked_requests",
+				nil,
+				nil,
+				nil,
+				is_provide_only
 			),
 			gui.Checkbox(
 				"Mitigate starvation for requested items",
 				"When checked, requests for this order will receive special handling to prevent starvation. Uncheck for orders to which starvation doesn't apply, such as void or dump orders.",
 				combinator,
 				"order_" .. arity .. "_no_starvation",
-				true
+				true,
+				nil,
+				nil,
+				is_provide_only
 			),
 		})
 	end,
