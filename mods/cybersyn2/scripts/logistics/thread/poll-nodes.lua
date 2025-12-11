@@ -83,8 +83,15 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 		providers[#providers + 1] = order
 	end
 	if order_stop and order_stop.is_consumer and order:is_requester() then
-		order.needs = order:compute_needs(self.workload_counter)
-		if order.needs then requesters[#requesters + 1] = order end
+		if not order_stop:has_max_deliveries() then
+			order.needs = order:compute_needs(self.workload_counter)
+			if order.needs then requesters[#requesters + 1] = order end
+		else
+			stlib.trace(
+				"Culling requesting order on stop with max deliveries",
+				order_stop.id
+			)
+		end
 	end
 	for _, view in pairs(storage.views) do
 		view:exit_order(self.workload_counter, order, stop)

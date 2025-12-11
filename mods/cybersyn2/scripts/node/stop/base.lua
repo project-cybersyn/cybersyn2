@@ -202,6 +202,17 @@ function TrainStop:is_queue_full()
 	return #self.delivery_queue >= limit
 end
 
+---Determine if this stop has met its global delivery limit, regardless of
+---local queue
+---@return boolean
+function TrainStop:has_max_deliveries()
+	local tlimit = self.entity.trains_limit
+	local limit = tlimit and mod_settings.excess_delivery_limit + tlimit
+		or mod_settings.excess_delivery_limit
+	if limit == 0 then return false end
+	return table_size(self.deliveries) >= limit
+end
+
 ---Signal all deliveries below the station limit that they can come to the station.
 function TrainStop:process_queue()
 	local queue = self.delivery_queue
