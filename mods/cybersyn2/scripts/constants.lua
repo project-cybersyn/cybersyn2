@@ -18,9 +18,10 @@ _G.cs2.MAX_RAILS_TO_SEARCH = 112
 _G.cs2.LONGEST_INSERTER_REACH = 2
 
 -- Bonus to provider evaluation per normalized unit of cargo available.
+-- (In normalized units, 1 fluid unit = 1 normalized unit and 1 item STACK = 1250 normalized units)
 _G.cs2.LOGISTICS_PROVIDER_CARGO_WEIGHT = 0.001
 -- Penalty to provider evaluation per tile of distance from requester.
-_G.cs2.LOGISTICS_PROVIDER_DISTANCE_WEIGHT = -1
+_G.cs2.LOGISTICS_PROVIDER_DISTANCE_WEIGHT = 0
 -- Penalty to provider evaluation per train in queue.
 _G.cs2.LOGISTICS_PROVIDER_BUSY_WEIGHT = -300
 -- Number of ticks between deliveries of an item before a station is considered
