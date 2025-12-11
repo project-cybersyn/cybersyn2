@@ -34,7 +34,7 @@ storage = {}
 ---@field public open_combinator? Cybersyn.Combinator The combinator currently open in the player's UI, if any.
 ---@field public combinator_gui_root? int The Relm root id of the open combinator gui.
 ---@field public connection_render_objects? LuaRenderObject[] The render objects used to visualize connections in the player's UI.
----@field public connection_source? LuaEntity The combinator entity that is the source of the connection the user is creating in the UI.
+---@field public connection_source? Id ID of the TrainStop from which the player is connecting a shared inventory.
 ---@field public hide_help? boolean Whether the player has hidden the help pane
 
 ---Get the player state for a player, creating it if it doesn't exist.

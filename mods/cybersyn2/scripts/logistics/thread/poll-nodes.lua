@@ -12,7 +12,6 @@ local thread_lib = require("lib.core.thread")
 local cs2 = _G.cs2
 
 local mod_settings = _G.cs2.mod_settings
-local combinator_settings = _G.cs2.combinator_settings
 local Topology = _G.cs2.Topology
 
 local strace = stlib.strace
@@ -71,18 +70,28 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	if not order then return self:set_state("poll_nodes") end
 
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
+	-- Shared inventory: order may be for a different stop.
+	local order_stop = stop --[[@as Cybersyn.TrainStop?]]
+	if order.node_id ~= stop.id then order_stop = cs2.get_stop(order.node_id) end
 	local providers = self.providers
 	local requesters = self.requesters
 
 	for _, view in pairs(storage.views) do
 		view:enter_order(self.workload_counter, order, stop)
 	end
-	if stop.is_producer and order:is_provider() then
+	if order_stop and order_stop.is_producer and order:is_provider() then
 		providers[#providers + 1] = order
 	end
-	if stop.is_consumer and order:is_requester() then
-		order.needs = order:compute_needs(self.workload_counter)
-		if order.needs then requesters[#requesters + 1] = order end
+	if order_stop and order_stop.is_consumer and order:is_requester() then
+		if not order_stop:has_max_deliveries() then
+			order.needs = order:compute_needs(self.workload_counter)
+			if order.needs then requesters[#requesters + 1] = order end
+		else
+			stlib.trace(
+				"Culling requesting order on stop with max deliveries",
+				order_stop.id
+			)
+		end
 	end
 	for _, view in pairs(storage.views) do
 		view:exit_order(self.workload_counter, order, stop)
@@ -137,8 +146,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()
-	comb:read_inputs()
-	add_workload(workload, 5)
+	comb:read_inputs(nil, workload)
 	local inputs = comb.red_inputs
 	if primary_wire == "green" then inputs = comb.green_inputs end
 	if not inputs then
@@ -255,8 +263,7 @@ function LogisticsThread:poll_dt_combs(workload, stop)
 	local thresholds_in = nil
 	for _, comb in cs2.iterate_combinators(stop) do
 		if comb.mode ~= "dt" then goto continue end
-		comb:read_inputs()
-		add_workload(workload, 5)
+		comb:read_inputs(nil, workload)
 		local inputs = comb.inputs
 		if not inputs then goto continue end
 		local stacked = not comb:get_dt_unstacked()
@@ -288,7 +295,7 @@ end
 
 function LogisticsThread:poll_train_stop_update_inventory()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
-	stop:update_inventory(self.workload_counter, true)
+	stop:update_inventory(self.workload_counter, false)
 	self:set_state("poll_train_stop_classify_inventory")
 end
 

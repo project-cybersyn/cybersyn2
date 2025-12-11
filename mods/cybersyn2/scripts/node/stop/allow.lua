@@ -6,7 +6,6 @@ local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local combinator_settings = _G.cs2.combinator_settings
 local CarriageType = require("lib.types").CarriageType
 
 ---@class Cybersyn.TrainStop

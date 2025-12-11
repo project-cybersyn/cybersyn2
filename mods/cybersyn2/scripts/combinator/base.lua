@@ -6,6 +6,7 @@ local class = require("lib.core.class").class
 local tlib = require("lib.core.table")
 local signal_lib = require("lib.signal")
 local mlib = require("lib.core.math.pos")
+local thread_lib = require("lib.core.thread")
 
 local cs2 = _G.cs2
 local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
@@ -14,6 +15,7 @@ local signal_to_key = signal_lib.signal_to_key
 local key_to_signal = signal_lib.key_to_signal
 local signals_to_signal_counts = signal_lib.signals_to_signal_counts
 local distsq = mlib.pos_distsq
+local add_workload = thread_lib.add_workload
 
 --------------------------------------------------------------------------------
 -- Modes
@@ -103,7 +105,8 @@ local GREEN_INPUTS = defines.wire_connector_id.combinator_input_green
 ---If the combinator is in an input-supporting mode, read and cache its input
 ---signals.
 ---@param which "red"|"green"|nil If given, and the combinator has independent input wires, read only the given wire. If `nil`, read both wires.
-function Combinator:read_inputs(which)
+---@param workload Core.Thread.Workload?
+function Combinator:read_inputs(which, workload)
 	-- Sanity checks
 	-- Don't read invalid entities or ghosts
 	local entity = self.real_entity
@@ -152,6 +155,9 @@ function Combinator:read_inputs(which)
 		self.red_inputs = nil
 		self.green_inputs = nil
 	end
+
+	-- TODO: better workload estimate
+	add_workload(workload, 5)
 end
 
 ---Clear all the combinator's outputs.

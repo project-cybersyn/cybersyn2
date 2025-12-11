@@ -12,6 +12,7 @@ local max = math.max
 local network_match_or = siglib.network_match_or
 local order_requested_qty = _G.cs2.order_requested_qty
 local item_filter_any_quality_OR = siglib.item_filter_any_quality_OR
+local EMPTY = tlib.empty
 
 ---@class Cybersyn.NetInventoryView: Cybersyn.View
 ---@field public provides SignalCounts Net provides across all matching nodes
@@ -81,14 +82,25 @@ function NetInventoryView:enter_node(workload, node)
 	-- Skip nodes with potentially invalid inventory
 	self.skip_node = true
 	if node.topology_id ~= self.topology_id then return end
+	local inv = nil
+	local ninv = node:get_inventory() or EMPTY
 	-- Don't count slave inventories
-	if node.shared_inventory_master then return end
-	local inv = node:get_inventory()
-	if not inv then return end
+	if node.type == "stop" then
+		---@cast node Cybersyn.TrainStop
+		if node.shared_inventory_master then
+			inv = nil
+		else
+			inv = ninv.inventory
+		end
+	else
+		inv = ninv.inventory
+	end
 	-- Node is live, clear skip flag.
 	self.skip_node = false
-	tlib.vector_add(self.inventory, 1, inv.inventory)
-	add_workload(workload, 0.5 * table_size(inv.inventory))
+	if inv then
+		tlib.vector_add(self.inventory, 1, inv)
+		add_workload(workload, 0.5 * table_size(inv))
+	end
 	self.n_prov = {}
 	self.n_req = {}
 	self.n_needed = {}

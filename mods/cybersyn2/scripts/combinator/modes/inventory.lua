@@ -7,7 +7,6 @@ local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
-local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
 local Inventory = _G.cs2.Inventory
 

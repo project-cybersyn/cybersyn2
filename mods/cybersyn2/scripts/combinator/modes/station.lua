@@ -3,9 +3,9 @@
 --------------------------------------------------------------------------------
 
 local relm = require("lib.core.relm.relm")
+local relm_util = require("lib.core.relm.util")
 local ultros = require("lib.core.relm.ultros")
 local cs2 = _G.cs2
-local combinator_settings = _G.cs2.combinator_settings
 local gui = _G.cs2.gui
 local mod_settings = _G.cs2.mod_settings
 
@@ -43,19 +43,20 @@ local If = ultros.If
 ---@field public get_signal_reserved_slots fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_signal_reserved_fluid fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_signal_spillover fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_shared_inventory_independent_orders fun(self: Cybersyn.Combinator): boolean
 
 -- Name of the network virtual signal.
 cs2.register_raw_setting("network_signal", "network")
 -- Whether the station should provide, request, or both.
 -- 0 = p/r, 1 = p, 2 = r
 cs2.register_raw_setting("pr", "pr")
--- (DEPRECATED) Whether the station should interpret minimum delivery sizes as stacks or items.
+-- DEPRECATED: Whether the station should interpret minimum delivery sizes as stacks or items.
 cs2.register_flag_setting("use_stack_thresholds", "station_flags", 0)
 -- Which input wire the primary/true inventory input is on.
 cs2.register_raw_setting("primary_wire", "primary_wire", "red")
 -- Whether the station's primary order should provide the whole inventory or a subset.
 cs2.register_flag_setting("provide_subset", "station_flags", 4)
--- Whether to disable auto thresholds
+-- DEPRECATED: auto thresholds cannot be disabled anymore.
 cs2.register_flag_setting("disable_auto_thresholds", "station_flags", 5)
 
 -- Departure conditions
@@ -72,6 +73,7 @@ cs2.register_raw_setting("spillover", "spillover")
 cs2.register_raw_setting("reserved_slots", "reserved_slots")
 cs2.register_raw_setting("reserved_capacity", "reserved_capacity")
 cs2.register_flag_setting("produce_single_item", "station_flags", 2)
+-- DEPRECATED: new logistics algorithm doesn't need this
 cs2.register_flag_setting("ignore_secondary_thresholds", "station_flags", 3)
 
 -- Topology
@@ -94,9 +96,32 @@ cs2.register_raw_setting("signal_spillover", "signal_spillover")
 cs2.register_raw_setting("auto_threshold_percent", "auto_threshold_percent")
 cs2.register_raw_setting("train_fullness_percent", "train_fullness_percent")
 
+-- Shared inventory
+cs2.register_flag_setting(
+	"shared_inventory_independent_orders",
+	"station_flags",
+	6
+)
+
 --------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
+
+local STATUS_SHARED_NONE = { color = "red", caption = "No shared inventory" }
+local STATUS_SHARED_MASTER =
+	{ color = "green", caption = "Sharing my inventory" }
+local STATUS_SHARED_SLAVE =
+	{ color = "green", caption = "Receiving shared inventory" }
+
+local function get_status_props(is_master, is_slave)
+	if is_master then
+		return STATUS_SHARED_MASTER
+	elseif is_slave then
+		return STATUS_SHARED_SLAVE
+	else
+		return STATUS_SHARED_NONE
+	end
+end
 
 local wire_dropdown_items = {
 	{ key = "red", caption = { "cybersyn2-combinator-mode-station.red" } },
@@ -108,6 +133,19 @@ relm.define_element({
 	render = function(props)
 		---@type Cybersyn.Combinator
 		local combinator = props.combinator
+		local stop = cs2.get_stop(combinator and combinator.node_id or 0)
+		local is_shared, is_master, is_slave = false, nil, nil
+		if stop then
+			if stop.shared_inventory_master then
+				is_shared = true
+				is_slave = true
+			elseif stop.is_master then
+				is_shared = true
+				is_master = true
+			end
+		end
+		relm_util.use_event("cs2.train_stop_shared_inventory_link")
+		relm_util.use_event("cs2.train_stop_shared_inventory_unlink")
 
 		local pr = combinator:get_pr()
 		local is_provider = pr == 1 or pr == 0
@@ -173,6 +211,8 @@ relm.define_element({
 				combinator = combinator,
 				wire_color = secondary_wire,
 				arity = "primary",
+				is_request_only = is_request_only,
+				is_provide_only = is_provide_only,
 			}),
 			ultros.WellSection(
 				{ caption = "Inbound Item Handling", visible = is_requester },
@@ -317,13 +357,31 @@ relm.define_element({
 					props.combinator,
 					"produce_single_item"
 				),
-				-- XXX: temp disabled until new algorithm
-				-- gui.Checkbox(
-				-- 	"Ignore minimum delivery size for secondary items",
-				-- 	"If checked, when loading secondary items onto an outgoing train, this station will ignore minimum delivery sizes for those items. This can result in multiple items being more efficiently packed onto trains.",
-				-- 	props.combinator,
-				-- 	"ignore_secondary_thresholds"
-				-- ),
+			}),
+			ultros.WellFold({ caption = "Shared Inventory" }, {
+				gui.Status(get_status_props(is_master, is_slave)),
+				ultros.If(
+					is_shared,
+					ultros.Button({
+						caption = "Stop sharing inventory",
+						on_click = "stop_sharing",
+					})
+				),
+				ultros.If(
+					(not is_shared) or is_master,
+					ultros.Button({
+						caption = "Share this inventory with another station",
+						on_click = "start_sharing",
+					})
+				),
+				gui.Checkbox(
+					"Clone orders",
+					"If checked, this station will ignore its own orders and clone identical orders from the master station.",
+					props.combinator,
+					"shared_inventory_independent_orders",
+					true,
+					not is_slave
+				),
 			}),
 			ultros.WellFold({
 				caption = "Configuration via Circuit",
@@ -380,6 +438,30 @@ relm.define_element({
 				}),
 			}),
 		})
+	end,
+	message = function(me, payload, props)
+		if
+			(payload.key == "cs2.train_stop_shared_inventory_link")
+			or (payload.key == "cs2.train_stop_shared_inventory_unlink")
+		then
+			relm.paint(me)
+			return true
+		elseif payload.key == "stop_sharing" then
+			local combinator = props.combinator
+			local stop = cs2.get_stop(combinator and combinator.node_id or 0)
+			if not stop then return true end
+			stop:stop_sharing_inventory()
+			return true
+		elseif payload.key == "start_sharing" then
+			local combinator = props.combinator
+			local stop = cs2.get_stop(combinator and combinator.node_id or 0)
+			if not stop then return true end
+			relm.msg_bubble(me, { key = "close" })
+			cs2.start_shared_inventory_connection(payload.event.player_index, stop.id)
+			return true
+		else
+			return false
+		end
 	end,
 })
 
@@ -504,7 +586,8 @@ cs2.on_combinator_setting_changed(
 				and (next_value == "station" or prev_value == "station")
 			)
 			or setting == "primary_wire"
-			or setting == nil
+			or setting == "shared_inventory_independent_orders"
+			or (combinator.mode == "station" and setting == nil)
 		then
 			local node = combinator:get_node()
 			if node then node:rebuild_inventory() end

@@ -327,7 +327,14 @@ function Train:is_available()
 	then
 		return false
 	end
-	local schedule = self.lua_train.get_schedule()
+	-- Validity already checked above
+	local lua_train = self.lua_train --[[@as LuaTrain]]
+
+	-- Manual mode trains are not available
+	if lua_train.manual_mode then return false end
+
+	-- Interrupted trains are not available
+	local schedule = lua_train.get_schedule()
 	if get_schedule_state(schedule) then return false end
 	return true
 end

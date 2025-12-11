@@ -273,6 +273,18 @@ function LogisticsThread:loop_matches()
 		if not match then error("Logic error: match loop with no matches") end
 	end
 
+	-- We can early out if requester has hit its global delivery cap
+	local requester = match.requester
+	local requesting_stop = cs2.get_stop(requester.node_id, true)
+	if (not requesting_stop) or requesting_stop:has_max_deliveries() then
+		trace(
+			"Requester",
+			requester.node_id,
+			"has reached max global deliveries; skipping to next requester"
+		)
+		return self:set_state("loop_requesters")
+	end
+
 	if self.match_index == 1 and self.match_pass == 1 then
 		-- Very first match is always valid.
 		self.match = match
@@ -280,7 +292,6 @@ function LogisticsThread:loop_matches()
 		return self:start_train_loop()
 	else
 		-- Recompute needs if we routed something
-		local requester = match.requester
 		local needs
 		if self.this_match_routed then
 			-- If we routed a match, recompute full needs
@@ -462,6 +473,7 @@ function LogisticsThread:route_train()
 	end
 
 	-- Asynchrony requires revalidation of train
+	add_workload(self.workload_counter, 1)
 	if not train:is_valid() then
 		-- Train is invalid, abort
 		warn(
@@ -474,7 +486,8 @@ function LogisticsThread:route_train()
 	end
 
 	-- Asynchrony requires revalidation of nodes
-	if (not from:is_valid()) or (not to:is_valid()) or (from:is_queue_full()) then
+	add_workload(self.workload_counter, 2)
+	if (not from:is_valid()) or (not to:is_valid()) then
 		-- One of the nodes is invalid, abort
 		warn(
 			"route_train: A node became invalid during train routing from:",
@@ -485,9 +498,34 @@ function LogisticsThread:route_train()
 		self:set_state("loop_matches")
 		return
 	end
-	add_workload(self.workload_counter, 5)
+
+	-- Asynchrony requires rechecking queues
+	if from:is_queue_full() then
+		-- Source queue is full, abort
+		strace.trace(
+			"route_train: Source queue became full during train routing from:",
+			from.id,
+			"to:",
+			to.id
+		)
+		self:set_state("loop_matches")
+		return
+	end
+
+	if to:has_max_deliveries() then
+		-- Destination queue is full, abort
+		strace.trace(
+			"route_train: Destination reached max deliveries during train routing from:",
+			from.id,
+			"to:",
+			to.id
+		)
+		self:set_state("loop_matches")
+		return
+	end
 
 	-- Check fuel
+	add_workload(self.workload_counter, 2)
 	if not train:has_fuel() then
 		-- Train has no fuel, abort
 		warn("route_train: Train has no fuel during logistics processing", train.id)
@@ -495,7 +533,6 @@ function LogisticsThread:route_train()
 		self:set_state("loop_matches")
 		return
 	end
-	add_workload(self.workload_counter, 2)
 
 	local n_cargo_wagons, n_fluid_wagons = train:get_wagon_counts()
 	local reserved_slots = from.reserved_slots or 0

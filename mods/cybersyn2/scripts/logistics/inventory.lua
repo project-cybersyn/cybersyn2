@@ -8,6 +8,7 @@ local counters = require("lib.core.counters")
 local signal_keys = require("lib.signal")
 local thread = require("lib.core.thread")
 local cs2 = _G.cs2
+local strace = require("lib.core.strace")
 
 -- TODO: This code is called in high performance dispatch loops. Take some
 -- care to microoptimize here.
@@ -26,7 +27,6 @@ local ceil = math.ceil
 local assign = tlib.assign
 local empty = tlib.EMPTY
 local table_add = tlib.vector_add
-local combinator_settings = _G.cs2.combinator_settings
 local mod_settings = _G.cs2.mod_settings
 local Order = _G.cs2.Order
 local add_workload = thread.add_workload
@@ -225,8 +225,9 @@ end
 ---unreliable data. An example of this is a train stop inventory while a train
 ---is parked and loading or unloading, in which case the inventory measured
 ---at the combinators will be wrong until the train completes the delivery.
+---@param workload Core.Thread.Workload?
 ---@return boolean
-function Inventory:is_volatile() return false end
+function Inventory:is_volatile(workload) return false end
 
 ---Attempt to update the inventory using best available data. Does nothing
 ---when inventory is volatile.
@@ -249,107 +250,131 @@ function StopInventory:new()
 	return inv --[[@as Cybersyn.StopInventory]]
 end
 
-function StopInventory:is_volatile()
-	local controlling_stop = cs2.get_stop(self.created_for_node_id)
-	if not controlling_stop then
-		error(
-			"StopInventory without associated controlling stop, should be impossible"
-		)
+---@param controlling_stop Cybersyn.TrainStop
+---@param slaves Cybersyn.TrainStop[]|nil
+function StopInventory:is_volatile(controlling_stop, slaves)
+	if controlling_stop.entity.get_stopped_train() then return true end
+
+	if slaves then
+		-- A master inventory is volatile if any of its slaves has a parked train
+		for _, slave in pairs(slaves) do
+			if slave.entity.get_stopped_train() then return true end
+		end
 	end
 
-	if controlling_stop.shared_inventory_slaves then
-		-- A shared inventory is volatile if any of its slaves has a parked train
-		for slave_id in pairs(controlling_stop.shared_inventory_slaves) do
-			local slave = cs2.get_stop(slave_id)
-			if slave and slave.entity.get_stopped_train() then return true end
+	return false
+end
+
+---@param controlling_stop Cybersyn.TrainStop
+---@param slaves Cybersyn.TrainStop[]|nil
+local function stop_inventory_is_volatile(controlling_stop, slaves)
+	if controlling_stop.entity.get_stopped_train() then return true end
+
+	if slaves then
+		-- A master inventory is volatile if any of its slaves has a parked train
+		for _, slave in pairs(slaves) do
+			if slave.entity.get_stopped_train() then return true end
 		end
-		return not not controlling_stop.entity.get_stopped_train()
-	else
-		return not not controlling_stop.entity.get_stopped_train()
 	end
+
+	return false
 end
 
 function StopInventory:update(workload, reread)
 	add_workload(workload, 1)
-	if self:is_volatile() then return false end
 	local stop = cs2.get_stop(self.created_for_node_id, true)
 	if not stop then return false end
+	if stop.shared_inventory_master then
+		strace.warn(
+			"Attempted to update a shared inventory slave's inventory directly. This should only be done from the master stop."
+		)
+		return false
+	end
+	local slaves = nil
+	if stop.is_master then
+		add_workload(workload, 2)
+		slaves = stop:get_slaves()
+	end
+
+	if stop_inventory_is_volatile(stop, slaves) then return false end
 
 	-- Reread inv combs
 	if reread then
-		for combinator_id in pairs(stop.combinator_set) do
-			local comb = cs2.get_combinator(combinator_id, true)
-			if comb then
-				local mode = comb.mode
-				if mode == "inventory" then
-					comb:read_inputs()
-					add_workload(workload, 5)
-				elseif mode == "station" then
-					comb:read_inputs()
-					add_workload(workload, 5)
-					local primary_wire = comb:get_primary_wire()
-					if primary_wire == "green" then
-						self:set_base(comb.green_inputs)
-						if workload then
-							add_workload(workload, table_size(comb.green_inputs))
-						end
-					else
-						self:set_base(comb.red_inputs)
-						if workload then
-							add_workload(workload, table_size(comb.red_inputs))
-						end
-					end
+		local master_station_comb = stop:read_inventory_combinator_inputs(workload)
+		-- Set base from station comb primary wire
+		if master_station_comb then
+			local primary_wire = master_station_comb:get_primary_wire()
+			if primary_wire == "green" then
+				self:set_base(master_station_comb.green_inputs)
+				if workload then
+					add_workload(workload, table_size(master_station_comb.green_inputs))
 				end
+			else
+				self:set_base(master_station_comb.red_inputs)
+				if workload then
+					add_workload(workload, table_size(master_station_comb.red_inputs))
+				end
+			end
+		end
+
+		-- Reread slave combs
+		if slaves then
+			for _, slave in pairs(slaves) do
+				slave:read_inventory_combinator_inputs(workload)
 			end
 		end
 	end
 
 	-- Reread orders
 	for _, order in pairs(self.orders) do
-		-- XXX: this if is only here to prevent a crash during Alpha.
-		if order.read then order:read(workload) end
+		order:read(workload)
 	end
 
 	return true
 end
 
----Destroy and rebuild all orders for this inventory.
-function StopInventory:rebuild_orders()
-	---@type Cybersyn.Order[]
-	local orders = {}
-	self.orders = orders
-	local controlling_stop = cs2.get_stop(self.created_for_node_id)
-	if not controlling_stop then return end
+---Append a set of Orders for the given master inventory to the given order
+---array.
+---@param orders Cybersyn.Order[] The array to which orders will be appended.
+---@param master_stop Cybersyn.TrainStop The stop controlling the content of the orders.
+---@param target_stop? Cybersyn.TrainStop The stop that will be targeted by trains filling the orders. Used by shared inventory order cloning.
+function StopInventory:append_orders(orders, master_stop, target_stop)
+	if target_stop == nil then target_stop = master_stop end
 
-	for _, comb in cs2.iterate_combinators(controlling_stop) do
+	for _, comb in cs2.iterate_combinators(master_stop) do
 		if comb.mode == "station" then
 			-- Opposite wire on station comb treated as an order.
 			local primary_wire = comb:get_primary_wire()
 			local opposite_wire = primary_wire == "green" and "red" or "green"
 			orders[#orders + 1] =
-				Order:new(self, controlling_stop.id, "primary", comb.id, opposite_wire)
+				Order:new(self, target_stop.id, "primary", comb.id, opposite_wire)
 		elseif comb.mode == "inventory" then
 			-- Both wires on inventory comb treated as orders.
 			orders[#orders + 1] =
-				Order:new(self, controlling_stop.id, "primary", comb.id, "red")
-
+				Order:new(self, target_stop.id, "primary", comb.id, "red")
 			orders[#orders + 1] =
-				Order:new(self, controlling_stop.id, "secondary", comb.id, "green")
+				Order:new(self, target_stop.id, "secondary", comb.id, "green")
 		end
 	end
+	return orders
+end
 
-	-- Copy orders for slaves
-	-- TODO: Fix shared inventory.
-	if controlling_stop.shared_inventory_slaves then
-		local n_orders_to_copy = #orders
-		for slave_id in pairs(controlling_stop.shared_inventory_slaves) do
-			local slave = cs2.get_stop(slave_id)
-			if slave then
-				for i = 1, n_orders_to_copy do
-					local old_order = orders[i]
-					local new_order = assign({}, old_order) --[[@as Cybersyn.Order]]
-					new_order.node_id = slave.id
-					orders[#orders + 1] = new_order
+---Destroy and rebuild all orders for this inventory.
+---@param workload Core.Thread.Workload?
+function StopInventory:rebuild_orders(workload)
+	local master_stop = cs2.get_stop(self.created_for_node_id)
+	if not master_stop then return end
+	self.orders = self:append_orders({}, master_stop)
+
+	-- Master stop must also generate all orders for slaves.
+	if master_stop.is_master then
+		for _, slave in pairs(master_stop:get_slaves()) do
+			local slave_station = slave:get_combinator_with_mode("station")
+			if slave_station then
+				if slave_station:get_shared_inventory_independent_orders() then
+					self:append_orders(self.orders, slave, slave)
+				else
+					self:append_orders(self.orders, master_stop, slave)
 				end
 			end
 		end
@@ -372,6 +397,7 @@ cs2.on_node_created(function(node)
 	end
 end, true)
 
+-- Destroy autocreated inventories when their nodes are destroyed.
 cs2.on_node_destroyed(function(node)
 	local inv = cs2.get_inventory(node.created_inventory_id)
 	if inv then inv:destroy() end

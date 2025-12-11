@@ -141,8 +141,8 @@ lib.CarriageType = {
 ---@field public reserved_capacity uint? Reserved capacity per fluid wagon
 ---@field public spillover uint? Spillover per item per cargo wagon
 ---@field public per_wagon_mode boolean? `true` if the station is in per-wagon mode due to the presence of a wagon comb.
----@field public shared_inventory_slaves IdSet? Exists only if this station is a shared-inventory master and contains the ids of the slaves.
----@field public shared_inventory_master Id? The id of the shared inventory master, if this station is a slave.
+---@field public shared_inventory_master Id? The id of the shared inventory master station, if this station is a slave.
+---@field public is_master boolean? `true` if this station is (or was) the master of a shared inventory group.
 ---@field public allowed_min_item_slot_capacity uint? Min item capacity for allowed trains at this stop. Zero means station can't handle items. `nil` means could not be evaluated.
 ---@field public allowed_max_item_slot_capacity uint? Max item capacity for allowed trains at this stop. Zero means station can't handle items. `nil` means could not be evaluated.
 ---@field public allowed_min_fluid_capacity uint? Min fluid capacity for allowed trains at this stop. Zero means station can't handle fluids. `nil` means could not be evaluated.
