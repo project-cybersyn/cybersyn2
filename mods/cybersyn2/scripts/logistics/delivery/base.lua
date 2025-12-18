@@ -108,6 +108,15 @@ function Delivery:is_in_final_state()
 	return self.state == "completed" or self.state == "failed"
 end
 
+---Determine if this delivery is in a state where it is validly waiting for
+---another world event (e.g. a queue slot to empty.)
+function Delivery:is_in_wait_state() return false end
+
+---Determine if a delivery should be considered stuck and alert or handle
+---accordingly. Called by the monitor thread periodically.
+---@param workload Core.Thread.Workload?
+function Delivery:check_stuck(workload) end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
@@ -166,6 +175,7 @@ end
 function DeliveryMonitor:enum_delivery(delivery_id)
 	local delivery = get_delivery(delivery_id, true)
 	if not delivery then return end
+
 	-- Destroy expired deliveries.
 	if
 		delivery:is_in_final_state()
@@ -176,6 +186,9 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 	then
 		return delivery:destroy()
 	end
+
+	-- Check stuck deliveries
+	delivery:check_stuck(self.workload_counter)
 
 	for _, view in pairs(storage.views) do
 		view:enter_delivery(self.workload_counter, delivery)
