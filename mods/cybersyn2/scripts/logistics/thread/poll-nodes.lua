@@ -76,6 +76,8 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	local providers = self.providers
 	local requesters = self.requesters
 
+	add_workload(self.workload_counter, 1)
+
 	for _, view in pairs(storage.views) do
 		view:enter_order(self.workload_counter, order, stop)
 	end

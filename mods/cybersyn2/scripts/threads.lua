@@ -83,7 +83,9 @@ function StatefulThread:main()
 				self.id,
 				self.friendly_name,
 				"exceeded max loop iterations without yielding in state",
-				self.state
+				self.state,
+				"total_workload=",
+				total_workload
 			)
 			break
 		end
