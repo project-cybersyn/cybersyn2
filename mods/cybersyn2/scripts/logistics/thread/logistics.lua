@@ -53,6 +53,7 @@ local LogisticsThread = _G.cs2.LogisticsThread
 ---@field public requester Cybersyn.Order
 ---@field public provider_node Cybersyn.Node
 ---@field public provider Cybersyn.Order
+---@field public needs Cybersyn.Internal.Needs
 ---@field public satisfaction Cybersyn.Internal.Satisfaction
 ---@field public skip boolean? If `true` this match couldn't fulfill a previous need and should be skipped.
 
@@ -151,6 +152,7 @@ function LogisticsThread:loop_providers()
 			requester = requester,
 			provider_node = provider_node,
 			provider = provider,
+			needs = requester.needs,
 			satisfaction = satisfaction,
 		}
 	else
@@ -538,6 +540,7 @@ function LogisticsThread:route_train()
 	local reserved_slots = from.reserved_slots or 0
 	local reserved_capacity = from.reserved_capacity or 0
 	local spillover = from.spillover or 0
+	local starvation_item = match.needs.starvation_item
 
 	local manifest = {}
 	local spillover_manifest = nil
@@ -560,9 +563,21 @@ function LogisticsThread:route_train()
 	end
 
 	-- Item allocations
-	-- TODO: prefer starvation_item first
+	-- Prefer starvation_item first, then highest fulfillment qty.
 	local items = satisfaction.items or EMPTY
-	for item, qty in pairs(items) do
+	local item_keys = tlib.keys(items)
+	local n_item_keys = #item_keys
+	table.sort(item_keys, function(a, b)
+		if a == starvation_item then return true end
+		if b == starvation_item then return false end
+		local a_qty = items[a] or 0
+		local b_qty = items[b] or 0
+		return a_qty > b_qty
+	end)
+	add_workload(self.workload_counter, n_item_keys * math.log(n_item_keys))
+
+	for _, item in ipairs(item_keys) do
+		local qty = items[item] or 0
 		if remaining_item_slots <= 0 then break end
 		local stack_size = key_to_stacksize(item) or 1
 		local item_capacity = (remaining_item_slots * stack_size) - total_spillover
@@ -579,7 +594,7 @@ function LogisticsThread:route_train()
 			spillover_manifest[item] = spillover_qty
 		end
 	end
-	add_workload(self.workload_counter, 2 * table_size(items))
+	add_workload(self.workload_counter, 2 * n_item_keys)
 
 	-- Verify we have a manifest
 	local mi1, mq1 = next(manifest)
