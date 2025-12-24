@@ -73,28 +73,29 @@ end
 ---@return Cybersyn.Manager.InspectorEntry[]?
 local function entity_to_entries(entity)
 	if entity.name == "train-stop" then
-		local stop_query = { type = "stops", unit_numbers = { entity.unit_number } }
+		local res = remote.call("cybersyn2", "query", {
+			type = "stops",
+			unit_numbers = { entity.unit_number },
+		})
+		if (not res) or not res.data or (#res.data == 0) then return end
+		local stop = res.data[1]
+
 		local entries = {
 			{
-				key = "stop" .. entity.unit_number,
-				type = "InspectorItem.Generic",
-				query = stop_query,
-				caption = "TrainStop " .. entity.unit_number,
+				key = "stop" .. stop.id,
+				type = "InspectorItem.Stop",
+				stop_id = stop.id,
+				caption = "TrainStop " .. stop.id,
 			},
 		}
-		local res = remote.call("cybersyn2", "query", stop_query)
-		strace(strace_lib.INFO, "cs2-manager", "inspector", "message", res)
-		if res.data and #res.data == 1 then
-			local stop = res.data[1]
 
-			if stop.inventory_id then
-				entries[#entries + 1] = {
-					key = "inv" .. stop.inventory_id,
-					type = "InspectorItem.Inventory",
-					inventory_id = stop.inventory_id,
-					caption = "Inventory " .. stop.inventory_id,
-				}
-			end
+		if stop.inventory_id then
+			entries[#entries + 1] = {
+				key = "inv" .. stop.inventory_id,
+				type = "InspectorItem.Inventory",
+				inventory_id = stop.inventory_id,
+				caption = "Inventory " .. stop.inventory_id,
+			}
 		end
 		return entries
 	elseif entity.name == "cybersyn2-combinator" then

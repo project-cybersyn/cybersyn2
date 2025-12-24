@@ -9,6 +9,7 @@ require("scripts.manager.base")
 
 require("scripts.inspector.base")
 require("scripts.inspector.inventory")
+require("scripts.inspector.stop")
 require("scripts.inspector.train")
 
 require("scripts.main")
