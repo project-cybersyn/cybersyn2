@@ -154,7 +154,9 @@ function Train.new(lua_train)
 	return train
 end
 
-function Train.get(id, skip_validation)
+---@param id Id?
+---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence
+local function get_train(id, skip_validation)
 	local train = Vehicle.get(id, skip_validation)
 	if train and train.type == "train" then
 		return train --[[@as Cybersyn.Train]]
@@ -162,6 +164,8 @@ function Train.get(id, skip_validation)
 		return nil
 	end
 end
+Train.get = get_train
+_G.cs2.get_train = get_train
 
 ---Get a `Cybersyn.Train` from a Factorio `LuaTrain` object.
 ---@param luatrain_id Id?
@@ -258,7 +262,11 @@ function Train:clear_delivery(id)
 	if self.delivery_id == id then self.delivery_id = nil end
 end
 
-function Train:fail_delivery(id) return self:clear_delivery(id) end
+function Train:fail_delivery(id)
+	if (not id) or (self.delivery_id ~= id) then return end
+	self:clear_delivery(id)
+	self:clear_schedule()
+end
 
 ---@param schedule LuaSchedule
 ---@return boolean in_interrupt `true` if the schedule is currently interrupted
@@ -314,6 +322,16 @@ function Train:schedule(...)
 	end
 	if is_depot then schedule.go_to_station(1) end
 	return true
+end
+
+---Clear all temporary records from the train's schedule and attempt to
+---send it back to depot.
+function Train:clear_schedule()
+	local lua_train = self.lua_train --[[@as LuaTrain]]
+	local schedule = lua_train.get_schedule()
+	clear_schedule(schedule)
+	if lua_train.manual_mode then return end
+	schedule.go_to_station(1)
 end
 
 function Train:is_available()

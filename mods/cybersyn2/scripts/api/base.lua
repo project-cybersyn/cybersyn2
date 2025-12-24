@@ -45,3 +45,17 @@ end
 function _G.cs2.remote_api.rebuild_train_topologies()
 	cs2.rebuild_train_topologies()
 end
+
+---Force a failure of a delivery.
+---@param delivery_id Id ID of the delivery to fail.
+---@param reason? string Optional reason for the failure.
+function _G.cs2.remote_api.fail_delivery(delivery_id, reason)
+	local delivery = cs2.get_delivery(delivery_id)
+	if not delivery then
+		strace.warn("fail_delivery: Delivery ID not found:", delivery_id)
+		return { code = "invalid_delivery", message = "Delivery ID not found." }
+	end
+	strace.info("fail_delivery: Failing delivery ID", delivery_id)
+	delivery:fail(reason)
+	return nil
+end

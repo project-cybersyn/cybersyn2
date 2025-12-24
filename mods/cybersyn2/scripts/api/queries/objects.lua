@@ -145,6 +145,12 @@ function _G.cs2.query_handlers.deliveries(arg)
 			if d.vehicle_id == vehicle_id then return d end
 		end)
 		res = format_deliveries(filtered)
+	elseif arg.node_id then
+		local node_id = arg.node_id
+		local filtered = tlib.t_map_a(storage.deliveries, function(d)
+			if d.from_id == node_id or d.to_id == node_id then return d end
+		end)
+		res = format_deliveries(filtered)
 	end
 	return { data = res or {} }
 end

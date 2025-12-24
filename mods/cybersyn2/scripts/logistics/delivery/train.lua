@@ -110,11 +110,9 @@ function TrainDelivery:force_clear()
 	if from_stop then from_stop:remove_delivery(self.id) end
 	local to_stop = TrainStop.get(self.to_id)
 	if to_stop then to_stop:remove_delivery(self.id) end
-	local train = Train.get(self.vehicle_id)
+	local train = cs2.get_train(self.vehicle_id)
 	if train then train:fail_delivery(self.id) end
 end
-
-function TrainDelivery:enter_failed() self:force_clear() end
 
 ---@param stop_entity LuaEntity
 local function coordinate_entry(stop_entity)
@@ -363,6 +361,12 @@ function TrainDelivery:complete()
 		end
 	end
 	self:set_state("completed")
+end
+
+function TrainDelivery:fail(reason)
+	if self.state == "completed" or self.state == "failed" then return end
+	self:force_clear()
+	self:set_state("failed")
 end
 
 ---Train stop invokes this to notify a train on this delivery left
