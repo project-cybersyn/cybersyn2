@@ -6,9 +6,11 @@
 -- init: Virtual charges against source and dest inventory
 -- wait_from: Check for open slot at source and enter queue
 -- to_from: Add schedule for source
--- interrupted_from: Train was interrupted while trying to get to `from`, reschedule to `from` when it hits depot.
+-- at_from: Arrived at source
+-- interrupted_from: Train was interrupted while trying to get to `from`, reschedule `to_from` when it hits depot.
 -- wait_to: Clear virtual charge from source inventory, check for open slot at dest and enter queue
 -- to_to: Add schedule for dest.
+-- at_to: Arrived at dest.
 -- completed: Clear virtual charge from dest
 -- failed: Clear any virtual charges, remove from any queue slots
 
@@ -261,7 +263,7 @@ function TrainDelivery:goto_from()
 	local train = Train.get(self.vehicle_id)
 	local from = TrainStop.get(self.from_id)
 	if not train or not from then return self:fail() end
-	if self.state == "to_from" then return end
+	if self.state == "to_from" or self.state == "at_from" then return end
 
 	if self.state ~= "plugin_handoff" then
 		local result = query_route_plugins(
@@ -300,7 +302,7 @@ function TrainDelivery:goto_to()
 	local to = TrainStop.get(self.to_id)
 	self:clear_from_charge()
 	if not train or not to then return self:fail() end
-	if self.state == "to_to" then return end
+	if self.state == "to_to" or self.state == "at_to" then return end
 
 	if self.state ~= "plugin_handoff" then
 		local result = query_route_plugins(
@@ -372,13 +374,20 @@ end
 ---Train stop invokes this to notify a train on this delivery left
 ---that stop
 function TrainDelivery:notify_departed(stop)
-	if self.state == "to_from" and stop.id == self.from_id then
+	-- TODO: before release, remove "to_x" states from here. These are
+	-- only needed because of alpha migration reasons.
+	if
+		(self.state == "to_from" or self.state == "at_from")
+		and stop.id == self.from_id
+	then
 		self:clear_from_charge()
 		local to = TrainStop.get(self.to_id)
 		if not to then return self:fail() end
 		self:set_state("wait_to")
 		to:enqueue(self.id)
-	elseif self.state == "to_to" and stop.id == self.to_id then
+	elseif
+		(self.state == "to_to" or self.state == "at_to") and stop.id == self.to_id
+	then
 		self:complete()
 	else
 		strace(
@@ -407,6 +416,8 @@ function TrainDelivery:notify_arrived(stop)
 				stop.id,
 				priority
 			)
+		else
+			self:set_state("at_from")
 		end
 	elseif self.state == "to_to" then
 		if stop.id ~= self.to_id then
@@ -418,6 +429,8 @@ function TrainDelivery:notify_arrived(stop)
 				stop.id,
 				priority
 			)
+		else
+			self:set_state("at_to")
 		end
 	end
 end
