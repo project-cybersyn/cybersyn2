@@ -51,6 +51,10 @@ relm.define_element({
 				{ type = "deliveries", node_id = props.stop_id }
 			)
 			local deliveries = del_res.data or empty
+			tlib.filter_in_place(
+				deliveries,
+				function(d) return d.state ~= "completed" end
+			)
 			table.sort(
 				deliveries,
 				function(a, b) return a.created_tick > b.created_tick end
