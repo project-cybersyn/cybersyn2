@@ -443,7 +443,7 @@ end
 ---@field or_stacks uint? If set, the number of stacks requested for "or" mode.
 ---@field or_mask SignalSet? If set, the set of items requested for "or" mode. Should be considered spread over qualities if spread is set.
 ---@field all_stacks uint? If set, the number of stacks requested for "all" mode. `spread` applies if set.
----@field thresh_explicit SignalCounts? Explicit thresholds set by user using dt comb.
+---@field thresh SignalCounts? Per-item request thresholds.
 ---@field thresh_min_slots uint Minimum item slots dictated by fullness fraction.
 ---@field thresh_min_fluid uint Minimum fluid quantity dictated by fullness fraction.
 ---@field starvation_tick uint The last tick at which this need was fulfilled.
@@ -577,7 +577,7 @@ function Order:compute_needs(workload)
 			local res = {
 				items = items,
 				fluids = fluids,
-				thresh_explicit = thresh_explicit,
+				thresh = thresh,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
 				starvation_tick = starvation_tick,
@@ -643,7 +643,7 @@ function Order:compute_needs(workload)
 			---@type Cybersyn.Internal.Needs
 			local res = {
 				fluids = fluids,
-				thresh_explicit = thresh_explicit,
+				thresh = thresh,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
 				and_spread = and_spread,
@@ -695,7 +695,7 @@ function Order:compute_needs(workload)
 			---@type Cybersyn.Internal.Needs
 			local res = {
 				fluids = fluids,
-				thresh_explicit = thresh_explicit,
+				-- thresh_explicit = thresh_explicit,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
 				or_stacks = deficit_stacks,
@@ -736,7 +736,7 @@ function Order:compute_needs(workload)
 			---@type Cybersyn.Internal.Needs
 			local res = {
 				fluids = fluids,
-				thresh_explicit = thresh_explicit,
+				-- thresh_explicit = thresh_explicit,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
 				all_stacks = deficit_stacks,
@@ -753,7 +753,7 @@ function Order:compute_needs(workload)
 		---@type Cybersyn.Internal.Needs
 		local res = {
 			fluids = fluids,
-			thresh_explicit = thresh_explicit,
+			thresh = thresh,
 			thresh_min_slots = thresh_min_slots,
 			thresh_min_fluid = thresh_min_fluid,
 			starvation_tick = starvation_tick,
@@ -779,7 +779,7 @@ function Order:satisfy_needs(workload, needs)
 	local total_stacks = 0
 	local total_fluid = 0
 
-	local thresh_explicit = needs.thresh_explicit or EMPTY
+	local thresh = needs.thresh or EMPTY
 	local thresh_min_stacks = needs.thresh_min_slots or 0
 	local thresh_min_fluid = needs.thresh_min_fluid or 0
 
@@ -798,7 +798,7 @@ function Order:satisfy_needs(workload, needs)
 			local outflow = prov_outflow[key] or 0
 			local available =
 				min((prov_inv[key] or 0) - outflow, (provides[key] or 0) - outflow, qty)
-			if available > 0 and available >= (thresh_explicit[key] or 0) then
+			if available > 0 and available >= (thresh[key] or 0) then
 				fluids[key] = available
 				total_fluid = total_fluid + available
 			end
@@ -821,7 +821,7 @@ function Order:satisfy_needs(workload, needs)
 			local outflow = prov_outflow[key] or 0
 			local available =
 				min((prov_inv[key] or 0) - outflow, (provides[key] or 0) - outflow, qty)
-			if available > 0 and available >= (thresh_explicit[key] or 0) then
+			if available > 0 and available >= (thresh[key] or 0) then
 				items[key] = available
 			end
 		end
