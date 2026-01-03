@@ -30,6 +30,8 @@ local Inventory = _G.cs2.Inventory
 local TrainStop = _G.cs2.TrainStop
 local Train = _G.cs2.Train
 local Thread = thread_lib.Thread
+local mod_settings = _G.cs2.mod_settings
+local add_workload = thread_lib.add_workload
 
 ---@class Cybersyn.TrainDelivery
 local TrainDelivery = class("TrainDelivery", Delivery)
@@ -481,6 +483,32 @@ function TrainDelivery:notify_plugin_handoff(new_luatrain)
 	else
 		-- TODO: invalid handoff state handling?
 		error("invalid plugin handoff state")
+	end
+end
+
+function TrainDelivery:check_stuck(workload)
+	local t = game.tick
+	local prod_interval = (mod_settings.train_requester_prod_interval * 60)
+	local state_tick = self.state_tick
+	-- Prods
+	if self.state == "at_from" and prod_interval >= 1 then
+		local n_intended_prods = math.floor((t - state_tick) / prod_interval)
+		if n_intended_prods > (self._prods or 0) then
+			self._prods = n_intended_prods
+			local train = cs2.get_train(self.vehicle_id)
+			local stop = cs2.get_stop(self.from_id)
+			if (not train) or not stop then return end
+			script.raise_event("cybersyn2-prod-train", {
+				delivery_id = self.id,
+				train_id = self.vehicle_id,
+				luatrain = train.lua_train,
+				train_stock = train:get_stock(),
+				stop_id = self.from_id,
+				stop_entity = stop.entity,
+				prod_count = n_intended_prods,
+			})
+			add_workload(workload, 5)
+		end
 	end
 end
 
