@@ -489,10 +489,12 @@ end
 function TrainDelivery:check_stuck(workload)
 	local t = game.tick
 	local prod_interval = (mod_settings.train_requester_prod_interval * 60)
+	local stuck_timeout = (mod_settings.train_stuck_timeout * 60)
 	local state_tick = self.state_tick
+	local state_time = t - state_tick
 	-- Prods
 	if self.state == "at_from" and prod_interval >= 1 then
-		local n_intended_prods = math.floor((t - state_tick) / prod_interval)
+		local n_intended_prods = math.floor(state_time / prod_interval)
 		if n_intended_prods > (self._prods or 0) then
 			self._prods = n_intended_prods
 			local train = cs2.get_train(self.vehicle_id)
@@ -500,6 +502,7 @@ function TrainDelivery:check_stuck(workload)
 			if (not train) or not stop then return end
 			script.raise_event("cybersyn2-prod-train", {
 				delivery_id = self.id,
+				state = self.state,
 				train_id = self.vehicle_id,
 				luatrain = train.lua_train,
 				train_stock = train:get_stock(),
@@ -509,6 +512,16 @@ function TrainDelivery:check_stuck(workload)
 			})
 			add_workload(workload, 5)
 		end
+	end
+	-- Stuck
+	if
+		(self.state == "at_from" or self.state == "at_to")
+		and stuck_timeout > 0
+		and state_time >= stuck_timeout
+	then
+		-- Stuck
+	else
+		-- Unstuck
 	end
 end
 
