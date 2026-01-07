@@ -12,6 +12,7 @@ events.bind("cybersyn2-prod-train", function(event)
 		" to unstick it.",
 	}, {
 		skip = defines.print_skip.never,
+		sound = defines.print_sound.never,
 	})
 	for _, wagon in pairs(train.cargo_wagons) do
 		local inv = wagon.get_inventory(defines.inventory.cargo_wagon)
