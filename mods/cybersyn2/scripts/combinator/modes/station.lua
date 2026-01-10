@@ -250,7 +250,7 @@ relm.define_element({
 					),
 				}
 			),
-			ultros.WellFold({ caption = "Departure Conditions" }, {
+			ultros.WellSection({ caption = "Departure Conditions" }, {
 				ultros.Labeled(
 					{ caption = "Signal: Allow departure", top_margin = 6 },
 					{
@@ -305,7 +305,7 @@ relm.define_element({
 					true
 				),
 			}),
-			ultros.WellFold({
+			ultros.WellSection({
 				caption = "Outbound Item Handling",
 				visible = is_provider,
 			}, {
@@ -358,7 +358,7 @@ relm.define_element({
 					"produce_single_item"
 				),
 			}),
-			ultros.WellFold({ caption = "Shared Inventory" }, {
+			ultros.WellSection({ caption = "Shared Inventory" }, {
 				gui.Status(get_status_props(is_master, is_slave)),
 				ultros.If(
 					is_shared,
@@ -383,7 +383,7 @@ relm.define_element({
 					not is_slave
 				),
 			}),
-			ultros.WellFold({
+			ultros.WellSection({
 				caption = "Configuration via Circuit",
 			}, {
 				ultros.Labeled(
