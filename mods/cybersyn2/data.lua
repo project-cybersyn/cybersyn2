@@ -1,3 +1,5 @@
+_G.__RELM_GRAPHICS_PATH__ = "__cybersyn2__/lib/core/relm/graphics/"
+
 require("lib.core.relm.styles")
 
 require("prototypes.signal")
