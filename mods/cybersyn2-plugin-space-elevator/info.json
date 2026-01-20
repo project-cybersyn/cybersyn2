@@ -5,5 +5,12 @@
   "author": "The LORD thy GOD",
   "factorio_version": "2.0",
   "dependencies": ["base >= 2.0.57", "cybersyn2 >= 0.1.0", "space-exploration >= 0.7.35"],
-  "description": "Adds train routing support for Space Exploration's space elevators to Cybersyn 2."
+  "description": "Adds train routing support for Space Exploration's space elevators to Cybersyn 2.",
+  "package": {
+    "git_publish_branch": "main",
+    "ignore": [ ],
+    "scripts": {
+    },
+    "sync_portal_details": true
+  }
 }
