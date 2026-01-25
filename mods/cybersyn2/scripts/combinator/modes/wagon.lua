@@ -552,12 +552,18 @@ end
 ---@param cstrain Cybersyn.Train
 ---@param stop Cybersyn.TrainStop
 ---@param delivery Cybersyn.TrainDelivery
-local function set_producer_wagon_combs(cstrain, stop, delivery)
+local function set_provider_wagon_combs(cstrain, stop, delivery)
 	local combs = stop:get_associated_combinators(
 		function(c) return c.mode == "wagon" end
 	)
 	if #combs == 0 then return end
-	local manifests = create_wagon_manifests(cstrain, stop, delivery)
+	local manifests = delivery.wagon_manifests
+	if not manifests then
+		stlib.error(
+			"Wagon manifests were not precomputed on train arrival at provider..."
+		)
+		return
+	end
 	for _, comb in pairs(combs) do
 		local wagon = comb:find_connected_wagon()
 		if wagon then
@@ -573,7 +579,7 @@ end
 ---@param cstrain Cybersyn.Train
 ---@param stop Cybersyn.TrainStop
 ---@param delivery Cybersyn.TrainDelivery
-local function set_consumer_wagon_combs(cstrain, stop, delivery)
+local function set_requester_wagon_combs(cstrain, stop, delivery)
 	local combs = stop:get_associated_combinators(
 		function(c) return c.mode == "wagon" end
 	)
@@ -591,6 +597,27 @@ local function set_consumer_wagon_combs(cstrain, stop, delivery)
 	end
 end
 
+events.bind("cs2.train_pre_arrived", function(train, cstrain, stop)
+	if
+		not cstrain
+		or not stop
+		or not stop.per_wagon_mode
+		or not cstrain.delivery_id
+	then
+		return
+	end
+
+	local delivery = cs2.get_delivery(cstrain.delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+	if not delivery then return end
+
+	-- Precompute filters and manifest split at pre_arrival for requester.
+	-- This ensures that when the train actually arrives, the filters
+	-- are already set up correctly.
+	if delivery.from_id == stop.id then
+		delivery.wagon_manifests = create_wagon_manifests(cstrain, stop, delivery)
+	end
+end)
+
 -- On train arrival, if it is a wagon-based stop, generate a per wagon
 -- manifest.
 cs2.on_train_arrived(function(train, cstrain, stop)
@@ -606,9 +633,9 @@ cs2.on_train_arrived(function(train, cstrain, stop)
 	if not delivery then return end
 	if delivery.from_id == stop.id then
 		-- If this is the pickup stop for the delivery, output negative manifest
-		return set_producer_wagon_combs(cstrain, stop, delivery)
+		return set_provider_wagon_combs(cstrain, stop, delivery)
 	elseif delivery.to_id == stop.id then
 		-- If this is the dropoff stop for the delivery, output positive manifest
-		return set_consumer_wagon_combs(cstrain, stop, delivery)
+		return set_requester_wagon_combs(cstrain, stop, delivery)
 	end
 end)
