@@ -265,12 +265,29 @@ cs2.on_luatrain_changed_state(function(event)
 	local cstrain = Train.get_from_luatrain_id(luatrain.id)
 
 	if luatrain_state == WAIT_STATION then
-		-- Train just arrived at station
+		-- Train arrived either at a station or a coordinate stop.
 		local stop_entity = luatrain.station
 		local stop = (stop_entity and stop_entity.valid)
-				and TrainStop.get_stop_from_unit_number(stop_entity.unit_number)
+				and cs2.get_stop_from_unit_number(stop_entity.unit_number)
 			or nil
 		if cstrain then cstrain.stopped_at = stop_entity end
+
+		-- Coordinate stop (no stop_entity)
+		if cstrain and not stop_entity then
+			-- Raise a pre-arrival event for coordinate stops.
+			local fe = luatrain.front_end
+			local fer = fe and fe.rail
+			if fe and fer then
+				local pre_stop_entity = fer.get_rail_segment_stop(fe.direction)
+				local pre_stop = (pre_stop_entity and pre_stop_entity.valid)
+						and cs2.get_stop_from_unit_number(pre_stop_entity.unit_number)
+					or nil
+				if pre_stop then
+					events.raise("cs2.train_pre_arrived", luatrain, cstrain, pre_stop)
+				end
+			end
+		end
+
 		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_train_arrived(luatrain, cstrain, stop)
 	elseif old_state == WAIT_STATION then
@@ -278,8 +295,7 @@ cs2.on_luatrain_changed_state(function(event)
 		local stop = nil
 		if cstrain then
 			if cstrain.stopped_at and cstrain.stopped_at.valid then
-				stop =
-					TrainStop.get_stop_from_unit_number(cstrain.stopped_at.unit_number)
+				stop = cs2.get_stop_from_unit_number(cstrain.stopped_at.unit_number)
 			end
 			cstrain.stopped_at = nil
 		end
