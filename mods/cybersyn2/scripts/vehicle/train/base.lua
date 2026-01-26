@@ -62,7 +62,7 @@ local function destroy_train_group(name)
 		local vehicle = storage.vehicles[vehicle_id] --[[@as Cybersyn.Train]]
 		if vehicle and vehicle.group == name then
 			vehicle.group = nil
-			events.raise("cs2.group_train_removed", vehicle)
+			events.raise("cs2.group_train_removed", group, vehicle)
 		end
 	end
 	storage.train_groups[name] = nil
@@ -78,7 +78,7 @@ local function add_train_to_group(vehicle, group_name)
 	vehicle.group = group_name
 	if group and not group.trains[vehicle.id] then
 		group.trains[vehicle.id] = true
-		events.raise("cs2.group_train_added", vehicle)
+		events.raise("cs2.group_train_added", group, vehicle)
 	end
 end
 _G.cs2.add_train_to_group = add_train_to_group
@@ -90,7 +90,7 @@ local function remove_train_from_group(vehicle, group_name)
 	if not group then return end
 	if group.trains[vehicle.id] then
 		group.trains[vehicle.id] = nil
-		events.raise("cs2.group_train_removed", vehicle)
+		events.raise("cs2.group_train_removed", group, vehicle)
 	end
 	if not next(group.trains) then
 		-- Group is now empty, destroy it
@@ -99,9 +99,17 @@ local function remove_train_from_group(vehicle, group_name)
 end
 _G.cs2.remove_train_from_group = remove_train_from_group
 
----@param group_name string
+---@param group_name string?
 function _G.cs2.get_train_group(group_name)
-	return storage.train_groups[group_name]
+	return storage.train_groups[group_name or ""]
+end
+
+---Set whether a train group is marked for decomissioning.
+---@param group Cybersyn.Internal.TrainGroup
+---@param decomissioned boolean|nil
+function _G.cs2.set_train_group_decomissioned(group, decomissioned)
+	group.decomissioned = decomissioned
+	events.raise("cs2.group_settings_changed", group)
 end
 
 --------------------------------------------------------------------------------
@@ -353,6 +361,10 @@ function Train:is_available()
 
 	-- Manual mode trains are not available
 	if lua_train.manual_mode then return false end
+
+	-- Trains in disabled groups are not available
+	local group = cs2.get_train_group(lua_train.group)
+	if (not group) or group.decomissioned then return false end
 
 	-- Interrupted trains are not available
 	local schedule = lua_train.get_schedule()

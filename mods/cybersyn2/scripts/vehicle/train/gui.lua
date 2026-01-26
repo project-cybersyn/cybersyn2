@@ -1,6 +1,8 @@
 --------------------------------------------------------------------------------
--- Group management GUI
+-- Train/Group management GUI.
+-- This GUI is attached to the Train window when a train is selected in game.
 --------------------------------------------------------------------------------
+
 local events = require("lib.core.event")
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
@@ -36,12 +38,72 @@ local function close_train_gui(player)
 	end
 end
 
+local Group = relm.define_element({
+	name = "TrainGui.Group",
+	render = function(props, state)
+		---@cast state table
+		relm_util.use_event("cs2.group_train_added")
+		relm_util.use_event("cs2.group_settings_changed")
+		local group = state.group --[[@as Cybersyn.Internal.TrainGroup]]
+		local gname = (group and group.name) or "No group"
+
+		return ultros.If(
+			group,
+			ultros.WellSection({ caption = { "", "Group: " .. gname } }, {
+				ultros.Checkbox({
+					caption = "Enable logistics",
+					tooltip = "If checked, trains from this group are eligible for dispatch by Cybersyn. If unchecked, they will not be dispatched. (Deliveries that have already been dispatched will still be completed.)",
+					value = not group.decomissioned,
+					on_change = function(_, st)
+						cs2.set_train_group_decomissioned(group, not st)
+					end,
+				}),
+			})
+		)
+	end,
+	state = function(props)
+		local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+		local gn = cstrain and cstrain.group
+		local group = gn and cs2.get_train_group(gn)
+		if group then
+			return { group = group }
+		else
+			return {}
+		end
+	end,
+	message = function(me, payload, props, state)
+		---@cast state table
+		if payload.key == "cs2.group_train_added" then
+			local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+			local gn = cstrain and cstrain.group
+			local group = gn and cs2.get_train_group(gn)
+			if group ~= state.group then relm.set_state(me, { group = group }) end
+			return true
+		elseif payload.key == "cs2.group_settings_changed" then
+			if payload[1] == state.group then
+				relm.paint(me)
+				return true
+			end
+			return true
+		end
+		return false
+	end,
+})
+
+local Delivery = relm.define_element({
+	name = "TrainGui.Delivery",
+	render = function(props, state)
+		return ultros.WellSection({ caption = "Delivery" })
+	end,
+	state = function(props) return {} end,
+})
+
 local CsTrain = relm.define_element({
 	name = "TrainGui.CsTrain",
 	render = function(props, state)
 		return {
-			ultros.WellSection({ caption = "Group" }),
-			ultros.WellSection({ caption = "Delivery" }),
+			Group(props),
+			Delivery(props),
 		}
 	end,
 	state = function(props) return {} end,
