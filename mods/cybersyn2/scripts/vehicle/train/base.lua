@@ -21,6 +21,7 @@ local NO_FUEL = defines.entity_status.no_fuel
 ---@field public name string The factorio train group name.
 ---@field public trains IdSet The set of vehicle ids of trains in the group.
 ---@field public topology_id Id? The id of the topology manually assigned to this group, if any.
+---@field public decomissioned boolean? Whether the group is marked for decomissioning.
 
 ---Check if the given group name is considered a Cybersyn train group name.
 ---@param name string?
@@ -48,7 +49,7 @@ local function create_train_group(name)
 		trains = {},
 		topology_id = topology_id,
 	}
-	-- cs2.raise_train_group_created(name)
+	events.raise("cs2.group_created", name)
 end
 _G.cs2.create_train_group = create_train_group
 
@@ -61,11 +62,11 @@ local function destroy_train_group(name)
 		local vehicle = storage.vehicles[vehicle_id] --[[@as Cybersyn.Train]]
 		if vehicle and vehicle.group == name then
 			vehicle.group = nil
-			-- cs2.raise_train_group_train_removed(vehicle, name)
+			events.raise("cs2.group_train_removed", vehicle)
 		end
 	end
 	storage.train_groups[name] = nil
-	-- cs2.raise_train_group_destroyed(name)
+	events.raise("cs2.group_destroyed", name)
 end
 _G.cs2.destroy_train_group = destroy_train_group
 
@@ -77,7 +78,7 @@ local function add_train_to_group(vehicle, group_name)
 	vehicle.group = group_name
 	if group and not group.trains[vehicle.id] then
 		group.trains[vehicle.id] = true
-		-- cs2.raise_train_group_train_added(vehicle)
+		events.raise("cs2.group_train_added", vehicle)
 	end
 end
 _G.cs2.add_train_to_group = add_train_to_group
@@ -89,7 +90,7 @@ local function remove_train_from_group(vehicle, group_name)
 	if not group then return end
 	if group.trains[vehicle.id] then
 		group.trains[vehicle.id] = nil
-		-- cs2.raise_train_group_train_removed(vehicle, group_name)
+		events.raise("cs2.group_train_removed", vehicle)
 	end
 	if not next(group.trains) then
 		-- Group is now empty, destroy it
@@ -170,11 +171,13 @@ _G.cs2.get_train = get_train
 ---Get a `Cybersyn.Train` from a Factorio `LuaTrain` object.
 ---@param luatrain_id Id?
 ---@return Cybersyn.Train?
-function Train.get_from_luatrain_id(luatrain_id)
+local function get_from_luatrain_id(luatrain_id)
 	local vid = storage.luatrain_id_to_vehicle_id[luatrain_id or ""]
 	if not vid then return nil end
 	return storage.vehicles[vid] --[[@as Cybersyn.Train]]
 end
+Train.get_from_luatrain_id = get_from_luatrain_id
+_G.cs2.get_train_from_luatrain_id = get_from_luatrain_id
 
 function Train:destroy()
 	self.is_being_destroyed = true

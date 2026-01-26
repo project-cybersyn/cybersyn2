@@ -88,3 +88,11 @@ _G.cs2.ERROR_PRINT_OPTS = {
 	skip = defines.print_skip.never,
 	sound = defines.print_sound.always,
 }
+
+_G.cs2.ROLLING_STOCK_TYPES = {
+	["locomotive"] = true,
+	["cargo-wagon"] = true,
+	["fluid-wagon"] = true,
+	["artillery-wagon"] = true,
+	["infinity-cargo-wagon"] = true,
+}

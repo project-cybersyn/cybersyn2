@@ -50,6 +50,7 @@ require("scripts.vehicle.base")
 require("scripts.vehicle.train.base")
 require("scripts.vehicle.train.lifecycle")
 require("scripts.vehicle.train.layout")
+require("scripts.vehicle.train.gui")
 
 require("scripts.logistics.delivery.train") -- needs inventory, trainstop, train
 
