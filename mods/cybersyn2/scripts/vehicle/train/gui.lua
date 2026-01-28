@@ -188,7 +188,14 @@ events.bind(defines.events.on_gui_opened, function(event)
 	local player = game.get_player(event.player_index)
 	if not player then return end
 	if event.gui_type ~= defines.gui_type.entity then return end
-	local train_entity = player.opened --[[@as LuaEntity]]
+	local train_entity = player.opened --[[@as LuaEntity?]]
+	if
+		not train_entity
+		or not train_entity.valid
+		or not ROLLING_STOCK_TYPES[train_entity.type]
+	then
+		return
+	end
 	local luatrain = train_entity.train
 	if not luatrain then return end
 
