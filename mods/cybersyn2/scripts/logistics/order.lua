@@ -771,9 +771,18 @@ function Order:satisfy_needs(workload, needs)
 	local total_stacks = 0
 	local total_fluid = 0
 
+	local prov_thresh_min_stacks = self.fullness_when_providing
+			and (self.thresh_min_slots or 0)
+		or 0
+	local prov_thresh_min_fluid = self.fullness_when_providing
+			and (self.thresh_min_fluid or 0)
+		or 0
+
 	local thresh = needs.thresh or EMPTY
-	local thresh_min_stacks = needs.thresh_min_slots or 0
-	local thresh_min_fluid = needs.thresh_min_fluid or 0
+	local thresh_min_stacks =
+		max(needs.thresh_min_slots or 0, prov_thresh_min_stacks)
+	local thresh_min_fluid =
+		max(needs.thresh_min_fluid or 0, prov_thresh_min_fluid)
 
 	local prov_inv = self.inventory.inventory or EMPTY
 	local prov_outflow = self.inventory.outflow or EMPTY
