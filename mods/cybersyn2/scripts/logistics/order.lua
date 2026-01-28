@@ -88,7 +88,6 @@ function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 		busy_value = 0,
 		network_matching_mode = "or",
 		stacked_requests = false,
-		force_away = false,
 		no_starvation = false,
 	}
 	setmetatable(obj, self)
@@ -128,29 +127,23 @@ function Order:read(workload)
 	local stacked_requests
 	---@type boolean
 	local no_starvation
-	---@type SignalID | nil
-	local signal_force_away
 	if arity == "primary" then
 		network_matching_mode = comb:get_order_primary_network_matching_mode()
 		network = comb:get_order_primary_network()
 		stacked_requests = comb:get_order_primary_stacked_requests()
 		no_starvation = comb:get_order_primary_no_starvation()
-		signal_force_away = comb:get_order_primary_signal_force_away()
 	else
 		network_matching_mode = comb:get_order_secondary_network_matching_mode()
 		network = comb:get_order_secondary_network()
 		stacked_requests = comb:get_order_secondary_stacked_requests()
 		no_starvation = comb:get_order_secondary_no_starvation()
-		signal_force_away = comb:get_order_secondary_signal_force_away()
 	end
 	local is_each = network == "signal-each"
-	local force_away_name = signal_force_away and signal_force_away.name or nil
 
 	-- Direct config options
 	self.network_matching_mode = network_matching_mode
 	self.stacked_requests = stacked_requests
 	self.no_starvation = no_starvation
-	self.force_away = false
 	self.busy_value = stop:get_occupancy()
 	self.priority = stop.priority or 0
 	self.thresh_depletion_fraction = stop.auto_threshold_fraction
@@ -236,8 +229,6 @@ function Order:read(workload)
 				all_items_value = abs(count)
 			elseif signal_key == "cybersyn2-all-fluids" then
 				-- Ignore all fluids signal
-			elseif signal_key == force_away_name then
-				self.force_away = count ~= 0
 			elseif is_each or signal_key == network then
 				self.networks[signal_key] = count
 			end

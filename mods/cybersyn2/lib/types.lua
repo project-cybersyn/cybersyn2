@@ -185,7 +185,6 @@ lib.CarriageType = {
 ---@field public busy_value number Cached value computed at poll time regarding how busy the associated node is.
 ---@field public network_matching_mode "and"|"or" Network matching mode for this order.
 ---@field public stacked_requests boolean `true` if this order uses stacked requests.
----@field public force_away boolean `true` if this order is forcing away provided items
 ---@field public needs Cybersyn.Internal.Needs?
 ---@field public no_starvation boolean? `true` if this order ignores starvation logic
 ---@field public provide_single_item boolean? `true` if this order provides only single items per delivery
