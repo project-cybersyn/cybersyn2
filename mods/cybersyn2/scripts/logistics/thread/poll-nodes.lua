@@ -255,6 +255,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 
 	-- Outbound handling
 	stop.produce_single_item = comb:get_produce_single_item()
+	stop.fullness_when_providing = comb:get_fullness_when_providing()
 
 	add_workload(workload, 3)
 

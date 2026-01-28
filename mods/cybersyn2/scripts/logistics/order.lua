@@ -149,6 +149,7 @@ function Order:read(workload)
 	self.thresh_depletion_fraction = stop.auto_threshold_fraction
 	self.thresh_fullness_fraction = stop.train_fullness_fraction
 	self.provide_single_item = stop.produce_single_item
+	self.fullness_when_providing = stop.fullness_when_providing
 	local depletion_fraction = self.thresh_depletion_fraction or 1
 	local fullness_fraction = self.thresh_fullness_fraction or 0
 	local thresh_fullness_slots = (stop_amisc or 0) * fullness_fraction

@@ -44,6 +44,7 @@ local If = ultros.If
 ---@field public get_signal_reserved_fluid fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_signal_spillover fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_shared_inventory_independent_orders fun(self: Cybersyn.Combinator): boolean
+---@field public get_fullness_when_providing fun(self: Cybersyn.Combinator): boolean
 
 -- Name of the network virtual signal.
 cs2.register_raw_setting("network_signal", "network")
@@ -95,7 +96,7 @@ cs2.register_raw_setting("signal_spillover", "signal_spillover")
 -- Thresholds
 cs2.register_raw_setting("auto_threshold_percent", "auto_threshold_percent")
 cs2.register_raw_setting("train_fullness_percent", "train_fullness_percent")
-cs2.register_flag_setting("apply_fullness_at_provider", "station_flags", 7)
+cs2.register_flag_setting("fullness_when_providing", "station_flags", 7)
 
 -- Shared inventory
 cs2.register_flag_setting(
@@ -253,10 +254,10 @@ relm.define_element({
 				ultros.If(
 					is_provider,
 					gui.Checkbox(
-						"Enforce train fullness threshold at provider",
-						"If checked, this station will only provide items in quantities that meet the train fullness threshold set at this station in addition to any request thresholds that may apply.",
+						"Enforce train fullness threshold when providing",
+						"If checked, this station will only provide deliveries that meet the train fullness threshold set at this station. This means that even if a request threshold is met, a train will not depart unless it is sufficiently full.\n\nIf unchecked, only request thresholds apply as usual.",
 						props.combinator,
-						"apply_fullness_at_provider"
+						"fullness_when_providing"
 					)
 				),
 			}),
