@@ -12,6 +12,10 @@ data:extend({
 		name = "cybersyn2-view-destroyed",
 	},
 	{
+		type = "custom-event",
+		name = "cybersyn2-prod-train",
+	},
+	{
 		type = "mod-data",
 		name = "cybersyn2",
 		data = {

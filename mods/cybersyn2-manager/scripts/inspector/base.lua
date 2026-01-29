@@ -4,6 +4,7 @@ local relm = require("__cybersyn2__.lib.core.relm.relm")
 local relm_helpers = require("__cybersyn2__.lib.core.relm.util")
 local ultros = require("__cybersyn2__.lib.core.relm.ultros")
 local tlib = require("__cybersyn2__.lib.core.table")
+local pos_lib = require("__cybersyn2__.lib.core.math.pos")
 local mgr = _G.mgr
 
 local strace = strace_lib.strace
@@ -54,19 +55,35 @@ function _G.mgr.inspector.open(player_index)
 end
 
 ---@class Cybersyn.Manager.InspectorEntry
----@field public type string
+---@field public type string Relm element type to render.
 ---@field public key string Unique key to avoid dupe entries.
 ---@field public caption string
+---@field public props table Props to pass to the element.
 
 ---@param player_index uint
 ---@param entry Cybersyn.Manager.InspectorEntry[]
 function _G.mgr.inspector.add_entries(player_index, entry)
-	local root = inspector.get(player_index)
-	if not root then return end
-	relm.msg_broadcast(
-		relm.root_handle(root),
-		{ key = "add_entries", entries = entry }
-	)
+	local player = game.get_player(player_index)
+	if not player then return end
+	local screen = player.gui.screen
+	for idx, e in pairs(entry) do
+		if e.key and screen[e.key] then
+			-- Already present
+			return
+		end
+		local _, elt = relm.root_create(screen, e.key, "Cybersyn.SingleInspector", {
+			caption = (e.caption or ""),
+			child_type = e.type,
+			child_props = e.props,
+		})
+		-- "Cascade" the windows a bit
+		if elt then
+			local x, y = pos_lib.pos_get(elt.location or { 0, 0 })
+			x = x + (30 * idx)
+			y = y + (30 * idx)
+			elt.location = { x, y }
+		end
+	end
 end
 
 ---@param entity LuaEntity
@@ -84,7 +101,7 @@ local function entity_to_entries(entity)
 			{
 				key = "stop" .. stop.id,
 				type = "InspectorItem.Stop",
-				stop_id = stop.id,
+				props = { stop_id = stop.id },
 				caption = "TrainStop " .. stop.id,
 			},
 		}
@@ -93,7 +110,7 @@ local function entity_to_entries(entity)
 			entries[#entries + 1] = {
 				key = "inv" .. stop.inventory_id,
 				type = "InspectorItem.Inventory",
-				inventory_id = stop.inventory_id,
+				props = { inventory_id = stop.inventory_id },
 				caption = "Inventory " .. stop.inventory_id,
 			}
 		end
@@ -103,9 +120,11 @@ local function entity_to_entries(entity)
 			{
 				key = "comb" .. entity.unit_number,
 				type = "InspectorItem.Generic",
-				query = {
-					type = "combinators",
-					ids = { entity.unit_number },
+				props = {
+					query = {
+						type = "combinators",
+						ids = { entity.unit_number },
+					},
 				},
 				caption = "Combinator " .. entity.unit_number,
 			},
@@ -118,7 +137,7 @@ local function entity_to_entries(entity)
 					key = "train" .. train.id,
 					caption = "Train " .. train.id,
 					type = "InspectorItem.Train",
-					train_id = train.id,
+					props = { train_id = train.id },
 				},
 			}
 		end
@@ -126,9 +145,6 @@ local function entity_to_entries(entity)
 end
 
 events.bind("mgr.on_inspector_selected", function(event)
-	if not inspector.get(event.player_index) then
-		inspector.open(event.player_index)
-	end
 	local entries = tlib.flat_map(event.entities, entity_to_entries)
 	inspector.add_entries(event.player_index, entries)
 end)
@@ -262,6 +278,43 @@ relm.define_element({
 	message = function(me, payload, props)
 		if payload.key == "close" then
 			inspector.close(props.player_index)
+			return true
+		end
+		return false
+	end,
+})
+
+relm.define_element({
+	name = "Cybersyn.SingleInspector",
+	render = function(props)
+		return ultros.WindowFrame({
+			caption = props.caption or "Cybersyn Inspector",
+		}, {
+			Pr({
+				type = "frame",
+				style = "inside_shallow_frame",
+				direction = "vertical",
+				width = 400,
+				height = 800,
+			}, {
+				Pr({
+					type = "scroll-pane",
+					direction = "vertical",
+					horizontally_stretchable = true,
+					vertically_stretchable = true,
+					vertical_scroll_policy = "always",
+					horizontal_scroll_policy = "never",
+					extra_top_padding_when_activated = 0,
+					extra_left_padding_when_activated = 0,
+					extra_right_padding_when_activated = 0,
+					extra_bottom_padding_when_activated = 0,
+				}, relm.element(props.child_type, props.child_props)),
+			}),
+		})
+	end,
+	message = function(me, payload, props)
+		if payload.key == "close" then
+			relm.root_destroy(props.root_id)
 			return true
 		end
 		return false

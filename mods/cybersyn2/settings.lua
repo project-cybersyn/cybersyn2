@@ -60,6 +60,15 @@ data:extend({
 		maximum_value = 2147483647,
 	},
 	{
+		type = "double-setting",
+		name = "cybersyn2-setting-train-requester-prod-interval",
+		order = "cd",
+		setting_type = "runtime-global",
+		default_value = 60,
+		minimum_value = 1,
+		maximum_value = 2147483647,
+	},
+	{
 		type = "int-setting",
 		name = "cybersyn2-setting-queue-limit",
 		order = "bc",

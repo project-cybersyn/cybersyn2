@@ -44,6 +44,7 @@ local If = ultros.If
 ---@field public get_signal_reserved_fluid fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_signal_spillover fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_shared_inventory_independent_orders fun(self: Cybersyn.Combinator): boolean
+---@field public get_fullness_when_providing fun(self: Cybersyn.Combinator): boolean
 
 -- Name of the network virtual signal.
 cs2.register_raw_setting("network_signal", "network")
@@ -92,9 +93,10 @@ cs2.register_raw_setting("signal_reserved_slots", "signal_reserved_slots")
 cs2.register_raw_setting("signal_reserved_fluid", "signal_reserved_fluid")
 cs2.register_raw_setting("signal_spillover", "signal_spillover")
 
--- Inbound item handling
+-- Thresholds
 cs2.register_raw_setting("auto_threshold_percent", "auto_threshold_percent")
 cs2.register_raw_setting("train_fullness_percent", "train_fullness_percent")
+cs2.register_flag_setting("fullness_when_providing", "station_flags", 7)
 
 -- Shared inventory
 cs2.register_flag_setting(
@@ -214,9 +216,9 @@ relm.define_element({
 				is_request_only = is_request_only,
 				is_provide_only = is_provide_only,
 			}),
-			ultros.WellSection(
-				{ caption = "Inbound Item Handling", visible = is_requester },
-				{
+			ultros.WellSection({ caption = "Thresholds" }, {
+				ultros.If(
+					is_requester,
 					ultros.Labeled({ caption = "Depletion threshold", top_margin = 6 }, {
 						gui.Input({
 							tooltip = "Percentage of any requested item that must be missing before a delivery is triggered.\n\nNOTE: All thresholds are hints to the system and may not be strictly enforced.",
@@ -230,27 +232,36 @@ relm.define_element({
 							allow_decimal = false,
 							allow_negative = false,
 						}),
-					}),
-					ultros.Labeled(
-						{ caption = "Train fullness threshold", top_margin = 6 },
-						{
-							gui.Input({
-								tooltip = "Percentage of total train cargo capacity that should be filled before a train will deliver an outstanding request.\n\nNOTE: All thresholds are hints to the system and may not be strictly enforced.",
-								combinator = combinator,
-								setting = "train_fullness_percent",
-								displayed_default_value = math.floor(
-									mod_settings.default_train_fullness_fraction * 100
-								),
-								width = 75,
-								numeric = true,
-								allow_decimal = false,
-								allow_negative = false,
-							}),
-						}
-					),
-				}
-			),
-			ultros.WellFold({ caption = "Departure Conditions" }, {
+					})
+				),
+				ultros.Labeled(
+					{ caption = "Train fullness threshold", top_margin = 6 },
+					{
+						gui.Input({
+							tooltip = "Percentage of total train cargo capacity that should be filled before a train will deliver an outstanding request.\n\nNOTE: All thresholds are hints to the system and may not be strictly enforced.",
+							combinator = combinator,
+							setting = "train_fullness_percent",
+							displayed_default_value = math.floor(
+								mod_settings.default_train_fullness_fraction * 100
+							),
+							width = 75,
+							numeric = true,
+							allow_decimal = false,
+							allow_negative = false,
+						}),
+					}
+				),
+				ultros.If(
+					is_provider,
+					gui.Checkbox(
+						"Enforce train fullness threshold when providing",
+						"If checked, this station will only provide deliveries that meet the train fullness threshold set at this station. This means that even if a request threshold is met, a train will not depart unless it is sufficiently full.\n\nIf unchecked, only request thresholds apply as usual.",
+						props.combinator,
+						"fullness_when_providing"
+					)
+				),
+			}),
+			ultros.WellSection({ caption = "Departure Conditions" }, {
 				ultros.Labeled(
 					{ caption = "Signal: Allow departure", top_margin = 6 },
 					{
@@ -305,7 +316,7 @@ relm.define_element({
 					true
 				),
 			}),
-			ultros.WellFold({
+			ultros.WellSection({
 				caption = "Outbound Item Handling",
 				visible = is_provider,
 			}, {
@@ -358,7 +369,7 @@ relm.define_element({
 					"produce_single_item"
 				),
 			}),
-			ultros.WellFold({ caption = "Shared Inventory" }, {
+			ultros.WellSection({ caption = "Shared Inventory" }, {
 				gui.Status(get_status_props(is_master, is_slave)),
 				ultros.If(
 					is_shared,
@@ -383,7 +394,7 @@ relm.define_element({
 					not is_slave
 				),
 			}),
-			ultros.WellFold({
+			ultros.WellSection({
 				caption = "Configuration via Circuit",
 			}, {
 				ultros.Labeled(

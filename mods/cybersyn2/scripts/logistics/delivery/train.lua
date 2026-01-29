@@ -6,9 +6,11 @@
 -- init: Virtual charges against source and dest inventory
 -- wait_from: Check for open slot at source and enter queue
 -- to_from: Add schedule for source
--- interrupted_from: Train was interrupted while trying to get to `from`, reschedule to `from` when it hits depot.
+-- at_from: Arrived at source
+-- interrupted_from: Train was interrupted while trying to get to `from`, reschedule `to_from` when it hits depot.
 -- wait_to: Clear virtual charge from source inventory, check for open slot at dest and enter queue
 -- to_to: Add schedule for dest.
+-- at_to: Arrived at dest.
 -- completed: Clear virtual charge from dest
 -- failed: Clear any virtual charges, remove from any queue slots
 
@@ -28,6 +30,8 @@ local Inventory = _G.cs2.Inventory
 local TrainStop = _G.cs2.TrainStop
 local Train = _G.cs2.Train
 local Thread = thread_lib.Thread
+local mod_settings = _G.cs2.mod_settings
+local add_workload = thread_lib.add_workload
 
 ---@class Cybersyn.TrainDelivery
 local TrainDelivery = class("TrainDelivery", Delivery)
@@ -261,7 +265,7 @@ function TrainDelivery:goto_from()
 	local train = Train.get(self.vehicle_id)
 	local from = TrainStop.get(self.from_id)
 	if not train or not from then return self:fail() end
-	if self.state == "to_from" then return end
+	if self.state == "to_from" or self.state == "at_from" then return end
 
 	if self.state ~= "plugin_handoff" then
 		local result = query_route_plugins(
@@ -300,7 +304,7 @@ function TrainDelivery:goto_to()
 	local to = TrainStop.get(self.to_id)
 	self:clear_from_charge()
 	if not train or not to then return self:fail() end
-	if self.state == "to_to" then return end
+	if self.state == "to_to" or self.state == "at_to" then return end
 
 	if self.state ~= "plugin_handoff" then
 		local result = query_route_plugins(
@@ -372,13 +376,20 @@ end
 ---Train stop invokes this to notify a train on this delivery left
 ---that stop
 function TrainDelivery:notify_departed(stop)
-	if self.state == "to_from" and stop.id == self.from_id then
+	-- TODO: before release, remove "to_x" states from here. These are
+	-- only needed because of alpha migration reasons.
+	if
+		(self.state == "to_from" or self.state == "at_from")
+		and stop.id == self.from_id
+	then
 		self:clear_from_charge()
 		local to = TrainStop.get(self.to_id)
 		if not to then return self:fail() end
 		self:set_state("wait_to")
 		to:enqueue(self.id)
-	elseif self.state == "to_to" and stop.id == self.to_id then
+	elseif
+		(self.state == "to_to" or self.state == "at_to") and stop.id == self.to_id
+	then
 		self:complete()
 	else
 		strace(
@@ -407,6 +418,8 @@ function TrainDelivery:notify_arrived(stop)
 				stop.id,
 				priority
 			)
+		else
+			self:set_state("at_from")
 		end
 	elseif self.state == "to_to" then
 		if stop.id ~= self.to_id then
@@ -418,6 +431,8 @@ function TrainDelivery:notify_arrived(stop)
 				stop.id,
 				priority
 			)
+		else
+			self:set_state("at_to")
 		end
 	end
 end
@@ -468,6 +483,45 @@ function TrainDelivery:notify_plugin_handoff(new_luatrain)
 	else
 		-- TODO: invalid handoff state handling?
 		error("invalid plugin handoff state")
+	end
+end
+
+function TrainDelivery:check_stuck(workload)
+	local t = game.tick
+	local prod_interval = (mod_settings.train_requester_prod_interval * 60)
+	local stuck_timeout = (mod_settings.train_stuck_timeout * 60)
+	local state_tick = self.state_tick
+	local state_time = t - state_tick
+	-- Prods
+	if self.state == "at_from" and prod_interval >= 1 then
+		local n_intended_prods = math.floor(state_time / prod_interval)
+		if n_intended_prods > (self._prods or 0) then
+			self._prods = n_intended_prods
+			local train = cs2.get_train(self.vehicle_id)
+			local stop = cs2.get_stop(self.from_id)
+			if (not train) or not stop then return end
+			script.raise_event("cybersyn2-prod-train", {
+				delivery_id = self.id,
+				state = self.state,
+				train_id = self.vehicle_id,
+				luatrain = train.lua_train,
+				train_stock = train:get_stock(),
+				stop_id = self.from_id,
+				stop_entity = stop.entity,
+				prod_count = n_intended_prods,
+			})
+			add_workload(workload, 5)
+		end
+	end
+	-- Stuck
+	if
+		(self.state == "at_from" or self.state == "at_to")
+		and stuck_timeout > 0
+		and state_time >= stuck_timeout
+	then
+		-- Stuck
+	else
+		-- Unstuck
 	end
 end
 

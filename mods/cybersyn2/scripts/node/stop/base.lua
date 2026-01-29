@@ -93,12 +93,14 @@ end
 ---@param unit_number UnitNumber?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.TrainStop?
-function TrainStop.get_stop_from_unit_number(unit_number, skip_validation)
-	return Node.get(
+local function get_stop_from_unit_number(unit_number, skip_validation)
+	return cs2.get_node(
 		storage.stop_id_to_node_id[unit_number or ""],
 		skip_validation
 	) --[[@as Cybersyn.TrainStop?]]
 end
+TrainStop.get_stop_from_unit_number = get_stop_from_unit_number
+_G.cs2.get_stop_from_unit_number = get_stop_from_unit_number
 
 ---Determine if a train parked at this stop is reversed relative to the stop.
 ---@param lua_train LuaTrain

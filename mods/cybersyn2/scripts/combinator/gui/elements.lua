@@ -260,17 +260,6 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 					andor_dropdown_items
 				),
 			}),
-			ultros.Labeled({
-				caption = "Input signal: Force away",
-				top_margin = 6,
-				visible = not is_request_only,
-			}, {
-				gui.VirtualSignalPicker(
-					props.combinator,
-					"order_" .. arity .. "_signal_force_away",
-					"If a signal is given and it has a nonzero value, 'force away' mode will be enabled on this station.\n\nIn 'force away' mode, items provided by this order will ignore thresholds of requesting stations."
-				),
-			}),
 			gui.InnerHeading({
 				caption = "Flags",
 				visible = not is_provide_only,

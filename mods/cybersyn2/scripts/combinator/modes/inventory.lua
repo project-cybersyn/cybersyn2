@@ -27,8 +27,6 @@ local strformat = string.format
 ---@field public get_order_secondary_network_matching_mode fun(self: Cybersyn.Combinator): "and" | "or"
 ---@field public get_order_primary_network fun(self: Cybersyn.Combinator): string
 ---@field public get_order_secondary_network fun(self: Cybersyn.Combinator): string
----@field public get_order_primary_signal_force_away fun(self: Cybersyn.Combinator): SignalID|nil
----@field public get_order_secondary_signal_force_away fun(self: Cybersyn.Combinator): SignalID|nil
 ---@field public get_order_primary_no_starvation fun(self: Cybersyn.Combinator): boolean
 ---@field public get_order_secondary_no_starvation fun(self: Cybersyn.Combinator): boolean
 
@@ -50,15 +48,6 @@ cs2.register_raw_setting(
 
 cs2.register_raw_setting("order_primary_network", "order_primary_network")
 cs2.register_raw_setting("order_secondary_network", "order_secondary_network")
-
-cs2.register_raw_setting(
-	"order_primary_signal_force_away",
-	"order_primary_signal_force_away"
-)
-cs2.register_raw_setting(
-	"order_secondary_signal_force_away",
-	"order_secondary_signal_force_away"
-)
 
 --------------------------------------------------------------------------------
 -- GUI

@@ -70,6 +70,8 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	if not order then return self:set_state("poll_nodes") end
 
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
+	if not stop:is_valid() then self:set_state("poll_nodes") end
+
 	-- Shared inventory: order may be for a different stop.
 	local order_stop = stop --[[@as Cybersyn.TrainStop?]]
 	if order.node_id ~= stop.id then order_stop = cs2.get_stop(order.node_id) end
@@ -253,6 +255,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 
 	-- Outbound handling
 	stop.produce_single_item = comb:get_produce_single_item()
+	stop.fullness_when_providing = comb:get_fullness_when_providing()
 
 	add_workload(workload, 3)
 

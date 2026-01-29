@@ -9,7 +9,10 @@
     "editor.defaultFormatter": "JohnnyMorganz.stylua",
     "editor.formatOnSave": true
   },
-  "Lua.workspace.library": ["d:\\dev\\factorio\\0-things\\remote-interface.lua", "d:\\dev\\factorio\\0-things\\types.lua"],
+  "Lua.workspace.library": [
+    "d:\\dev\\factorio\\0-things\\remote-interface.lua",
+    "d:\\dev\\factorio\\0-things\\types.lua"
+  ],
   "Lua.workspace.ignoreSubmodules": false,
   "stylua.targetReleaseVersion": "latest",
   "factorio.versions": [

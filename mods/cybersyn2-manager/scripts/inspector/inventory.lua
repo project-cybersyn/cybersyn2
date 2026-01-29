@@ -77,7 +77,6 @@ local order_renderers = {
 	busy_value = default_renderer,
 	network_matching_mode = default_renderer,
 	stacked_requests = default_renderer,
-	force_away = default_renderer,
 	needs = default_renderer,
 	provides = function(_, counts)
 		if next(counts) then

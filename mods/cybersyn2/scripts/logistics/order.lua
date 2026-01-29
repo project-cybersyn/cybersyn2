@@ -88,7 +88,6 @@ function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 		busy_value = 0,
 		network_matching_mode = "or",
 		stacked_requests = false,
-		force_away = false,
 		no_starvation = false,
 	}
 	setmetatable(obj, self)
@@ -128,34 +127,29 @@ function Order:read(workload)
 	local stacked_requests
 	---@type boolean
 	local no_starvation
-	---@type SignalID | nil
-	local signal_force_away
 	if arity == "primary" then
 		network_matching_mode = comb:get_order_primary_network_matching_mode()
 		network = comb:get_order_primary_network()
 		stacked_requests = comb:get_order_primary_stacked_requests()
 		no_starvation = comb:get_order_primary_no_starvation()
-		signal_force_away = comb:get_order_primary_signal_force_away()
 	else
 		network_matching_mode = comb:get_order_secondary_network_matching_mode()
 		network = comb:get_order_secondary_network()
 		stacked_requests = comb:get_order_secondary_stacked_requests()
 		no_starvation = comb:get_order_secondary_no_starvation()
-		signal_force_away = comb:get_order_secondary_signal_force_away()
 	end
 	local is_each = network == "signal-each"
-	local force_away_name = signal_force_away and signal_force_away.name or nil
 
 	-- Direct config options
 	self.network_matching_mode = network_matching_mode
 	self.stacked_requests = stacked_requests
 	self.no_starvation = no_starvation
-	self.force_away = false
 	self.busy_value = stop:get_occupancy()
 	self.priority = stop.priority or 0
 	self.thresh_depletion_fraction = stop.auto_threshold_fraction
 	self.thresh_fullness_fraction = stop.train_fullness_fraction
 	self.provide_single_item = stop.produce_single_item
+	self.fullness_when_providing = stop.fullness_when_providing
 	local depletion_fraction = self.thresh_depletion_fraction or 1
 	local fullness_fraction = self.thresh_fullness_fraction or 0
 	local thresh_fullness_slots = (stop_amisc or 0) * fullness_fraction
@@ -236,8 +230,6 @@ function Order:read(workload)
 				all_items_value = abs(count)
 			elseif signal_key == "cybersyn2-all-fluids" then
 				-- Ignore all fluids signal
-			elseif signal_key == force_away_name then
-				self.force_away = count ~= 0
 			elseif is_each or signal_key == network then
 				self.networks[signal_key] = count
 			end
@@ -443,7 +435,7 @@ end
 ---@field or_stacks uint? If set, the number of stacks requested for "or" mode.
 ---@field or_mask SignalSet? If set, the set of items requested for "or" mode. Should be considered spread over qualities if spread is set.
 ---@field all_stacks uint? If set, the number of stacks requested for "all" mode. `spread` applies if set.
----@field thresh_explicit SignalCounts? Explicit thresholds set by user using dt comb.
+---@field thresh SignalCounts? Per-item request thresholds.
 ---@field thresh_min_slots uint Minimum item slots dictated by fullness fraction.
 ---@field thresh_min_fluid uint Minimum fluid quantity dictated by fullness fraction.
 ---@field starvation_tick uint The last tick at which this need was fulfilled.
@@ -577,7 +569,7 @@ function Order:compute_needs(workload)
 			local res = {
 				items = items,
 				fluids = fluids,
-				thresh_explicit = thresh_explicit,
+				thresh = thresh,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
 				starvation_tick = starvation_tick,
@@ -643,7 +635,7 @@ function Order:compute_needs(workload)
 			---@type Cybersyn.Internal.Needs
 			local res = {
 				fluids = fluids,
-				thresh_explicit = thresh_explicit,
+				thresh = thresh,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
 				and_spread = and_spread,
@@ -695,7 +687,7 @@ function Order:compute_needs(workload)
 			---@type Cybersyn.Internal.Needs
 			local res = {
 				fluids = fluids,
-				thresh_explicit = thresh_explicit,
+				-- thresh_explicit = thresh_explicit,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
 				or_stacks = deficit_stacks,
@@ -736,7 +728,7 @@ function Order:compute_needs(workload)
 			---@type Cybersyn.Internal.Needs
 			local res = {
 				fluids = fluids,
-				thresh_explicit = thresh_explicit,
+				-- thresh_explicit = thresh_explicit,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
 				all_stacks = deficit_stacks,
@@ -753,7 +745,7 @@ function Order:compute_needs(workload)
 		---@type Cybersyn.Internal.Needs
 		local res = {
 			fluids = fluids,
-			thresh_explicit = thresh_explicit,
+			thresh = thresh,
 			thresh_min_slots = thresh_min_slots,
 			thresh_min_fluid = thresh_min_fluid,
 			starvation_tick = starvation_tick,
@@ -779,9 +771,18 @@ function Order:satisfy_needs(workload, needs)
 	local total_stacks = 0
 	local total_fluid = 0
 
-	local thresh_explicit = needs.thresh_explicit or EMPTY
-	local thresh_min_stacks = needs.thresh_min_slots or 0
-	local thresh_min_fluid = needs.thresh_min_fluid or 0
+	local prov_thresh_min_stacks = self.fullness_when_providing
+			and (self.thresh_min_slots or 0)
+		or 0
+	local prov_thresh_min_fluid = self.fullness_when_providing
+			and (self.thresh_min_fluid or 0)
+		or 0
+
+	local thresh = needs.thresh or EMPTY
+	local thresh_min_stacks =
+		max(needs.thresh_min_slots or 0, prov_thresh_min_stacks)
+	local thresh_min_fluid =
+		max(needs.thresh_min_fluid or 0, prov_thresh_min_fluid)
 
 	local prov_inv = self.inventory.inventory or EMPTY
 	local prov_outflow = self.inventory.outflow or EMPTY
@@ -798,7 +799,7 @@ function Order:satisfy_needs(workload, needs)
 			local outflow = prov_outflow[key] or 0
 			local available =
 				min((prov_inv[key] or 0) - outflow, (provides[key] or 0) - outflow, qty)
-			if available > 0 and available >= (thresh_explicit[key] or 0) then
+			if available > 0 and available >= (thresh[key] or 0) then
 				fluids[key] = available
 				total_fluid = total_fluid + available
 			end
@@ -821,7 +822,7 @@ function Order:satisfy_needs(workload, needs)
 			local outflow = prov_outflow[key] or 0
 			local available =
 				min((prov_inv[key] or 0) - outflow, (provides[key] or 0) - outflow, qty)
-			if available > 0 and available >= (thresh_explicit[key] or 0) then
+			if available > 0 and available >= (thresh[key] or 0) then
 				items[key] = available
 			end
 		end

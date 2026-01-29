@@ -1,0 +1,9 @@
+{
+  "name": "cybersyn2-plugin-prod-trains",
+  "version": "0.1.0",
+  "title": "Cybersyn 2 - Prod Trains Plugin",
+  "author": "The LORD thy GOD",
+  "factorio_version": "2.0",
+  "dependencies": ["base >= 2.0.57", "cybersyn2 >= 0.1.0"],
+  "description": "A plugin for Cybersyn 2 that will prod stuck trains by sorting their inventories. Requires Cybersyn 2."
+}

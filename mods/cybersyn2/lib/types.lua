@@ -137,6 +137,7 @@ lib.CarriageType = {
 ---@field public inactivity_mode "deliver"|"forceout"|nil How to apply inactivity timeouts
 ---@field public disable_cargo_condition boolean? `true` if the cargo condition should be ignored
 ---@field public produce_single_item boolean? `true` if the station should only provide single items per delivery
+---@field public fullness_when_providing boolean? `true` if the station should enforce train fullness threshold when providing
 ---@field public reserved_slots uint? Reserved slots per cargo wagon
 ---@field public reserved_capacity uint? Reserved capacity per fluid wagon
 ---@field public spillover uint? Spillover per item per cargo wagon
@@ -185,10 +186,10 @@ lib.CarriageType = {
 ---@field public busy_value number Cached value computed at poll time regarding how busy the associated node is.
 ---@field public network_matching_mode "and"|"or" Network matching mode for this order.
 ---@field public stacked_requests boolean `true` if this order uses stacked requests.
----@field public force_away boolean `true` if this order is forcing away provided items
 ---@field public needs Cybersyn.Internal.Needs?
 ---@field public no_starvation boolean? `true` if this order ignores starvation logic
 ---@field public provide_single_item boolean? `true` if this order provides only single items per delivery
+---@field public fullness_when_providing boolean? `true` if this order enforces train fullness threshold when providing
 
 ---@class Cybersyn.Inventory
 ---@field public id Id

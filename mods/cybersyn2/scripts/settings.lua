@@ -12,6 +12,7 @@ local strace = require("lib.core.strace")
 ---@field public warmup_time number Warmup time in seconds.
 ---@field public vehicle_warmup_time number Warmup time in seconds for vehicles.
 ---@field public train_stuck_timeout number Number of seconds of inactivity before a train is considered stuck.
+---@field public train_requester_prod_interval number Interval in seconds at a requester between prod events.
 ---@field public queue_limit uint Max trains in a queue, beyond local train limit.
 ---@field public excess_delivery_limit uint Max global deliveries that may address a station, beyond its local train limit.
 ---@field public default_auto_threshold_fraction number Default depletion threshold for trains, expressed as a fraction (0.0 to 1.0).
@@ -41,6 +42,8 @@ local function update_mod_settings()
 		settings.global["cybersyn2-setting-vehicle-warmup-time"].value --[[@as number]]
 	mod_settings.train_stuck_timeout =
 		settings.global["cybersyn2-setting-train-stuck-time"].value --[[@as number]]
+	mod_settings.train_requester_prod_interval =
+		settings.global["cybersyn2-setting-train-requester-prod-interval"].value --[[@as number]]
 	mod_settings.queue_limit =
 		settings.global["cybersyn2-setting-queue-limit"].value --[[@as uint]]
 	mod_settings.excess_delivery_limit =
