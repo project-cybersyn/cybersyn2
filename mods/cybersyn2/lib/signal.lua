@@ -153,6 +153,22 @@ local function signal_to_key(signal)
 end
 lib.signal_to_key = signal_to_key
 
+---Convert ItemWithQualityCount to a key.
+---@param iwq ItemWithQualityCount
+---@return SignalKey
+local function iwq_to_key(iwq)
+	return exploded_signal_to_key(iwq.name, "item", iwq.quality)
+end
+lib.iwq_to_key = iwq_to_key
+
+---Convert a fluid name to a key.
+---@param fluid_name string
+---@return SignalKey
+local function fluid_name_to_key(fluid_name)
+	return exploded_signal_to_key(fluid_name, "fluid")
+end
+lib.fluid_name_to_key = fluid_name_to_key
+
 ---@param key string
 ---@return string? name
 ---@return string? type

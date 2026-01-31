@@ -383,8 +383,20 @@ function TrainDelivery:notify_departed(stop)
 		and stop.id == self.from_id
 	then
 		self:clear_from_charge()
-		local to = TrainStop.get(self.to_id)
-		if not to then return self:fail() end
+
+		-- Compute actual loaded contents
+		local train = cs2.get_train(self.vehicle_id)
+		if not train then
+			-- XXX: this should never happen
+			return self:fail()
+		end
+		self.loaded = train:get_contents()
+
+		local to = cs2.get_stop(self.to_id)
+		if not to then
+			-- TODO: alert/log for missing or destroyed requester
+			return self:fail()
+		end
 		self:set_state("wait_to")
 		to:enqueue(self.id)
 	elseif
