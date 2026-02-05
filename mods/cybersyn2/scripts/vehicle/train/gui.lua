@@ -121,7 +121,7 @@ relm.define_element({
 		relm_util.use_event("cs2.vehicle_destroyed")
 
 		return ultros.WindowFrame({
-			caption = "[virtual-signal=cybersyn2] Cybersyn 2",
+			caption = "[virtual-signal=cybersyn2] Cybersyn 2 Train",
 			closable = false,
 		}, {
 			Pr({
