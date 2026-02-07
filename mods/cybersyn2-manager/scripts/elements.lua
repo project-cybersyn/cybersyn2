@@ -38,6 +38,26 @@ _G.mgr.SignalCountsButtons = relm.define_element({
 	end,
 })
 
+_G.mgr.SignalCountsTable = relm.define_element({
+	name = "Cybersyn.Manager.SignalCountsTable",
+	render = function(props)
+		local signal_counts = props.signal_counts or empty
+		local signals = {}
+		local counts = {}
+
+		for k, count in pairs(signal_counts) do
+			signals[#signals + 1] = siglib.key_to_signal(k)
+			counts[#counts + 1] = count
+		end
+
+		return ultros.SignalCountsTable({
+			signals = signals,
+			counts = counts,
+			column_count = props.column_count or 5,
+		})
+	end,
+})
+
 ---@param handle Relm.Handle
 local function view_effect(handle, filter)
 	local view_id = remote.call("cybersyn2", "create_view", filter.type, filter)

@@ -100,11 +100,10 @@ local InventoryColumn = relm.define_element({
 					vertical_scroll_policy = "always",
 					horizontal_scroll_policy = "never",
 				}, {
-					Pr({ type = "table", column_count = cols, style = "slot_table" }, {
-						mgr.SignalCountsButtons({
-							signal_counts = props.signal_counts,
-							button_style = props.button_style,
-						}),
+					ultros.SignalCountsTable({
+						column_count = cols,
+						signal_counts = props.signal_counts,
+						style = "slot_table",
 					}),
 				}),
 			}),

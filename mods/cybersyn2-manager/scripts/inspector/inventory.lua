@@ -15,37 +15,8 @@ local empty = tlib.empty
 local default_renderer = relm_table.default_renderer
 
 local function render_counts(counts)
-	return Pr({ type = "table", column_count = 5 }, {
-		mgr.SignalCountsButtons({ signal_counts = counts }),
-	})
-end
-
----@param order Cybersyn.Order
-local function render_order(order)
-	return Pr({
-		type = "table",
-		column_count = 5,
-	}, {
-		mgr.SignalCountsButtons({
-			signal_counts = order.provides,
-			button_style = "flib_slot_button_blue",
-		}),
-		mgr.SignalCountsButtons({
-			signal_counts = order.requests,
-			button_style = "flib_slot_button_yellow",
-		}),
-		mgr.SignalCountsButtons({
-			signal_counts = order.networks,
-			button_style = "flib_slot_button_grey",
-		}),
-		mgr.SignalCountsButtons({
-			signal_counts = { ["cybersyn2-priority"] = order.priority or 0 },
-			button_style = "flib_slot_button_grey",
-		}),
-		mgr.SignalCountsButtons({
-			signal_counts = order.thresholds_in,
-			button_style = "flib_slot_button_cyan",
-		}),
+	return mgr.SignalCountsTable({
+		signal_counts = counts,
 	})
 end
 

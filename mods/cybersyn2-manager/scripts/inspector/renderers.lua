@@ -51,8 +51,9 @@ local function reltime_renderer(k, v)
 end
 
 local function render_counts(counts)
-	return Pr({ type = "table", column_count = 5 }, {
-		mgr.SignalCountsButtons({ signal_counts = counts }),
+	return mgr.SignalCountsTable({
+		column_count = 5,
+		signal_counts = counts,
 	})
 end
 lib.render_counts = render_counts
