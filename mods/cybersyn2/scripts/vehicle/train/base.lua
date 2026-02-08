@@ -269,11 +269,17 @@ function Train:get_stock()
 end
 
 ---@param delivery Cybersyn.TrainDelivery
-function Train:set_delivery(delivery) self.delivery_id = delivery.id end
+function Train:set_delivery(delivery)
+	self.delivery_id = delivery.id
+	events.raise("cs2.train_delivery_set", self, delivery)
+end
 
 ---@param id Id
 function Train:clear_delivery(id)
-	if self.delivery_id == id then self.delivery_id = nil end
+	if self.delivery_id == id then
+		self.delivery_id = nil
+		events.raise("cs2.train_delivery_cleared", self, id)
+	end
 end
 
 function Train:fail_delivery(id)

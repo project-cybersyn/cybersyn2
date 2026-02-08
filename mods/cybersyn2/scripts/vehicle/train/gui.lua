@@ -8,6 +8,7 @@ local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local relm_util = require("lib.core.relm.util")
 local pos_lib = require("lib.core.math.pos")
+local delivery_gui = require("scripts.gui.delivery")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -93,7 +94,9 @@ local Group = relm.define_element({
 local Delivery = relm.define_element({
 	name = "TrainGui.Delivery",
 	render = function(props, state)
-		return ultros.WellSection({ caption = "Delivery" })
+		return ultros.WellSection({ caption = "Current Delivery" }, {
+			delivery_gui.TrainDeliveryFrame({ delivery = props.delivery }),
+		})
 	end,
 	state = function(props) return {} end,
 })
@@ -101,12 +104,30 @@ local Delivery = relm.define_element({
 local CsTrain = relm.define_element({
 	name = "TrainGui.CsTrain",
 	render = function(props, state)
+		local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+
+		local delivery = cstrain.delivery_id
+			and cs2.get_delivery(cstrain.delivery_id)
+		relm_util.use_event("cs2.train_delivery_set")
+		relm_util.use_event("cs2.train_delivery_cleared")
+
 		return {
 			Group(props),
-			Delivery(props),
+			ultros.If(delivery, Delivery({ delivery = delivery })),
 		}
 	end,
 	state = function(props) return {} end,
+	message = function(me, payload, props, state)
+		if
+			payload.key == "cs2.train_delivery_set"
+			or payload.key == "cs2.train_delivery_cleared"
+		then
+			local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+			if payload[1] == cstrain then relm.paint(me) end
+			return true
+		end
+		return false
+	end,
 })
 
 relm.define_element({
@@ -129,7 +150,7 @@ relm.define_element({
 				style = "inside_shallow_frame",
 				direction = "vertical",
 				width = 340,
-				minimal_height = 400,
+				height = 750,
 				horizontally_stretchable = false,
 				vertically_stretchable = true,
 			}, {
