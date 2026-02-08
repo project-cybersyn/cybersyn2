@@ -25,6 +25,12 @@ local function on_click_focus_on(entity)
 	end
 end
 
+local function on_click_cancel_delivery(delivery_id)
+	return function(me, event)
+		remote.call("cybersyn2", "fail_delivery", delivery_id, "CANCELLED_BY_USER")
+	end
+end
+
 local MinimapButton = relm.define_element({
 	name = "CS2.MinimapButton",
 	render = function(props, state)
@@ -91,6 +97,31 @@ local LabeledMapFrame = relm.define_element({
 	end,
 })
 lib.LabeledMapFrame = LabeledMapFrame
+
+local TrainDeliveryCancelButton = relm.define_element({
+	name = "CS2.TrainDeliveryCancelButton",
+	render = function(props, state)
+		local delivery = props.delivery --[[@as Cybersyn.TrainDelivery ]]
+		relm_util.use_event("cs2.delivery_state_changed")
+
+		return ultros.If(
+			delivery:is_cancellable(),
+			ultros.Button({
+				caption = "Cancel Delivery",
+				width = 322,
+				on_click = on_click_cancel_delivery(delivery.id),
+			})
+		)
+	end,
+	message = function(me, message, props)
+		if message.key == "cs2.delivery_state_changed" then
+			if message[1] == props.delivery then relm.paint(me) end
+			return true
+		else
+			return false
+		end
+	end,
+})
 
 local TrainManifestFrames = relm.define_element({
 	name = "CS2.TrainManifestFrames",
@@ -180,6 +211,7 @@ local TrainDeliveryFrame = relm.define_element({
 				}),
 			}),
 			TrainManifestFrames({ delivery = delivery }),
+			TrainDeliveryCancelButton({ delivery = delivery }),
 		})
 	end,
 })

@@ -537,6 +537,10 @@ function TrainDelivery:check_stuck(workload)
 	end
 end
 
+function TrainDelivery:is_cancellable()
+	return self.state ~= "completed" and self.state ~= "failed"
+end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------

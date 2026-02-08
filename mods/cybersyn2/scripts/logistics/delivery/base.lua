@@ -118,6 +118,10 @@ function Delivery:is_in_wait_state() return false end
 ---@param workload Core.Thread.Workload?
 function Delivery:check_stuck(workload) end
 
+---Determine if a delivery is cancellable by the user. This gates whether the "Cancel Delivery" button appears.
+---@return boolean
+function Delivery:is_cancellable() return false end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
