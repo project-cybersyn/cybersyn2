@@ -53,6 +53,18 @@ local function draw_connection(
 	end
 end
 
+local function clear_all_connection_render_objects()
+	for _, pstate in pairs(storage.players) do
+		if pstate.connection_render_objects then
+			for i = #pstate.connection_render_objects, 1, -1 do
+				pstate.connection_render_objects[i].destroy()
+				pstate.connection_render_objects[i] = nil
+			end
+			pstate.connection_render_objects = nil
+		end
+	end
+end
+
 ---@param player LuaPlayer
 local function render_connection(player)
 	local pstate = cs2.get_or_create_player_state(player.index)
@@ -163,6 +175,14 @@ events.bind("cybersyn2-linked-clear-cursor", function(ev)
 		render_connection(player)
 	end
 end)
+
+events.bind("on_shutdown", function() clear_all_connection_render_objects() end)
+
+-- Game events
+-- Don't bind these in recovery mode
+
+---@diagnostic disable-next-line: undefined-field
+if _G.__RECOVERY_MODE__ then return end
 
 events.bind(
 	defines.events.on_player_selected_area,

@@ -73,6 +73,12 @@ relm.define_element({
 	end,
 })
 
+-- Game events
+-- Don't bind these in recovery mode
+
+---@diagnostic disable-next-line: undefined-field
+if _G.__RECOVERY_MODE__ then return end
+
 events.bind(defines.events.on_gui_opened, function(event)
 	local player = game.get_player(event.player_index)
 	if not player then return end
