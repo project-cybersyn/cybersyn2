@@ -7,6 +7,9 @@ local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local cs2_lib = _G.cs2.lib
 
+-- If in recovery mode, do not bind to events. This allows the mod to be loaded and the state to be inspected or reset without being mutated.
+if _G.__RECOVERY_MODE__ then return end
+
 --------------------------------------------------------------------------------
 -- LuaTrains
 --------------------------------------------------------------------------------

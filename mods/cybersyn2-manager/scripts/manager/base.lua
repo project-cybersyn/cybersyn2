@@ -5,6 +5,7 @@ local ultros = require("__cybersyn2__.lib.core.relm.ultros")
 local tlib = require("__cybersyn2__.lib.core.table")
 local siglib = require("__cybersyn2__.lib.signal")
 local events = require("__cybersyn2__.lib.core.event")
+local cs2_elements = require("__cybersyn2__.scripts.gui.elements")
 local mgr = _G.mgr
 
 local strace = strace_lib.strace
@@ -100,7 +101,7 @@ local InventoryColumn = relm.define_element({
 					vertical_scroll_policy = "always",
 					horizontal_scroll_policy = "never",
 				}, {
-					ultros.SignalCountsTable({
+					cs2_elements.SignalCountsTable({
 						column_count = cols,
 						signal_counts = props.signal_counts,
 						style = "slot_table",
