@@ -102,6 +102,7 @@ function Delivery:on_changed_state(new_state, old_state)
 	self.state_tick = game.tick
 	StateMachine.on_changed_state(self, new_state, old_state)
 	cs2.raise_delivery_state_changed(self, new_state, old_state)
+	events.raise("cs2.delivery_state_changed", self, new_state, old_state)
 end
 
 function Delivery:is_in_final_state()
@@ -116,6 +117,10 @@ function Delivery:is_in_wait_state() return false end
 ---accordingly. Called by the monitor thread periodically.
 ---@param workload Core.Thread.Workload?
 function Delivery:check_stuck(workload) end
+
+---Determine if a delivery is cancellable by the user. This gates whether the "Cancel Delivery" button appears.
+---@return boolean
+function Delivery:is_cancellable() return false end
 
 --------------------------------------------------------------------------------
 -- Events

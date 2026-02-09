@@ -7,7 +7,6 @@ local strace = require("lib.core.strace")
 ---@field public enable_logistics boolean Enable or disable scheduling globally.
 ---@field public debug boolean Enable debug mode.
 ---@field public debug_level string Debug level ("NONE", "INFO", "TRACE").
----@field public work_period uint Number of ticks between work cycles.
 ---@field public work_factor number Multiplier applied to work done per cycle.
 ---@field public warmup_time number Warmup time in seconds.
 ---@field public vehicle_warmup_time number Warmup time in seconds for vehicles.
@@ -32,8 +31,6 @@ local function update_mod_settings()
 	local debug_level = settings.global["cybersyn2-setting-debug-level"].value --[[@as string]]
 	mod_settings.debug = debug_level ~= "NONE"
 	mod_settings.debug_level = debug_level
-	mod_settings.work_period =
-		settings.startup["cybersyn2-setting-work-period"].value --[[@as uint]]
 	mod_settings.work_factor =
 		settings.global["cybersyn2-setting-work-factor"].value --[[@as number]]
 	mod_settings.warmup_time =

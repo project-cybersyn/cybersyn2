@@ -4,6 +4,7 @@
 
 local class = require("lib.core.class").class
 local train_lib = require("lib.trains")
+local signal_lib = require("lib.signal")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
 local Vehicle = _G.cs2.Vehicle
@@ -11,6 +12,8 @@ local Topology = _G.cs2.Topology
 
 local strsub = string.sub
 local mod_settings = _G.cs2.mod_settings
+local iwq_to_key = signal_lib.iwq_to_key
+local fluid_name_to_key = signal_lib.fluid_name_to_key
 local NO_FUEL = defines.entity_status.no_fuel
 
 --------------------------------------------------------------------------------
@@ -266,11 +269,17 @@ function Train:get_stock()
 end
 
 ---@param delivery Cybersyn.TrainDelivery
-function Train:set_delivery(delivery) self.delivery_id = delivery.id end
+function Train:set_delivery(delivery)
+	self.delivery_id = delivery.id
+	events.raise("cs2.train_delivery_set", self, delivery)
+end
 
 ---@param id Id
 function Train:clear_delivery(id)
-	if self.delivery_id == id then self.delivery_id = nil end
+	if self.delivery_id == id then
+		self.delivery_id = nil
+		events.raise("cs2.train_delivery_cleared", self, id)
+	end
 end
 
 function Train:fail_delivery(id)
@@ -435,4 +444,25 @@ function Train:has_fuel()
 		end
 	end
 	return true
+end
+
+---Get the train's current contents as a `SignalCounts` table.
+---@return SignalCounts?
+function Train:get_contents()
+	local train = self.lua_train
+	if (not train) or not train.valid then return nil end
+
+	local contents = {}
+
+	local item_contents = train.get_contents()
+	for i = 1, #item_contents do
+		local iwq = item_contents[i]
+		contents[iwq_to_key(iwq)] = iwq.count
+	end
+
+	local fluid_contents = train.get_fluid_contents()
+	for name, count in pairs(fluid_contents) do
+		contents[fluid_name_to_key(name)] = count
+	end
+	return contents
 end

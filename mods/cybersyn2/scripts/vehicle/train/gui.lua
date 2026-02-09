@@ -8,6 +8,8 @@ local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local relm_util = require("lib.core.relm.util")
 local pos_lib = require("lib.core.math.pos")
+local delivery_gui = require("scripts.gui.delivery")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -38,6 +40,24 @@ local function close_train_gui(player)
 	end
 end
 
+local TrainInfo = relm.define_element({
+	name = "TrainGui.TrainInfo",
+	render = function(props, state)
+		local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+		return ultros.WellSection({ caption = "Train Info" }, {
+			ultros.Label("Vehicle ID: " .. cstrain.id),
+			ultros.Label(
+				"Capacity: "
+					.. cstrain.item_slot_capacity
+					.. " item slots, "
+					.. cstrain.fluid_capacity
+					.. " fluids"
+			),
+		})
+	end,
+	state = function(props) return {} end,
+})
+
 local Group = relm.define_element({
 	name = "TrainGui.Group",
 	render = function(props, state)
@@ -51,8 +71,8 @@ local Group = relm.define_element({
 			group,
 			ultros.WellSection({ caption = { "", "Group: " .. gname } }, {
 				ultros.Checkbox({
-					caption = "Enable logistics",
-					tooltip = "If checked, trains from this group are eligible for dispatch by Cybersyn. If unchecked, they will not be dispatched. (Deliveries that have already been dispatched will still be completed.)",
+					caption = "Enable logistics for group",
+					tooltip = "If checked, trains in this group are eligible for dispatch by Cybersyn. If unchecked, Cybersyn will not dispatch trains in this group. (Deliveries that have already been dispatched will still be completed.)",
 					value = not group.decomissioned,
 					on_change = function(_, st)
 						cs2.set_train_group_decomissioned(group, not st)
@@ -93,17 +113,91 @@ local Group = relm.define_element({
 local Delivery = relm.define_element({
 	name = "TrainGui.Delivery",
 	render = function(props, state)
-		return ultros.WellSection({ caption = "Delivery" })
+		local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+
+		local delivery = cstrain.delivery_id
+			and cs2.get_delivery(cstrain.delivery_id)
+		relm_util.use_event("cs2.train_delivery_set")
+		relm_util.use_event("cs2.train_delivery_cleared")
+
+		return delivery
+			and ultros.WellSection({ caption = "Current Delivery" }, {
+				delivery_gui.TrainDeliveryFrame({ delivery = delivery }),
+			})
 	end,
 	state = function(props) return {} end,
+	message = function(me, payload, props, state)
+		if
+			payload.key == "cs2.train_delivery_set"
+			or payload.key == "cs2.train_delivery_cleared"
+		then
+			local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+			if payload[1] == cstrain then relm.paint(me) end
+			return true
+		end
+		return false
+	end,
+})
+
+local DeliveryHistory = relm.define_element({
+	name = "TrainGui.DeliveryHistory",
+	render = function(props, state)
+		relm_util.use_event("cs2.delivery_state_changed")
+
+		local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+		local deliveries = tlib.t_map_a(storage.deliveries, function(delivery)
+			if delivery.vehicle_id == cstrain.id and delivery:is_in_final_state() then
+				return delivery
+			end
+		end)
+		table.sort(
+			deliveries,
+			function(a, b) return a.created_tick > b.created_tick end
+		)
+		local previous_delivery = deliveries[1]
+
+		if previous_delivery then
+			local t0 = previous_delivery.state_tick
+			local caption_element = ultros.TimedRepaintWrapper({
+				render = function()
+					local time_in_state = game.tick - t0
+					local time_in_state_s = math.floor(time_in_state / 60)
+					return Pr({
+						type = "label",
+						style = "subheader_caption_label",
+						caption = "Previous Delivery - " .. time_in_state_s .. "s ago",
+					})
+				end,
+			})
+
+			return ultros.WellSection({ caption_element = caption_element }, {
+				delivery_gui.TrainDeliveryFrame({ delivery = previous_delivery }),
+			})
+		end
+	end,
+	state = function(props) return {} end,
+	message = function(me, message, props, state)
+		if message.key == "cs2.delivery_state_changed" then
+			local delivery = message[1] --[[@as Cybersyn.Delivery]]
+			local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+			if delivery.vehicle_id == cstrain.id and delivery:is_in_final_state() then
+				relm.paint(me)
+			end
+			return true
+		else
+			return false
+		end
+	end,
 })
 
 local CsTrain = relm.define_element({
 	name = "TrainGui.CsTrain",
 	render = function(props, state)
 		return {
+			TrainInfo(props),
 			Group(props),
 			Delivery(props),
+			DeliveryHistory(props),
 		}
 	end,
 	state = function(props) return {} end,
@@ -120,24 +214,26 @@ relm.define_element({
 		relm_util.use_event("cs2.group_train_added")
 		relm_util.use_event("cs2.vehicle_destroyed")
 
+		local window_height = cstrain and 800 or 100
+
 		return ultros.WindowFrame({
-			caption = "[virtual-signal=cybersyn2] Cybersyn 2",
+			caption = "[virtual-signal=cybersyn2] Cybersyn 2 Train",
 			closable = false,
 		}, {
 			Pr({
 				type = "frame",
 				style = "inside_shallow_frame",
 				direction = "vertical",
-				width = 340,
-				minimal_height = 400,
+				width = 350,
+				height = window_height,
 				horizontally_stretchable = false,
-				vertically_stretchable = true,
 			}, {
 				Pr({
 					type = "scroll-pane",
 					direction = "vertical",
 					vertically_stretchable = true,
 					horizontal_scroll_policy = "never",
+					vertical_scroll_policy = "always",
 					extra_top_padding_when_activated = 0,
 					extra_left_padding_when_activated = 0,
 					extra_right_padding_when_activated = 0,

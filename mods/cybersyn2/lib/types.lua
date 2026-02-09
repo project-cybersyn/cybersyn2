@@ -212,6 +212,7 @@ lib.CarriageType = {
 ---@field public from_inventory_id Id The id of the inventory this delivery is from, if any.
 ---@field public to_inventory_id Id The id of the inventory this delivery is to, if any.
 ---@field public manifest SignalCounts The intended contents of the delivery.
+---@field public loaded SignalCounts? The actual contents loaded onto the vehicle at the provider.
 ---@field public topology_id Id The id of the topology this delivery is operating within.
 
 ---@class Cybersyn.TrainDelivery: Cybersyn.Delivery
