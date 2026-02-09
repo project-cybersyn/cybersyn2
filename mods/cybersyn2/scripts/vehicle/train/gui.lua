@@ -71,8 +71,8 @@ local Group = relm.define_element({
 			group,
 			ultros.WellSection({ caption = { "", "Group: " .. gname } }, {
 				ultros.Checkbox({
-					caption = "Enable logistics",
-					tooltip = "If checked, trains from this group are eligible for dispatch by Cybersyn. If unchecked, they will not be dispatched. (Deliveries that have already been dispatched will still be completed.)",
+					caption = "Enable logistics for group",
+					tooltip = "If checked, trains in this group are eligible for dispatch by Cybersyn. If unchecked, Cybersyn will not dispatch trains in this group. (Deliveries that have already been dispatched will still be completed.)",
 					value = not group.decomissioned,
 					on_change = function(_, st)
 						cs2.set_train_group_decomissioned(group, not st)
