@@ -152,7 +152,7 @@ function _G.cs2.lib.find_associable_entities_for_combinator(combinator_entity)
 	local rail_dist = INF
 	local entities = combinator_entity.surface.find_entities_filtered({
 		area = search_area,
-		name = {
+		type = {
 			"train-stop",
 			"straight-rail",
 		},
