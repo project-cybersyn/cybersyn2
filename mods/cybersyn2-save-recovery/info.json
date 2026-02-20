@@ -1,0 +1,16 @@
+{
+  "name": "cybersyn2-save-recovery",
+  "version": "1.0.0",
+  "title": "Cybersyn 2 - Save Recovery Tool",
+  "author": "The LORD thy GOD",
+  "factorio_version": "2.0",
+  "dependencies": ["base >= 2.0.67", "cybersyn2 >= 0.1.0"],
+  "description": "Broken save recovery tool for Cybersyn 2. Enabling this mod will cause Cybersyn 2 to reset its internal state. WARNING: Use this mod ONLY if your save is so broken that it crashes when loading.",
+  "package": {
+    "git_publish_branch": "main",
+    "ignore": [ ],
+    "scripts": {
+    },
+    "sync_portal_details": true
+  }
+}
