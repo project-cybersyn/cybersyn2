@@ -349,12 +349,14 @@ end
 ---@param satisfaction Cybersyn.Internal.Satisfaction
 ---@return number
 local function train_score(train, from, to, satisfaction)
+	local max_moved_fluid = min(satisfaction.total_fluid, train.fluid_capacity)
+	local max_moved_stacks =
+		min(satisfaction.total_stacks, train.item_slot_capacity)
+
 	local n_train_cap =
 		train_lib.normalize_capacity(train.item_slot_capacity, train.fluid_capacity)
-	local n_sat_size = train_lib.normalize_capacity(
-		satisfaction.total_stacks,
-		satisfaction.total_fluid
-	)
+	local n_sat_size =
+		train_lib.normalize_capacity(max_moved_stacks, max_moved_fluid)
 	-- Prefer trains that can move the most material.
 	local material_moved = min(n_sat_size, n_train_cap)
 	-- Amongst those trains, prefer those that use the most of their capacity.
@@ -393,16 +395,6 @@ function LogisticsThread:loop_trains()
 	if not train:is_available() then
 		self.avail_trains[self.train_index] = false
 		self.busy_rejections = self.busy_rejections + 1
-		return
-	end
-
-	-- Capacity rejection
-	local satisfaction = self.match.satisfaction
-	if
-		(satisfaction.total_fluid > 0 and train.fluid_capacity == 0)
-		or (satisfaction.total_stacks > 0 and train.item_slot_capacity == 0)
-	then
-		self.capacity_rejections = self.capacity_rejections + 1
 		return
 	end
 
@@ -600,7 +592,9 @@ function LogisticsThread:route_train()
 	-- Verify we have a manifest
 	local mi1, mq1 = next(manifest)
 	if (not mi1) or (mq1 < 1) then
-		error("Logic error: dispatch produced an empty manifest")
+		-- TODO: log possible capacity rejection here...
+		self:set_state("loop_matches")
+		return
 	end
 
 	-- Generate and mark delivery
