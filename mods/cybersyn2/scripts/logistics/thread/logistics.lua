@@ -358,7 +358,8 @@ local function train_score(train, from, to, satisfaction)
 	-- Prefer trains that can move the most material.
 	local material_moved = min(n_sat_size, n_train_cap)
 	-- Amongst those trains, prefer those that use the most of their capacity.
-	local cap_ratio = min(n_sat_size / n_train_cap, 1.0)
+	local cap_ratio =
+		min(n_train_cap < 1 and 0.0 or (n_sat_size / n_train_cap), 1.0)
 	-- Amongst the best-fitting trains, penalize those that are further away
 	local train_stock = train:get_stock()
 	if not train_stock then return -math.huge end
