@@ -5,6 +5,7 @@
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local signal_lib = require("lib.signal")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local gui = _G.cs2.gui
 
@@ -13,6 +14,7 @@ local signal_to_key = signal_lib.signal_to_key
 local key_to_signal = signal_lib.key_to_signal
 local Pr = relm.Primitive
 local VF = ultros.VFlow
+local EMPTY = tlib.EMPTY
 
 --------------------------------------------------------------------------------
 -- Settings
@@ -106,7 +108,12 @@ cs2.register_combinator_mode({
 -- Impl
 --------------------------------------------------------------------------------
 
-cs2.on_train_arrived(function(train, cstrain, stop)
+---Set the outputs of all manifest combs at the given stop, as if the given
+---train had arrived. Validates that the train is actually making a delivery
+---to or from the stop before doing anything.
+---@param cstrain Cybersyn.Train?
+---@param stop Cybersyn.TrainStop?
+local function set_manifest_outputs(cstrain, stop)
 	-- Validate relevance of delivery
 	if not cstrain or not stop or not cstrain.delivery_id then return end
 	local delivery = Delivery.get(cstrain.delivery_id) --[[@as Cybersyn.TrainDelivery?]]
@@ -150,18 +157,22 @@ cs2.on_train_arrived(function(train, cstrain, stop)
 			end
 		end
 	end
+end
+
+---@param stop Cybersyn.TrainStop
+local function clear_manifest_outputs(stop)
+	for _, comb in cs2.iterate_combinators(stop) do
+		if comb.mode == "manifest" then comb:direct_write_outputs(EMPTY) end
+	end
+end
+
+cs2.on_train_arrived(function(train, cstrain, stop)
+	if not cstrain or not stop then return end
+	return set_manifest_outputs(cstrain, stop)
 end)
 
 cs2.on_train_departed(function(train, cstrain, stop)
 	if not cstrain or not stop then return end
 	-- On train departure, clear all manifest combs.
-	local combs = stop:get_associated_combinators(
-		function(c) return c.mode == "manifest" end
-	)
-	if #combs > 0 then
-		local empty = {}
-		for _, comb in pairs(combs) do
-			comb:direct_write_outputs(empty)
-		end
-	end
+	return clear_manifest_outputs(stop)
 end)
