@@ -32,6 +32,11 @@ end
 
 ---@param player LuaPlayer
 local function close_train_gui(player)
+	-- Remove player from the polling monitor list
+	if storage.train_gui_opened_players then
+		storage.train_gui_opened_players[player.index] = nil
+	end
+
 	local elt = player.gui.screen[GUI_WINDOW_NAME]
 	if elt and elt.valid then
 		local id = relm.get_root_id(elt)
@@ -304,7 +309,12 @@ events.bind(defines.events.on_gui_opened, function(event)
 		{ train_entity = train_entity, luatrain = luatrain }
 	)
 
-	if elt then elt.location = get_train_gui_pos(player) end
+	if elt then
+		elt.location = get_train_gui_pos(player)
+		-- Monitor this player for "Orphan GUI" cleanup
+		storage.train_gui_opened_players = storage.train_gui_opened_players or {}
+		storage.train_gui_opened_players[player.index] = true
+	end
 end)
 
 events.bind(defines.events.on_gui_closed, function(event)
@@ -324,4 +334,40 @@ events.bind(defines.events.on_gui_closed, function(event)
 	st.train_gui_pos = { x, y }
 
 	close_train_gui(player)
+end)
+
+
+-- Cleanup orphan GUIs when the entity they were viewing is destroyed via script
+events.bind(events.nth_tick(15), function()
+	if not storage.train_gui_opened_players then return end
+
+	for player_index, _ in pairs(storage.train_gui_opened_players) do
+		local player = game.get_player(player_index)
+		if player then
+			local opened = player.opened
+			if not (opened and opened.valid and ROLLING_STOCK_TYPES[opened.type]) then
+				close_train_gui(player)
+			end
+		else
+			storage.train_gui_opened_players[player_index] = nil
+		end
+	end
+end)
+
+
+-- Cleanup orphan GUIs when the entity they were viewing is destroyed via script
+events.bind(events.nth_tick(15), function()
+	if not storage.train_gui_opened_players then return end
+
+	for player_index, _ in pairs(storage.train_gui_opened_players) do
+		local player = game.get_player(player_index)
+		if player then
+			local opened = player.opened
+			if not (opened and opened.valid and ROLLING_STOCK_TYPES[opened.type]) then
+				close_train_gui(player)
+			end
+		else
+			storage.train_gui_opened_players[player_index] = nil
+		end
+	end
 end)
