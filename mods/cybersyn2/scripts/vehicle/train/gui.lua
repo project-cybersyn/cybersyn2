@@ -270,7 +270,11 @@ relm.define_element({
 			local cstrain = luatrain
 				and luatrain.valid
 				and cs2.get_train_from_luatrain_id(luatrain.id)
-			if (not cstrain) or (not cstrain:is_valid()) then cstrain = nil end
+			if (not cstrain) or (not cstrain:is_valid()) then
+				cstrain = nil
+				-- Train became invalidated during this event, so close the GUI.
+				if relm.root_destroy(props.root_id) then return true end
+			end
 			if cstrain ~= state.cstrain then
 				relm.set_state(me, { cstrain = cstrain })
 			end
