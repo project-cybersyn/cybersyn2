@@ -280,6 +280,12 @@ relm.define_element({
 	end,
 })
 
+-- Game events
+-- Don't bind these in recovery mode
+
+---@diagnostic disable-next-line: undefined-field
+if _G.__RECOVERY_MODE__ then return end
+
 events.bind(defines.events.on_gui_opened, function(event)
 	local player = game.get_player(event.player_index)
 	if not player then return end
@@ -311,10 +317,6 @@ events.bind(defines.events.on_gui_closed, function(event)
 	local player = game.get_player(event.player_index)
 	if not player then return end
 	if event.gui_type ~= defines.gui_type.entity then return end
-	local train_entity = event.entity --[[@as LuaEntity?]]
-	if not train_entity or not ROLLING_STOCK_TYPES[train_entity.type] then
-		return
-	end
 
 	local elt = player.gui.screen[GUI_WINDOW_NAME]
 	if not elt or not elt.valid then return end

@@ -353,22 +353,20 @@ local function train_score(train, from, to, satisfaction)
 	local max_moved_stacks =
 		min(satisfaction.total_stacks, train.item_slot_capacity)
 
+	-- Prefer trains that can move the most material.
 	local n_train_cap =
 		train_lib.normalize_capacity(train.item_slot_capacity, train.fluid_capacity)
-	local n_sat_size =
+	local n_moved =
 		train_lib.normalize_capacity(max_moved_stacks, max_moved_fluid)
-	-- Prefer trains that can move the most material.
-	local material_moved = min(n_sat_size, n_train_cap)
 	-- Amongst those trains, prefer those that use the most of their capacity.
-	local cap_ratio =
-		min(n_train_cap < 1 and 0.0 or (n_sat_size / n_train_cap), 1.0)
+	local cap_ratio = min(n_train_cap < 1 and 0.0 or (n_moved / n_train_cap), 1.0)
 	-- Amongst the best-fitting trains, penalize those that are further away
 	local train_stock = train:get_stock()
 	if not train_stock then return -math.huge end
 	local stop = from.entity --[[@as LuaEntity]]
 	local dx = dist(stop, train_stock)
 
-	return (10000 * material_moved) + (1000 * cap_ratio) - dx
+	return (10000 * n_moved) + (1000 * cap_ratio) - dx
 end
 
 function LogisticsThread:loop_trains()
@@ -421,6 +419,8 @@ function LogisticsThread:loop_trains()
 		return
 	end
 
+	-- TODO: retrieve amount moved from train_score algorithm. If it's literal
+	-- zero, early-reject the train here with a capacity_rejection.
 	local score = train_score(train, from, to, self.match.satisfaction)
 	if score and score > self.best_train_score then
 		self.best_train = train

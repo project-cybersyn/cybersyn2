@@ -61,6 +61,9 @@ end
 _G.cs2.get_player_state = get_player_state
 
 local function clear_storage()
+	---@diagnostic disable-next-line: missing-fields
+	_G.storage = {}
+
 	storage.players = {}
 	storage.vehicles = {}
 	storage.combinators = {}

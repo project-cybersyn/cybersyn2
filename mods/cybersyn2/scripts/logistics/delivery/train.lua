@@ -266,6 +266,9 @@ function TrainDelivery:goto_from()
 	local from = TrainStop.get(self.from_id)
 	if not train or not from then return self:fail() end
 	if self.state == "to_from" or self.state == "at_from" then return end
+	-- If plugin_handoff is in progress (train still volatile), this is a
+	-- stale duplicate enqueue from process_queue. Bail out.
+	if self.state == "plugin_handoff" and train.volatile then return end
 
 	if self.state ~= "plugin_handoff" then
 		local result = query_route_plugins(
@@ -305,6 +308,9 @@ function TrainDelivery:goto_to()
 	self:clear_from_charge()
 	if not train or not to then return self:fail() end
 	if self.state == "to_to" or self.state == "at_to" then return end
+	-- If plugin_handoff is in progress (train still volatile), this is a
+	-- stale duplicate enqueue from process_queue. Bail out.
+	if self.state == "plugin_handoff" and train.volatile then return end
 
 	if self.state ~= "plugin_handoff" then
 		local result = query_route_plugins(
