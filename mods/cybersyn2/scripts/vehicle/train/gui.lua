@@ -190,99 +190,79 @@ local DeliveryHistory = relm.define_element({
 	end,
 })
 
-local CsTrain = relm.define_element({
-	name = "TrainGui.CsTrain",
-	render = function(props, state)
+local CsTrain = relm.define(
+	"TrainGui.CsTrain",
+	function(props)
 		return {
 			TrainInfo(props),
 			Group(props),
 			Delivery(props),
 			DeliveryHistory(props),
 		}
-	end,
-	state = function(props) return {} end,
-})
+	end
+)
 
-relm.define_element({
-	name = "TrainGui",
-	render = function(props, state)
-		local luatrain = props.luatrain --[[@as LuaTrain?]]
-		local cstrain = luatrain
-			and luatrain.valid
-			and cs2.get_train_from_luatrain_id(luatrain.id)
+relm.define("TrainGui", function(props)
+	local luatrain = props.luatrain --[[@as LuaTrain?]]
+	local cstrain = luatrain
+		and luatrain.valid
+		and cs2.get_train_from_luatrain_id(luatrain.id)
+	local window_height = cstrain and 800 or 100
 
-		relm_util.use_event("cs2.group_train_added")
-		relm_util.use_event("cs2.vehicle_destroyed")
+	-- A new train was added to a group.
+	relm_util.use_event_handler(
+		"cs2.group_train_added",
+		function(me, _, group, vehicle)
+			---@cast vehicle Cybersyn.Train
+			if vehicle.type ~= "train" then return end
+			if vehicle.lua_train ~= luatrain then return end
+			relm.paint(me)
+		end
+	)
 
-		local window_height = cstrain and 800 or 100
+	-- A train was removed.
+	relm_util.use_event_handler("cs2.vehicle_destroyed", function(me, _, vehicle)
+		if (not luatrain) or not luatrain.valid then
+			relm.root_destroy(props.root_id)
+			return
+		end
+		relm.paint(me)
+	end)
 
-		return ultros.WindowFrame({
-			caption = "[virtual-signal=cybersyn2] Cybersyn 2 Train",
-			closable = false,
+	return ultros.WindowFrame({
+		caption = "[virtual-signal=cybersyn2] Cybersyn 2 Train",
+		closable = false,
+	}, {
+		Pr({
+			type = "frame",
+			style = "inside_shallow_frame",
+			direction = "vertical",
+			width = 350,
+			height = window_height,
+			horizontally_stretchable = false,
 		}, {
 			Pr({
-				type = "frame",
-				style = "inside_shallow_frame",
+				type = "scroll-pane",
 				direction = "vertical",
-				width = 350,
-				height = window_height,
-				horizontally_stretchable = false,
+				vertically_stretchable = true,
+				horizontal_scroll_policy = "never",
+				vertical_scroll_policy = "always",
+				extra_top_padding_when_activated = 0,
+				extra_left_padding_when_activated = 0,
+				extra_right_padding_when_activated = 0,
+				extra_bottom_padding_when_activated = 0,
 			}, {
-				Pr({
-					type = "scroll-pane",
-					direction = "vertical",
-					vertically_stretchable = true,
-					horizontal_scroll_policy = "never",
-					vertical_scroll_policy = "always",
-					extra_top_padding_when_activated = 0,
-					extra_left_padding_when_activated = 0,
-					extra_right_padding_when_activated = 0,
-					extra_bottom_padding_when_activated = 0,
-				}, {
-					ultros.If(
-						cstrain,
-						CsTrain({ cstrain = cstrain, luatrain = luatrain })
-					),
-					ultros.If(
-						not cstrain,
-						ultros.RtMultilineLabel(
-							"This train is not managed by Cybersyn 2. Add it to a group beginning with [virtual-signal=cybersyn2]."
-						)
-					),
-				}),
+				ultros.If(cstrain, CsTrain({ cstrain = cstrain, luatrain = luatrain })),
+				ultros.If(
+					not cstrain,
+					ultros.RtMultilineLabel(
+						"This train is not managed by Cybersyn 2. Add it to a group beginning with [virtual-signal=cybersyn2]."
+					)
+				),
 			}),
-		})
-	end,
-	state = function(props)
-		local luatrain = props.luatrain --[[@as LuaTrain?]]
-		local cstrain = luatrain
-			and luatrain.valid
-			and cs2.get_train_from_luatrain_id(luatrain.id)
-		return cstrain and { cstrain = cstrain } or {}
-	end,
-	message = function(me, payload, props, state)
-		---@cast state table
-		if
-			payload.key == "cs2.group_train_added"
-			or payload.key == "cs2.vehicle_destroyed"
-		then
-			local luatrain = props.luatrain --[[@as LuaTrain?]]
-			local cstrain = luatrain
-				and luatrain.valid
-				and cs2.get_train_from_luatrain_id(luatrain.id)
-			if (not cstrain) or (not cstrain:is_valid()) then
-				cstrain = nil
-				-- Train became invalidated during this event, so close the GUI.
-				if relm.root_destroy(props.root_id) then return true end
-			end
-			if cstrain ~= state.cstrain then
-				relm.set_state(me, { cstrain = cstrain })
-			end
-			return true
-		end
-		return false
-	end,
-})
+		}),
+	})
+end)
 
 -- Game events
 -- Don't bind these in recovery mode

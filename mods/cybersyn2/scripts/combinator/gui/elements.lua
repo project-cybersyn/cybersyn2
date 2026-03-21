@@ -150,40 +150,37 @@ function _G.cs2.gui.Switch(tooltip, is_tristate, L, R, combinator, setting)
 	})
 end
 
-_G.cs2.gui.Input = relm.define_element({
-	name = "CombinatorGui.Input",
-	render = function(props, state)
-		local combinator = props.combinator
-		local dirty = not not (state and state.dirty)
-		local value = combinator["get_" .. props.setting](combinator)
-		if not value and props.displayed_default_value then
-			value = props.displayed_default_value
-		end
-		local tf_props = ultros.assign({
-			value = value,
-			on_change = "on_change",
-			on_confirm = "on_confirm",
-		}, props)
+_G.cs2.gui.Input = relm.define("CombinatorGui.Input", function(props)
+	local combinator = props.combinator
+	local setting = props.setting
+	local dirty, set_dirty = relm.use_state(false)
+	local value = combinator["get_" .. setting](combinator)
+	if not value and props.displayed_default_value then
+		value = props.displayed_default_value
+	end
+	local recent_value, set_recent_value = relm.use_state(value)
+	local tf_props = ultros.assign({
+		value = value,
+		on_change = function(_, _value)
+			set_recent_value(_value)
+			set_dirty(true)
+		end,
+		on_confirm = function(_, _value)
+			combinator["set_" .. setting](combinator, _value)
+			set_dirty(false)
+		end,
+		on_cleanup = function(_input, _input_props)
+			if dirty and recent_value then
+				combinator["set_" .. setting](combinator, recent_value)
+			end
+		end,
+	}, props) --[[@as table]]
 
-		return HF({
-			Pr({ type = "label", caption = "*", visible = dirty }),
-			ultros.Input(tf_props),
-		})
-	end,
-	message = function(me, message, props)
-		if message.key == "on_change" then
-			relm.set_state(me, { dirty = true })
-			return true
-		elseif message.key == "on_confirm" then
-			-- Handle on_confirm to save the value and clear dirty state
-			props.combinator["set_" .. props.setting](props.combinator, message.value)
-			relm.set_state(me, { dirty = false })
-			return true
-		else
-			return false
-		end
-	end,
-})
+	return HF({
+		Pr({ type = "label", caption = "*", visible = dirty }),
+		ultros.Input(tf_props),
+	})
+end)
 
 local STATUS_COLOR_SPRITES = {
 	red = "utility/status_not_working",
