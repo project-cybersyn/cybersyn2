@@ -5,6 +5,7 @@ local tlib = require("lib.core.table")
 local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
 local events = require("lib.core.event")
+local solib = require("lib.core.relm.smart-open")
 
 local combinator_modes = _G.cs2.combinator_modes
 
@@ -56,6 +57,17 @@ function _G.cs2.close_combinator_gui(player_index, silent)
 	destroy_gui_state(player_index)
 end
 
+events.bind("relm.root_destroyed", function(event)
+	local player_index = event.player_index
+	local state = storage.players[player_index]
+	if state and state.combinator_gui_root == event.root_id then
+		local player = game.get_player(player_index)
+		if player then player.play_sound({ path = cs2.COMBINATOR_CLOSE_SOUND }) end
+		state.combinator_gui_root = nil
+		destroy_gui_state(player_index)
+	end
+end)
+
 ---Open the combinator gui for a player.
 ---@param player_index PlayerIndex
 ---@param combinator Cybersyn.Combinator
@@ -76,7 +88,7 @@ function _G.cs2.open_combinator_gui(player_index, combinator)
 
 	if main_window then
 		main_window.force_auto_center()
-		player.opened = main_window
+		solib.smart_open(player, main_window, true)
 		state.combinator_gui_root = root_id
 	else
 		strace(

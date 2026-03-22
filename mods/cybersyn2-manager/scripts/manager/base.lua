@@ -6,6 +6,7 @@ local tlib = require("__cybersyn2__.lib.core.table")
 local siglib = require("__cybersyn2__.lib.signal")
 local events = require("__cybersyn2__.lib.core.event")
 local cs2_elements = require("__cybersyn2__.scripts.gui.elements")
+local solib = require("__cybersyn2__.lib.core.relm.smart-open")
 local mgr = _G.mgr
 
 local strace = strace_lib.strace
@@ -16,7 +17,7 @@ local empty = tlib.empty
 local ViewWrapper = _G.mgr.ViewWrapper
 
 _G.mgr.manager = {}
-_G.mgr.MANAGER_WINDOW_NAME = "cybersyn2-manager"
+_G.mgr.MANAGER_WINDOW_NAME = "CybersynManager"
 local manager = _G.mgr.manager
 
 ---Get open manager window for given player.
@@ -25,15 +26,14 @@ local manager = _G.mgr.manager
 function _G.mgr.manager.get(player_index)
 	local player = game.get_player(player_index)
 	if not player then return end
-	return storage.manager_root[player_index],
-		player.gui.screen[mgr.MANAGER_WINDOW_NAME]
+	local elt = player.gui.screen[mgr.MANAGER_WINDOW_NAME]
+	if (not elt) or not elt.valid then return end
+	return relm.get_root_id(elt), elt
 end
 
 function _G.mgr.manager.close(player_index)
-	local id, window = manager.get(player_index)
+	local id = manager.get(player_index)
 	if id then relm.root_destroy(id) end
-	if window and window.valid then window.destroy() end
-	storage.manager_root[player_index] = nil
 end
 
 ---Open manager for player if not already open.
@@ -49,12 +49,14 @@ function _G.mgr.manager.open(player_index)
 	then
 		local id, elt = relm.root_create(
 			screen,
-			"CybersynManager",
+			mgr.MANAGER_WINDOW_NAME,
 			"Cybersyn.Manager",
 			{ player_index = player_index }
 		)
-		storage.manager_root[player_index] = id
-		if elt then elt.force_auto_center() end
+		if elt then
+			elt.force_auto_center()
+			solib.smart_open(player, elt, true)
+		end
 	end
 end
 
