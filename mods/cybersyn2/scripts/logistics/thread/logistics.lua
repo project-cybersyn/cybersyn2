@@ -212,6 +212,11 @@ function LogisticsThread:sort_matches()
 	local starvation_item = requester.needs.starvation_item
 
 	table.sort(self.matches, function(a, b)
+		-- Check provider priority
+		local a_prio, b_prio = a.provider.priority, b.provider.priority
+		if a_prio > b_prio then return true end
+		if a_prio < b_prio then return false end
+
 		-- If starvation_item is set, prioritize who has more.
 		if starvation_item then
 			local a_qty = a.provider:get_provided_qty(starvation_item)
@@ -219,11 +224,6 @@ function LogisticsThread:sort_matches()
 			if a_qty > b_qty then return true end
 			if a_qty < b_qty then return false end
 		end
-
-		-- Check provider priority
-		local a_prio, b_prio = a.provider.priority, b.provider.priority
-		if a_prio > b_prio then return true end
-		if a_prio < b_prio then return false end
 
 		-- Scoring
 		local a_db = match_score(a, requester_stop_entity)
