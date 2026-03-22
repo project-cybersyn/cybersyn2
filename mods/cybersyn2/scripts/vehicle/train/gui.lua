@@ -204,10 +204,16 @@ local CsTrain = relm.define(
 
 relm.define("TrainGui", function(props)
 	local luatrain = props.luatrain --[[@as LuaTrain?]]
-	local cstrain = luatrain
-		and luatrain.valid
-		and cs2.get_train_from_luatrain_id(luatrain.id)
+	local luatrain_valid = not not (luatrain and luatrain.valid)
+	local luatrain_id = luatrain_valid and luatrain.id or 0
+	local cstrain = luatrain_valid and cs2.get_train_from_luatrain_id(luatrain_id)
 	local window_height = cstrain and 800 or 100
+
+	relm.use_effect(luatrain_id, function()
+		if luatrain and luatrain.valid then
+			script.register_on_object_destroyed(luatrain)
+		end
+	end)
 
 	-- A new train was added to a group.
 	relm_util.use_event_handler(
@@ -227,6 +233,12 @@ relm.define("TrainGui", function(props)
 			return
 		end
 		relm.paint(me)
+	end)
+	relm_util.use_event_handler("on_object_destroyed", function(me, _, ev)
+		if (not luatrain) or not luatrain.valid then
+			relm.root_destroy(props.root_id)
+			return
+		end
 	end)
 
 	return ultros.WindowFrame({
