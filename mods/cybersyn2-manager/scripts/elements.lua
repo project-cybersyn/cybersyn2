@@ -29,7 +29,7 @@ _G.mgr.SignalCountsButtons = relm.define_element({
 			}, {
 				Pr({
 					type = "label",
-					style = "cs2_label_signal_count_inventory",
+					style = "relm_label_signal_count_inventory",
 					ignored_by_interaction = true,
 					caption = siglib.format_signal_count(qty),
 				}),
