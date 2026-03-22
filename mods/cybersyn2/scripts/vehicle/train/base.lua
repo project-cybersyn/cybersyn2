@@ -179,7 +179,7 @@ end
 Train.get = get_train
 _G.cs2.get_train = get_train
 
----Get a `Cybersyn.Train` from a Factorio `LuaTrain` object.
+---Get a `Cybersyn.Train` from a Factorio lua train id.
 ---@param luatrain_id Id?
 ---@return Cybersyn.Train?
 local function get_from_luatrain_id(luatrain_id)
@@ -189,6 +189,14 @@ local function get_from_luatrain_id(luatrain_id)
 end
 Train.get_from_luatrain_id = get_from_luatrain_id
 _G.cs2.get_train_from_luatrain_id = get_from_luatrain_id
+
+---Get a `Cybersyn.Train` from a Factorio `LuaTrain` object.
+---@param luatrain LuaTrain?
+local function get_from_luatrain(luatrain)
+	if not luatrain or not luatrain.valid then return nil end
+	return get_from_luatrain_id(luatrain.id)
+end
+_G.cs2.get_train_from_luatrain = get_from_luatrain
 
 function Train:destroy()
 	self.is_being_destroyed = true
