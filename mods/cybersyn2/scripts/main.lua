@@ -202,9 +202,3 @@ events.bind(
 		cs2.open_combinator_gui(event.player_index, comb)
 	end
 )
-
-events.bind(defines.events.on_gui_closed, function(event)
-	local element = event.element
-	if not element or element.name ~= cs2.WINDOW_NAME then return end
-	cs2.close_combinator_gui(event.player_index)
-end)

@@ -5,6 +5,7 @@ local relm_helpers = require("__cybersyn2__.lib.core.relm.util")
 local ultros = require("__cybersyn2__.lib.core.relm.ultros")
 local tlib = require("__cybersyn2__.lib.core.table")
 local pos_lib = require("__cybersyn2__.lib.core.math.pos")
+local solib = require("__cybersyn2__.lib.core.relm.smart-open")
 local mgr = _G.mgr
 
 local strace = strace_lib.strace
@@ -14,45 +15,6 @@ local empty = tlib.empty
 _G.mgr.inspector = {}
 _G.mgr.INSPECTOR_WINDOW_NAME = "cybersyn2-inspector"
 local inspector = _G.mgr.inspector
-
----Get open inspector window for given player.
----@return Relm.RootId? root_id Relm root id of open inspector
----@return LuaGuiElement? element Factorio element of open inspector
-function _G.mgr.inspector.get(player_index)
-	local player = game.get_player(player_index)
-	if not player then return end
-	return storage.inspector_root[player_index],
-		player.gui.screen[mgr.INSPECTOR_WINDOW_NAME]
-end
-
-function _G.mgr.inspector.close(player_index)
-	local id, window = inspector.get(player_index)
-	if id then relm.root_destroy(id) end
-	if window and window.valid then window.destroy() end
-	storage.inspector_root[player_index] = nil
-end
-
----Open inspector for player if not already open.
----@param player_index uint
----@return Relm.RootId? id If a window was opened, the id of the new root.
-function _G.mgr.inspector.open(player_index)
-	local player = game.get_player(player_index)
-	if not player then return end
-	local screen = player.gui.screen
-
-	if
-		(not inspector.get(player_index))
-		and not screen[mgr.INSPECTOR_WINDOW_NAME]
-	then
-		local id = relm.root_create(
-			screen,
-			"CybersynInspector",
-			"Cybersyn.Inspector",
-			{ player_index = player_index }
-		)
-		storage.inspector_root[player_index] = id
-	end
-end
 
 ---@class Cybersyn.Manager.InspectorEntry
 ---@field public type string Relm element type to render.
@@ -82,6 +44,7 @@ function _G.mgr.inspector.add_entries(player_index, entry)
 			x = x + (30 * idx)
 			y = y + (30 * idx)
 			elt.location = { x, y }
+			solib.smart_open(player, elt, true)
 		end
 	end
 end
