@@ -1,4 +1,4 @@
-for _, node in storage.nodes do
+for _, node in pairs(storage.nodes) do
 	if node.type == "stop" then
 		---@cast node Cybersyn.TrainStop
 		local station_comb = node:get_combinator_with_mode("station")

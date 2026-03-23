@@ -191,7 +191,7 @@ local function evaluate_stop(stop, changed_layout_id)
 		make_default_allow_list(stop, station_comb, changed_layout_id)
 		cs2.destroy_alert(stop.entity, "multiple_allow_list")
 	else
-		-- make_custom_allow_list(stop, allowlist_combs[1], changed_layout_id)
+		make_default_allow_list(stop, station_comb, changed_layout_id)
 		cs2.destroy_alert(stop.entity, "multiple_allow_list")
 	end
 end

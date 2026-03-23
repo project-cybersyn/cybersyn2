@@ -292,7 +292,7 @@ relm.define_element({
 				),
 				gui.Checkbox(
 					"Allow all trains",
-					"If checked, this station will allow any train to use it regardless of compatibility with the station equipment. This is effectively a whitelist bypass and will cause the combinator to ignore all other allow list settings.",
+					"If checked, this station will allow any train to use it regardless of station layout. In order to further control which trains come to this station, you must use networks.",
 					props.combinator,
 					"allow_all"
 				),
