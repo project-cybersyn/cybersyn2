@@ -14,88 +14,20 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
+-- LEGACY: old allow list
+
 ---@class Cybersyn.Combinator
 ---@field public get_allow_mode fun(): "auto" | "layout" | "group" | "all"
----@field public get_allow_strict fun(): boolean
----@field public get_allow_bidi fun(): boolean
 
 cs2.register_raw_setting("allow_mode", "allow_mode", "auto")
-cs2.register_flag_setting("allow_strict", "allow_flags", 0)
-cs2.register_flag_setting("allow_bidi", "allow_flags", 1)
 
 --------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
 
-local mode_dropdown_items = {
-	{ key = "auto", caption = { "cybersyn2-gui.allow-mode-auto" } },
-	{ key = "layout", caption = { "cybersyn2-gui.allow-mode-layout" } },
-	{ key = "group", caption = { "cybersyn2-gui.allow-mode-group" } },
-	{ key = "all", caption = { "cybersyn2-gui.allow-mode-all" } },
-}
-
-local GroupSettings = relm.define_element({
-	name = "CombinatorGui.Mode.Allow.GroupSettings",
-	render = function(props) return {} end,
-})
-
-local LayoutSettings = relm.define_element({
-	name = "CombinatorGui.Mode.Allow.LayoutSettings",
-	render = function(props) return {} end,
-})
-
-local AutoSettings = relm.define_element({
-	name = "CombinatorGui.Mode.Allow.AutoSettings",
-	render = function(props)
-		return {
-			gui.InnerHeading({
-				caption = "Flags",
-			}),
-			gui.Checkbox(
-				"Strict allow list",
-				"Requires all equipment at the train stop to engage with a wagon.",
-				props.combinator,
-				"allow_strict"
-			),
-			gui.Checkbox(
-				"Bidirectional trains only",
-				"Requires trains that can travel in both directions; both directions must also be compatible with the stop equipment",
-				props.combinator,
-				"allow_bidi"
-			),
-		}
-	end,
-})
-
 relm.define_element({
 	name = "CombinatorGui.Mode.Allow",
-	render = function(props)
-		local mode = props.combinator:get_allow_mode()
-		return VF({
-			ultros.WellSection({ caption = "Settings" }, {
-				ultros.Labeled({ caption = "Allowlist mode", top_margin = 6 }, {
-					gui.Dropdown(
-						nil,
-						props.combinator,
-						"allow_mode",
-						mode_dropdown_items
-					),
-				}),
-				ultros.If(
-					mode == "auto",
-					AutoSettings({ combinator = props.combinator })
-				),
-				ultros.If(
-					mode == "layout",
-					LayoutSettings({ combinator = props.combinator })
-				),
-				ultros.If(
-					mode == "group",
-					GroupSettings({ combinator = props.combinator })
-				),
-			}),
-		})
-	end,
+	render = function(props) return VF({}) end,
 })
 
 relm.define_element({
@@ -103,7 +35,7 @@ relm.define_element({
 	render = function(props)
 		return VF({
 			ultros.RtMultilineLabel(
-				"The [font=default-bold]allow list[/font] determines which trains can be sent to this station. An automatic algorithm can be used to determine this for you based on nearby equipment, or you may choose specific train layouts or groups."
+				"The [font=default-bold]allow list[/font] determines which trains can be sent to this station. This combinator lets you create and manage custom allow lists."
 			),
 		})
 	end,
