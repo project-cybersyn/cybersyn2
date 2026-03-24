@@ -131,12 +131,6 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 	local allowed_layout_options = to_option_list(allowed_layout_strings)
 	local has_allowed_layouts = #allowed_layout_options > 0
 
-	stlib.trace(
-		"Rendering allow list settings GUI",
-		"allowed_layouts",
-		allowed_layouts
-	)
-
 	local function add_existing_layout(_, index)
 		local layout_string = existing_layout_options[index].caption
 		add_layout_if_not_exists(
@@ -169,7 +163,7 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 		layout_string = normalize_layout_string(layout_string)
 		if not layout_string then
 			game.get_player(elt.player_index).print(
-				"[color=red]Invalid layout string.[/color]",
+				{ "cybersyn2-combinator-mode-allow.invalid-layout-string" },
 				{ sound = defines.print_sound.always, skip = defines.print_skip.never }
 			)
 			return
@@ -184,51 +178,62 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 	end
 
 	return VF({
-		ultros.WellSection({ caption = "Manual Allow List" }, {
-			-- Editbox
-			ultros.BoldLabel("Add custom layout:"),
-			ultros.Input({
-				numeric = false,
-				icon_selector = true,
-				width = 370,
-				on_confirm = add_custom_layout,
-				ref = set_textbox_ref,
-			}),
-			-- Dropdown
-			ultros.BoldLabel("Add existing layout:"),
-			ultros.Dropdown({
-				horizontally_stretchable = true,
-				options = existing_layout_options,
-				on_change = add_existing_layout,
-			}),
-			-- Listbox
-			ultros.BoldLabel("Allowed layouts:"),
-			Pr({
-				type = "frame",
-				style = "relm_deep_frame_in_shallow_frame_stretchable",
-				visible = not has_allowed_layouts,
-				height = 200,
-				padding = 8,
-				horizontal_align = "center",
-				vertical_align = "center",
-			}, {
-				ultros.RtMultilineLabel(
-					"No allowed layouts. Use the input box or dropdown above\nto add layouts to the allow list."
-				),
-			}),
-			ultros.Listbox({
-				height = 200,
-				visible = has_allowed_layouts,
-				options = allowed_layout_options,
-				ref = set_listbox_ref,
-			}),
-			-- Buttons
-			ultros.Button({
-				caption = "Remove selected",
-				visible = has_allowed_layouts,
-				on_click = remove_selected_layout,
-			}),
-		}),
+		ultros.WellSection(
+			{ caption = { "cybersyn2-combinator-mode-allow.manual-allow-list" } },
+			{
+				-- Editbox
+				ultros.BoldLabel({
+					"cybersyn2-combinator-mode-allow.add-custom-layout",
+				}),
+				ultros.Input({
+					numeric = false,
+					icon_selector = true,
+					width = 370,
+					on_confirm = add_custom_layout,
+					ref = set_textbox_ref,
+					tooltip = { "cybersyn2-combinator-mode-allow.custom-layout-tooltip" },
+				}),
+				-- Dropdown
+				ultros.BoldLabel({
+					"cybersyn2-combinator-mode-allow.add-existing-layout",
+				}),
+				ultros.Dropdown({
+					horizontally_stretchable = true,
+					options = existing_layout_options,
+					on_change = add_existing_layout,
+					tooltip = {
+						"cybersyn2-combinator-mode-allow.existing-layout-tooltip",
+					},
+				}),
+				-- Listbox
+				ultros.BoldLabel({ "cybersyn2-combinator-mode-allow.allowed-layouts" }),
+				Pr({
+					type = "frame",
+					style = "relm_deep_frame_in_shallow_frame_stretchable",
+					visible = not has_allowed_layouts,
+					height = 200,
+					padding = 8,
+					horizontal_align = "center",
+					vertical_align = "center",
+				}, {
+					ultros.RtMultilineLabel({
+						"cybersyn2-combinator-mode-allow.no-layouts",
+					}),
+				}),
+				ultros.Listbox({
+					height = 200,
+					visible = has_allowed_layouts,
+					options = allowed_layout_options,
+					ref = set_listbox_ref,
+				}),
+				-- Buttons
+				ultros.Button({
+					caption = { "cybersyn2-combinator-mode-allow.remove-selected" },
+					visible = has_allowed_layouts,
+					on_click = remove_selected_layout,
+				}),
+			}
+		),
 	})
 end)
 
@@ -236,9 +241,7 @@ relm.define_element({
 	name = "CombinatorGui.Mode.Allow.Help",
 	render = function(props)
 		return VF({
-			ultros.RtMultilineLabel(
-				"The [font=default-bold]allow list[/font] determines which trains can be sent to this station. This combinator lets you create and manage custom allow lists."
-			),
+			ultros.RtMultilineLabel({ "cybersyn2-combinator-mode-allow.desc" }),
 		})
 	end,
 })
