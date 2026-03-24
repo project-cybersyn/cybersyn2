@@ -78,11 +78,13 @@ function _G.cs2.gui.VirtualSignalPicker(combinator, setting, tooltip)
 			if signal.type == "virtual" then
 				setter(combinator, signal)
 			else
-				game.print("Invalid signal type. Please select a virtual signal.", {
-					color = { 255, 128, 0 },
-					skip = defines.print_skip.never,
-					sound = defines.print_sound.always,
-				})
+				game
+					.get_player(elem.player_index)
+					.print("Invalid signal type. Please select a virtual signal.", {
+						color = { 255, 128, 0 },
+						skip = defines.print_skip.never,
+						sound = defines.print_sound.always,
+					})
 				elem.elem_value = nil
 				return
 			end

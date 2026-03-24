@@ -93,7 +93,7 @@ function _G.cs2.register_raw_setting(setting_name, key, default)
 		local old_value = tags[key] or default
 		if old_value == new_value then return false end
 		set_tag(self, key, new_value)
-		raise_event(self, key, new_value, old_value, tags)
+		raise_event(self, setting_name, new_value, old_value, tags)
 	end
 end
 
