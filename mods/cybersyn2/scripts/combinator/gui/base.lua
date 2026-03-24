@@ -44,16 +44,11 @@ function _G.cs2.close_combinator_gui(player_index, silent)
 	end
 
 	-- Hard way
-	local gui_root = player.gui.screen
-	if gui_root[cs2.WINDOW_NAME] then
-		strace(
-			ERROR,
-			"message",
-			"couldn't destroy associated gui root, probably invalid relm state now",
-			player_index
-		)
-		gui_root[cs2.WINDOW_NAME].destroy()
-	end
+	-- local gui_root = player.gui.screen
+	-- if gui_root[cs2.WINDOW_NAME] then
+
+	-- 	gui_root[cs2.WINDOW_NAME].destroy()
+	-- end
 	destroy_gui_state(player_index)
 end
 

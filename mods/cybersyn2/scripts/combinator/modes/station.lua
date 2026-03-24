@@ -45,6 +45,9 @@ local If = ultros.If
 ---@field public get_signal_spillover fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_shared_inventory_independent_orders fun(self: Cybersyn.Combinator): boolean
 ---@field public get_fullness_when_providing fun(self: Cybersyn.Combinator): boolean
+---@field public get_allow_strict fun(): boolean
+---@field public get_allow_bidi fun(): boolean
+---@field public get_allow_all fun(): boolean
 
 -- Name of the network virtual signal.
 cs2.register_raw_setting("network_signal", "network")
@@ -105,6 +108,11 @@ cs2.register_flag_setting(
 	6
 )
 
+-- Allowlist
+cs2.register_flag_setting("allow_strict", "allow_flags", 0)
+cs2.register_flag_setting("allow_bidi", "allow_flags", 1)
+cs2.register_flag_setting("allow_all", "allow_flags", 2)
+
 --------------------------------------------------------------------------------
 -- GUI
 --------------------------------------------------------------------------------
@@ -157,6 +165,8 @@ relm.define_element({
 
 		local primary_wire = combinator:get_primary_wire()
 		local secondary_wire = primary_wire == "red" and "green" or "red"
+
+		local allow_all = combinator:get_allow_all()
 
 		return VF({
 			ultros.WellSection(
@@ -238,7 +248,7 @@ relm.define_element({
 					{ caption = "Train fullness threshold", top_margin = 6 },
 					{
 						gui.Input({
-							tooltip = "Percentage of total train cargo capacity that should be filled before a train will deliver an outstanding request.\n\nNOTE: All thresholds are hints to the system and may not be strictly enforced.",
+							tooltip = "Percentage of total train cargo capacity that should be filled before a delivery will be made.\n\nNOTE: All thresholds are hints to the system and may not be strictly enforced.",
 							combinator = combinator,
 							setting = "train_fullness_percent",
 							displayed_default_value = math.floor(
@@ -259,6 +269,32 @@ relm.define_element({
 						props.combinator,
 						"fullness_when_providing"
 					)
+				),
+			}),
+			ultros.WellSection({ caption = "Allow List" }, {
+				gui.Checkbox(
+					"Strict allow list",
+					"Requires all equipment at the train stop to engage with a wagon.",
+					props.combinator,
+					"allow_strict",
+					false,
+					allow_all,
+					false
+				),
+				gui.Checkbox(
+					"Bidirectional trains only",
+					"Requires trains that can travel in both directions; both directions must also be compatible with the stop equipment",
+					props.combinator,
+					"allow_bidi",
+					false,
+					allow_all,
+					false
+				),
+				gui.Checkbox(
+					"Allow all trains",
+					"If checked, this station will allow any train to use it regardless of station layout. In order to further control which trains come to this station, you must use networks.",
+					props.combinator,
+					"allow_all"
 				),
 			}),
 			ultros.WellSection({ caption = "Departure Conditions" }, {

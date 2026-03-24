@@ -61,8 +61,9 @@ end
 _G.cs2.get_player_state = get_player_state
 
 local function clear_storage()
+	-- This is necessary to fool LuaLS into not overriding storage typedefs.
 	---@diagnostic disable-next-line: missing-fields
-	_G.storage = {}
+	_G["storage"] = {}
 
 	storage.players = {}
 	storage.vehicles = {}

@@ -124,6 +124,45 @@ local function make_auto_allow_list(stop, is_strict, is_bidi, changed_layout_id)
 	events.raise("cs2.stop_allow_list_changed", stop)
 end
 
+---@param allowlist string[][]
+---@param layout string[]
+local function allowlist_has_layout(allowlist, layout)
+	for _, allowed_layout in ipairs(allowlist) do
+		if tlib.a_eqeq(allowed_layout, layout) then return true end
+	end
+	return false
+end
+
+---@param stop Cybersyn.TrainStop
+---@param manually_allowed_layouts string[][]
+---@param changed_layout_id Id?
+local function make_manual_allow_list(
+	stop,
+	manually_allowed_layouts,
+	changed_layout_id
+)
+	if not stop.allowed_layouts then stop.allowed_layouts = {} end
+	if changed_layout_id then
+		local tl = storage.train_layouts[changed_layout_id]
+		if not tl then return end
+		if allowlist_has_layout(manually_allowed_layouts, tl.carriage_names) then
+			stop.allowed_layouts[tl.id] = true
+		else
+			stop.allowed_layouts[tl.id] = nil
+		end
+	else
+		for tl_id, tl in pairs(storage.train_layouts) do
+			if allowlist_has_layout(manually_allowed_layouts, tl.carriage_names) then
+				stop.allowed_layouts[tl_id] = true
+			else
+				stop.allowed_layouts[tl_id] = nil
+			end
+		end
+	end
+	cs2.raise_node_data_changed(stop)
+	events.raise("cs2.stop_allow_list_changed", stop)
+end
+
 ---@param stop Cybersyn.TrainStop
 local function make_all_allow_list(stop)
 	stop.allowed_layouts = nil
@@ -133,41 +172,52 @@ local function make_all_allow_list(stop)
 end
 
 ---@param stop Cybersyn.TrainStop
----@param allowlist_combinator Cybersyn.Combinator
----@param changed_layout_id Id?
-local function make_custom_allow_list(
-	stop,
-	allowlist_combinator,
-	changed_layout_id
-)
-	local allow_mode = allowlist_combinator:get_allow_mode()
-	if allow_mode == "auto" then
-		make_auto_allow_list(
-			stop,
-			allowlist_combinator:get_allow_strict(),
-			allowlist_combinator:get_allow_bidi(),
-			changed_layout_id
-		)
-	elseif allow_mode == "all" then
-		make_all_allow_list(stop)
-	end
+local function make_empty_allow_list(stop)
+	stop.allowed_layouts = {}
+	stop.allowed_groups = {}
+	cs2.raise_node_data_changed(stop)
+	events.raise("cs2.stop_allow_list_changed", stop)
 end
 
 ---@param stop Cybersyn.TrainStop
+---@param station_combinator Cybersyn.Combinator
 ---@param changed_layout_id Id?
-local function make_default_allow_list(stop, changed_layout_id)
-	return make_auto_allow_list(stop, false, false, changed_layout_id)
+local function make_default_allow_list(
+	stop,
+	station_combinator,
+	changed_layout_id
+)
+	if station_combinator:get_allow_all() then
+		make_all_allow_list(stop)
+	else
+		make_auto_allow_list(
+			stop,
+			station_combinator:get_allow_strict(),
+			station_combinator:get_allow_bidi(),
+			changed_layout_id
+		)
+	end
 end
 
 ---@param stop Cybersyn.TrainStop
 ---@param changed_layout_id Id?
 local function evaluate_stop(stop, changed_layout_id)
 	strace(TRACE, "message", "Re-evaluating allow list for stop", stop.id)
+	local station_comb = stop:get_combinator_with_mode("station")
+	if not station_comb then
+		strace(
+			WARN,
+			"message",
+			"evaluate_stop: stop has no station combinator",
+			stop
+		)
+		return
+	end
 	local allowlist_combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "allow" end
 	)
 	if #allowlist_combs > 1 then
-		make_default_allow_list(stop, changed_layout_id)
+		make_empty_allow_list(stop)
 		cs2.create_alert(
 			stop.entity,
 			"multiple_allow_list",
@@ -177,10 +227,16 @@ local function evaluate_stop(stop, changed_layout_id)
 			}
 		)
 	elseif #allowlist_combs == 0 then
-		make_default_allow_list(stop, changed_layout_id)
+		make_default_allow_list(stop, station_comb, changed_layout_id)
 		cs2.destroy_alert(stop.entity, "multiple_allow_list")
 	else
-		make_custom_allow_list(stop, allowlist_combs[1], changed_layout_id)
+		local manually_allowed_layouts = allowlist_combs[1]:get_allowed_layouts()
+		if manually_allowed_layouts and #manually_allowed_layouts > 0 then
+			make_manual_allow_list(stop, manually_allowed_layouts, changed_layout_id)
+		else
+			-- XXX: alpha migration compatibility. For beta, this should generate an empty allowlist.
+			make_default_allow_list(stop, station_comb, changed_layout_id)
+		end
 		cs2.destroy_alert(stop.entity, "multiple_allow_list")
 	end
 end
@@ -223,10 +279,19 @@ end)
 
 -- When an allowlist combinator changes settings, update its stop
 cs2.on_combinator_setting_changed(
-	function(combinator, setting_name, _, old_value)
+	function(combinator, setting, next_value, prev_value)
 		if
-			combinator.mode == "allow"
-			or (setting_name == "mode" and old_value == "allow")
+			(
+				setting == "mode"
+				and (next_value == "station" or prev_value == "station")
+			)
+			or (setting == "mode" and (next_value == "allow" or prev_value == "allow"))
+			or (combinator.mode == "station" and setting == nil)
+			or (combinator.mode == "allow" and setting == nil)
+			or setting == "allowed_layouts"
+			or setting == "allow_strict"
+			or setting == "allow_bidi"
+			or setting == "allow_all"
 		then
 			local node = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
 			if node then evaluate_stop(node) end
