@@ -29,7 +29,7 @@ _G.cs2.LogisticsThread = LogisticsThread
 
 ---@param topology Cybersyn.Topology
 function LogisticsThread:new(topology)
-	local thread = cs2.StatefulThread.new(self) --[[@as Cybersyn.LogisticsThread]]
+	local thread = cs2.StatefulThread.new(self, "") --[[@as Cybersyn.LogisticsThread]]
 	thread.friendly_name = "logistics_" .. (topology.name or topology.id)
 	thread.topology_id = topology.id
 	thread.max_workload = cs2.PERF_BASE_LOGISTICS_WORKLOAD

@@ -181,30 +181,6 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 		ultros.WellSection(
 			{ caption = { "cybersyn2-combinator-mode-allow.manual-allow-list" } },
 			{
-				-- Editbox
-				ultros.BoldLabel({
-					"cybersyn2-combinator-mode-allow.add-custom-layout",
-				}),
-				ultros.Input({
-					numeric = false,
-					icon_selector = true,
-					width = 370,
-					on_confirm = add_custom_layout,
-					ref = set_textbox_ref,
-					tooltip = { "cybersyn2-combinator-mode-allow.custom-layout-tooltip" },
-				}),
-				-- Dropdown
-				ultros.BoldLabel({
-					"cybersyn2-combinator-mode-allow.add-existing-layout",
-				}),
-				ultros.Dropdown({
-					horizontally_stretchable = true,
-					options = existing_layout_options,
-					on_change = add_existing_layout,
-					tooltip = {
-						"cybersyn2-combinator-mode-allow.existing-layout-tooltip",
-					},
-				}),
 				-- Listbox
 				ultros.BoldLabel({ "cybersyn2-combinator-mode-allow.allowed-layouts" }),
 				Pr({
@@ -231,6 +207,30 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 					caption = { "cybersyn2-combinator-mode-allow.remove-selected" },
 					visible = has_allowed_layouts,
 					on_click = remove_selected_layout,
+				}),
+				-- Dropdown
+				ultros.BoldLabel({
+					"cybersyn2-combinator-mode-allow.add-existing-layout",
+				}),
+				ultros.Dropdown({
+					horizontally_stretchable = true,
+					options = existing_layout_options,
+					on_change = add_existing_layout,
+					tooltip = {
+						"cybersyn2-combinator-mode-allow.existing-layout-tooltip",
+					},
+				}),
+				-- Editbox
+				ultros.BoldLabel({
+					"cybersyn2-combinator-mode-allow.add-custom-layout",
+				}),
+				ultros.Input({
+					numeric = false,
+					icon_selector = true,
+					width = 370,
+					on_confirm = add_custom_layout,
+					ref = set_textbox_ref,
+					tooltip = { "cybersyn2-combinator-mode-allow.custom-layout-tooltip" },
 				}),
 			}
 		),
