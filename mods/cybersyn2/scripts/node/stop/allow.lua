@@ -180,14 +180,22 @@ local function make_empty_allow_list(stop)
 end
 
 ---@param stop Cybersyn.TrainStop
----@param station_combinator Cybersyn.Combinator
+---@param station_combinator Cybersyn.Combinator?
 ---@param changed_layout_id Id?
 local function make_default_allow_list(
 	stop,
 	station_combinator,
 	changed_layout_id
 )
-	if station_combinator:get_allow_all() then
+	if not station_combinator then
+		make_empty_allow_list(stop)
+		strace(
+			TRACE,
+			"message",
+			"Allow list evaluation: build order warning: stop has no station combinator yet",
+			stop
+		)
+	elseif station_combinator:get_allow_all() then
 		make_all_allow_list(stop)
 	else
 		make_auto_allow_list(
@@ -204,15 +212,6 @@ end
 local function evaluate_stop(stop, changed_layout_id)
 	strace(TRACE, "message", "Re-evaluating allow list for stop", stop.id)
 	local station_comb = stop:get_combinator_with_mode("station")
-	if not station_comb then
-		strace(
-			WARN,
-			"message",
-			"evaluate_stop: stop has no station combinator",
-			stop
-		)
-		return
-	end
 	local allowlist_combs = stop:get_associated_combinators(
 		function(comb) return comb.mode == "allow" end
 	)
@@ -267,7 +266,7 @@ cs2.on_train_stop_pattern_changed(function(stop) evaluate_stop(stop) end)
 
 -- When an allowlist combinator is associated with a stop, update its stop.
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
-	if combinator.mode == "allow" then
+	if combinator.mode == "allow" or combinator.mode == "station" then
 		if old_node and old_node.type == "stop" then
 			evaluate_stop(old_node --[[@as Cybersyn.TrainStop]])
 		end

@@ -18,8 +18,6 @@ local ALPHA = 1.0 / 20.0
 local ONE_MINUS_ALPHA = 1 - ALPHA
 local add_workload = thread.add_workload
 
--- TODO: copy work period startup setting into thread global storage.
-
 ---@class StatefulThread: Core.Thread, StateMachine
 ---@field public stride? int For enumerating threads, the number of elements to loop over in a single iteration
 ---@field public index? any The current index in the async iteration, if applicable
