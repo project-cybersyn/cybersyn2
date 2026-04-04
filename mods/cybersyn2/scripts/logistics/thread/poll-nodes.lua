@@ -300,6 +300,7 @@ end
 
 function LogisticsThread:poll_train_stop_update_inventory()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
+	if not stop:is_valid() then return self:set_state("poll_nodes") end
 	stop:update_inventory(self.workload_counter, false)
 	self:set_state("poll_train_stop_classify_inventory")
 end
@@ -308,6 +309,7 @@ function LogisticsThread:poll_train_stop()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
 	local workload = self.workload_counter
 	add_workload(workload, 1)
+	if not stop:is_valid() then return self:set_state("poll_nodes") end
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
 		return self:set_state("poll_nodes")
