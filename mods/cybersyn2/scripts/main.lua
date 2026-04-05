@@ -193,11 +193,25 @@ events.bind(
 	---@param event EventData.on_gui_opened
 	function(event)
 		if not event.entity then return end
+		if event.entity.name ~= "cybersyn2-combinator" then return end
 		local player = game.get_player(event.player_index)
 		if not player then return end
+
 		local _, id = remote.call("things", "get_thing_id", event.entity)
 		local comb = cs2.get_combinator(id)
-		if not comb then return end
+		if not comb then
+			player.print(
+				"Cybersyn 2: Attempted to open a combinator without an associated state. Run a full reset (or complete an in-progress reset procedure) before proceeding.",
+				{
+					color = { r = 1, g = 0, b = 0 },
+					skip = defines.print_skip.never,
+					sound = defines.print_sound.always,
+				}
+			)
+			-- Close the default GUI.
+			player.opened = nil
+			return
+		end
 
 		cs2.open_combinator_gui(event.player_index, comb)
 	end
