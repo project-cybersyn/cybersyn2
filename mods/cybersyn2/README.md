@@ -2,7 +2,7 @@
 
 Cybersyn 2 is the next generation of the [Project Cybersyn](https://mods.factorio.com/mod/cybersyn) train logistics mod. Rewritten from the ground up to take advantage of new Factorio 2.0 features, solve more logistics problems, and fix fundamental scaling issues with CS1 while keeping the same familiar design and low UPS impact, Cybersyn 2 aims to be the final word in Factorio train logistics.
 
-**WARNING: This mod is currently in an Alpha state. It is playable, but there are known issues, bugs, missing features, and even the occasional crash. Only install this mod if you are one of our testers, or interested in becoming one. If not, please use the original [Project Cybersyn](https://mods.factorio.com/mod/cybersyn) which is long-term stable.**
+**WARNING: This mod is currently in an ALPHA state. It is playable, but there are known issues, bugs, missing features, and even the occasional crash. Future save-breaking changes, while unlikely, are possible. Only install this mod if you are one of our testers, or interested in becoming one. If not, please use the original [Project Cybersyn](https://mods.factorio.com/mod/cybersyn) which is long-term stable.**
 
 **You have been warned!**
 
