@@ -37,6 +37,9 @@ function _G.cs2.shutdown(force)
 	local shutdown_state = { init = false, handoff = false }
 	strace.info("invoking on_shutdown")
 	events.raise("on_shutdown", shutdown_state)
+
+	-- Destroy storage
+	__clear_storage()
 	storage._SHUTDOWN_DATA = shutdown_state
 
 	-- Destroy lingering render objects. (this resolves a bug in some
