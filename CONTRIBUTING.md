@@ -14,14 +14,14 @@ We love contributions, and anyone is welcome. Documentation updates, bugfixes, a
 ## AI Policy
 
 - It is okay to use AI to help you write code, however **all submitted code must be vetted, understood, and maintained by the person submitting it.**
-- Purely AI-generated vibe-coded PRs are **not welcome**.
+- If you are not willing, as a person, to be responsible for the code you submit (for example, if you don't know how to code yourself) then do not submit code.
 - AI-generated documentation updates are okay, **as long as a human has checked the output and it makes sense.**
 
 ## Coding Standards and Quirks
 
 ### Linting and Formatting
 
-Linting is done via a combination of the `LuaLS` built-in linter, as well as `selene`. Submitted code must lint cleanly.
+Submitted code must lint cleanly via the LuaLS lint/warning system and be free of type errors.
 
 Auto-formatting is done by `stylua`. Submitted code must be auto-formatted. VSCode users can use the `stylua` plugin and Format-on-Save.
 

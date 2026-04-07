@@ -127,16 +127,21 @@ function Order:read(workload)
 	local stacked_requests
 	---@type boolean
 	local no_starvation
+	---@type boolean
+	local round_to_stacks
+
 	if arity == "primary" then
 		network_matching_mode = comb:get_order_primary_network_matching_mode()
 		network = comb:get_order_primary_network()
 		stacked_requests = comb:get_order_primary_stacked_requests()
 		no_starvation = comb:get_order_primary_no_starvation()
+		round_to_stacks = comb:get_order_primary_round_to_stacks()
 	else
 		network_matching_mode = comb:get_order_secondary_network_matching_mode()
 		network = comb:get_order_secondary_network()
 		stacked_requests = comb:get_order_secondary_stacked_requests()
 		no_starvation = comb:get_order_secondary_no_starvation()
+		round_to_stacks = comb:get_order_secondary_round_to_stacks()
 	end
 	local is_each = network == "signal-each"
 
@@ -144,6 +149,7 @@ function Order:read(workload)
 	self.network_matching_mode = network_matching_mode
 	self.stacked_requests = stacked_requests
 	self.no_starvation = no_starvation
+	self.round_to_stacks = round_to_stacks
 	self.busy_value = stop:get_occupancy()
 	self.priority = stop.priority or 0
 	self.thresh_depletion_fraction = stop.auto_threshold_fraction

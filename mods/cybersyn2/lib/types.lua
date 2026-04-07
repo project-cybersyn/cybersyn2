@@ -190,6 +190,7 @@ lib.CarriageType = {
 ---@field public no_starvation boolean? `true` if this order ignores starvation logic
 ---@field public provide_single_item boolean? `true` if this order provides only single items per delivery
 ---@field public fullness_when_providing boolean? `true` if this order enforces train fullness threshold when providing
+---@field public round_to_stacks boolean? `true` if this order rounds deliveries down to full stacks.
 
 ---@class Cybersyn.Inventory
 ---@field public id Id
