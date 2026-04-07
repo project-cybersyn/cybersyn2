@@ -60,6 +60,7 @@ local function get_player_state(player_index)
 end
 _G.cs2.get_player_state = get_player_state
 
+---Clear CS2's storage completely. Used for shutdown and reset.
 local function clear_storage()
 	-- This is necessary to fool LuaLS into not overriding storage typedefs.
 	---@diagnostic disable-next-line: missing-fields
@@ -86,11 +87,6 @@ local function clear_storage()
 	storage.views = {}
 	storage.entities_being_destroyed = {}
 end
-
-events.register_dynamic_handler("clear-storage", clear_storage)
+_G.__clear_storage = clear_storage
 
 events.bind("on_startup", clear_storage, true)
-events.bind("on_shutdown", function()
-	-- Defer clearing storage until after other shutdown handlers.
-	events.dynamic_subtick_trigger("clear-storage", "clear-storage")
-end)
