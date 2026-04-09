@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.1.2
+Date: ????
+  Changes:
+---------------------------------------------------------------------------------------------------
+Version: 0.1.1
+Date: 2026-04-09
+  Bugfixes:
+    - Fixed an issue preventing ghost combinators from opening the GUI.
+  Compatibility:
+    - Pre-alpha migrations have been removed. If you are updating from a pre-alpha version, make sure your save is fast-forwarded to the latest Git version before switching to the mod portal release.
+---------------------------------------------------------------------------------------------------
 Version: 0.1.0
 Date: 2026-01-19
   Features:
