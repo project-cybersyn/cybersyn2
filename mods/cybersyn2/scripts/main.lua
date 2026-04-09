@@ -193,7 +193,7 @@ events.bind(
 	---@param event EventData.on_gui_opened
 	function(event)
 		if not event.entity then return end
-		if event.entity.name ~= "cybersyn2-combinator" then return end
+		if not cs2_lib.entity_is_combinator_or_ghost(event.entity) then return end
 		local player = game.get_player(event.player_index)
 		if not player then return end
 

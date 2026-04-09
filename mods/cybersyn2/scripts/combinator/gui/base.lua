@@ -33,7 +33,6 @@ function _G.cs2.close_combinator_gui(player_index, silent)
 	local player = game.get_player(player_index)
 	if not player then return end
 
-	-- Try to close the GUI the easy way
 	local state = storage.players[player_index]
 	if state and state.combinator_gui_root then
 		relm.root_destroy(state.combinator_gui_root)
@@ -43,12 +42,6 @@ function _G.cs2.close_combinator_gui(player_index, silent)
 		end
 	end
 
-	-- Hard way
-	-- local gui_root = player.gui.screen
-	-- if gui_root[cs2.WINDOW_NAME] then
-
-	-- 	gui_root[cs2.WINDOW_NAME].destroy()
-	-- end
 	destroy_gui_state(player_index)
 end
 
@@ -85,6 +78,7 @@ function _G.cs2.open_combinator_gui(player_index, combinator)
 		main_window.force_auto_center()
 		solib.smart_open(player, main_window, true)
 		state.combinator_gui_root = root_id
+		events.raise("cs2.combinator_gui_opened", combinator, player, root_id)
 	else
 		strace(
 			ERROR,
@@ -310,6 +304,14 @@ relm.define_element({
 	name = "CombinatorGui",
 	render = function(props, state)
 		local show_info = not not (state or {}).show_info
+		relm_util.use_event_handler(
+			"cs2.combinator_destroyed",
+			function(me, _, comb)
+				if props.combinator and comb.id == props.combinator.id then
+					relm.root_destroy(props.root_id)
+				end
+			end
+		)
 		return ultros.WindowFrame({
 			caption = { "cybersyn2-gui.combinator-name" },
 			decoration = function()
