@@ -5,6 +5,7 @@ local strace = require("lib.core.strace")
 
 ---@class (exact) Cybersyn.ModSettings
 ---@field public enable_logistics boolean Enable or disable scheduling globally.
+---@field public advanced_mode boolean Enable or disable advanced mode, which reveals UI for advanced features.
 ---@field public debug boolean Enable debug mode.
 ---@field public debug_level string Debug level ("NONE", "INFO", "TRACE").
 ---@field public work_factor number Multiplier applied to work done per cycle.
@@ -28,6 +29,8 @@ _G.cs2.mod_settings = mod_settings
 local function update_mod_settings()
 	mod_settings.enable_logistics =
 		settings.global["cybersyn2-setting-enable-logistics"].value --[[@as boolean]]
+	mod_settings.advanced_mode =
+		settings.global["cybersyn2-setting-advanced-mode"].value --[[@as boolean]]
 	local debug_level = settings.global["cybersyn2-setting-debug-level"].value --[[@as string]]
 	mod_settings.debug = debug_level ~= "NONE"
 	mod_settings.debug_level = debug_level
@@ -64,11 +67,15 @@ events.bind("on_startup", function()
 end)
 
 -- Change settings when settings change
-events.bind(defines.events.on_runtime_mod_setting_changed, function(event)
-	update_mod_settings()
-	cs2.raise_mod_settings_changed(event.setting)
-	events.raise("cs2.mod_settings_changed", event.setting)
-end)
+events.bind(
+	defines.events.on_runtime_mod_setting_changed,
+	---@param event EventData.on_runtime_mod_setting_changed
+	function(event)
+		update_mod_settings()
+		cs2.raise_mod_settings_changed(event.setting)
+		events.raise("cs2.mod_settings_changed", event.setting)
+	end
+)
 
 -- Update debug log level when settings change
 -- TODO: find a better home for this...

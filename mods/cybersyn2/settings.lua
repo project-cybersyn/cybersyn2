@@ -7,6 +7,13 @@ data:extend({
 		default_value = true,
 	},
 	{
+		type = "bool-setting",
+		name = "cybersyn2-setting-advanced-mode",
+		order = "ab",
+		setting_type = "runtime-global",
+		default_value = false,
+	},
+	{
 		type = "string-setting",
 		name = "cybersyn2-setting-debug-level",
 		order = "ac",
