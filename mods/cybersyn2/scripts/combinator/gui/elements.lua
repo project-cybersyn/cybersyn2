@@ -8,6 +8,7 @@ local cs2 = _G.cs2
 local Pr = relm.Primitive
 local HF = ultros.HFlow
 local gui = _G.cs2.gui
+local mod_settings = _G.cs2.mod_settings
 
 ---An `ultros.Checkbox` that reads from and writes to a combinator
 ---setting automatically.
@@ -226,6 +227,7 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 		local arity = props.arity or "primary"
 		local is_request_only = props.is_request_only
 		local is_provide_only = props.is_provide_only
+		local is_advanced_mode = mod_settings.advanced_mode
 
 		return ultros.WellSection({
 			caption = {
@@ -250,7 +252,7 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 			ultros.Labeled({
 				caption = { "cybersyn2-combinator-orders.network-matching-mode" },
 				top_margin = 6,
-				visible = not is_provide_only,
+				visible = (not is_provide_only) and is_advanced_mode,
 			}, {
 				gui.Dropdown(
 					{
@@ -262,10 +264,6 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 					"order_" .. arity .. "_network_matching_mode",
 					andor_dropdown_items
 				),
-			}),
-			gui.InnerHeading({
-				caption = { "cybersyn2-combinator-orders.flags" },
-				visible = not is_provide_only,
 			}),
 			gui.Checkbox(
 				{ "cybersyn2-combinator-orders.stacked-requests" },
@@ -285,13 +283,17 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 				true,
 				nil,
 				nil,
-				is_provide_only
+				is_provide_only or not is_advanced_mode
 			),
 			gui.Checkbox(
 				{ "cybersyn2-combinator-orders.round-to-stacks" },
 				{ "cybersyn2-combinator-orders.round-to-stacks-tooltip" },
 				combinator,
-				"order_" .. arity .. "_round_to_stacks"
+				"order_" .. arity .. "_round_to_stacks",
+				nil,
+				nil,
+				nil,
+				not is_advanced_mode
 			),
 		})
 	end,

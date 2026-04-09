@@ -2,6 +2,7 @@
 Version: 0.1.2
 Date: ????
   Changes:
+    - Added an Advanced Mode mod setting. This setting hides many UI elements to make the mod less overwhelming for new users. Experienced users should enable the setting to restore the full UI. (The setting does not change any actual functionality.)
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
 Date: 2026-04-09

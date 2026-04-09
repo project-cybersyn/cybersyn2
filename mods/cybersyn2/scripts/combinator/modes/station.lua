@@ -157,6 +157,8 @@ relm.define_element({
 		relm_util.use_event("cs2.train_stop_shared_inventory_link")
 		relm_util.use_event("cs2.train_stop_shared_inventory_unlink")
 
+		local is_advanced_mode = mod_settings.advanced_mode
+
 		local pr = combinator:get_pr()
 		local is_provider = pr == 1 or pr == 0
 		local is_requester = pr == 2 or pr == 0
@@ -198,15 +200,13 @@ relm.define_element({
 					ultros.Labeled({
 						caption = { "cybersyn2-combinator-mode-station.topology" },
 						top_margin = 6,
+						visible = is_advanced_mode,
 					}, {
 						gui.VirtualSignalPicker(
 							props.combinator,
 							"topology_signal",
 							{ "cybersyn2-combinator-mode-station.topology-tooltip" }
 						),
-					}),
-					gui.InnerHeading({
-						caption = "Flags",
 					}),
 					gui.Checkbox(
 						{ "cybersyn2-combinator-mode-station.provide-all" },
@@ -262,7 +262,7 @@ relm.define_element({
 					}
 				),
 				ultros.If(
-					is_provider,
+					is_provider and is_advanced_mode,
 					gui.Checkbox(
 						"Enforce train fullness threshold when providing",
 						"If checked, this station will only provide deliveries that meet the train fullness threshold set at this station. This means that even if a request threshold is met, a train will not depart unless it is sufficiently full.\n\nIf unchecked, only request thresholds apply as usual.",
@@ -294,67 +294,71 @@ relm.define_element({
 					"Allow all trains",
 					"If checked, this station will allow any train to use it regardless of station layout. In order to further control which trains come to this station, you must use networks.",
 					props.combinator,
-					"allow_all"
+					"allow_all",
+					false,
+					false,
+					nil,
+					not is_advanced_mode
 				),
 			}),
-			ultros.WellSection({ caption = "Departure Conditions" }, {
-				ultros.Labeled(
-					{ caption = "Signal: Allow departure", top_margin = 6 },
-					{
-						gui.AnySignalPicker(
-							props.combinator,
-							"allow_departure_signal",
-							"Trains will only depart if this signal is present at the train stop.\n\nNOTE: The train stop must be set to send signals to the train."
-						),
-					}
-				),
-				ultros.Labeled(
-					{ caption = "Signal: Force departure", top_margin = 6 },
-					{
-						gui.AnySignalPicker(
-							props.combinator,
-							"force_departure_signal",
-							"If this signal is present at the train stop, the train will be forced to leave, regardless of other conditions.\n\nNOTE: The train stop must be set to send signals to the train."
-						),
-					}
-				),
-				ultros.Labeled({ caption = "Inactivity mode", top_margin = 6 }, {
-					gui.Switch(
-						"Determines how the inactivity timer will apply. After delivery means the train will wait the appropriate number of seconds after emptying its cargo. Force out means the train will be forced out after the appropriate number of seconds, regardless of whether it has emptied its cargo. The center position disables inactivity timeouts.",
-						true,
-						"After delivery",
-						"Force out",
-						props.combinator,
-						"inactivity_mode"
+			ultros.WellSection(
+				{ caption = "Departure Conditions", visible = is_advanced_mode },
+				{
+					ultros.Labeled(
+						{ caption = "Signal: Allow departure", top_margin = 6 },
+						{
+							gui.AnySignalPicker(
+								props.combinator,
+								"allow_departure_signal",
+								"Trains will only depart if this signal is present at the train stop.\n\nNOTE: The train stop must be set to send signals to the train."
+							),
+						}
 					),
-				}),
-				ultros.Labeled(
-					{ caption = "Inactivity timeout (sec)", top_margin = 6 },
-					{
-						gui.Input({
-							combinator = props.combinator,
-							setting = "inactivity_timeout",
-							width = 75,
-							numeric = true,
-							allow_decimal = false,
-							allow_negative = false,
-						}),
-					}
-				),
-				gui.InnerHeading({
-					caption = "Flags",
-				}),
-				gui.Checkbox(
-					"Enable cargo condition",
-					"If checked, trains will receive a wait condition requiring them to pick up or drop off their cargo. If unchecked, you must manually control the train's departure using custom logic.",
-					props.combinator,
-					"disable_cargo_condition",
-					true
-				),
-			}),
+					ultros.Labeled(
+						{ caption = "Signal: Force departure", top_margin = 6 },
+						{
+							gui.AnySignalPicker(
+								props.combinator,
+								"force_departure_signal",
+								"If this signal is present at the train stop, the train will be forced to leave, regardless of other conditions.\n\nNOTE: The train stop must be set to send signals to the train."
+							),
+						}
+					),
+					ultros.Labeled({ caption = "Inactivity mode", top_margin = 6 }, {
+						gui.Switch(
+							"Determines how the inactivity timer will apply. After delivery means the train will wait the appropriate number of seconds after emptying its cargo. Force out means the train will be forced out after the appropriate number of seconds, regardless of whether it has emptied its cargo. The center position disables inactivity timeouts.",
+							true,
+							"After delivery",
+							"Force out",
+							props.combinator,
+							"inactivity_mode"
+						),
+					}),
+					ultros.Labeled(
+						{ caption = "Inactivity timeout (sec)", top_margin = 6 },
+						{
+							gui.Input({
+								combinator = props.combinator,
+								setting = "inactivity_timeout",
+								width = 75,
+								numeric = true,
+								allow_decimal = false,
+								allow_negative = false,
+							}),
+						}
+					),
+					gui.Checkbox(
+						"Enable cargo condition",
+						"If checked, trains will receive a wait condition requiring them to pick up or drop off their cargo. If unchecked, you must manually control the train's departure using custom logic.",
+						props.combinator,
+						"disable_cargo_condition",
+						true
+					),
+				}
+			),
 			ultros.WellSection({
 				caption = "Outbound Item Handling",
-				visible = is_provider,
+				visible = is_provider and is_advanced_mode,
 			}, {
 				ultros.Labeled({ caption = "Spillover", top_margin = 6 }, {
 					gui.Input({
@@ -405,33 +409,37 @@ relm.define_element({
 					"produce_single_item"
 				),
 			}),
-			ultros.WellSection({ caption = "Shared Inventory" }, {
-				gui.Status(get_status_props(is_master, is_slave)),
-				ultros.If(
-					is_shared,
-					ultros.Button({
-						caption = "Stop sharing inventory",
-						on_click = "stop_sharing",
-					})
-				),
-				ultros.If(
-					(not is_shared) or is_master,
-					ultros.Button({
-						caption = "Share this inventory with another station",
-						on_click = "start_sharing",
-					})
-				),
-				gui.Checkbox(
-					"Clone orders",
-					"If checked, this station will ignore its own orders and clone identical orders from the master station.",
-					props.combinator,
-					"shared_inventory_independent_orders",
-					true,
-					not is_slave
-				),
-			}),
+			ultros.WellSection(
+				{ caption = "Shared Inventory", visible = is_advanced_mode },
+				{
+					gui.Status(get_status_props(is_master, is_slave)),
+					ultros.If(
+						is_shared,
+						ultros.Button({
+							caption = "Stop sharing inventory",
+							on_click = "stop_sharing",
+						})
+					),
+					ultros.If(
+						(not is_shared) or is_master,
+						ultros.Button({
+							caption = "Share this inventory with another station",
+							on_click = "start_sharing",
+						})
+					),
+					gui.Checkbox(
+						"Clone orders",
+						"If checked, this station will ignore its own orders and clone identical orders from the master station.",
+						props.combinator,
+						"shared_inventory_independent_orders",
+						true,
+						not is_slave
+					),
+				}
+			),
 			ultros.WellSection({
 				caption = "Configuration via Circuit",
+				visible = is_advanced_mode,
 			}, {
 				ultros.Labeled(
 					{ caption = "Input signal: Depletion percentage", top_margin = 6 },

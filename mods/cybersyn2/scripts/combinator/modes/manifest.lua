@@ -8,6 +8,7 @@ local signal_lib = require("lib.signal")
 local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local gui = _G.cs2.gui
+local mod_settings = _G.cs2.mod_settings
 
 local Delivery = _G.cs2.Delivery
 local signal_to_key = signal_lib.signal_to_key
@@ -39,7 +40,10 @@ relm.define_element({
 	render = function(props)
 		return VF({
 			ultros.WellSection(
-				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
+				{
+					caption = { "cybersyn2-combinator-modes-labels.settings" },
+					visible = mod_settings.advanced_mode,
+				},
 				{
 					ultros.Labeled({
 						caption = { "cybersyn2-combinator-mode-manifest.signal-dropoff" },

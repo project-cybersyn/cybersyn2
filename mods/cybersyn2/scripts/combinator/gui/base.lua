@@ -8,6 +8,7 @@ local events = require("lib.core.event")
 local solib = require("lib.core.relm.smart-open")
 
 local combinator_modes = _G.cs2.combinator_modes
+local mod_settings = _G.cs2.mod_settings
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
@@ -98,6 +99,12 @@ local HF = ultros.HFlow
 local VF = ultros.VFlow
 local Pr = relm.Primitive
 
+-- These are the modes that show up in non-advanced gui mode.
+local simple_modes = {
+	["station"] = true,
+	["manifest"] = true,
+}
+
 local ModePicker = relm.define_element({
 	name = "CombinatorGui.ModePicker",
 	render = function(props)
@@ -108,15 +115,14 @@ local ModePicker = relm.define_element({
 			})
 		end
 		local desired_mode_name = props.combinator.mode
-		local options = tlib.t_map_a(
-			combinator_modes,
-			function(mode, name)
+		local options = tlib.t_map_a(combinator_modes, function(mode, name)
+			if mod_settings.advanced_mode or simple_modes[name] then
 				return {
 					key = name,
 					caption = { mode.localized_string },
 				}
 			end
-		)
+		end)
 		return ultros.Dropdown({
 			options = options,
 			horizontally_stretchable = true,
