@@ -246,7 +246,7 @@ local function cull_stop_layouts(stop)
 	local culled_layout = false
 	for layout_id in pairs(stop.allowed_layouts) do
 		local layout = storage.train_layouts[layout_id]
-		if layout and layout.no_trains then
+		if (not layout) or layout.no_trains then
 			stop.allowed_layouts[layout_id] = nil
 			culled_layout = true
 		end
