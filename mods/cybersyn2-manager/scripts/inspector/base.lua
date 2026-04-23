@@ -44,7 +44,7 @@ function _G.mgr.inspector.add_entries(player_index, entry)
 			x = x + (30 * idx)
 			y = y + (30 * idx)
 			elt.location = { x, y }
-			solib.smart_open(player, elt, true)
+			-- solib.smart_open(player, elt, true)
 		end
 	end
 end

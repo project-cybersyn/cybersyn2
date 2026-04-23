@@ -88,7 +88,7 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	end
 	if order_stop and order_stop.is_consumer and order:is_requester() then
 		if not order_stop:has_max_deliveries() then
-			order.needs = order:compute_needs(self.workload_counter)
+			order:get_needs(self.workload_counter, true)
 			if order.needs then requesters[#requesters + 1] = order end
 		else
 			stlib.trace(
@@ -96,6 +96,8 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 				order_stop.id
 			)
 		end
+	else
+		order:clear_needs()
 	end
 	for _, view in pairs(storage.views) do
 		view:exit_order(self.workload_counter, order, stop)
