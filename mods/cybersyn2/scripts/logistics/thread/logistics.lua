@@ -90,12 +90,13 @@ function LogisticsThread:loop_requesters()
 
 	-- If the requester has nonempty needs, begin looping over providers,
 	-- otherwise go to the next requester.
-	if requester.needs then
+	local needs = requester:get_needs(self.workload_counter)
+	if needs then
 		trace(
 			"Requesting order for",
 			requester.node_id,
 			"has needs",
-			requester.needs,
+			needs,
 			"- iterating providers"
 		)
 
@@ -103,9 +104,10 @@ function LogisticsThread:loop_requesters()
 		self.matches = {}
 		self:set_state("loop_providers")
 	else
-		warn(
-			"Logic error: requester with no needs in logistics loop",
-			requester.node_id
+		trace(
+			"Requester",
+			requester.node_id,
+			"was culled due to dispatch loop activity eliminating its needs."
 		)
 	end
 end
@@ -293,19 +295,8 @@ function LogisticsThread:loop_matches()
 		self.this_match_routed = false
 		return self:start_train_loop()
 	else
-		-- Recompute needs if we routed something
-		local needs
-		if self.this_match_routed then
-			-- If we routed a match, recompute full needs
-			requester.needs = requester:compute_needs(self.workload_counter)
-			trace(
-				"Recomputed needs for requester",
-				requester.node_id,
-				"after successful routing",
-				requester.needs
-			)
-		end
-		needs = requester.needs
+		-- Recompute needs if necessary
+		local needs = requester:get_needs(self.workload_counter)
 
 		if not needs then
 			-- Requester no longer has needs; abort match loop
@@ -539,10 +530,10 @@ function LogisticsThread:route_train()
 	local spillover_manifest = nil
 	local total_item_slots = train.item_slot_capacity
 	local remaining_item_slots =
-		max(train.item_slot_capacity - (n_cargo_wagons * reserved_slots), 0)
+		max(total_item_slots - (n_cargo_wagons * reserved_slots), 0)
 	local total_fluid_capacity = train.fluid_capacity
 	local remaining_fluid_capacity =
-		max(train.fluid_capacity - (n_fluid_wagons * reserved_capacity), 0)
+		max(total_fluid_capacity - (n_fluid_wagons * reserved_capacity), 0)
 	local total_spillover = n_cargo_wagons * spillover
 
 	-- Fluid allocation.
@@ -601,6 +592,7 @@ function LogisticsThread:route_train()
 	self.avail_trains[self.best_train_index] = false
 	local tick = game.tick
 	match.requester.last_fulfilled_tick = tick
+	match.requester:mark_needs_as_stale()
 	local to_inv = match.requester.inventory
 	for item in pairs(manifest) do
 		to_inv.last_consumed_tick[item] = tick

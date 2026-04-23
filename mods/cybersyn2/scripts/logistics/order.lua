@@ -763,6 +763,44 @@ function Order:compute_needs(workload)
 	end
 end
 
+---Get this order's current needs.
+---@param workload Core.Thread.Workload
+---@param ignore_cache boolean? If `true`, the needs will be recomputed from scratch even if not stale.
+function Order:get_needs(workload, ignore_cache)
+	local is_stale = self.needs_stale
+	if (not ignore_cache) and not is_stale then
+		return self.needs
+	else
+		if not ignore_cache then
+			trace(
+				"Needs for order",
+				self.node_id,
+				"are stale because of dispatch loop activity, recomputing"
+			)
+		end
+		local needs = self:compute_needs(workload)
+		self.needs = needs
+		self.needs_stale = nil
+		return needs
+	end
+end
+
+---Mark the order as needing nothing, without computation.
+function Order:clear_needs()
+	self.needs = nil
+	self.needs_stale = nil
+end
+
+---Flag this order's needs as stale, forcing the dispatch loop to recompute them
+---from scratch next time they are referenced. This should be called whenever
+---a delivery is made against this order.
+function Order:mark_needs_as_stale()
+	local orders = self.inventory.orders or EMPTY
+	for _, order in pairs(orders) do
+		order.needs_stale = true
+	end
+end
+
 ---@class (exact) Cybersyn.Internal.Satisfaction
 ---@field fluids SignalCounts? Satisfied fluid manifest
 ---@field items SignalCounts? Satisfied item manifest

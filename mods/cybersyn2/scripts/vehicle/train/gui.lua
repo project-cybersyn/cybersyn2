@@ -268,7 +268,7 @@ relm.define("TrainGui", function(props)
 				ultros.If(
 					not cstrain,
 					ultros.RtMultilineLabel(
-						"This train is not managed by Cybersyn 2. Add it to a group beginning with [virtual-signal=cybersyn2]."
+						"This train is not managed by Cybersyn 2. Add it to a group beginning with [virtual-signal=cybersyn2]. (There must also be a Cybersyn 2 station within the surface or topology where the train is located.)"
 					)
 				),
 			}),
