@@ -2,6 +2,9 @@
 Version: 0.1.3
 Date: ????
   Changes:
+    - Added a mod setting to prefer parallel deliveries across stations with shared inventory. (Enabled by default.)
+  Bugfixes:
+    - Fixed a cache coherency issue that could cause a single provider to be overused when other less busy providers were available.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.2
 Date: 2026-04-23

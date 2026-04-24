@@ -245,13 +245,6 @@ function TrainStop:get_occupancy() return table_size(self.deliveries) end
 
 function TrainStop:get_queue_size() return #self.delivery_queue end
 
-function TrainStop:get_tekbox_equation()
-	local limit = math.max(self.entity.trains_limit, 1)
-	-- TODO: fix this; should account for queue less train limit
-	return table_size(self.deliveries)
-		+ (#self.delivery_queue * (limit + 1) / limit)
-end
-
 --------------------------------------------------------------------------------
 -- INVENTORY
 --------------------------------------------------------------------------------
@@ -342,6 +335,12 @@ function TrainStop:get_sharing_info()
 	else
 		return false, nil, nil, station_comb
 	end
+end
+
+function TrainStop:is_sharing_inventory()
+	-- Shortcut here: don't deep-read from Things, but rely on the event
+	-- driven caches
+	return (self.shared_inventory_master ~= nil) or self.is_master
 end
 
 ---@return Cybersyn.TrainStop[] slaves All slave stops sharing inventory from this stop.

@@ -252,7 +252,7 @@ end
 
 ---@param controlling_stop Cybersyn.TrainStop
 ---@param slaves Cybersyn.TrainStop[]|nil
-function StopInventory:is_volatile(controlling_stop, slaves)
+local function stop_inventory_is_volatile(controlling_stop, slaves)
 	if controlling_stop.entity.get_stopped_train() then return true end
 
 	if slaves then
@@ -267,17 +267,8 @@ end
 
 ---@param controlling_stop Cybersyn.TrainStop
 ---@param slaves Cybersyn.TrainStop[]|nil
-local function stop_inventory_is_volatile(controlling_stop, slaves)
-	if controlling_stop.entity.get_stopped_train() then return true end
-
-	if slaves then
-		-- A master inventory is volatile if any of its slaves has a parked train
-		for _, slave in pairs(slaves) do
-			if slave.entity.get_stopped_train() then return true end
-		end
-	end
-
-	return false
+function StopInventory:is_volatile(controlling_stop, slaves)
+	return stop_inventory_is_volatile(controlling_stop, slaves)
 end
 
 function StopInventory:update(workload, reread)

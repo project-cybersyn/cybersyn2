@@ -17,6 +17,7 @@ local strace = require("lib.core.strace")
 ---@field public default_auto_threshold_fraction number Default depletion threshold for trains, expressed as a fraction (0.0 to 1.0).
 ---@field public default_train_fullness_fraction number Default train fullness threshold for deliveries, expressed as a fraction (0.0 to 1.0).
 ---@field public default_netmask int32 Default netmask.
+---@field public shared_inventory_prefer_parallel boolean Whether to limit deliveries to shared inventory stations to one per cycle, to encourage parallelization across stations rather than queueing at a single station.
 
 ---@type Cybersyn.ModSettings
 ---@diagnostic disable-next-line: missing-fields
@@ -51,6 +52,8 @@ local function update_mod_settings()
 		/ 100.0
 	mod_settings.default_netmask =
 		settings.global["cybersyn2-setting-default-netmask"].value --[[@as int32]]
+	mod_settings.shared_inventory_prefer_parallel =
+		settings.global["cybersyn2-setting-shared-inventory-prefer-parallel"].value --[[@as boolean]]
 end
 _G.cs2.update_mod_settings = update_mod_settings
 
