@@ -212,6 +212,11 @@ function LogisticsThread:sort_matches()
 		error("Logic error: sort_matches called with no requester set")
 	end
 	local starvation_item = requester.needs.starvation_item
+	if requester_node:is_sharing_inventory() then
+		self.requester_is_sharing_inventory = true
+	else
+		self.requester_is_sharing_inventory = nil
+	end
 
 	table.sort(self.matches, function(a, b)
 		-- Check provider priority
@@ -248,7 +253,13 @@ function LogisticsThread:start_match_loop()
 	self.match_pass = 1
 	self.this_match_routed = false
 	self.pass_match_routed = false
-	trace("Match pass 1 for requester", self.requester.node_id)
+	trace(
+		"Match pass beginning for requester",
+		self.requester.node_id,
+		"with",
+		#self.matches,
+		"matches"
+	)
 	self:set_state("loop_matches")
 end
 
@@ -256,6 +267,19 @@ function LogisticsThread:loop_matches()
 	self.match_index = self.match_index + 1
 	local match = self.matches[self.match_index]
 	if not match then
+		if
+			self.requester_is_sharing_inventory
+			and mod_settings.shared_inventory_prefer_parallel
+		then
+			-- If this requester is sharing inventory, prefer parallelization across requesters rather than routing multiple matches in a row to the same requester.
+			trace(
+				"Shared Requester",
+				self.requester.node_id,
+				": deep iteration terminated due to parallelism preference"
+			)
+			return self:set_state("loop_requesters")
+		end
+
 		-- End of matches. Next pass
 		self.match_pass = self.match_pass + 1
 		if
@@ -295,9 +319,22 @@ function LogisticsThread:loop_matches()
 		self.this_match_routed = false
 		return self:start_train_loop()
 	else
-		-- Recompute needs if necessary
-		local needs = requester:get_needs(self.workload_counter)
+		-- Abort if a match was routed this pass, we are shared, and parallelization is preferred
+		if
+			self.requester_is_sharing_inventory
+			and mod_settings.shared_inventory_prefer_parallel
+			and self.pass_match_routed
+		then
+			trace(
+				"Shared Requester",
+				self.requester.node_id,
+				": deep iteration terminated due to parallelism preference"
+			)
+			return self:set_state("loop_requesters")
+		end
 
+		-- Recompute needs of requester
+		local needs = requester:get_needs(self.workload_counter)
 		if not needs then
 			-- Requester no longer has needs; abort match loop
 			return self:set_state("loop_requesters")
@@ -588,17 +625,20 @@ function LogisticsThread:route_train()
 		return
 	end
 
-	-- Generate and mark delivery
+	-- Update various caches
 	self.avail_trains[self.best_train_index] = false
 	local tick = game.tick
 	match.requester.last_fulfilled_tick = tick
 	match.requester:mark_needs_as_stale()
+	match.provider.busy_value = (match.provider.busy_value or 0) + 1
 	local to_inv = match.requester.inventory
 	for item in pairs(manifest) do
 		to_inv.last_consumed_tick[item] = tick
 	end
 	self.pass_match_routed = true
 	self.this_match_routed = true
+
+	-- Generate the delivery
 	local delivery = TrainDelivery.new(
 		train,
 		from,

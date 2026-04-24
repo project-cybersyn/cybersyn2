@@ -104,4 +104,11 @@ data:extend({
 		minimum_value = -2147483648,
 		maximum_value = 2147483647,
 	},
+	{
+		type = "bool-setting",
+		name = "cybersyn2-setting-shared-inventory-prefer-parallel",
+		order = "bd",
+		setting_type = "runtime-global",
+		default_value = true,
+	},
 })
