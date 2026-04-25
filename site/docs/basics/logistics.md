@@ -86,6 +86,10 @@ When loading or unloading, you will need the train's manifest to know what to lo
 
 This combinator will output the manifest of any parked train. Negative signals represent cargo that should be loaded onto the train. Positive signals represent cargo the train is dropping off.
 
+:::note
+This `Train` combinator is a second combinator that must be built in addition to the `Station` combinator you have already built. You may add any number of modular combinators to a stop by ensuring the yellow radius box of the combinator includes either the stop or a rail associated with the stop.
+:::
+
 ### Per-wagon cargo
 
 For trains with multiple wagons, it can be helpful to have the manifest split for you on a per-wagon basis. This is where combinators in **Wagon mode** come in. Placing one of these next to the tracks where a wagon will go will cause the manifest to be split on a per-wagon basis. This combinator will then output the wagon-specific manifest.

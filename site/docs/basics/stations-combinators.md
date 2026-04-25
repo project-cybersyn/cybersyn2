@@ -32,6 +32,13 @@ This represents the radius that will be searched when binding the combinator to 
 must position the combinator so its target stop or rail is within the yellow box. When building your
 first combinator, it must go next to a train stop.
 
+:::info
+In Cybersyn 2, you can deploy additional combinators beyond the initial `Station` combinator. This is often necessary to obtain the combination of inputs and outputs needed for your logistics setup.
+
+Any number of additional combinators can be deployed to the same stop by ensuring their yellow box
+touches the stop, or a a rail associated with the stop.
+:::
+
 ### Configuring
 
 Clicking on a Cybersyn combinator will open a menu GUI allowing control of its settings.
