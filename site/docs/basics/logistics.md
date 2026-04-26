@@ -156,3 +156,22 @@ This can be mitigated if necessary by changing Cybersyn's performance settings.
 - A station's inventory will not be updated while a train is at the station, as this will result in the delivery of that train being unaccounted for. Instead, the station will update its inventory opportunistically as the train leaves.
 
 :::
+
+## Starvation and Starvation Mitigation
+
+### What is Starvation?
+
+**Starvation** occurs when a station has been waiting a long time without receiving an item it has requested. Specifically, Cybersyn considers a requested item "starving" when:
+
+- The station has zero of that item in its inventory and incoming deliveries
+- The station has not received any of that item for 5 minutes
+
+Starvation typically happens during moments of scarcity, when multiple stations are competing for the same limited resources and one station keeps getting passed over.
+
+### Starvation Mitigation
+
+When "Mitigate starvation" option is enabled (checked by default), Cybersyn automatically applies special handling when it detects a starving item. The system prioritizes delivering the starving item:
+
+1. **Requester Priority**: Requesters are sorted first by priority, then by how long they have been   starving. A station that has been waiting 10 minutes for an item will be served before one waiting 6     minutes.
+2. **Reserved Stock & Delivery**: If a provider has the starving item, the system reserves as much of it as possible for the starving requester. The delivery will be dispatched as soon as the provider has enough in stock to fulfill the request.
+3. **Fullness Override**: The train fullness threshold is lowered to just enough to carry the requested amount of the starving item, allowing trains to depart without needing to be fully loaded. This prevents the station from waiting indefinitely for a full train.
