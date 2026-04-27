@@ -157,21 +157,23 @@ This can be mitigated if necessary by changing Cybersyn's performance settings.
 
 :::
 
-## Starvation and Starvation Mitigation
+## Starvation
 
-### What is Starvation?
+**Starvation** occurs when an order is missing a particular item and has not received a delivery in some time. Specifically, Cybersyn considers a requesting order to be starved of an item when:
 
-**Starvation** occurs when a station has been waiting a long time without receiving an item it has requested. Specifically, Cybersyn considers a requested item "starving" when:
-
-- The station has zero of that item in its inventory and incoming deliveries
-- The station has not received any of that item for 5 minutes
-
-Starvation typically happens during moments of scarcity, when multiple stations are competing for the same limited resources and one station keeps getting passed over.
+- The station has zero of that item in its inventory and incoming deliveries.
+- The order has not received a delivery of that item for 5 minutes.
 
 ### Starvation Mitigation
 
-When "Mitigate starvation" option is enabled (checked by default), Cybersyn automatically applies special handling when it detects a starving item. The system prioritizes delivering the starving item:
+When the "Mitigate starvation" option for an order is enabled (checked by default), Cybersyn automatically applies special handling when it detects a starving item. Logistics behavior is changed as follows:
 
-1. **Requester Priority**: Requesters are sorted first by priority, then by how long they have been   starving. A station that has been waiting 10 minutes for an item will be served before one waiting 6     minutes.
-2. **Reserved Stock & Delivery**: If a provider has the starving item, the system reserves as much of it as possible for the starving requester. The delivery will be dispatched as soon as the provider has enough in stock to fulfill the request.
-3. **Fullness Override**: The train fullness threshold is lowered to just enough to carry the requested amount of the starving item, allowing trains to depart without needing to be fully loaded. This prevents the station from waiting indefinitely for a full train.
+1. **Prioritization by starvation time**: The longer an order is starving, the higher its priority. A station that has been waiting 10 minutes for an item will be served before one waiting 6     minutes.
+:::note
+This does not override ordinary station priority. Higher-priority stations will still be served first, even if a lower-priority station is starving.
+:::
+2. **Reserved stock**: All matching providers of the starving item will have all of their inventory of that item reserved until at least one of them is able to make a delivery that satisfies the starving order.
+3. **Fullness thresholds ignored**: Train fullness thresholds are ignored when transporting starved items, meaning stations that are ordinarily configured for full trains may make partial deliveries in cases of starvation
+:::note
+The depletion threshold for the requester, as well as any manually set thresholds, are still enforced.
+:::
