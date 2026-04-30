@@ -5,6 +5,7 @@ Date: ????
     - Added a mod setting to prefer parallel deliveries across stations with shared inventory. (Enabled by default.)
   Bugfixes:
     - Fixed a cache coherency issue that could cause a single provider to be overused when other less busy providers were available.
+    - Fixed a crash that could rarely occur when destroying a train stop at a certain point in the logistics loop.
     - Disabled the construction of combinators via the Mouse-Over Construction mod, which was causing settings data loss.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.2

@@ -70,11 +70,17 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	if not order then return self:set_state("poll_nodes") end
 
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
-	if not stop:is_valid() then self:set_state("poll_nodes") end
+	if not stop:is_valid() then return self:set_state("poll_nodes") end
 
 	-- Shared inventory: order may be for a different stop.
 	local order_stop = stop --[[@as Cybersyn.TrainStop?]]
-	if order.node_id ~= stop.id then order_stop = cs2.get_stop(order.node_id) end
+	if order.node_id ~= stop.id then
+		order_stop = cs2.get_stop(order.node_id)
+		if not order_stop or not order_stop:is_valid() then
+			strace(WARN, "message", "Order has invalid stop reference", order.node_id)
+			return self:set_state("poll_nodes")
+		end
+	end
 	local providers = self.providers
 	local requesters = self.requesters
 
