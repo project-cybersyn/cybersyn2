@@ -24,7 +24,8 @@ end
 function _G.cs2.get_combinator_mode_list() return mode_list end
 
 ---Get a combinator mode by name.
----@param name string
+---@param name string?
+---@return Cybersyn.Combinator.ModeDefinition?
 function _G.cs2.get_combinator_mode(name) return modes[name or ""] end
 
 --------------------------------------------------------------------------------

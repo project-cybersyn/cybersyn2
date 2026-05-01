@@ -2,12 +2,15 @@
 Version: 0.1.3
 Date: ????
   Changes:
+    - Deprecated the "Wagon" combinator mode, which was an early prototype of the "Wagon Contents" and "Wagon Split" modes that had some technical issues. Stations using this mode will trigger an alert and be ignored by the logistics system. To migrate, replace "Wagon" combinators with the appropriate combination of "Wagon Split" and "Wagon Contents" combinators.
+    - Added "Wagon Split" combinator mode, which splits the contents of orders evenly across wagons, outputting per-wagon manifests.
     - Added "Wagon Contents" combinator mode, which reads the inventory of the attached cargo wagon in real time in a UPS-efficient manner using a proxy inventory.
     - Added a mod setting to prefer parallel deliveries across stations with shared inventory. (Enabled by default.)
   Bugfixes:
     - Fixed a race condition that could cause incorrect auto allow lists.
     - Fixed a cache coherency issue that could cause a single provider to be overused when other less busy providers were available.
     - Fixed a crash that could rarely occur when destroying a train stop at a certain point in the logistics loop.
+  Compatibility:
     - Disabled the construction of combinators via the Mouse-Over Construction mod, which was causing settings data loss.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.2

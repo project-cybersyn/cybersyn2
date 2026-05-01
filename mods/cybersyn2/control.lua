@@ -64,6 +64,7 @@ require("scripts.combinator.modes.inventory")
 require("scripts.combinator.modes.deliveries")
 require("scripts.combinator.modes.surface")
 require("scripts.combinator.modes.wagon-contents")
+require("scripts.combinator.modes.wagon-split")
 
 require("scripts.logistics.thread.base")
 require("scripts.logistics.thread.enum-nodes")
