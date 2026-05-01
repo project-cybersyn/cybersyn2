@@ -109,6 +109,7 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 		self.combinator_set[combinator.id] = true
 		combinator.node_id = self.id
 		cs2.raise_combinator_node_associated(combinator, self, nil)
+		events.raise("cs2.combinator_node_associated", combinator, self, nil)
 		if not suppress_set_changed then
 			cs2.raise_node_combinator_set_changed(self)
 		end
@@ -137,6 +138,7 @@ function Node.disassociate_combinator(combinator, suppress_set_changed)
 	end
 	node.combinator_set[combinator.id] = nil
 	cs2.raise_combinator_node_associated(combinator, nil, node)
+	events.raise("cs2.combinator_node_associated", combinator, nil, node)
 	if not suppress_set_changed then
 		cs2.raise_node_combinator_set_changed(node)
 	end

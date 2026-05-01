@@ -29,6 +29,7 @@ local add_workload = thread_lib.add_workload
 ---@field is_input boolean? `true` if the input signals of a combinator in this mode should be read during `poll_combinators`.
 ---@field is_output boolean? `true` if this mode can set the output state of the combinator.
 ---@field independent_input_wires boolean? If `true`, the red and green input wires will be read separately when examining the inputs of this combinator.
+---@field deprecated boolean? If `true`, this mode is deprecated. Any stations with combinators using this mode will be highlighted with an alert and disabled.
 
 ---@type {[string]: Cybersyn.Combinator.ModeDefinition}
 _G.cs2.combinator_modes = {}

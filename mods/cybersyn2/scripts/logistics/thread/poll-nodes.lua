@@ -117,11 +117,39 @@ end
 ---@param workload Core.Thread.Workload
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop_station_comb(workload, stop)
-	add_workload(workload, 1)
-	local combs = stop:get_associated_combinators(
-		function(comb) return comb.mode == "station" end
-	)
+	add_workload(workload, 2)
+
+	-- Enumerate combinators
+	local combs = {}
+	local deprecated_combs = nil
+	for _, comb in cs2.iterate_combinators(stop) do
+		if comb.mode == "station" then
+			combs[#combs + 1] = comb
+		else
+			local mode = cs2.get_combinator_mode(comb.mode)
+			if mode and mode.deprecated then
+				if not deprecated_combs then deprecated_combs = {} end
+				deprecated_combs[#deprecated_combs + 1] = comb
+			end
+		end
+	end
 	local is_valid = stop:is_valid()
+	local can_proceed = true
+
+	-- Alert on deprecated combs
+	if deprecated_combs and #deprecated_combs > 0 and is_valid then
+		cs2.create_alert(
+			stop.entity,
+			"deprecated_combs",
+			cs2.CS2_ICON_SIGNAL_ID,
+			{ "", { "cybersyn2-alerts.deprecated-combs" }, " (", stop.id, ")" }
+		)
+		can_proceed = false
+	else
+		cs2.destroy_alert(stop.entity, "deprecated_combs")
+	end
+
+	-- Alert on invalid station comb configs
 	if #combs == 0 and is_valid then
 		cs2.create_alert(
 			stop.entity,
@@ -129,7 +157,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 			cs2.CS2_ICON_SIGNAL_ID,
 			{ "cybersyn2-alerts.no-station" }
 		)
-		return false
+		can_proceed = false
 	elseif #combs > 1 and is_valid then
 		cs2.create_alert(
 			stop.entity,
@@ -137,16 +165,18 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 			cs2.CS2_ICON_SIGNAL_ID,
 			{ "cybersyn2-alerts.too-many-station" }
 		)
-		return false
+		can_proceed = false
 	else
 		cs2.destroy_alert(stop.entity, "no_station")
 		cs2.destroy_alert(stop.entity, "too_many_station")
 	end
-	if not is_valid then return false end
+
+	-- Abort if stop invalid
+	if (not is_valid) or not can_proceed then return false end
+
+	-- Verify status of station comb
 	local comb = combs[1]
 	add_workload(workload, 2)
-
-	-- Verify status of station comb entity
 	local comb_entity = comb.real_entity
 	if
 		not comb_entity
@@ -239,6 +269,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	end
 
 	-- Default networks (deprecated/hidden, should now be set at order level)
+	-- TODO: deprecate
 	local default_networks = {}
 	local network_signal = comb:get_network_signal()
 	if network_signal then default_networks[network_signal] = -1 end
