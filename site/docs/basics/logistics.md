@@ -90,18 +90,6 @@ This combinator will output the manifest of any parked train. Negative signals r
 This `Train` combinator is a second combinator that must be built in addition to the `Station` combinator you have already built. You may add any number of modular combinators to a stop by ensuring the yellow radius box of the combinator includes either the stop or a rail associated with the stop.
 :::
 
-### Per-wagon cargo
-
-For trains with multiple wagons, it can be helpful to have the manifest split for you on a per-wagon basis. This is where combinators in **Wagon mode** come in. Placing one of these next to the tracks where a wagon will go will cause the manifest to be split on a per-wagon basis. This combinator will then output the wagon-specific manifest.
-
-Wagon mode also applies a cargo slot filter to its connected wagon ensuring that items are slotted correctly. This can be necessary in complex multi-item setups to prevent partial stacks being split over slots by loading equipment.
-
-The Wagon combinator can also be configured to take a UPS-efficient realtime count of the wagon's inventory and automatically add it to the manifest. This can be useful when precisely loading wagons.
-
-:::info
-Wagon control does not affect how deliveries are generated. It provides an even split of the delivery between wagons. You cannot use it to ensure that specific cargo is always loaded onto a specific wagon.
-:::
-
 ## Algorithmic Thresholds
 
 Cybersyn's algorithm automatically decides when it is appropriate to send trains. It does so based primarily on two numerical parameters, both of which can be changed in the *Inbound Item Handling* section of the **Station combinator** options.
