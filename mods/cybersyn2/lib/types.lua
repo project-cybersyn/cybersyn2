@@ -93,6 +93,7 @@ lib.CarriageType = {
 ---@field public n_cargo_wagons uint Number of cargo wagons in the train.
 ---@field public n_fluid_wagons uint Number of fluid wagons in the train.
 ---@field public no_trains boolean? `true` if no extant trains match this layout.
+---@field public recent boolean? `true` if this layout was recently created or re-used. Used to prevent thrashing of train layouts in the async train monitor loop.
 
 ---An isolated group of `Node`s that can only communicate with each other.
 ---@class Cybersyn.Topology

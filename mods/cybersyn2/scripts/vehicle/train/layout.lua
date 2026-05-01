@@ -46,14 +46,18 @@ local function map_layout(train)
 	end
 
 	-- Check if layout exists
-	local _, layout_id = tlib.find(storage.train_layouts, function(layout)
+	local layout, layout_id = tlib.find(storage.train_layouts, function(layout)
 		if tlib.a_eqeq(layout.carriage_names, names) then return true end
 	end)
-	if layout_id then return layout_id end
+	if layout and layout_id then
+		-- Reuse the layout if it already exists
+		layout.recent = true
+		return layout_id
+	end
 
 	-- Create new layout
 	---@type Cybersyn.TrainLayout
-	local layout = {
+	layout = {
 		id = counters.next("train_layout"),
 		carriage_names = names,
 		carriage_types = types,
@@ -62,6 +66,7 @@ local function map_layout(train)
 		bidirectional = (
 			#(train.lua_train.locomotives["back_movers"] or empty) > 0
 		),
+		recent = true,
 	}
 	storage.train_layouts[layout.id] = layout
 	cs2.raise_train_layout_created(layout)
