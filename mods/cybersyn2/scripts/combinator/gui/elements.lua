@@ -209,7 +209,7 @@ _G.cs2.gui.Status = relm.define_element({
 })
 
 --------------------------------------------------------------------------------
--- ORDER INPUT WIRE SETTINGS
+-- ORDER INPUT WIRE UI
 -- This is lifted here because it's used by multiple combinator modes.
 --------------------------------------------------------------------------------
 
@@ -234,7 +234,11 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 				wire_color,
 				"]",
 				{ "cybersyn2-combinator-orders.order-settings" },
-				"[/color]",
+				" (",
+				{ "cybersyn2-combinator-orders." .. wire_color },
+				" ",
+				{ "cybersyn2-combinator-orders.wire" },
+				")[/color]",
 			},
 		}, {
 			ultros.Labeled({
@@ -296,3 +300,49 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 		})
 	end,
 })
+
+_G.cs2.gui.OrderWireHelp = relm.define("OrderWireHelp", function(props)
+	local wire_color = props.wire_color
+	local network_signal = props.network_signal
+	local network_signals = ""
+	local network_signals_desc = ""
+	if network_signal == "signal-each" then
+		network_signals =
+			"[virtual-signal=signal-A][virtual-signal=signal-green][virtual-signal=signal-fuel]..."
+		network_signals_desc =
+			{ "cybersyn2-combinator-mode-inventory.network-signals-each" }
+	elseif network_signal then
+		network_signals = "[virtual-signal=" .. network_signal .. "]"
+		network_signals_desc =
+			{ "cybersyn2-combinator-mode-inventory.network-signals-specific" }
+	end
+
+	return {
+		ultros.RtBoldLabel({
+			"",
+			"[color=",
+			wire_color,
+			"]",
+			{ "cybersyn2-combinator-modes-labels.signal-inputs" },
+			"[/color]",
+		}),
+		Pr({ type = "line", direction = "horizontal" }),
+		Pr({
+			type = "table",
+			column_count = 2,
+		}, {
+			ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.signal" }),
+			ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.effect" }),
+			ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-station.order-signals",
+			}),
+			ultros.RtLabel(network_signals),
+			ultros.RtMultilineLabel(network_signals_desc),
+			ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-inventory.priority-signal",
+			}),
+		}),
+	}
+end)

@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- Inventory input combinator
+-- Inventory (Orders) input combinator
 --------------------------------------------------------------------------------
 
 local tlib = require("lib.core.table")
@@ -78,37 +78,17 @@ relm.define_element({
 relm.define_element({
 	name = "CombinatorGui.Mode.Inventory.Help",
 	render = function(props)
+		local combinator = props.combinator
+		local red_network = combinator:get_order_primary_network()
+		local green_network = combinator:get_order_secondary_network()
 		return VF({
 			ultros.RtMultilineLabel({
 				"cybersyn2-combinator-mode-inventory.desc",
 			}),
-			Pr({
-				type = "label",
-				font_color = { 255, 230, 192 },
-				font = "default-bold",
-				caption = { "cybersyn2-combinator-modes-labels.signal-inputs" },
-			}),
-			Pr({ type = "line", direction = "horizontal" }),
-			Pr({
-				type = "table",
-				column_count = 2,
-			}, {
-				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.signal" }),
-				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.effect" }),
-				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
-				ultros.RtMultilineLabel({
-					"cybersyn2-combinator-mode-station.order-signals",
-				}),
-				ultros.RtLabel(
-					"[virtual-signal=signal-A][virtual-signal=signal-green][virtual-signal=signal-fuel]..."
-				),
-				ultros.RtMultilineLabel({
-					"cybersyn2-combinator-mode-inventory.network-signals",
-				}),
-				ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
-				ultros.RtMultilineLabel({
-					"cybersyn2-combinator-mode-inventory.priority-signal",
-				}),
+			gui.OrderWireHelp({ wire_color = "red", network_signal = red_network }),
+			gui.OrderWireHelp({
+				wire_color = "green",
+				network_signal = green_network,
 			}),
 		})
 	end,

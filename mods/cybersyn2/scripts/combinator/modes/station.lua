@@ -520,44 +520,31 @@ local MainWireHelp = relm.define_element({
 	name = "CombinatorGui.Mode.Station.Help.MainWire",
 	render = function(props)
 		local combinator = props.combinator
+		local wire_color = props.wire_color
 		return {
 			ultros.RtBoldLabel({
 				"",
-				"[color=" .. props.wire_color .. "]",
-				{ "cybersyn2-combinator-modes-labels.signal" },
+				"[color=",
+				wire_color,
+				"]",
+				{ "cybersyn2-combinator-modes-labels.signal-inputs" },
 				"[/color]",
 			}),
-			ultros.RtBoldLabel({
-				"cybersyn2-combinator-modes-labels.effect",
-			}),
-			ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
-			ultros.RtMultilineLabel({
-				"cybersyn2-combinator-mode-station.true-inventory-signals",
-			}),
-			ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
-			ultros.RtMultilineLabel({
-				"cybersyn2-combinator-mode-station.priority-signal",
-			}),
-		}
-	end,
-})
-
-local OrderWireHelp = relm.define_element({
-	name = "CombinatorGui.Mode.Station.Help.OrderWire",
-	render = function(props)
-		return {
-			ultros.RtBoldLabel({
-				"",
-				"[color=" .. props.wire_color .. "]",
-				{ "cybersyn2-combinator-modes-labels.signal" },
-				"[/color]",
-			}),
-			ultros.RtBoldLabel({
-				"cybersyn2-combinator-modes-labels.effect",
-			}),
-			ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
-			ultros.RtMultilineLabel({
-				"cybersyn2-combinator-mode-station.order-signals",
+			Pr({ type = "line", direction = "horizontal" }),
+			Pr({
+				type = "table",
+				column_count = 2,
+			}, {
+				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.signal" }),
+				ultros.BoldLabel({ "cybersyn2-combinator-modes-labels.effect" }),
+				ultros.RtLabel("[item=iron-ore][item=copper-plate][fluid=water]..."),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-station.true-inventory-signals",
+				}),
+				ultros.RtLgLabel("[virtual-signal=cybersyn2-priority]"),
+				ultros.RtMultilineLabel({
+					"cybersyn2-combinator-mode-station.priority-signal",
+				}),
 			}),
 		}
 	end,
@@ -567,27 +554,17 @@ relm.define_element({
 	name = "CombinatorGui.Mode.Station.Help",
 	render = function(props)
 		local primary_wire = props.combinator:get_primary_wire()
+		local network_signal = props.combinator:get_order_primary_network()
 		local opposite_wire = primary_wire == "red" and "green" or "red"
 		return VF({
-			Pr({
-				type = "label",
-				font_color = { 255, 230, 192 },
-				font = "default-bold",
-				caption = "Signal Inputs",
+			MainWireHelp({
+				combinator = props.combinator,
+				wire_color = primary_wire,
 			}),
-			Pr({ type = "line", direction = "horizontal" }),
-			Pr({
-				type = "table",
-				column_count = 2,
-			}, {
-				MainWireHelp({
-					combinator = props.combinator,
-					wire_color = primary_wire,
-				}),
-				OrderWireHelp({
-					combinator = props.combinator,
-					wire_color = opposite_wire,
-				}),
+			cs2.gui.OrderWireHelp({
+				combinator = props.combinator,
+				wire_color = opposite_wire,
+				network_signal = network_signal,
 			}),
 		})
 	end,
