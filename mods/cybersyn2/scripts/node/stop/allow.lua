@@ -20,6 +20,10 @@ local TRACE = stlib.TRACE
 local INF = math.huge
 local NINF = -math.huge
 
+---@param tl Cybersyn.TrainLayout?
+---@return boolean
+local function layout_is_usable(tl) return tl ~= nil and not tl.no_trains end
+
 ---@param carriage_type Cybersyn.CarriageType?
 ---@param pattern (0|1|2|3)?
 ---@param is_strict boolean
@@ -106,14 +110,20 @@ local function make_auto_allow_list(stop, is_strict, is_bidi, changed_layout_id)
 	if changed_layout_id then
 		local tl = storage.train_layouts[changed_layout_id]
 		if not tl then return end
-		if stop_accepts_train(layout, tl, is_strict, is_bidi) then
+		if
+			layout_is_usable(tl)
+			and stop_accepts_train(layout, tl, is_strict, is_bidi)
+		then
 			stop.allowed_layouts[tl.id] = true
 		else
 			stop.allowed_layouts[tl.id] = nil
 		end
 	else
 		for tl_id, tl in pairs(storage.train_layouts) do
-			if stop_accepts_train(layout, tl, is_strict, is_bidi) then
+			if
+				layout_is_usable(tl)
+				and stop_accepts_train(layout, tl, is_strict, is_bidi)
+			then
 				stop.allowed_layouts[tl_id] = true
 			else
 				stop.allowed_layouts[tl_id] = nil
@@ -145,14 +155,20 @@ local function make_manual_allow_list(
 	if changed_layout_id then
 		local tl = storage.train_layouts[changed_layout_id]
 		if not tl then return end
-		if allowlist_has_layout(manually_allowed_layouts, tl.carriage_names) then
+		if
+			layout_is_usable(tl)
+			and allowlist_has_layout(manually_allowed_layouts, tl.carriage_names)
+		then
 			stop.allowed_layouts[tl.id] = true
 		else
 			stop.allowed_layouts[tl.id] = nil
 		end
 	else
 		for tl_id, tl in pairs(storage.train_layouts) do
-			if allowlist_has_layout(manually_allowed_layouts, tl.carriage_names) then
+			if
+				layout_is_usable(tl)
+				and allowlist_has_layout(manually_allowed_layouts, tl.carriage_names)
+			then
 				stop.allowed_layouts[tl_id] = true
 			else
 				stop.allowed_layouts[tl_id] = nil
@@ -307,14 +323,18 @@ cs2.on_train_layout_created(function(train_layout)
 	end
 end)
 
--- When train layouts are destroyed, we need to re-evaluate all stops.
-cs2.on_train_layouts_destroyed(function()
+---Force re-evaluation of all allow lists globally. WARNING: this is a very
+---slow operation.
+function _G.cs2.reevaluate_all_allow_lists()
 	for _, node in pairs(storage.nodes) do
 		if node.type == "stop" then
-			cull_stop_layouts(node --[[@as Cybersyn.TrainStop]])
+			evaluate_stop(node --[[@as Cybersyn.TrainStop]])
 		end
 	end
-end)
+end
+
+-- When train layouts are destroyed, we need to re-evaluate all stops.
+cs2.on_train_layouts_destroyed(function() cs2.reevaluate_all_allow_lists() end)
 
 --------------------------------------------------------------------------------
 -- Allowlist key calculation
@@ -342,6 +362,3 @@ events.bind(
 	end,
 	true
 )
-
--- XXX: this is needed in an alpha migration. remove for beta.
-function TrainStop:evaluate_allowed_capacities() end
