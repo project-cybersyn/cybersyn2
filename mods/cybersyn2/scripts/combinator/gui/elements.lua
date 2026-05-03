@@ -267,10 +267,6 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 					andor_dropdown_items
 				),
 			}),
-			gui.InnerHeading({
-				caption = { "cybersyn2-combinator-orders.flags" },
-				visible = not is_provide_only,
-			}),
 			gui.Checkbox(
 				{ "cybersyn2-combinator-orders.stacked-requests" },
 				{ "cybersyn2-combinator-orders.stacked-requests-tooltip" },
