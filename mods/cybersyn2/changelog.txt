@@ -6,6 +6,9 @@ Date: ????
     - In-game documentation for combinators taking order input has been improved.
   Bugfixes:
     - Fixed an issue where unused layouts were not culled from computed allow lists.
+    - Fixed an issue where rails of type `half-diagonal-rail` were not being tracked by some internal algorithms.
+  Compatibility:
+    - Mods that add custom `train_stop` entities can now use the `mod-data` extension point at `cybersyn2.data.custom_stop_names` to allow CS2 to use them as stations.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.3
 Date: 2026-05-01

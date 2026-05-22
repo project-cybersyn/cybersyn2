@@ -20,6 +20,7 @@ data:extend({
 		name = "cybersyn2",
 		data = {
 			route_plugins = {},
+			custom_stop_names = {},
 		},
 	},
 })

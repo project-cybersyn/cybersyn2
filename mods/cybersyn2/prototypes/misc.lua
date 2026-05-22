@@ -24,14 +24,14 @@ data:extend({
 			cursor_box_type = "entity",
 			mode = { "any-entity", "same-force" },
 			entity_filter_mode = "whitelist",
-			entity_filters = { "train-stop" },
+			entity_type_filters = { "train-stop" },
 		},
 		alt_select = {
 			border_color = { r = 0.0, g = 1.0, b = 0.0 },
 			cursor_box_type = "entity",
 			mode = { "any-entity", "same-force" },
 			entity_filter_mode = "whitelist",
-			entity_filters = { "train-stop" },
+			entity_type_filters = { "train-stop" },
 		},
 	},
 })

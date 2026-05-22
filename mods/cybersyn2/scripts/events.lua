@@ -68,17 +68,6 @@ _G.cs2.on_built_equipment, _G.cs2.raise_built_equipment =
 _G.cs2.on_broken_equipment, _G.cs2.raise_broken_equipment =
 	event("broken_equipment", "LuaEntity", "nil", "nil", "nil", "nil")
 
--- Event raised when an ephemeral combinator has its settings changed,
--- possibly en masse, by a factorio copy and paste or blueprint op.
-_G.cs2.on_entity_settings_pasted, _G.cs2.raise_entity_settings_pasted = event(
-	"entity_settings_pasted",
-	"EventData.on_entity_settings_pasted",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
-
 _G.cs2.on_luatrain_created, _G.cs2.raise_luatrain_created = event(
 	"luatrain_created",
 	"EventData.on_train_created",

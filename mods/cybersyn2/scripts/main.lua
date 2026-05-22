@@ -29,7 +29,7 @@ local function on_built(event)
 	local entity = event.entity or event.destination
 	if not entity or not entity.valid then return end
 
-	if entity.name == "train-stop" then
+	if entity.type == "train-stop" and cs2.stop_is_valid_station(entity) then
 		cs2.raise_built_train_stop(entity)
 	elseif
 		entity.type == "straight-rail"
@@ -47,7 +47,7 @@ local function on_built(event)
 end
 
 local filter_built = {
-	{ filter = "name", name = "train-stop" },
+	{ filter = "type", name = "train-stop" },
 	{ filter = "type", type = "straight-rail" },
 	{ filter = "type", type = "curved-rail-a" },
 	{ filter = "type", type = "curved-rail-b" },
@@ -88,17 +88,13 @@ end
 
 ---@param event EventData.on_entity_renamed
 local function on_renamed(event)
-	if event.entity.name == "train-stop" then
+	if event.entity.type == "train-stop" then
 		cs2.raise_entity_renamed("train-stop", event.entity, event.old_name)
 	end
 end
 
 events.bind(defines.events.on_player_rotated_entity, on_repositioned)
 events.bind(defines.events.on_entity_renamed, on_renamed)
-events.bind(
-	defines.events.on_entity_settings_pasted,
-	cs2.raise_entity_settings_pasted
-)
 
 events.bind(defines.events.on_selected_entity_changed, function(event)
 	local player = game.get_player(event.player_index)
@@ -131,7 +127,7 @@ local function on_destroyed(event)
 	local entity = event.entity
 	if not entity or not entity.valid then return end
 
-	if entity.name == "train-stop" then
+	if entity.type == "train-stop" then
 		cs2.raise_broken_train_stop(entity)
 	elseif
 		entity.type == "straight-rail"

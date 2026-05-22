@@ -10,6 +10,26 @@ local EMPTY = tlib.EMPTY_STRICT
 
 local DIFFERENT_SURFACE_DISTANCE = 1000000000
 
+local custom_stop_names =
+	prototypes.mod_data["cybersyn2"].data.custom_stop_names --[[@as {[string]: true} ]]
+
+---Determine if a species of `train-stop` is a potential valid CS2 station.
+---@param stop_entity_or_name LuaEntity|string Either a `train-stop` entity or the entity prototype name of a `train-stop`.
+---@return boolean
+local function stop_is_valid_station(stop_entity_or_name)
+	if type(stop_entity_or_name) ~= "string" then
+		---@cast stop_entity_or_name LuaEntity
+		if not stop_entity_or_name or not stop_entity_or_name.valid then
+			return false
+		end
+		if stop_entity_or_name.type ~= "train-stop" then return false end
+		stop_entity_or_name = stop_entity_or_name.name
+	end
+	return stop_entity_or_name == "train-stop"
+		or custom_stop_names[stop_entity_or_name]
+end
+_G.cs2.stop_is_valid_station = stop_is_valid_station
+
 ---Return the distance-squared between the map positions of the given two
 ---entities. Returns a large distance if they are on different surfaces.
 ---@param e1 LuaEntity
@@ -43,12 +63,13 @@ end
 ---@param radius number?
 ---@return LuaEntity[]
 function _G.cs2.lib.find_stop_entities(surface, area, position, radius)
-	return surface.find_entities_filtered({
+	local potentials = surface.find_entities_filtered({
 		area = area,
 		position = position,
 		radius = radius,
-		name = "train-stop",
+		type = "train-stop",
 	})
+	return tlib.filter(potentials, stop_is_valid_station)
 end
 
 ---Locate all combinators that could potentially be associated to a stop.
@@ -158,7 +179,7 @@ function _G.cs2.lib.find_associable_entities_for_combinator(combinator_entity)
 		},
 	})
 	for _, cur_entity in pairs(entities) do
-		if cur_entity.name == "train-stop" then
+		if stop_is_valid_station(cur_entity) then
 			local dist = distsq(pos, cur_entity.position)
 			if dist < stop_dist then
 				stop_dist = dist

@@ -52,7 +52,7 @@ end
 ---@param entity LuaEntity
 ---@return Cybersyn.Manager.InspectorEntry[]?
 local function entity_to_entries(entity)
-	if entity.name == "train-stop" then
+	if entity.type == "train-stop" then
 		local res = remote.call("cybersyn2", "query", {
 			type = "stops",
 			unit_numbers = { entity.unit_number },
