@@ -35,6 +35,7 @@ local function on_built(event)
 		entity.type == "straight-rail"
 		or entity.type == "curved-rail-a"
 		or entity.type == "curved-rail-b"
+		or entity.type == "half-diagonal-rail"
 	then
 		cs2.raise_built_rail(entity)
 	elseif
@@ -50,6 +51,7 @@ local filter_built = {
 	{ filter = "type", type = "straight-rail" },
 	{ filter = "type", type = "curved-rail-a" },
 	{ filter = "type", type = "curved-rail-b" },
+	{ filter = "type", type = "half-diagonal-rail" },
 }
 for _, type in ipairs(cs2.lib.get_equipment_types()) do
 	table.insert(filter_built, { filter = "type", type = type })
@@ -135,6 +137,7 @@ local function on_destroyed(event)
 		entity.type == "straight-rail"
 		or entity.type == "curved-rail-a"
 		or entity.type == "curved-rail-b"
+		or entity.type == "half-diagonal-rail"
 	then
 		cs2.raise_broken_rail(entity)
 	elseif

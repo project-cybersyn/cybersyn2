@@ -12,7 +12,8 @@ local cs2 = _G.cs2
 local TrainStop = _G.cs2.TrainStop
 local bbox_contains = mlib.bbox_contains
 
-local rail_types = { "straight-rail", "curved-rail-a", "curved-rail-b" }
+local rail_types =
+	{ "straight-rail", "curved-rail-a", "curved-rail-b", "half-diagonal-rail" }
 local equipment_types_set = {
 	inserter = true,
 	pump = true,
