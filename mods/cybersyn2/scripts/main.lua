@@ -47,7 +47,7 @@ local function on_built(event)
 end
 
 local filter_built = {
-	{ filter = "type", name = "train-stop" },
+	{ filter = "type", type = "train-stop" },
 	{ filter = "type", type = "straight-rail" },
 	{ filter = "type", type = "curved-rail-a" },
 	{ filter = "type", type = "curved-rail-b" },
