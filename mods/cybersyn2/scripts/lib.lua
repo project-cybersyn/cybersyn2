@@ -19,7 +19,7 @@ local custom_stop_names =
 local function stop_is_valid_station(stop_entity_or_name)
 	if type(stop_entity_or_name) ~= "string" then
 		---@cast stop_entity_or_name LuaEntity
-		if not stop_entity_or_name or not stop_entity_or_name.valid then
+		if (not stop_entity_or_name) or not stop_entity_or_name.valid then
 			return false
 		end
 		if stop_entity_or_name.type ~= "train-stop" then return false end
