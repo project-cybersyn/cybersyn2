@@ -448,7 +448,7 @@ events.bind("cs2.train_pre_arrived", function(train, cstrain, stop)
 	if not delivery then return end
 
 	if delivery.from_id == stop.id then
-		-- Precompute filters and manifest split at pre_arrival for requester.
+		-- Precompute filters and manifest split at pre_arrival for provider.
 		-- This ensures that when the train actually arrives, the filters
 		-- are already set up correctly.
 		---@diagnostic disable-next-line: inject-field

@@ -254,6 +254,22 @@ events.bind("cs2.topologies_rebuilt", function() retopologize_trains() end)
 
 local WAIT_STATION = defines.train_state.wait_station
 
+---@param rail_end LuaRailEnd
+---@return Cybersyn.TrainStop?
+local function get_stop_from_rail_end(rail_end)
+	local rail = rail_end.rail
+	local stop_entity = rail.get_rail_segment_stop(rail_end.direction)
+	return stop_entity and cs2.get_stop_from_unit_number(stop_entity.unit_number)
+end
+
+---@param luatrain LuaTrain
+---@return Cybersyn.TrainStop?
+local function get_stop_from_luatrain(luatrain)
+	local stop = get_stop_from_rail_end(luatrain.front_end)
+	if stop then return stop end
+	return get_stop_from_rail_end(luatrain.back_end)
+end
+
 cs2.on_luatrain_changed_state(function(event)
 	local luatrain = event.train
 	local luatrain_state = luatrain.state
@@ -277,16 +293,9 @@ cs2.on_luatrain_changed_state(function(event)
 		-- Coordinate stop (no stop_entity)
 		if cstrain and not stop_entity then
 			-- Raise a pre-arrival event for coordinate stops.
-			local fe = luatrain.front_end
-			local fer = fe and fe.rail
-			if fe and fer then
-				local pre_stop_entity = fer.get_rail_segment_stop(fe.direction)
-				local pre_stop = (pre_stop_entity and pre_stop_entity.valid)
-						and cs2.get_stop_from_unit_number(pre_stop_entity.unit_number)
-					or nil
-				if pre_stop then
-					events.raise("cs2.train_pre_arrived", luatrain, cstrain, pre_stop)
-				end
+			local pre_stop = get_stop_from_luatrain(luatrain)
+			if pre_stop then
+				events.raise("cs2.train_pre_arrived", luatrain, cstrain, pre_stop)
 			end
 		end
 
