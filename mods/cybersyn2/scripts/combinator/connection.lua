@@ -80,8 +80,7 @@ local function render_connection(player)
 	local selected_stop = nil
 	if selected then
 		if selected.type == "train-stop" then
-			selected_stop =
-				cs2.get_stop(storage.stop_id_to_node_id[selected.unit_number or ""])
+			selected_stop = cs2.get_stop_from_unit_number(selected.unit_number)
 		end
 	end
 
