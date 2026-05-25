@@ -233,17 +233,9 @@ local function evaluate_stop(stop, changed_layout_id)
 	)
 	if #allowlist_combs > 1 then
 		make_empty_allow_list(stop)
-		cs2.create_alert(
-			stop.entity,
-			"multiple_allow_list",
-			cs2.CS2_ICON_SIGNAL_ID,
-			{
-				"cybersyn2-alerts.too-many-allowlist",
-			}
-		)
+		events.raise("cs2.alert.too_many_allowlist_comb", stop)
 	elseif #allowlist_combs == 0 then
 		make_default_allow_list(stop, station_comb, changed_layout_id)
-		cs2.destroy_alert(stop.entity, "multiple_allow_list")
 	else
 		local manually_allowed_layouts = allowlist_combs[1]:get_allowed_layouts()
 		if manually_allowed_layouts and #manually_allowed_layouts > 0 then
@@ -252,7 +244,6 @@ local function evaluate_stop(stop, changed_layout_id)
 			-- XXX: alpha migration compatibility. For beta, this should generate an empty allowlist.
 			make_default_allow_list(stop, station_comb, changed_layout_id)
 		end
-		cs2.destroy_alert(stop.entity, "multiple_allow_list")
 	end
 end
 

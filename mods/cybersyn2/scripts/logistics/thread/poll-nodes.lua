@@ -4,6 +4,7 @@
 -- inputs and adding their items to the logistics arrays.
 --------------------------------------------------------------------------------
 
+local event = require("lib.core.event")
 local stlib = require("lib.core.strace")
 local slib = require("lib.signal")
 local nmlib = require("lib.core.math.numeric")
@@ -120,6 +121,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	add_workload(workload, 2)
 
 	-- Enumerate combinators
+	---@type Cybersyn.Combinator[]
 	local combs = {}
 	local deprecated_combs = nil
 	for _, comb in cs2.iterate_combinators(stop) do
@@ -138,37 +140,20 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 
 	-- Alert on deprecated combs
 	if deprecated_combs and #deprecated_combs > 0 and is_valid then
-		cs2.create_alert(
-			stop.entity,
-			"deprecated_combs",
-			cs2.CS2_ICON_SIGNAL_ID,
-			{ "", { "cybersyn2-alerts.deprecated-combs" }, " (", stop.id, ")" }
-		)
+		for i = 1, #deprecated_combs do
+			local comb = deprecated_combs[i]
+			event.raise("cs2.alert.deprecated_comb", comb, stop)
+		end
 		can_proceed = false
-	else
-		cs2.destroy_alert(stop.entity, "deprecated_combs")
 	end
 
 	-- Alert on invalid station comb configs
 	if #combs == 0 and is_valid then
-		cs2.create_alert(
-			stop.entity,
-			"no_station",
-			cs2.CS2_ICON_SIGNAL_ID,
-			{ "cybersyn2-alerts.no-station" }
-		)
+		event.raise("cs2.alert.no_station_comb", stop)
 		can_proceed = false
 	elseif #combs > 1 and is_valid then
-		cs2.create_alert(
-			stop.entity,
-			"too_many_station",
-			cs2.CS2_ICON_SIGNAL_ID,
-			{ "cybersyn2-alerts.too-many-station" }
-		)
+		event.raise("cs2.alert.too_many_station_comb", stop)
 		can_proceed = false
-	else
-		cs2.destroy_alert(stop.entity, "no_station")
-		cs2.destroy_alert(stop.entity, "too_many_station")
 	end
 
 	-- Abort if stop invalid
@@ -351,6 +336,12 @@ function LogisticsThread:poll_train_stop()
 	if not stop:is_valid() then return self:set_state("poll_nodes") end
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
+		return self:set_state("poll_nodes")
+	end
+	-- Skip and alert on stops with non-default priority
+	local stop_entity = stop.entity --[[@as LuaEntity]]
+	if stop_entity.train_stop_priority ~= 50 then
+		event.raise("cs2.alert.vanilla_priority", stop_entity)
 		return self:set_state("poll_nodes")
 	end
 	-- Get station comb info

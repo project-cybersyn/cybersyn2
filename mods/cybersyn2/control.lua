@@ -26,7 +26,6 @@ require("scripts.reset")
 require("scripts.settings")
 require("scripts.lib")
 require("scripts.threads")
-require("scripts.alerts")
 
 require("scripts.api.plugins.route")
 require("scripts.logistics.order")
@@ -75,6 +74,9 @@ require("scripts.logistics.thread.base")
 require("scripts.logistics.thread.enum-nodes")
 require("scripts.logistics.thread.poll-nodes")
 require("scripts.logistics.thread.logistics")
+
+require("scripts.alerts.alerts")
+require("scripts.alerts.station")
 
 require("scripts.api.views.view")
 require("scripts.api.views.net-inventory")

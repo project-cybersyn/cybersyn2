@@ -240,8 +240,6 @@ cs2.on_node_destroyed(function(node)
 	---@cast node Cybersyn.TrainStop
 	-- Fail all deliveries associated with this stop.
 	node:fail_all_deliveries()
-	-- Destroy all alerts associated with this stop.
-	cs2.destroy_alerts(node.entity)
 end)
 
 local function topologize_stops()

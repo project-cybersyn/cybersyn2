@@ -20,5 +20,8 @@
       "name": "Steam",
       "factorioPath": "d:\\SteamLibrary\\steamapps\\common\\Factorio\\bin\\x64\\factorio.exe"
     }
+  ],
+  "Lua.diagnostics.disable": [
+    "redundant-return-value"
   ]
 }

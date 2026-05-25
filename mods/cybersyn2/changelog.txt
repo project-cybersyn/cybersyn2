@@ -1,13 +1,14 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.4
-Date: ????
+Date: 2026-05-25
   Changes:
+    - Added in-game alerts for the following situations: invalid or deprecated combinator configurations, stops with non-default priority, misdirected trains, and stuck trains.
     - "Inventory" combinator mode has been renamed to "Orders" in the UI to better reflect its purpose and reduce confusion. This is a purely cosmetic change and does not affect functionality.
     - In-game documentation for combinators taking order input has been improved.
   Bugfixes:
     - Fixed an issue where unused layouts were not culled from computed allow lists.
     - Fixed an issue where rails of type `half-diagonal-rail` were not being tracked by some internal algorithms.
-    - Fixed an issue where pre-arrival events were not triggering for bidi trains.
+    - Fixed an issue where pre-arrival events were not triggering for bidirectional trains.
   Compatibility:
     - Mods that add custom `train_stop` entities can now use the `mod-data` extension point at `cybersyn2.data.custom_stop_names` to allow CS2 to use them as stations.
 ---------------------------------------------------------------------------------------------------
