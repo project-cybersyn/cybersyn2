@@ -1,6 +1,6 @@
+-- Bootstrap Relm data phase
 _G.__RELM_GRAPHICS_PATH__ = "__cybersyn2__/lib/core/relm/graphics/"
-
-require("lib.core.relm.styles")
+require("lib.core.relm.relm_data")
 
 require("prototypes.signal")
 require("prototypes.entity")

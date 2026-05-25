@@ -9,9 +9,14 @@ _G.cs2 = {
 	debug = {},
 }
 
+-- Bootstrap logging
 local strace = require("lib.core.strace")
-
 strace.set_handler(strace.standard_log_handler)
+
+-- Bootstrap relm
+local relm = require("lib.core.relm.relm")
+local event = require("lib.core.event")
+relm.bootstrap_with_core_events(event)
 
 require("scripts.types")
 require("scripts.constants")
