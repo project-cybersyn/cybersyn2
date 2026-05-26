@@ -65,9 +65,8 @@ local delivery_renderers = {
 	spillover = default_renderer,
 	reserved_slots = default_renderer,
 	reserved_fluid_capacity = default_renderer,
-	misrouted_from = default_renderer,
-	misrouted_to = default_renderer,
-	left_dirty = default_renderer,
+	last_pos = default_renderer,
+	stuck = default_renderer,
 }
 
 local function on_click_cancel_delivery(delivery_id)

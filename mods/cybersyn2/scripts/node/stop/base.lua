@@ -171,15 +171,27 @@ function TrainStop:remove_delivery(delivery_id)
 end
 
 ---@param train Cybersyn.Train
-function TrainStop:train_arrived(train)
+---@param luatrain LuaTrain
+function TrainStop:train_arrived(train, luatrain)
 	local delivery_id = train.delivery_id
-	if not delivery_id or not self.deliveries[delivery_id] then return end
+	if not delivery_id then
+		-- TODO: invalid train state alert?
+		return
+	end
 	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-	if delivery then delivery:notify_arrived(self) end
+	if not delivery then return end
+	if not self.deliveries[delivery_id] then
+		-- Misdirected train
+		events.raise("cs2.alert.misdirected_train", train)
+		return
+	end
+
+	delivery:notify_arrived(self, train, luatrain)
 end
 
 ---@param train Cybersyn.Train
-function TrainStop:train_departed(train)
+---@param luatrain LuaTrain
+function TrainStop:train_departed(train, luatrain)
 	local delivery_id = train.delivery_id
 	if not delivery_id or not self.deliveries[delivery_id] then return end
 	-- When a train makes a delivery...
@@ -189,7 +201,7 @@ function TrainStop:train_departed(train)
 	-- TODO: consider using the event bus here.
 	-- NOTE: notify_departed adds inventory charge rebates so that hopefully
 	-- update_inventory can clear them optimistcally.
-	if delivery then delivery:notify_departed(self) end
+	if delivery then delivery:notify_departed(self, train, luatrain) end
 	-- Then try to opportunistically re-read the station's inventory.
 	self:update_inventory(nil, true)
 end
@@ -446,12 +458,12 @@ end
 
 -- Forward train_arrived events to stops
 cs2.on_train_arrived(function(train, cstrain, stop)
-	if cstrain and stop then stop:train_arrived(cstrain) end
+	if cstrain and stop then stop:train_arrived(cstrain, train) end
 end)
 
 -- Forward train_departed events to stops
 cs2.on_train_departed(function(train, cstrain, stop)
-	if cstrain and stop then stop:train_departed(cstrain) end
+	if cstrain and stop then stop:train_departed(cstrain, train) end
 end)
 
 --------------------------------------------------------------------------------

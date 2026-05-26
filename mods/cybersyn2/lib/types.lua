@@ -224,9 +224,8 @@ lib.CarriageType = {
 ---@field public spillover uint Spillover used when calculating this delivery
 ---@field public reserved_slots uint Reserved slots used when calculating this delivery
 ---@field public reserved_fluid_capacity uint Reserved capacity used when calculating this delivery
----@field public misrouted_from? string If this field exists, the train was misrouted to its `from` stop. The string contains engine diagnostic info.
----@field public misrouted_to? string If this field exists, the train was misrouted to its `to` stop. The string contains engine diagnostic info.
----@field public left_dirty? string If this field exists, the train left the `to` stop without being fully unloaded. The string contains engine diagnostic info.
+---@field public last_pos? MapPosition Last monitored position of the train for this delivery. NOTE: this is NOT a realtime value.
+---@field public stuck? true `true` if this delivery is currently considered stuck.
 
 --------------------------------------------------------------------------------
 -- Plugin and API types.

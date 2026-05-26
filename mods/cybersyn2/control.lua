@@ -77,6 +77,7 @@ require("scripts.logistics.thread.logistics")
 
 require("scripts.alerts.alerts")
 require("scripts.alerts.station")
+require("scripts.alerts.train")
 
 require("scripts.api.views.view")
 require("scripts.api.views.net-inventory")

@@ -31,10 +31,10 @@ local add_workload = thread.add_workload
 local StatefulThread = class("StatefulThread", Thread, StateMachine)
 _G.cs2.StatefulThread = StatefulThread
 
----@param initial_state string
+---@param initial_state string?
 function StatefulThread:new(initial_state)
 	local thr = Thread.new(self) --[[@as StatefulThread]]
-	thr.state = initial_state
+	thr.state = initial_state --[[@as string]]
 	thr.max_workload =
 		math.ceil(cs2.PERF_BASE_THREAD_WORKLOAD * cs2.mod_settings.work_factor)
 	thr.workload = 1

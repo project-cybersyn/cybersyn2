@@ -259,7 +259,7 @@ function Train:clear_volatile(new_luatrain)
 	end
 end
 
----@return LuaEntity? #The main stock of the train, or `nil` if not available.
+---@return LuaEntity? #The main rolling stock of the train, or `nil` if not available.
 function Train:get_stock()
 	if self.volatile then return nil end
 	if self.stock then return self.stock end

@@ -3,6 +3,8 @@ Version: 0.1.1
 Date: 2026-05-21
   Features:
     - Added support for custom train stop types.
+  Compatibility:
+    - Internal compatibility with Cybersyn 2 v0.1.4
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.0
 Date: 2026-01-19

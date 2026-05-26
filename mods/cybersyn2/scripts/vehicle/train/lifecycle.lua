@@ -284,8 +284,18 @@ cs2.on_luatrain_changed_state(function(event)
 
 	if luatrain_state == WAIT_STATION then
 		-- Train arrived either at a station or a coordinate stop.
+		-- Check which case we are in and get the stop.
 		local stop_entity = luatrain.station
-		local stop = (stop_entity and stop_entity.valid)
+		local valid_stop = stop_entity and stop_entity.valid
+
+		-- Vanilla priority warning
+		---@diagnostic disable-next-line: need-check-nil
+		if valid_stop and stop_entity.train_stop_priority ~= 50 then
+			events.raise("cs2.alert.vanilla_priority", stop_entity)
+		end
+
+		local stop = valid_stop
+				---@diagnostic disable-next-line: need-check-nil
 				and cs2.get_stop_from_unit_number(stop_entity.unit_number)
 			or nil
 		if cstrain then cstrain.stopped_at = stop_entity end

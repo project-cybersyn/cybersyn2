@@ -20,6 +20,7 @@ local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
 local thread_lib = require("lib.core.thread")
 local events = require("lib.core.event")
+local pos_lib = require("lib.core.math.pos")
 
 local empty = tlib.empty
 local strace = stlib.strace
@@ -381,7 +382,10 @@ end
 
 ---Train stop invokes this to notify a train on this delivery left
 ---that stop
-function TrainDelivery:notify_departed(stop)
+---@param stop Cybersyn.TrainStop
+---@param train Cybersyn.Train
+---@param luatrain LuaTrain
+function TrainDelivery:notify_departed(stop, train, luatrain)
 	-- TODO: before release, remove "to_x" states from here. These are
 	-- only needed because of alpha migration reasons.
 	if
@@ -391,12 +395,12 @@ function TrainDelivery:notify_departed(stop)
 		self:clear_from_charge()
 
 		-- Compute actual loaded contents
-		local train = cs2.get_train(self.vehicle_id)
-		if not train then
-			-- XXX: this should never happen
+		local delivery_train = cs2.get_train(self.vehicle_id)
+		if (not delivery_train) or (delivery_train.id ~= train.id) then
+			error("LOGIC ERROR: delivery train mismatch on departure notification")
 			return self:fail()
 		end
-		self.loaded = train:get_contents()
+		self.loaded = delivery_train:get_contents()
 
 		local to = cs2.get_stop(self.to_id)
 		if not to then
@@ -425,33 +429,13 @@ end
 ---Train stop invokes this to notify a train on this delivery_id
 ---arrived at the stop.
 ---@param stop Cybersyn.TrainStop
-function TrainDelivery:notify_arrived(stop)
+---@param train Cybersyn.Train
+---@param luatrain LuaTrain
+function TrainDelivery:notify_arrived(stop, train, luatrain)
 	if self.state == "to_from" then
-		if stop.id ~= self.from_id then
-			local priority = stop.entity.train_stop_priority
-			-- TODO: misrouted warning/handling
-			self.misrouted_from = string.format(
-				"wrong source: expected %d, got %d. prio %d",
-				self.from_id,
-				stop.id,
-				priority
-			)
-		else
-			self:set_state("at_from")
-		end
+		if stop.id == self.from_id then self:set_state("at_from") end
 	elseif self.state == "to_to" then
-		if stop.id ~= self.to_id then
-			local priority = stop.entity.train_stop_priority
-			-- TODO: misrouted warning/handling
-			self.misrouted_to = string.format(
-				"wrong sink: expected %d, got %d. prio %d",
-				self.to_id,
-				stop.id,
-				priority
-			)
-		else
-			self:set_state("at_to")
-		end
+		if stop.id == self.to_id then self:set_state("at_to") end
 	end
 end
 
@@ -505,41 +489,70 @@ function TrainDelivery:notify_plugin_handoff(new_luatrain)
 end
 
 function TrainDelivery:check_stuck(workload)
+	local train = cs2.get_train(self.vehicle_id)
+	if not train then return end
+	local stock = train:get_stock()
+	if not stock then return end
+
 	local t = game.tick
 	local prod_interval = (mod_settings.train_requester_prod_interval * 60)
 	local stuck_timeout = (mod_settings.train_stuck_timeout * 60)
 	local state_tick = self.state_tick
 	local state_time = t - state_tick
+	local last_pos = self.last_pos
+	local current_pos = stock.position
+	self.last_pos = current_pos
+
+	add_workload(workload, 1) -- demographic/validity checks
+
 	-- Prods
 	if self.state == "at_from" and prod_interval >= 1 then
 		local n_intended_prods = math.floor(state_time / prod_interval)
 		if n_intended_prods > (self._prods or 0) then
 			self._prods = n_intended_prods
-			local train = cs2.get_train(self.vehicle_id)
 			local stop = cs2.get_stop(self.from_id)
-			if (not train) or not stop then return end
+			if not stop then return end
 			script.raise_event("cybersyn2-prod-train", {
 				delivery_id = self.id,
 				state = self.state,
 				train_id = self.vehicle_id,
 				luatrain = train.lua_train,
-				train_stock = train:get_stock(),
+				train_stock = stock,
 				stop_id = self.from_id,
 				stop_entity = stop.entity,
 				prod_count = n_intended_prods,
 			})
-			add_workload(workload, 5)
+			add_workload(workload, 5) -- estimated event handling cost
 		end
 	end
+
 	-- Stuck
+	add_workload(workload, 1) -- stuck check cost
 	if
-		(self.state == "at_from" or self.state == "at_to")
+		last_pos
+		and (self.state == "at_from" or self.state == "at_to" or self.state == "to_from" or self.state == "to_to")
 		and stuck_timeout > 0
 		and state_time >= stuck_timeout
+		and pos_lib.pos_distsq(current_pos, last_pos) < 4
 	then
 		-- Stuck
+		if not self.stuck then
+			self.stuck = true
+			events.raise(
+				"cs2.train_stuck",
+				self.id,
+				train,
+				stock,
+				current_pos,
+				self.state
+			)
+		end
 	else
-		-- Unstuck
+		-- Not stuck
+		if self.stuck then
+			self.stuck = nil
+			events.raise("cs2.train_unstuck", self.id, train, stock)
+		end
 	end
 end
 
