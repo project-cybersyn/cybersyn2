@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.4
-Date: 2026-05-25
+Date: 2026-05-26
   Changes:
     - Added in-game alerts for the following situations: invalid or deprecated combinator configurations, stops with non-default priority, misdirected trains, and stuck trains.
     - "Inventory" combinator mode has been renamed to "Orders" in the UI to better reflect its purpose and reduce confusion. This is a purely cosmetic change and does not affect functionality.
