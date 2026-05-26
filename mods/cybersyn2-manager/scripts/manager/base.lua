@@ -137,13 +137,13 @@ local InventoryTabInternal = relm.define_element({
 			InventoryColumn({
 				caption = "Needed",
 				signal_counts = needed,
-				button_style = "flib_slot_button_yellow",
+				button_style = "relm_slot_button_yellow",
 				column_count = 6,
 			}),
 			InventoryColumn({
 				caption = "Deficit",
 				signal_counts = deficit,
-				button_style = "flib_slot_button_red",
+				button_style = "relm_slot_button_red",
 				column_count = 3,
 			}),
 		})

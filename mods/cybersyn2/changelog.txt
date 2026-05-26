@@ -2,6 +2,8 @@
 Version: 0.1.5
 Date: ????
   Changes:
+  Bugfixes:
+    - Fixed an unintended dependency on flib styles.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.4
 Date: 2026-05-26

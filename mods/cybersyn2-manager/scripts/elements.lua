@@ -25,7 +25,7 @@ _G.mgr.SignalCountsButtons = relm.define_element({
 				elem_type = "signal",
 				elem_value = item_signal,
 				enabled = false,
-				style = props.button_style or "flib_slot_button_green",
+				style = props.button_style or "relm_slot_button_green",
 			}, {
 				Pr({
 					type = "label",
