@@ -1,16 +1,17 @@
 {
   "name": "cybersyn2-manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "title": "Cybersyn 2 - Manager",
   "author": "The LORD thy GOD",
   "factorio_version": "2.0",
-  "dependencies": ["base >= 2.0.39", "cybersyn2 >= 0.1.0"],
+  "dependencies": ["base >= 2.0.67", "cybersyn2 >= 0.1.4"],
   "description": "A GUI manager for Cybersyn 2, allowing visual inspection of various logistics data.",
   "package": {
     "git_publish_branch": "main",
     "ignore": [ ],
     "scripts": {
     },
-    "sync_portal_details": true
+    "sync_portal_details": true,
+    "no_git_tag": true
   }
 }

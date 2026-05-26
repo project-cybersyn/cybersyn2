@@ -11,6 +11,7 @@
     "ignore": [ ],
     "scripts": {
     },
-    "sync_portal_details": true
+    "sync_portal_details": true,
+    "no_git_tag": true
   }
 }
