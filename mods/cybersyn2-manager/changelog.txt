@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.1
-Date: 2026-05-21
+Date: 2026-05-26
   Features:
     - Added support for custom train stop types.
   Compatibility:
