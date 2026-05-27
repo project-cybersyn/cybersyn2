@@ -16,9 +16,6 @@ local HF = ultros.HFlow
 local VF = ultros.VFlow
 local Pr = relm.Primitive
 
-local ROLLING_STOCK_TYPES = cs2.ROLLING_STOCK_TYPES
-local GUI_WINDOW_NAME = "Cs2TrainGui"
-
 ---@param player LuaPlayer
 local function get_train_gui_pos(player)
 	local player_state = cs2.get_player_state(player.index)
@@ -30,14 +27,29 @@ local function get_train_gui_pos(player)
 	return { x = 452 * scale, y = 40 * scale }
 end
 
----@param player LuaPlayer
-local function close_train_gui(player)
-	local elt = player.gui.screen[GUI_WINDOW_NAME]
-	if elt and elt.valid then
-		local id = relm.get_root_id(elt)
-		if id then relm.root_destroy(id) end
-		if elt.valid then elt.destroy() end
+---@param root_id Relm.RootId
+---@param save_pos boolean?
+local function close_train_gui(root_id, save_pos)
+	if save_pos then
+		local elt = relm.get_root_element(root_id)
+		if elt and elt.valid then
+			local st = cs2.get_or_create_player_state(elt.player_index)
+			local x, y = pos_lib.pos_get(elt.location)
+			st.train_gui_pos = { x, y }
+		end
 	end
+	relm.root_destroy(root_id)
+end
+
+local function close_unpinned_train_guis(player_index)
+	relm.root_foreach(function(root, _, _, root_player_index)
+		if root_player_index == player_index then
+			local tx = relm.get_transient(root)
+			if tx and tx.close_unpinned_train_gui then
+				tx.close_unpinned_train_gui()
+			end
+		end
+	end)
 end
 
 local TrainInfo = relm.define_element({
@@ -45,7 +57,6 @@ local TrainInfo = relm.define_element({
 	render = function(props, state)
 		local cstrain = props.cstrain --[[@as Cybersyn.Train]]
 		return ultros.WellSection({ caption = "Train Info" }, {
-			ultros.Label("Vehicle ID: " .. cstrain.id),
 			ultros.Label(
 				"Capacity: "
 					.. cstrain.item_slot_capacity
@@ -202,12 +213,29 @@ local CsTrain = relm.define(
 	end
 )
 
+-- Top-level Train GUI
 relm.define("TrainGui", function(props)
 	local luatrain = props.luatrain --[[@as LuaTrain?]]
 	local luatrain_valid = not not (luatrain and luatrain.valid)
+	---@diagnostic disable-next-line: need-check-nil
 	local luatrain_id = luatrain_valid and luatrain.id or 0
 	local cstrain = luatrain_valid and cs2.get_train_from_luatrain_id(luatrain_id)
 	local window_height = cstrain and 800 or 100
+	local root_id = props.root_id
+
+	local pinned, set_pinned = relm.use_state(false)
+
+	local function close_me(unpinned_only)
+		if pinned and unpinned_only then return end
+		close_train_gui(root_id, not pinned)
+	end
+
+	local function handle_close() close_me(false) end
+
+	-- Expose a method that lets all unpinned train guis be closed from outside the rendering flow.
+	relm.use_transient({
+		close_unpinned_train_gui = function() close_me(true) end,
+	})
 
 	relm.use_effect(luatrain_id, function()
 		if luatrain and luatrain.valid then
@@ -242,8 +270,15 @@ relm.define("TrainGui", function(props)
 	end)
 
 	return ultros.WindowFrame({
-		caption = "[virtual-signal=cybersyn2] Cybersyn 2 Train",
-		closable = false,
+		caption = {
+			"",
+			"[virtual-signal=cybersyn2] Train ",
+			cstrain and cstrain.id or "",
+		},
+		on_close = handle_close,
+		decoration = function()
+			return ultros.PinButton({ pinned = pinned, set_pinned = set_pinned })
+		end,
 	}, {
 		Pr({
 			type = "frame",
@@ -290,18 +325,18 @@ events.bind(defines.events.on_gui_opened, function(event)
 	if
 		not train_entity
 		or not train_entity.valid
-		or not ROLLING_STOCK_TYPES[train_entity.type]
+		or train_entity.type ~= "locomotive"
 	then
 		return
 	end
 	local luatrain = train_entity.train
 	if not luatrain then return end
 
-	close_train_gui(player)
+	close_unpinned_train_guis(player.index)
 
 	local _, elt = relm.root_create(
 		player.gui.screen,
-		GUI_WINDOW_NAME,
+		nil,
 		"TrainGui",
 		{ train_entity = train_entity, luatrain = luatrain }
 	)
@@ -314,12 +349,5 @@ events.bind(defines.events.on_gui_closed, function(event)
 	if not player then return end
 	if event.gui_type ~= defines.gui_type.entity then return end
 
-	local elt = player.gui.screen[GUI_WINDOW_NAME]
-	if not elt or not elt.valid then return end
-
-	local st = cs2.get_or_create_player_state(player.index)
-	local x, y = pos_lib.pos_get(elt.location)
-	st.train_gui_pos = { x, y }
-
-	close_train_gui(player)
+	close_unpinned_train_guis(player.index)
 end)
