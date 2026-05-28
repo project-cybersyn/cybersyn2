@@ -290,7 +290,7 @@ cs2.on_luatrain_changed_state(function(event)
 
 		-- Vanilla priority warning
 		---@diagnostic disable-next-line: need-check-nil
-		if valid_stop and stop_entity.train_stop_priority ~= 50 then
+		if cstrain and valid_stop and stop_entity.train_stop_priority ~= 50 then
 			events.raise("cs2.alert.vanilla_priority", stop_entity)
 		end
 

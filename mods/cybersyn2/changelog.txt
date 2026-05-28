@@ -2,6 +2,8 @@
 Version: 0.1.5
 Date: ????
   Changes:
+    - Top-level GUI windows are now pinnable.
+    - Top-level GUI windows will now memorize their positions and re-open where they were last positioned.
   Bugfixes:
     - Fixed an unintended dependency on flib styles.
 ---------------------------------------------------------------------------------------------------
