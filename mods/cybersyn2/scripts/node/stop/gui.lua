@@ -14,53 +14,29 @@ local HF = ultros.HFlow
 local VF = ultros.VFlow
 local Pr = relm.Primitive
 
-local GUI_WINDOW_NAME = "Cs2StopGui"
-
----@param player LuaPlayer
-local function get_stop_gui_pos(player)
-	local player_state = cs2.get_player_state(player.index)
-	if player_state and player_state.stop_gui_pos then
-		return player_state.stop_gui_pos
-	end
-	-- Default pos.
-	local scale = player.display_scale
-	return { x = 0, y = 0 }
-end
-
----@param root_id Relm.RootId
----@param save_pos boolean?
-local function close_stop_gui(root_id, save_pos)
-	if save_pos then
-		local elt = relm.get_root_element(root_id)
-		if elt and elt.valid then
-			local st = cs2.get_or_create_player_state(elt.player_index)
-			local x, y = pos_lib.pos_get(elt.location)
-			st.stop_gui_pos = { x, y }
-		end
-	end
-	relm.root_destroy(root_id)
-end
+local function noop() end
 
 relm.define("StopGui", function(props)
-	local root_id = props.root_id
+	-- Window management
+	local root_id, player_index = props.root_id, props.player_index
 
-	local pinned, set_pinned = relm.use_state(false)
+	local function _close_me() relm.root_destroy(root_id) end
 
-	local function close_me(unpinned_only)
-		if pinned and unpinned_only then return end
-		close_stop_gui(root_id, not pinned)
-	end
+	local pinned, set_pinned = ultros.use_pinnable()
 
-	local function handle_close() close_me(false) end
+	local close_me = ultros.use_memoized_window_position(_close_me, function()
+		local player_state = cs2.get_player_state(player_index)
+		return player_state and player_state.stop_gui_pos
+	end, pinned and noop or function(loc)
+		local player_state = cs2.get_or_create_player_state(player_index)
+		player_state.stop_gui_pos = loc
+	end, function(elt) elt.force_auto_center() end)
 
-	-- Expose a method that lets all unpinned stop guis be closed from outside the rendering flow.
-	relm.use_transient({
-		close_unpinned_stop_gui = function() close_me(true) end,
-	})
+	ultros.use_close_on_gui_closed(player_index, close_me, pinned)
 
 	return ultros.WindowFrame({
 		caption = "[virtual-signal=cybersyn2] Cybersyn 2 Stop",
-		on_close = handle_close,
+		on_close = close_me,
 		decoration = function()
 			return ultros.PinButton({ pinned = pinned, set_pinned = set_pinned })
 		end,
@@ -94,41 +70,16 @@ end)
 ---@diagnostic disable-next-line: undefined-field
 if _G.__RECOVERY_MODE__ then return end
 
-events.bind(defines.events.on_gui_opened, function(event)
-	local player = game.get_player(event.player_index)
-	if not player then return end
-	if event.gui_type ~= defines.gui_type.entity then return end
-	local stop_entity = player.opened --[[@as LuaEntity?]]
-	if
-		not stop_entity
-		or not stop_entity.valid
-		or stop_entity.type ~= "train-stop"
-	then
-		return
+events.bind(
+	"cs2.combinator_gui_opened",
+	---@param comb Cybersyn.Combinator
+	---@param player LuaPlayer
+	function(comb, player)
+		if comb.mode ~= "station" then return end
+		local node = comb:get_node("stop") --[[@as Cybersyn.TrainStop?]]
+		if not node then return end
+
+		local _, elt =
+			relm.root_create(player.gui.screen, nil, "StopGui", { stop = node })
 	end
-
-	close_stop_gui(player)
-
-	local _, elt = relm.root_create(
-		player.gui.screen,
-		GUI_WINDOW_NAME,
-		"StopGui",
-		{ stop_entity = stop_entity }
-	)
-
-	if elt then elt.location = get_stop_gui_pos(player) end
-end)
-
-events.bind(defines.events.on_gui_closed, function(event)
-	local player = game.get_player(event.player_index)
-	if not player then return end
-	if event.gui_type ~= defines.gui_type.entity then return end
-
-	local elt = player.gui.screen[GUI_WINDOW_NAME]
-	if not elt or not elt.valid then return end
-
-	local st = cs2.get_or_create_player_state(player.index)
-	local x, y = pos_lib.pos_get(elt.location)
-	st.stop_gui_pos = { x, y }
-	close_stop_gui(player)
-end)
+)

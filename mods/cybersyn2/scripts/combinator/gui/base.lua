@@ -226,14 +226,18 @@ local RightCol = relm.define_element({
 relm.define_element({
 	name = "CombinatorGui",
 	render = function(props)
+		local combinator = props.combinator
 		-- Window management
 		local root_id, player_index = props.root_id, props.player_index
 		local function _close_me()
-			relm.root_destroy(root_id)
 			local player = game.get_player(player_index)
+			local elt = relm.get_root_element(root_id)
+			if elt and player and player.opened == elt then player.opened = nil end
+			if not relm.root_destroy(root_id) then return end
 			if player then
 				player.play_sound({ path = cs2.COMBINATOR_CLOSE_SOUND })
 			end
+			events.raise("cs2.combinator_gui_closed", combinator, player)
 		end
 		local pinned, set_pinned = ultros.use_player_opened_pinnable(player_index)
 		local close_me = ultros.use_memoized_window_position(_close_me, function()
