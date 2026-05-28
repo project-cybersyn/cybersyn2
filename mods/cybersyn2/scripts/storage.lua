@@ -38,6 +38,7 @@ storage = {}
 ---@field public hide_help? boolean Whether the player has hidden the help pane
 ---@field public train_gui_pos? [number, number] The position of the train GUI for this player, if any.
 ---@field public stop_gui_pos? [number, number] The position of the stop GUI for this player, if any.
+---@field public combinator_gui_pos? [number, number] The position of the combinator GUI for this player, if any.
 
 ---Get the player state for a player, creating it if it doesn't exist.
 ---@param player_index PlayerIndex
@@ -59,6 +60,16 @@ local function get_player_state(player_index)
 	return storage.players[player_index]
 end
 _G.cs2.get_player_state = get_player_state
+
+---Apply a player state update, triggering an event.
+---@param player_index PlayerIndex
+---@param key string
+---@param value any
+function _G.cs2.update_player_state(player_index, key, value)
+	local state = get_or_create_player_state(player_index)
+	state[key] = value
+	events.raise("cs2.player_state_updated", state)
+end
 
 ---Clear CS2's storage completely. Used for shutdown and reset.
 local function clear_storage()

@@ -5,90 +5,13 @@ local tlib = require("lib.core.table")
 local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
 local events = require("lib.core.event")
-local solib = require("lib.core.relm.smart-open")
 
 local combinator_modes = _G.cs2.combinator_modes
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
 
----@param player_index PlayerIndex
-local function destroy_gui_state(player_index)
-	local state = storage.players[player_index]
-	if state then state.open_combinator = nil end
-end
-
----@param player_index PlayerIndex
----@param combinator Cybersyn.Combinator
-local function create_gui_state(player_index, combinator)
-	local pstate = cs2.get_or_create_player_state(player_index)
-	pstate.open_combinator = combinator
-	return pstate
-end
-
----Close the combinator gui for the given player.
----@param player_index PlayerIndex
----@param silent boolean?
-function _G.cs2.close_combinator_gui(player_index, silent)
-	local player = game.get_player(player_index)
-	if not player then return end
-
-	local state = storage.players[player_index]
-	if state and state.combinator_gui_root then
-		relm.root_destroy(state.combinator_gui_root)
-		state.combinator_gui_root = nil
-		if not silent then
-			player.play_sound({ path = cs2.COMBINATOR_CLOSE_SOUND })
-		end
-	end
-
-	destroy_gui_state(player_index)
-end
-
-events.bind("relm.root_destroyed", function(event)
-	local player_index = event.player_index
-	local state = storage.players[player_index]
-	if state and state.combinator_gui_root == event.root_id then
-		local player = game.get_player(player_index)
-		if player then player.play_sound({ path = cs2.COMBINATOR_CLOSE_SOUND }) end
-		state.combinator_gui_root = nil
-		destroy_gui_state(player_index)
-	end
-end)
-
----Open the combinator gui for a player.
----@param player_index PlayerIndex
----@param combinator Cybersyn.Combinator
-function _G.cs2.open_combinator_gui(player_index, combinator)
-	local player = game.get_player(player_index)
-	if not player then return end
-
-	-- Close any existing gui
-	cs2.close_combinator_gui(player_index, true)
-	-- Create new gui state
-	local state = create_gui_state(player_index, combinator)
-
-	local root_id, main_window =
-		relm.root_create(player.gui.screen, cs2.WINDOW_NAME, "CombinatorGui", {
-			player_index = player_index,
-			combinator = combinator,
-		})
-
-	if main_window then
-		main_window.force_auto_center()
-		solib.smart_open(player, main_window, true)
-		state.combinator_gui_root = root_id
-		events.raise("cs2.combinator_gui_opened", combinator, player, root_id)
-	else
-		strace(
-			ERROR,
-			"message",
-			"Could not open Combinator GUI",
-			player_index,
-			combinator
-		)
-	end
-end
+local function noop() end
 
 --------------------------------------------------------------------------------
 -- Relm combinator gui
@@ -302,26 +225,62 @@ local RightCol = relm.define_element({
 
 relm.define_element({
 	name = "CombinatorGui",
-	render = function(props, state)
-		local show_info = not not (state or {}).show_info
+	render = function(props)
+		-- Window management
+		local root_id, player_index = props.root_id, props.player_index
+		local function _close_me()
+			relm.root_destroy(root_id)
+			local player = game.get_player(player_index)
+			if player then
+				player.play_sound({ path = cs2.COMBINATOR_CLOSE_SOUND })
+			end
+		end
+		local pinned, set_pinned = ultros.use_player_opened_pinnable(player_index)
+		local close_me = ultros.use_memoized_window_position(_close_me, function()
+			local player_state = cs2.get_player_state(player_index)
+			return player_state and player_state.combinator_gui_pos
+		end, pinned and noop or function(loc)
+			local player_state = cs2.get_or_create_player_state(player_index)
+			player_state.combinator_gui_pos = loc
+		end, function(elt) elt.force_auto_center() end)
+		ultros.use_close_on_gui_closed(player_index, close_me, pinned)
+
+		-- Show/hide help
+		local show_info = true
+		local player_state = cs2.get_player_state(player_index)
+		if player_state and player_state.hide_help then show_info = false end
+		local function toggle_hide_help()
+			cs2.update_player_state(player_index, "hide_help", show_info)
+		end
+		relm_util.use_event_handler(
+			"cs2.player_state_updated",
+			function(me, _, updated_state)
+				if updated_state.player_index == player_index then relm.paint(me) end
+			end
+		)
+
+		-- Close GUI if combinator is destroyed.
 		relm_util.use_event_handler(
 			"cs2.combinator_destroyed",
 			function(me, _, comb)
 				if props.combinator and comb.id == props.combinator.id then
-					relm.root_destroy(props.root_id)
+					close_me()
 				end
 			end
 		)
+
 		return ultros.WindowFrame({
 			caption = { "cybersyn2-gui.combinator-name" },
-			decoration = function()
-				return ultros.SpriteButton({
+			on_close = close_me,
+			decoration = {
+				ultros.PinButton({ pinned = pinned, set_pinned = set_pinned }),
+				ultros.SpriteButton({
 					style = "frame_action_button",
 					sprite = "utility/tip_icon",
-					on_click = "toggle_info",
+					on_click = toggle_hide_help,
 					toggled = show_info,
-				})
-			end,
+				}),
+			},
 		}, {
 			HF({
 				LeftCol({ combinator = props.combinator }),
@@ -329,30 +288,56 @@ relm.define_element({
 			}),
 		})
 	end,
-	message = function(me, payload, props)
-		if payload.key == "close" then
-			cs2.close_combinator_gui(props.player_index)
-			return true
-		elseif payload.key == "toggle_info" then
-			local player_state = cs2.get_or_create_player_state(props.player_index)
-			if player_state.hide_help then
-				player_state.hide_help = false
-			else
-				player_state.hide_help = true
-			end
-			local show = not player_state.hide_help
-			relm.set_state(me, { show_info = show })
-			return true
-		else
-			return false
-		end
-	end,
-	state = function(props)
-		local player_state = cs2.get_player_state(props.player_index)
-		if player_state and player_state.hide_help then
-			return { show_info = false }
-		else
-			return { show_info = true }
-		end
-	end,
 })
+
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+if _G.__RECOVERY_MODE__ then return end
+
+events.bind(
+	defines.events.on_gui_opened,
+	---@param event EventData.on_gui_opened
+	function(event)
+		if not event.entity then return end
+		if not cs2.entity_is_combinator_or_ghost(event.entity) then return end
+		local player_index = event.player_index
+		local player = game.get_player(player_index)
+		if not player then return end
+
+		local _, id = remote.call("things", "get_thing_id", event.entity)
+		local comb = cs2.get_combinator(id)
+		if not comb then
+			player.print(
+				"Cybersyn 2: Attempted to open a combinator without an associated state. Run a full reset (or complete an in-progress reset procedure) before proceeding.",
+				{
+					color = { r = 1, g = 0, b = 0 },
+					skip = defines.print_skip.never,
+					sound = defines.print_sound.always,
+				}
+			)
+			-- Close the default GUI.
+			player.opened = nil
+			return
+		end
+
+		local root_id, main_window =
+			relm.root_create(player.gui.screen, nil, "CombinatorGui", {
+				player_index = player_index,
+				combinator = comb,
+			})
+
+		if main_window then
+			events.raise("cs2.combinator_gui_opened", comb, player, root_id)
+		else
+			strace(
+				ERROR,
+				"message",
+				"Could not open Combinator GUI",
+				player_index,
+				comb
+			)
+		end
+	end
+)

@@ -27,51 +27,66 @@ local function get_stop_gui_pos(player)
 	return { x = 0, y = 0 }
 end
 
----@param player LuaPlayer
-local function close_stop_gui(player)
-	local elt = player.gui.screen[GUI_WINDOW_NAME]
-	if elt and elt.valid then
-		local id = relm.get_root_id(elt)
-		if id then relm.root_destroy(id) end
-		if elt.valid then elt.destroy() end
+---@param root_id Relm.RootId
+---@param save_pos boolean?
+local function close_stop_gui(root_id, save_pos)
+	if save_pos then
+		local elt = relm.get_root_element(root_id)
+		if elt and elt.valid then
+			local st = cs2.get_or_create_player_state(elt.player_index)
+			local x, y = pos_lib.pos_get(elt.location)
+			st.stop_gui_pos = { x, y }
+		end
 	end
+	relm.root_destroy(root_id)
 end
 
-relm.define_element({
-	name = "StopGui",
-	render = function(props, state)
-		return ultros.WindowFrame({
-			caption = "[virtual-signal=cybersyn2] Cybersyn 2 Stop",
-			closable = false,
+relm.define("StopGui", function(props)
+	local root_id = props.root_id
+
+	local pinned, set_pinned = relm.use_state(false)
+
+	local function close_me(unpinned_only)
+		if pinned and unpinned_only then return end
+		close_stop_gui(root_id, not pinned)
+	end
+
+	local function handle_close() close_me(false) end
+
+	-- Expose a method that lets all unpinned stop guis be closed from outside the rendering flow.
+	relm.use_transient({
+		close_unpinned_stop_gui = function() close_me(true) end,
+	})
+
+	return ultros.WindowFrame({
+		caption = "[virtual-signal=cybersyn2] Cybersyn 2 Stop",
+		on_close = handle_close,
+		decoration = function()
+			return ultros.PinButton({ pinned = pinned, set_pinned = set_pinned })
+		end,
+	}, {
+		Pr({
+			type = "frame",
+			style = "inside_shallow_frame",
+			direction = "vertical",
+			width = 340,
+			minimal_height = 400,
+			horizontally_stretchable = false,
+			vertically_stretchable = true,
 		}, {
 			Pr({
-				type = "frame",
-				style = "inside_shallow_frame",
+				type = "scroll-pane",
 				direction = "vertical",
-				width = 340,
-				minimal_height = 400,
-				horizontally_stretchable = false,
 				vertically_stretchable = true,
-			}, {
-				Pr({
-					type = "scroll-pane",
-					direction = "vertical",
-					vertically_stretchable = true,
-					horizontal_scroll_policy = "never",
-					extra_top_padding_when_activated = 0,
-					extra_left_padding_when_activated = 0,
-					extra_right_padding_when_activated = 0,
-					extra_bottom_padding_when_activated = 0,
-				}, {}),
-			}),
-		})
-	end,
-	state = function(props) return {} end,
-	message = function(me, payload, props, state)
-		---@cast state table
-		return false
-	end,
-})
+				horizontal_scroll_policy = "never",
+				extra_top_padding_when_activated = 0,
+				extra_left_padding_when_activated = 0,
+				extra_right_padding_when_activated = 0,
+				extra_bottom_padding_when_activated = 0,
+			}, {}),
+		}),
+	})
+end)
 
 -- Game events
 -- Don't bind these in recovery mode

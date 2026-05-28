@@ -106,12 +106,14 @@ function _G.cs2.lib.entity_is_combinator_or_ghost(entity)
 		or entity.name
 	return true_name == COMBINATOR_NAME
 end
+_G.cs2.entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
 
 ---@param entity LuaEntity?
 function _G.cs2.lib.entity_is_combinator(entity)
 	if not entity or not entity.valid then return false end
 	return entity.name == COMBINATOR_NAME
 end
+_G.cs2.entity_is_combinator = _G.cs2.lib.entity_is_combinator
 
 ---Locate all `LuaEntity`s corresponding to combinators within the given area.
 ---@param surface LuaSurface
