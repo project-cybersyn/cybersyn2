@@ -489,6 +489,8 @@ function TrainDelivery:notify_plugin_handoff(new_luatrain)
 end
 
 function TrainDelivery:check_stuck(workload)
+	local state = self.state
+	if state == "completed" or state == "failed" then return end
 	local train = cs2.get_train(self.vehicle_id)
 	if not train then return end
 	local stock = train:get_stock()
@@ -506,7 +508,7 @@ function TrainDelivery:check_stuck(workload)
 	add_workload(workload, 1) -- demographic/validity checks
 
 	-- Prods
-	if self.state == "at_from" and prod_interval >= 1 then
+	if state == "at_from" and prod_interval >= 1 then
 		local n_intended_prods = math.floor(state_time / prod_interval)
 		if n_intended_prods > (self._prods or 0) then
 			self._prods = n_intended_prods
@@ -514,7 +516,7 @@ function TrainDelivery:check_stuck(workload)
 			if not stop then return end
 			script.raise_event("cybersyn2-prod-train", {
 				delivery_id = self.id,
-				state = self.state,
+				state = state,
 				train_id = self.vehicle_id,
 				luatrain = train.lua_train,
 				train_stock = stock,
@@ -530,7 +532,7 @@ function TrainDelivery:check_stuck(workload)
 	add_workload(workload, 1) -- stuck check cost
 	if
 		last_pos
-		and (self.state == "at_from" or self.state == "at_to" or self.state == "to_from" or self.state == "to_to")
+		and (state == "at_from" or state == "at_to" or state == "to_from" or state == "to_to")
 		and stuck_timeout > 0
 		and state_time >= stuck_timeout
 		and pos_lib.pos_distsq(current_pos, last_pos) < 4
@@ -538,14 +540,7 @@ function TrainDelivery:check_stuck(workload)
 		-- Stuck
 		if not self.stuck then
 			self.stuck = true
-			events.raise(
-				"cs2.train_stuck",
-				self.id,
-				train,
-				stock,
-				current_pos,
-				self.state
-			)
+			events.raise("cs2.train_stuck", self.id, train, stock, current_pos, state)
 		end
 	else
 		-- Not stuck
