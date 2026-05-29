@@ -29,7 +29,7 @@ _G.mgr.SignalCountsButtons = relm.define_element({
 			}, {
 				Pr({
 					type = "label",
-					style = "relm_label_signal_count_inventory",
+					style = "relm_label_signal_count",
 					ignored_by_interaction = true,
 					caption = siglib.format_signal_count(qty),
 				}),
@@ -42,17 +42,19 @@ _G.mgr.SignalCountsTable = relm.define_element({
 	name = "Cybersyn.Manager.SignalCountsTable",
 	render = function(props)
 		local signal_counts = props.signal_counts or empty
-		local signals = {}
-		local counts = {}
+
+		---@type Ultros.SignalButtonInfo[]
+		local buttons = {}
 
 		for k, count in pairs(signal_counts) do
-			signals[#signals + 1] = siglib.key_to_signal(k)
-			counts[#counts + 1] = count
+			buttons[#buttons + 1] = {
+				signal = siglib.key_to_signal(k),
+				count = count,
+			}
 		end
 
-		return ultros.SignalCountsTable({
-			signals = signals,
-			counts = counts,
+		return ultros.SlotButtonTable({
+			buttons = buttons,
 			column_count = props.column_count or 5,
 		})
 	end,

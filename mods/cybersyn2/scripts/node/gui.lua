@@ -9,6 +9,8 @@ local ultros = require("lib.core.relm.ultros")
 local relm_util = require("lib.core.relm.util")
 local pos_lib = require("lib.core.math.pos")
 local bbox_lib = require("lib.core.math.bbox")
+local tlib = require("lib.core.table")
+local delivery_gui = require("scripts.gui.delivery")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -16,6 +18,103 @@ local VF = ultros.VFlow
 local Pr = relm.Primitive
 
 local function noop() end
+
+--------------------------------------------------------------------------------
+-- Delivery queue
+--------------------------------------------------------------------------------
+
+local TrainDeliveryQueue = relm.define(
+	"NodeGui.TrainDeliveryQueue",
+	function(props)
+		local stop = props.stop --[[@as Cybersyn.TrainStop]]
+		local stop_id = stop.id
+
+		relm_util.use_event_handler(
+			"cs2.node_deliveries_changed",
+			function(me, _, changed_node)
+				if changed_node.id == stop_id then relm.paint(me) end
+			end
+		)
+
+		local deliveries = tlib.t_map_a(
+			stop.deliveries,
+			function(_, id) return cs2.get_delivery(id) end
+		)
+		table.sort(
+			deliveries,
+			function(a, b) return a.created_tick > b.created_tick end
+		)
+
+		local children = tlib.map(
+			deliveries,
+			function(delivery)
+				return delivery_gui.TrainDeliveryFrame({
+					delivery = delivery,
+					train_frame = true,
+					show_header = true,
+				})
+			end
+		)
+
+		return {
+			ultros.WellSection({ caption = "Future Deliveries" }, children),
+		}
+	end
+)
+
+local TrainDeliveryHistory = relm.define(
+	"NodeGui.TrainDeliveryHistory",
+	function(props)
+		local stop = props.stop --[[@as Cybersyn.TrainStop]]
+		local stop_id = stop.id
+		local limit = props.limit or 5
+
+		relm_util.use_event_handler(
+			"cs2.delivery_state_changed",
+			---@param changed_delivery Cybersyn.Delivery
+			function(me, _, changed_delivery)
+				if
+					(
+						changed_delivery.from_id == stop_id
+						or changed_delivery.to_id == stop_id
+					) and changed_delivery:is_in_final_state()
+				then
+					relm.paint(me)
+				end
+			end
+		)
+
+		local deliveries = tlib.t_map_a(storage.deliveries, function(delivery)
+			if
+				(delivery.from_id == stop_id or delivery.to_id == stop_id)
+				and delivery:is_in_final_state()
+			then
+				return delivery
+			end
+		end)
+		table.sort(
+			deliveries,
+			function(a, b) return a.created_tick > b.created_tick end
+		)
+		for i = #deliveries, limit, -1 do
+			deliveries[i] = nil
+		end
+
+		local children = tlib.map(
+			deliveries,
+			function(delivery)
+				return delivery_gui.TrainDeliveryFrame({
+					delivery = delivery,
+					show_header = true,
+				})
+			end
+		)
+
+		return {
+			ultros.WellSection({ caption = "Delivery History" }, children),
+		}
+	end
+)
 
 --------------------------------------------------------------------------------
 -- Trainstop Debug rendering
@@ -101,6 +200,10 @@ local Stop = relm.define("NodeGui.Stop", function(props)
 
 	return {
 		StopDebugRenderer({
+			stop = stop,
+		}),
+		TrainDeliveryQueue({ stop = stop }),
+		TrainDeliveryHistory({
 			stop = stop,
 		}),
 	}

@@ -3,11 +3,13 @@
 --------------------------------------------------------------------------------
 
 local events = require("lib.core.event")
+local tlib = require("lib.core.table")
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local relm_util = require("lib.core.relm.util")
 local pos_lib = require("lib.core.math.pos")
 local gui_elements = require("scripts.gui.elements")
+local siglib = require("lib.signal")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -123,46 +125,54 @@ local TrainDeliveryCancelButton = relm.define_element({
 	end,
 })
 
-local TrainManifestFrames = relm.define_element({
-	name = "CS2.TrainManifestFrames",
+local TrainManifest = relm.define_element({
+	name = "CS2.TrainManifest",
 	render = function(props, state)
-		local delivery = props.delivery
+		local delivery = props.delivery --[[@as Cybersyn.TrainDelivery ]]
 		relm_util.use_event("cs2.delivery_state_changed")
 
-		return {
-			Pr({
-				type = "frame",
-				style = "relm_raised_frame",
-				direction = "vertical",
-				width = 322,
-			}, {
-				ultros.BoldLabel("Manifest"),
-				gui_elements.SignalCountsTable({
-					column_count = 6,
-					signal_counts = delivery.manifest,
-					style = "slot_table",
-				}),
+		local buttons_table = {}
+		for k, v in pairs(delivery.manifest or tlib.EMPTY) do
+			local button = buttons_table[k]
+			if not button then
+				button = {}
+				buttons_table[k] = button
+			end
+			button.signal = siglib.key_to_signal(k)
+			button.count = v
+		end
+		for k, v in pairs(delivery.loaded or tlib.EMPTY) do
+			local button = buttons_table[k]
+			if not button then
+				button = {}
+				buttons_table[k] = button
+			end
+			local expected = button.count or 0
+			if v > expected then
+				button.button_style = "relm_slot_button_yellow"
+			elseif v < expected then
+				button.button_style = "relm_slot_button_red"
+			else
+				button.button_style = "relm_slot_button_green"
+			end
+			button.signal = siglib.key_to_signal(k)
+			button.count = button.count or 0
+			button.upper = v
+		end
+
+		return Pr({
+			type = "frame",
+			style = "relm_raised_frame",
+			direction = "vertical",
+			width = 322,
+		}, {
+			ultros.SlotButtonTable({
+				column_count = 6,
+				uppers = true,
+				buttons_table = buttons_table,
+				style = "slot_table",
 			}),
-			ultros.CallIf(
-				delivery.loaded,
-				function(d)
-					return Pr({
-						type = "frame",
-						style = "relm_raised_frame",
-						direction = "vertical",
-						width = 322,
-					}, {
-						ultros.BoldLabel("Loaded Cargo"),
-						gui_elements.SignalCountsTable({
-							column_count = 6,
-							signal_counts = d.loaded,
-							style = "slot_table",
-						}),
-					})
-				end,
-				delivery
-			),
-		}
+		})
 	end,
 	message = function(me, message, props)
 		if message.key == "cs2.delivery_state_changed" then
@@ -175,6 +185,54 @@ local TrainManifestFrames = relm.define_element({
 		end
 	end,
 })
+
+local delivery_state_friendly_names = {
+	wait_from = "Queued for provider",
+	to_from = "En route to provider",
+	at_from = "At provider",
+	interrupted_from = "Interrupted",
+	interrupted_to = "Interrupted",
+	wait_to = "Queued for requester",
+	to_to = "En route to requester",
+	at_to = "At requester",
+	completed = "[color=green]Completed[/color]",
+	failed = "[color=red]Failed[/color]",
+}
+
+local DeliveryHeader = relm.define("CS2.DeliveryHeader", function(props)
+	local delivery = props.delivery --[[@as Cybersyn.TrainDelivery]]
+	local delivery_id = delivery.id
+	local state_tick = delivery.state_tick or 0
+	local state_name = delivery_state_friendly_names[delivery.state] or "Unknown"
+	relm_util.use_event_handler(
+		"cs2.delivery_state_changed",
+		function(me, _, changed_delivery)
+			if changed_delivery.id == delivery_id then relm.paint(me) end
+		end
+	)
+
+	return {
+		ultros.TimedRepaintWrapper({
+			render = function(t)
+				local time_in_state = t - state_tick
+				local time_in_state_s = math.floor(time_in_state / 60)
+				return ultros.RtLgLabel({
+					"",
+					"[font=default-large-bold]#",
+					delivery_id,
+					"[/font] ",
+					state_name,
+					" (",
+					time_in_state_s,
+					"s)",
+				})
+			end,
+		}),
+		Pr({
+			type = "line",
+		}),
+	}
+end)
 
 local TrainDeliveryFrame = relm.define_element({
 	name = "CS2.TrainDeliveryFrame",
@@ -194,23 +252,37 @@ local TrainDeliveryFrame = relm.define_element({
 			to_entity = to_stop.entity --[[@as LuaEntity]]
 			to_name = to_entity.backer_name
 		end
+		local cstrain = cs2.get_train(delivery.vehicle_id)
+		local train_entity = nil
+		if cstrain then train_entity = cstrain:get_stock() end
+		local width = props.train_frame and 104 or 159
 
 		return VF({
+			ultros.If(props.show_header, DeliveryHeader({ delivery = delivery })),
 			HF({
 				LabeledMapFrame({
 					entity = from_entity,
 					caption = from_name,
-					width = 159,
+					width = width,
 					height = 180,
 				}),
+				ultros.If(
+					props.train_frame,
+					LabeledMapFrame({
+						entity = train_entity,
+						caption = train_entity and train_entity.backer_name or "Unknown",
+						width = width,
+						height = 180,
+					})
+				),
 				LabeledMapFrame({
 					entity = to_entity,
 					caption = to_name,
-					width = 159,
+					width = width,
 					height = 180,
 				}),
 			}),
-			TrainManifestFrames({ delivery = delivery }),
+			TrainManifest({ delivery = delivery }),
 			TrainDeliveryCancelButton({ delivery = delivery }),
 		})
 	end,

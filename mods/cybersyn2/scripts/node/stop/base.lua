@@ -35,7 +35,6 @@ function TrainStop.new(stop_entity)
 	node.entity_id = stop_id
 	node.allowed_groups = {}
 	node.allowed_layouts = {}
-	node.delivery_queue = {}
 	cs2.raise_node_created(node)
 	return node
 end

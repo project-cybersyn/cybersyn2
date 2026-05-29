@@ -113,6 +113,7 @@ lib.CarriageType = {
 ---@field public inventory_id Id? Inventory of this node. This is what the logistics algorithm uses to determine node contents.
 ---@field public created_inventory_id Id? The id of the inventory automatically created for this node if any.
 ---@field public deliveries IdSet Set of all active deliveries involving this node, both inbound and outbound.
+---@field public delivery_queue Id[] All deliveries currently enroute for this stop, in order. The lowest index in the queue is the next delivery to be processed.
 ---@field public is_producer boolean? `true` if the node can send deliveries
 ---@field public is_consumer boolean? `true` if the node can receive deliveries
 ---@field public priority int? Default priority of the node.
@@ -121,7 +122,7 @@ lib.CarriageType = {
 ---@field public threshold_fluid_in uint? General inbound fluid threshold
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds, always measured in units, not stacks.
 ---@field public auto_threshold_fraction number Fraction of requests to use for auto-thresholding.
----@field public train_fullness_fraction number Fraction of train fullness to use for delivery triggering.
+---@field public produce_single_item boolean? `true` if the node should only provide single items per delivery
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class Cybersyn.TrainStop: Cybersyn.Node
@@ -131,13 +132,12 @@ lib.CarriageType = {
 ---@field public allowed_layouts IdSet? Set of accepted train layout IDs. If `nil`, all layouts are allowed.
 ---@field public allowed_layouts_key string? A string key representing the allowed layouts for caching purposes. `''` if all layouts are allowed.
 ---@field public allowed_groups table<string, true>? Set of accepted train group names. If `nil`, all groups are allowed.
----@field public delivery_queue Id[] All deliveries currently enroute for this stop, in order. The lowest index in the queue is the next delivery to be processed.
 ---@field public allow_departure_signal SignalID? The signal key that will allow a train to depart this stop.
 ---@field public force_departure_signal SignalID? The signal key that will force a train to depart this stop.
 ---@field public inactivity_timeout uint? The number of ticks for the inactivity timeout
 ---@field public inactivity_mode "deliver"|"forceout"|nil How to apply inactivity timeouts
 ---@field public disable_cargo_condition boolean? `true` if the cargo condition should be ignored
----@field public produce_single_item boolean? `true` if the station should only provide single items per delivery
+---@field public train_fullness_fraction number Fraction of train fullness to use for delivery triggering.
 ---@field public fullness_when_providing boolean? `true` if the station should enforce train fullness threshold when providing
 ---@field public reserved_slots uint? Reserved slots per cargo wagon
 ---@field public reserved_capacity uint? Reserved capacity per fluid wagon

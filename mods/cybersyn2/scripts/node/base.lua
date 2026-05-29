@@ -36,6 +36,7 @@ function Node.new(type)
 		combinator_set = {},
 		created_tick = game.tick,
 		deliveries = {},
+		delivery_queue = {},
 		log_size = 20,
 		log_current = 1,
 		log_buffer = {},
@@ -284,4 +285,5 @@ scheduler.register_handler("notify_deliveries", function(task)
 	local node = task.data --[[@as Cybersyn.Node]]
 	node.deferred_notify_deliveries = nil
 	cs2.raise_node_deliveries_changed(node)
+	events.raise("cs2.node_deliveries_changed", node)
 end)
