@@ -180,10 +180,11 @@ end
 function DeliveryMonitor:enum_delivery(delivery_id)
 	local delivery = get_delivery(delivery_id, true)
 	if not delivery then return end
+	local is_finalized = delivery:is_in_final_state()
 
 	-- Destroy expired deliveries.
 	if
-		delivery:is_in_final_state()
+		is_finalized
 		and (
 			not delivery.state_tick
 			or delivery.state_tick < game.tick - cs2.DELIVERY_EXPIRATION_TICKS
@@ -193,7 +194,7 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 	end
 
 	-- Check stuck deliveries
-	delivery:check_stuck(self.workload_counter)
+	if not is_finalized then delivery:check_stuck(self.workload_counter) end
 
 	for _, view in pairs(storage.views) do
 		view:enter_delivery(self.workload_counter, delivery)
