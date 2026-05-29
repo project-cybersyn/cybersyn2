@@ -210,9 +210,6 @@ _G.cs2.on_topologies, _G.cs2.raise_topologies =
 _G.cs2.on_node_created, _G.cs2.raise_node_created =
 	event("node_created", "Cybersyn.Node", "nil", "nil", "nil", "nil")
 
-_G.cs2.on_node_destroyed, _G.cs2.raise_node_destroyed =
-	event("node_destroyed", "Cybersyn.Node", "nil", "nil", "nil", "nil")
-
 ---Event raised when internal data of a node (such as a train stop's allow list)
 ---changes.
 _G.cs2.on_node_data_changed, _G.cs2.raise_node_data_changed =

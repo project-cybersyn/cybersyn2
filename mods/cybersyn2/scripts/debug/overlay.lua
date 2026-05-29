@@ -323,7 +323,7 @@ cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
 	-- 	})
 	-- end
 end)
-cs2.on_node_destroyed(destroy_stop_overlay)
+events.bind("cs2.node_destroyed", destroy_stop_overlay)
 cs2.on_node_created(update_stop_overlay)
 events.bind("cs2.node_combinator_set_changed", update_stop_overlay)
 cs2.on_train_stop_layout_changed(update_stop_overlay)

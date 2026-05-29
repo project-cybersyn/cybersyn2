@@ -131,6 +131,14 @@ relm.define("NodeGui", function(props)
 
 	ultros.use_close_on_gui_closed(player_index, close_me, pinned)
 
+	-- Close window if node is destroyed
+	relm_util.use_event_handler(
+		"cs2.node_destroyed",
+		function(me, _, destroyed_node)
+			if node and destroyed_node.id == node.id then close_me() end
+		end
+	)
+
 	return ultros.WindowFrame({
 		caption = { "", "[virtual-signal=cybersyn2] Node ", node and node.id or "" },
 		on_close = close_me,

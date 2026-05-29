@@ -25,7 +25,7 @@ cs2.on_node_created(function(node)
 	end
 end, true)
 
-cs2.on_node_destroyed(function(node)
+events.bind("cs2.node_destroyed", function(node)
 	if node.type == "stop" then
 		---@cast node Cybersyn.TrainStop
 		-- Attempt to reassociate all combinators associated to this stop.
@@ -235,7 +235,7 @@ events.bind("cs2.node_combinator_set_changed", function(node)
 end)
 
 -- Cleanup state when a stop is destroyed.
-cs2.on_node_destroyed(function(node)
+events.bind("cs2.node_destroyed", function(node)
 	if node.type ~= "stop" then return end
 	---@cast node Cybersyn.TrainStop
 	-- Fail all deliveries associated with this stop.

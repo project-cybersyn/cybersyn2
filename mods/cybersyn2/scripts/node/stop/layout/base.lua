@@ -373,7 +373,7 @@ cs2.on_node_created(function(node)
 end)
 
 -- When a train stop is destroyed, clear its layout.
-cs2.on_node_destroyed(function(node)
+events.bind("cs2.node_destroyed", function(node)
 	if node.type == "stop" then
 		local layout = storage.stop_layouts[node.id]
 		if not layout then return end

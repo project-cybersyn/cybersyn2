@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local class = require("lib.core.class").class
+local events = require("lib.core.event")
 local tlib = require("lib.core.table")
 local counters = require("lib.core.counters")
 local signal_keys = require("lib.signal")
@@ -389,7 +390,7 @@ cs2.on_node_created(function(node)
 end, true)
 
 -- Destroy autocreated inventories when their nodes are destroyed.
-cs2.on_node_destroyed(function(node)
+events.bind("cs2.node_destroyed", function(node)
 	local inv = cs2.get_inventory(node.created_inventory_id)
 	if inv then inv:destroy() end
 end)
