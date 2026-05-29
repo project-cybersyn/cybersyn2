@@ -49,7 +49,7 @@ require("scripts.node.stop.layout.equipment")
 require("scripts.node.stop.layout.pattern")
 require("scripts.node.stop.allow")
 require("scripts.node.stop.capacity")
-require("scripts.node.stop.gui")
+require("scripts.node.gui")
 
 require("scripts.vehicle.base")
 require("scripts.vehicle.train.base")
