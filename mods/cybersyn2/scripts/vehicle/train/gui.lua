@@ -136,8 +136,8 @@ local DeliveryHistory = relm.define_element({
 		if previous_delivery then
 			local t0 = previous_delivery.state_tick
 			local caption_element = ultros.TimedRepaintWrapper({
-				render = function()
-					local time_in_state = game.tick - t0
+				render = function(t)
+					local time_in_state = t - t0
 					local time_in_state_s = math.floor(time_in_state / 60)
 					return Pr({
 						type = "label",

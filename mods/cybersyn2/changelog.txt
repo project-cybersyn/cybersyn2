@@ -8,6 +8,7 @@ Date: ????
   Bugfixes:
     - Fixed an unintended dependency on flib styles.
     - Fixed an issue where priority alerts would incorrectly trigger for pure vanilla stations.
+    - Fixed a crash when a train GUI was open on game load.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.4
 Date: 2026-05-26
