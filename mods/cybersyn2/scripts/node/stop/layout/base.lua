@@ -8,6 +8,7 @@ local mlib = require("lib.core.math.bbox")
 local trains_lib = require("lib.trains")
 local pos_lib = require("lib.core.math.pos")
 local stlib = require("lib.core.strace")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
@@ -102,6 +103,7 @@ function TrainStopLayout:clear_layout()
 	if stop then
 		---@cast stop Cybersyn.TrainStop
 		cs2.raise_train_stop_layout_changed(stop, self)
+		events.raise("cs2.stop_layout_changed", stop, self)
 		local combs = tlib.t_map_a(
 			stop.combinator_set,
 			function(_, combinator_id) return cs2.get_combinator(combinator_id, true) end
@@ -355,6 +357,7 @@ function TrainStop:compute_layout(ignored_entity_set)
 	end
 
 	cs2.raise_train_stop_layout_changed(self, stop_layout)
+	events.raise("cs2.stop_layout_changed", self, stop_layout)
 end
 
 --------------------------------------------------------------------------------

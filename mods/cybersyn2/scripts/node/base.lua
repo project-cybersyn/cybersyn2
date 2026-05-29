@@ -66,7 +66,7 @@ function Node:destroy()
 			local combinator = cs2.get_combinator(combinator_id, true)
 			Node.disassociate_combinator(combinator, true)
 		end)
-		cs2.raise_node_combinator_set_changed(self)
+		events.raise("cs2.node_combinator_set_changed", self)
 	end
 	storage.nodes[self.id] = nil
 end
@@ -111,7 +111,7 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 		cs2.raise_combinator_node_associated(combinator, self, nil)
 		events.raise("cs2.combinator_node_associated", combinator, self, nil)
 		if not suppress_set_changed then
-			cs2.raise_node_combinator_set_changed(self)
+			events.raise("cs2.node_combinator_set_changed", self)
 		end
 		return true, old_node
 	end
@@ -140,7 +140,7 @@ function Node.disassociate_combinator(combinator, suppress_set_changed)
 	cs2.raise_combinator_node_associated(combinator, nil, node)
 	events.raise("cs2.combinator_node_associated", combinator, nil, node)
 	if not suppress_set_changed then
-		cs2.raise_node_combinator_set_changed(node)
+		events.raise("cs2.node_combinator_set_changed", node)
 	end
 	return node
 end

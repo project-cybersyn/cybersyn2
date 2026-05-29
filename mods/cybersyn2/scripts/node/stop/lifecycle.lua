@@ -135,7 +135,7 @@ function reassociate_recursive(combinators, depth)
 	-- Fire batch set-change events for all affected stops
 	for stop_id in pairs(affected_stop_set) do
 		local stop = Node.get(stop_id)
-		if stop then cs2.raise_node_combinator_set_changed(stop) end
+		if stop then events.raise("cs2.node_combinator_set_changed", stop) end
 	end
 
 	-- Create new stops as needed, recursively reassociating combinators near
@@ -226,7 +226,7 @@ events.bind(
 )
 
 -- When a stop loses all its combinators, destroy it
-cs2.on_node_combinator_set_changed(function(node)
+events.bind("cs2.node_combinator_set_changed", function(node)
 	-- TODO: uncovered case: when none of the combinators are within yellow
 	-- radius of stop, destroy stop
 	if node.type == "stop" and not next(node.combinator_set) then

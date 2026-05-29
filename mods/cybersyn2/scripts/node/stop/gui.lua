@@ -8,6 +8,7 @@ local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local relm_util = require("lib.core.relm.util")
 local pos_lib = require("lib.core.math.pos")
+local bbox_lib = require("lib.core.math.bbox")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -16,7 +17,103 @@ local Pr = relm.Primitive
 
 local function noop() end
 
-relm.define("StopGui", function(props)
+--------------------------------------------------------------------------------
+-- Trainstop Debug rendering
+--------------------------------------------------------------------------------
+
+---@param stop Cybersyn.TrainStop?
+local function render_stop_overlay(stop)
+	if (not stop) or (not stop:is_valid()) then return {} end
+	local layout = stop:get_layout()
+	if not layout then return {} end
+	local surface = stop.entity.surface
+	local render_objs = {}
+
+	-- BBox rect
+	local l, t, r, b = bbox_lib.bbox_get(layout.bbox)
+	render_objs[#render_objs + 1] = rendering.draw_rectangle({
+		surface = surface,
+		left_top = { l, t },
+		right_bottom = { r, b },
+		color = { r = 100, g = 149, b = 237 },
+		width = 2,
+	})
+
+	-- Combinator associations
+	for comb_id in pairs(stop.combinator_set) do
+		local comb = cs2.get_combinator(comb_id)
+		if comb and comb:is_real() then
+			render_objs[#render_objs + 1] = rendering.draw_line({
+				color = { r = 0, g = 1, b = 0.25, a = 0.25 },
+				width = 2,
+				surface = surface,
+				from = comb.real_entity,
+				to = stop.entity,
+			})
+		end
+	end
+
+	return render_objs
+end
+
+local StopDebugRenderer = relm.define("StopDebugRenderer", function(props)
+	---@type Cybersyn.TrainStop?
+	local stop = props.stop
+	local stop_id = stop and stop.id
+
+	-- Renderer
+	local rk, set_rk = relm.use_state(0)
+	local function render()
+		set_rk(function(_rk) return _rk + 1 end)
+	end
+	relm.use_effect(
+		rk,
+		function() return render_stop_overlay(stop) end,
+		function(render_objs)
+			for i = 1, #render_objs do
+				render_objs[i].destroy()
+			end
+		end
+	)
+
+	-- Drivers
+	relm.use_effect(stop_id or 0, render)
+	relm_util.use_event_handler(
+		"cs2.stop_layout_changed",
+		function(_, _, changed_stop)
+			if changed_stop.id == stop_id then render() end
+		end
+	)
+	relm_util.use_event_handler(
+		"cs2.node_combinator_set_changed",
+		function(_, _, changed_stop)
+			if changed_stop.id == stop_id then render() end
+		end
+	)
+end)
+
+--------------------------------------------------------------------------------
+-- Trainstop
+--------------------------------------------------------------------------------
+
+local Stop = relm.define("NodeGui.Stop", function(props)
+	local stop = props.stop --[[@as Cybersyn.TrainStop?]]
+
+	return {
+		StopDebugRenderer({
+			stop = stop,
+		}),
+	}
+end)
+
+--------------------------------------------------------------------------------
+-- Main window
+--------------------------------------------------------------------------------
+
+relm.define("NodeGui", function(props)
+	---@type Cybersyn.Node?
+	local node = props.node
+
 	-- Window management
 	local root_id, player_index = props.root_id, props.player_index
 
@@ -35,7 +132,7 @@ relm.define("StopGui", function(props)
 	ultros.use_close_on_gui_closed(player_index, close_me, pinned)
 
 	return ultros.WindowFrame({
-		caption = "[virtual-signal=cybersyn2] Cybersyn 2 Stop",
+		caption = { "", "[virtual-signal=cybersyn2] Node ", node and node.id or "" },
 		on_close = close_me,
 		decoration = function()
 			return ultros.PinButton({ pinned = pinned, set_pinned = set_pinned })
@@ -46,7 +143,7 @@ relm.define("StopGui", function(props)
 			style = "inside_shallow_frame",
 			direction = "vertical",
 			width = 340,
-			minimal_height = 400,
+			minimal_height = 800,
 			horizontally_stretchable = false,
 			vertically_stretchable = true,
 		}, {
@@ -59,16 +156,16 @@ relm.define("StopGui", function(props)
 				extra_left_padding_when_activated = 0,
 				extra_right_padding_when_activated = 0,
 				extra_bottom_padding_when_activated = 0,
-			}, {}),
+			}, {
+				ultros.If(node and node.type == "stop", Stop({ stop = node })),
+			}),
 		}),
 	})
 end)
 
--- Game events
--- Don't bind these in recovery mode
-
----@diagnostic disable-next-line: undefined-field
-if _G.__RECOVERY_MODE__ then return end
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
 
 events.bind(
 	"cs2.combinator_gui_opened",
@@ -76,10 +173,10 @@ events.bind(
 	---@param player LuaPlayer
 	function(comb, player)
 		if comb.mode ~= "station" then return end
-		local node = comb:get_node("stop") --[[@as Cybersyn.TrainStop?]]
+		local node = comb:get_node() --[[@as Cybersyn.Node?]]
 		if not node then return end
 
 		local _, elt =
-			relm.root_create(player.gui.screen, nil, "StopGui", { stop = node })
+			relm.root_create(player.gui.screen, nil, "NodeGui", { node = node })
 	end
 )

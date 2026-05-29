@@ -207,17 +207,6 @@ _G.cs2.on_combinator_setting_changed, _G.cs2.raise_combinator_setting_changed =
 _G.cs2.on_topologies, _G.cs2.raise_topologies =
 	event("topologies", "Cybersyn.Topology", "string", "nil", "nil", "nil")
 
----Event raised when the set of combinators associated with a node changes.
-_G.cs2.on_node_combinator_set_changed, _G.cs2.raise_node_combinator_set_changed =
-	event(
-		"node_combinator_set_changed",
-		"Cybersyn.Node",
-		"nil",
-		"nil",
-		"nil",
-		"nil"
-	)
-
 _G.cs2.on_node_created, _G.cs2.raise_node_created =
 	event("node_created", "Cybersyn.Node", "nil", "nil", "nil", "nil")
 
