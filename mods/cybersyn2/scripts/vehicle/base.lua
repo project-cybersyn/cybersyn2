@@ -34,9 +34,10 @@ function Vehicle.get(id, skip_validation)
 	local vehicle = storage.vehicles[id]
 	if skip_validation then
 		return vehicle
-	else
+	elseif vehicle then
 		return vehicle:is_valid() and vehicle or nil
 	end
+	return nil
 end
 
 ---@return table<Id, Cybersyn.Vehicle>
