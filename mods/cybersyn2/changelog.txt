@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.5
-Date: ????
+Date: 2026-05-30
   Changes:
     - Added Node GUIs, which can be accessed by opening the Station combinator for a node. This GUI includes information about node inventory as well as future and past deliveries.
     - Top-level GUI windows are now pinnable.
