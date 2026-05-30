@@ -113,7 +113,7 @@ data:extend({
 	},
 	{
 		type = "bool-setting",
-		name = "cybersyn2-setting-constrain-coordinate-stop-direction",
+		name = "cybersyn2-setting-directional-routing",
 		order = "ce",
 		setting_type = "runtime-global",
 		default_value = true,

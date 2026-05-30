@@ -122,7 +122,7 @@ end
 ---@param stop_entity LuaEntity
 local function coordinate_entry(stop_entity)
 	---@type AddRecordData
-	if mod_settings.constrain_coordinate_stops then
+	if mod_settings.directional_routing then
 		return {
 			rail = stop_entity.connected_rail,
 			rail_direction = stop_entity.connected_rail_direction,
