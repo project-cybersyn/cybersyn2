@@ -117,17 +117,50 @@ function reassociate_recursive(combinators, depth)
 		if target_stop and not target_stop.is_being_destroyed then
 			if combinator.node_id ~= target_stop.id then
 				-- Comb should be associated with the target
+				strace.trace(
+					"reassociate_recursive: associating comb",
+					combinator.id,
+					"to stop",
+					target_stop.id
+				)
 				local success, old_stop =
 					target_stop:associate_combinator(combinator, true)
 				if success then
+					strace.trace(
+						"reassociate_recursive: associated comb",
+						combinator.id,
+						"to stop",
+						target_stop.id
+					)
 					affected_stop_set[target_stop.id] = true
 					if old_stop then affected_stop_set[old_stop.id] = true end
+				else
+					strace.trace(
+						"reassociate_recursive: failed to associate comb",
+						combinator.id,
+						"to stop",
+						target_stop.id
+					)
 				end
 			end
 		else
 			-- No or invalid target, comb is now unassociated
+			strace.trace("reassociate_recursive: unassociating comb", combinator.id)
 			local old_node = Node.disassociate_combinator(combinator, true)
-			if old_node then affected_stop_set[old_node.id] = true end
+			if old_node then
+				strace.trace(
+					"reassociate_recursive: disassociated comb",
+					combinator.id,
+					"from node",
+					old_node.id
+				)
+				affected_stop_set[old_node.id] = true
+			else
+				strace.trace(
+					"reassociate_recursive: failed to disassociate",
+					combinator.id
+				)
+			end
 		end
 		::continue::
 	end
@@ -135,7 +168,13 @@ function reassociate_recursive(combinators, depth)
 	-- Fire batch set-change events for all affected stops
 	for stop_id in pairs(affected_stop_set) do
 		local stop = Node.get(stop_id)
-		if stop then events.raise("cs2.node_combinator_set_changed", stop) end
+		if stop then
+			strace.trace(
+				"reassociate_recursive: raising set_changed for stop",
+				stop.id
+			)
+			events.raise("cs2.node_combinator_set_changed", stop)
+		end
 	end
 
 	-- Create new stops as needed, recursively reassociating combinators near
@@ -144,6 +183,13 @@ function reassociate_recursive(combinators, depth)
 		strace.trace("reassociate_recursive: creating new stops", new_stop_entities)
 		create_recursive(new_stop_entities, depth + 1)
 	end
+
+	strace.trace(
+		"reassociate_recursive: finished depth",
+		depth,
+		"combs",
+		combinators
+	)
 end
 
 ---@param stop_entities LuaEntity[] A list of *valid* train stop entities that are not already Cybersyn stops. They will be promoted to Cybersyn stops.
@@ -206,6 +252,7 @@ cs2.on_broken_train_stop(function(stop_entity)
 	local stop =
 		TrainStop.get_stop_from_unit_number(stop_entity.unit_number, true)
 	if not stop then return end
+	strace.trace("on_broken_train_stop: destroying stop", stop.id)
 
 	-- XXX: prevent migration crash
 	if not storage.entities_being_destroyed then
@@ -214,6 +261,7 @@ cs2.on_broken_train_stop(function(stop_entity)
 
 	storage.entities_being_destroyed[stop_entity.unit_number] = true
 	stop:destroy()
+	strace.trace("on_broken_train_stop: finished destroying stop", stop.id)
 end)
 
 -- Try to bind real combinators to train stops.

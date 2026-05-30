@@ -11,6 +11,7 @@ Date: ????
     - Fixed a crash when a train GUI was open on game load.
     - Fixed a crash that could sometimes happen when destroying trains.
     - Fixed a crash involving stuck-train checking.
+    - Fixed a hard lock/infinite loop that could occur when a shared inventory was pointed at itself.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.4
 Date: 2026-05-26

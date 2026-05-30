@@ -245,6 +245,7 @@ local function evaluate_stop(stop, changed_layout_id)
 			make_default_allow_list(stop, station_comb, changed_layout_id)
 		end
 	end
+	strace(TRACE, "message", "Finished evaluating allow list for stop", stop.id)
 end
 
 ---@param stop Cybersyn.TrainStop

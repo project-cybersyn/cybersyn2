@@ -526,6 +526,8 @@ cs2.on_built_train_stop(
 	function(stop) recompute_nearby_stop_layouts(stop, false) end
 )
 
-cs2.on_broken_train_stop(
-	function(stop) recompute_nearby_stop_layouts(stop, true) end
-)
+cs2.on_broken_train_stop(function(stop)
+	stlib.trace("on_broken_train_stop: recomputing nearby stop layouts")
+	recompute_nearby_stop_layouts(stop, true)
+	stlib.trace("on_broken_train_stop: finished recomputing nearby stop layouts")
+end)

@@ -267,9 +267,15 @@ function TrainStop:rebuild_inventory()
 	local station_comb = self:get_combinator_with_mode("station")
 	if not station_comb then return end
 
-	if self.shared_inventory_master then
+	local master_id = self.shared_inventory_master
+	if master_id then
+		if master_id == self.id then
+			stlib.error("ERROR: Stop", self.id, " is its own shared inventory master")
+			return
+		end
+
 		-- Case: slave; rebuild from master
-		local master = cs2.get_stop(self.shared_inventory_master)
+		local master = cs2.get_stop(master_id)
 		if master then master:rebuild_inventory() end
 	else
 		-- Case: normal inventory, rebuild locally
@@ -303,6 +309,12 @@ end
 function TrainStop:update_inventory(workload, is_opportunistic)
 	-- If shared inventory, forward to master when relevant.
 	if self.shared_inventory_master then
+		-- Sanity check to prevent recursion
+		if self.shared_inventory_master == self.id then
+			stlib.error("ERROR: Stop", self.id, " is its own shared inventory master")
+			return
+		end
+
 		-- Opportunistic reread at a slave station should forward to master.
 		if is_opportunistic then
 			local master = cs2.get_stop(self.shared_inventory_master)
@@ -430,21 +442,22 @@ end
 
 ---Update inventory to point to shared inventory or internal inventory as
 ---needed.
+---@param master_stop Cybersyn.TrainStop? The master stop to share inventory with, or `nil` to use internal inventory.
 function TrainStop:update_inventory_sharing(master_stop)
-	stlib.info(
-		"Updating shared inventory for stop",
-		self.id,
-		"connecting to master stop",
-		master_stop and master_stop.id
-	)
-
-	if master_stop then
+	if master_stop and master_stop.id ~= self.id then
 		-- If slave station, set inventory to master stop
+		stlib.info(
+			"Updating shared inventory for stop",
+			self.id,
+			"connecting to master stop",
+			master_stop and master_stop.id
+		)
 		if self:set_inventory(master_stop.inventory_id) then
 			self:fail_all_deliveries("INVENTORY_CHANGED")
 		end
 	else
 		-- Reset to internal inventory if we don't have a master.
+		stlib.info("Updating stop", self.id, "to its internal inventory")
 		if self:set_inventory(self.created_inventory_id) then
 			self:fail_all_deliveries("INVENTORY_CHANGED")
 		end

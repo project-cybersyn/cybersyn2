@@ -3,8 +3,14 @@
   {
     "type": "factoriomod",
     "request": "launch",
-    "name": "Factorio Mod Debug (Profile)",
+    "name": "Factorio Mod Profile",
     "hookMode": "profile"
+  },
+    {
+    "type": "factoriomod",
+    "request": "launch",
+    "name": "Factorio Mod Debug",
+    "hookMode": "debug"
   }
   ]
 }

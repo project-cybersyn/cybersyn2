@@ -106,6 +106,7 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 	end
 
 	if not self.combinator_set[combinator.id] then
+		stlib.trace("associating comb", combinator.id, "to node", self.id)
 		self.combinator_set[combinator.id] = true
 		combinator.node_id = self.id
 		cs2.raise_combinator_node_associated(combinator, self, nil)
@@ -113,6 +114,7 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 		if not suppress_set_changed then
 			events.raise("cs2.node_combinator_set_changed", self)
 		end
+		stlib.trace("associated comb", combinator.id, "to node", self.id)
 		return true, old_node
 	end
 
@@ -136,12 +138,14 @@ function Node.disassociate_combinator(combinator, suppress_set_changed)
 		)
 		return nil
 	end
+	stlib.trace("disassociating comb", combinator.id, "from node", node.id)
 	node.combinator_set[combinator.id] = nil
 	cs2.raise_combinator_node_associated(combinator, nil, node)
 	events.raise("cs2.combinator_node_associated", combinator, nil, node)
 	if not suppress_set_changed then
 		events.raise("cs2.node_combinator_set_changed", node)
 	end
+	stlib.trace("disassociated comb", combinator.id, "from node", node.id)
 	return node
 end
 
@@ -184,6 +188,9 @@ function Node:set_topology(topology_id)
 	cs2.raise_node_data_changed(self)
 	events.raise("cs2.node_topology_changed", self, previous_topology_id)
 end
+
+---@return Id? topology_id Id of the topology this node belongs to, if any.
+function Node:get_topology_id() return self.topology_id end
 
 --------------------------------------------------------------------------------
 -- Inventory
