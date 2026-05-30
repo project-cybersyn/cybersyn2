@@ -8,6 +8,7 @@ local nmlib = require("lib.core.math.numeric")
 local tlib = require("lib.core.table")
 local thread_lib = require("lib.core.thread")
 local train_lib = require("lib.trains")
+local OrderStatus = require("lib.types").OrderStatus
 local cs2 = _G.cs2
 
 local pairs = _G.pairs
@@ -113,6 +114,7 @@ function LogisticsThread:loop_requesters()
 end
 
 function LogisticsThread:loop_providers()
+	local requester = self.requester
 	self.prov_index = self.prov_index + 1
 	local index = self.prov_index --[[@as int]]
 	local provider = self.providers[index]
@@ -124,11 +126,12 @@ function LogisticsThread:loop_providers()
 			return self:set_state("sort_matches")
 		else
 			-- No match: Move to next req
+			trace("No provider matches for requester", requester.node_id)
+			requester:set_status(OrderStatus.no_provider)
 			return self:set_state("loop_requesters")
 		end
 	end
 
-	local requester = self.requester
 	local provider_node = cs2.get_node(provider.node_id, true) --[[@as Cybersyn.TrainStop]]
 	if not provider_node then return end
 	local requester_node = cs2.get_node(requester.node_id, true)
@@ -218,6 +221,8 @@ function LogisticsThread:sort_matches()
 		self.requester_is_sharing_inventory = nil
 	end
 
+	local n_matches = #self.matches
+
 	table.sort(self.matches, function(a, b)
 		-- Check provider priority
 		local a_prio, b_prio = a.provider.priority, b.provider.priority
@@ -238,7 +243,7 @@ function LogisticsThread:sort_matches()
 		return a_db > b_db
 	end)
 	-- This is an expensive sort.
-	local n = 3 * #self.matches
+	local n = 3 * n_matches
 	add_workload(self.workload_counter, n * math.log(n))
 
 	self:start_match_loop()
@@ -466,6 +471,7 @@ end
 function LogisticsThread:route_train()
 	local train = self.best_train
 	local match = self.match
+	local requester = match.requester
 	local satisfaction = match.satisfaction
 	local from = match.provider_node --[[@as Cybersyn.TrainStop]]
 	local to = match.requester_node --[[@as Cybersyn.TrainStop]]
@@ -491,6 +497,13 @@ function LogisticsThread:route_train()
 			"with satisfaction",
 			satisfaction
 		)
+		requester:set_status(OrderStatus.no_vehicle, {
+			n = #self.trains,
+			busy = self.busy_rejections,
+			capacity = self.capacity_rejections,
+			allowlist = self.allowlist_rejections,
+			plugin = self.plugin_rejections,
+		})
 		self:set_state("loop_matches")
 		return
 	end
@@ -504,6 +517,7 @@ function LogisticsThread:route_train()
 			train.id
 		)
 		self.avail_trains[self.best_train_index] = false
+		requester:set_status(OrderStatus.invalidation)
 		self:set_state("loop_matches")
 		return
 	end
@@ -518,6 +532,7 @@ function LogisticsThread:route_train()
 			"to:",
 			to.id
 		)
+		requester:set_status(OrderStatus.invalidation)
 		self:set_state("loop_matches")
 		return
 	end
@@ -531,6 +546,7 @@ function LogisticsThread:route_train()
 			"to:",
 			to.id
 		)
+		requester:set_status(OrderStatus.invalidation)
 		self:set_state("loop_matches")
 		return
 	end
@@ -543,6 +559,7 @@ function LogisticsThread:route_train()
 			"to:",
 			to.id
 		)
+		requester:set_status(OrderStatus.invalidation)
 		self:set_state("loop_matches")
 		return
 	end
@@ -553,6 +570,7 @@ function LogisticsThread:route_train()
 		-- Train has no fuel, abort
 		warn("route_train: Train has no fuel during logistics processing", train.id)
 		self.avail_trains[self.best_train_index] = false
+		requester:set_status(OrderStatus.invalidation)
 		self:set_state("loop_matches")
 		return
 	end
@@ -620,7 +638,7 @@ function LogisticsThread:route_train()
 	-- Verify we have a manifest
 	local mi1, mq1 = next(manifest)
 	if (not mi1) or (mq1 < 1) then
-		-- TODO: log possible capacity rejection here...
+		requester:set_status(OrderStatus.invalidation)
 		self:set_state("loop_matches")
 		return
 	end
@@ -652,6 +670,7 @@ function LogisticsThread:route_train()
 		reserved_capacity
 	)
 	add_workload(self.workload_counter, 10)
+	requester:set_status(OrderStatus.delivery)
 	if mod_settings.debug then
 		trace(
 			"DELIVERY CREATED: Topology",
@@ -744,13 +763,7 @@ end
 --------------------------------------------------------------------------------
 
 function LogisticsThread:enter_logistics()
-	-- No-work early-out cases
-	if
-		not self.providers
-		or not self.requesters
-		or (not next(self.providers))
-		or (not next(self.requesters))
-	then
+	if not self.providers or not self.requesters then
 		self:set_state("init")
 		return
 	end

@@ -5,6 +5,7 @@ local tlib = require("lib.core.table")
 local siglib = require("lib.signal")
 local thread_lib = require("lib.core.thread")
 local strace = require("lib.core.strace")
+local OrderStatus = require("lib.types").OrderStatus
 local cs2 = _G.cs2
 
 local assign = tlib.assign
@@ -94,6 +95,13 @@ function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 	return obj
 end
 
+---@param status Cybersyn.OrderStatus
+---@param info? table?
+function Order:set_status(status, info)
+	self.status = status
+	self.status_info = info
+end
+
 ---Read the value of this order from its known combinator
 ---@param workload Core.Thread.Workload|nil If given, the workload of this operation will be added to the counter.
 ---@return boolean updated `true` if the order was updated
@@ -117,6 +125,14 @@ function Order:read(workload)
 	local arity = self.arity
 	local stop_amfc = stop.allowed_min_fluid_capacity
 	local stop_amisc = stop.allowed_min_item_slot_capacity
+
+	if (stop_amfc or 0) == 0 and (stop_amisc or 0) == 0 then
+		-- No capacity, record a failure note
+		self:set_status(OrderStatus.no_capacity)
+	elseif self.status == OrderStatus.no_capacity then
+		-- Capacity restored, clear failure note
+		self:set_status(OrderStatus.unknown)
+	end
 
 	-- Opts
 	---@type "and" | "or"
@@ -779,6 +795,11 @@ function Order:get_needs(workload, ignore_cache)
 			)
 		end
 		local needs = self:compute_needs(workload)
+		if not needs then
+			if self.status ~= OrderStatus.no_capacity then
+				self:set_status(OrderStatus.fulfilled)
+			end
+		end
 		self.needs = needs
 		self.needs_stale = nil
 		return needs
@@ -789,6 +810,7 @@ end
 function Order:clear_needs()
 	self.needs = nil
 	self.needs_stale = nil
+	self:set_status(OrderStatus.unknown)
 end
 
 ---Flag this order's needs as stale, forcing the dispatch loop to recompute them

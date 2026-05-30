@@ -10,6 +10,7 @@ local relm_util = require("lib.core.relm.util")
 local pos_lib = require("lib.core.math.pos")
 local gui_elements = require("scripts.gui.elements")
 local siglib = require("lib.signal")
+local nlib = require("lib.core.math.numeric")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -110,7 +111,7 @@ local TrainDeliveryCancelButton = relm.define_element({
 			delivery:is_cancellable(),
 			ultros.Button({
 				caption = "Cancel Delivery",
-				width = 322,
+				width = 336,
 				on_click = on_click_cancel_delivery(delivery.id),
 			})
 		)
@@ -164,13 +165,20 @@ local TrainManifest = relm.define_element({
 			type = "frame",
 			style = "relm_raised_frame",
 			direction = "vertical",
-			width = 322,
+			width = 336,
 		}, {
-			ultros.SlotButtonTable({
-				column_count = 6,
-				uppers = true,
-				buttons_table = buttons_table,
-				style = "slot_table",
+			Pr({
+				type = "frame",
+				style = "relm_frame_slot_buttons_shallow",
+				direction = "horizontal",
+				width = 320,
+			}, {
+				ultros.SlotButtonTable({
+					column_count = 8,
+					buttons_table = buttons_table,
+					uppers = true,
+					style = "slot_table",
+				}),
 			}),
 		})
 	end,
@@ -215,7 +223,6 @@ local DeliveryHeader = relm.define("CS2.DeliveryHeader", function(props)
 		ultros.TimedRepaintWrapper({
 			render = function(t)
 				local time_in_state = t - state_tick
-				local time_in_state_s = math.floor(time_in_state / 60)
 				return ultros.RtLgLabel({
 					"",
 					"[font=default-large-bold]#",
@@ -223,8 +230,8 @@ local DeliveryHeader = relm.define("CS2.DeliveryHeader", function(props)
 					"[/font] ",
 					state_name,
 					" (",
-					time_in_state_s,
-					"s)",
+					nlib.format_ticks(time_in_state),
+					")",
 				})
 			end,
 		}),
@@ -255,14 +262,14 @@ local TrainDeliveryFrame = relm.define_element({
 		local cstrain = cs2.get_train(delivery.vehicle_id)
 		local train_entity = nil
 		if cstrain then train_entity = cstrain:get_stock() end
-		local width = props.train_frame and 104 or 159
+		local width = props.train_frame and 109 or 166
 
 		return VF({
 			ultros.If(props.show_header, DeliveryHeader({ delivery = delivery })),
 			HF({
 				LabeledMapFrame({
 					entity = from_entity,
-					caption = from_name,
+					caption = { "", "[item=train-stop] Provider" },
 					width = width,
 					height = 180,
 				}),
@@ -270,14 +277,14 @@ local TrainDeliveryFrame = relm.define_element({
 					props.train_frame,
 					LabeledMapFrame({
 						entity = train_entity,
-						caption = train_entity and train_entity.backer_name or "Unknown",
+						caption = { "", "[item=locomotive]" },
 						width = width,
 						height = 180,
 					})
 				),
 				LabeledMapFrame({
 					entity = to_entity,
-					caption = to_name,
+					caption = { "", "[item=train-stop] Requester" },
 					width = width,
 					height = 180,
 				}),
@@ -288,5 +295,42 @@ local TrainDeliveryFrame = relm.define_element({
 	end,
 })
 lib.TrainDeliveryFrame = TrainDeliveryFrame
+
+local DeliveryList = relm.define("NodeGui.DeliveryList", function(props)
+	local filter = props.filter
+	local limit = props.limit or 3
+
+	relm_util.use_event_handler(
+		"cs2.delivery_state_changed",
+		---@param changed_delivery Cybersyn.Delivery
+		function(me, _, changed_delivery)
+			if filter(changed_delivery) then relm.paint(me) end
+		end
+	)
+
+	local deliveries = tlib.t_map_a(storage.deliveries, function(delivery)
+		if filter(delivery) then return delivery end
+	end)
+	table.sort(
+		deliveries,
+		function(a, b) return a.created_tick > b.created_tick end
+	)
+	for i = #deliveries, limit + 1, -1 do
+		deliveries[i] = nil
+	end
+	local children = tlib.map(
+		deliveries,
+		function(delivery)
+			return TrainDeliveryFrame({
+				delivery = delivery,
+				show_header = props.show_header,
+				train_frame = props.train_frame,
+			})
+		end
+	)
+
+	return children
+end)
+lib.DeliveryList = DeliveryList
 
 return lib

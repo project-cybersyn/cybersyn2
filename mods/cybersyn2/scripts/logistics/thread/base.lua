@@ -43,6 +43,7 @@ function LogisticsThread:enter_init() self.nodes = nil end
 
 function LogisticsThread:init()
 	if mod_settings.enable_logistics then
+		events.raise("cs2.logistics_thread_init", self.topology_id)
 		self:set_state("enum_nodes")
 		-- Resample workload to pick up changes in work factor.
 		self.max_workload = cs2.PERF_BASE_LOGISTICS_WORKLOAD

@@ -162,6 +162,49 @@ lib.CarriageType = {
 ---@field public rail_set UnitNumberSet The set of rails associated to this stop.
 ---@field public direction defines.direction? Direction of the vector pointing from the stop entity towards the oncoming track, if known.
 
+---@enum Cybersyn.OrderStatus
+local OrderStatus = {
+	"fulfilled",
+	"no_provider",
+	"no_vehicle",
+	"invalidation",
+	"no_capacity",
+	"unknown",
+	"delivery",
+	["fulfilled"] = 1,
+	["no_provider"] = 2,
+	["no_vehicle"] = 3,
+	["invalidation"] = 4,
+	["no_capacity"] = 5,
+	["unknown"] = 6,
+	["delivery"] = 7,
+}
+lib.OrderStatus = OrderStatus
+
+local OrderStatusColor = {
+	[OrderStatus.fulfilled] = "green",
+	[OrderStatus.no_provider] = "orange",
+	[OrderStatus.no_vehicle] = "orange",
+	[OrderStatus.invalidation] = "red",
+	[OrderStatus.no_capacity] = "red",
+	[OrderStatus.unknown] = "black",
+	[OrderStatus.delivery] = "green",
+}
+lib.OrderStatusColor = OrderStatusColor
+
+---Human readable descriptions of order statuses for GUI display.
+---@type table<Cybersyn.OrderStatus, LocalisedString>
+local OrderStatusDescription = {
+	[OrderStatus.fulfilled] = "Fulfilled",
+	[OrderStatus.no_provider] = "No matching provider",
+	[OrderStatus.no_vehicle] = "No matching vehicle",
+	[OrderStatus.invalidation] = "Late invalidation",
+	[OrderStatus.no_capacity] = "Requester capacity mismatch (check allowlist)",
+	[OrderStatus.unknown] = "Unknown",
+	[OrderStatus.delivery] = "Being fulfilled",
+}
+lib.OrderStatusDescription = OrderStatusDescription
+
 ---@class Cybersyn.Order
 ---@field public inventory Cybersyn.Inventory The inventory against which this order is placed.
 ---@field public node_id Id The id of the node this order will deliver to/from
@@ -193,6 +236,8 @@ lib.CarriageType = {
 ---@field public fullness_when_providing boolean? `true` if this order enforces train fullness threshold when providing
 ---@field public round_to_stacks boolean? `true` if this order rounds deliveries down to full stacks.
 ---@field public needs_stale boolean? `true` if this order should have its needs recomputed during `get_needs`
+---@field public status? Cybersyn.OrderStatus Status for a requesting order.
+---@field public status_info? table? Additional info related to the status
 
 ---@class Cybersyn.Inventory
 ---@field public id Id

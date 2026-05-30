@@ -11,6 +11,7 @@ local pos_lib = require("lib.core.math.pos")
 local bbox_lib = require("lib.core.math.bbox")
 local tlib = require("lib.core.table")
 local delivery_gui = require("scripts.gui.delivery")
+local inventory_gui = require("scripts.gui.inventory")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -18,6 +19,10 @@ local VF = ultros.VFlow
 local Pr = relm.Primitive
 
 local function noop() end
+
+--------------------------------------------------------------------------------
+-- Inventory
+--------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- Delivery queue
@@ -62,59 +67,22 @@ local TrainDeliveryQueue = relm.define(
 	end
 )
 
-local TrainDeliveryHistory = relm.define(
-	"NodeGui.TrainDeliveryHistory",
-	function(props)
-		local stop = props.stop --[[@as Cybersyn.TrainStop]]
-		local stop_id = stop.id
-		local limit = props.limit or 5
+local DeliveryHistory = relm.define("NodeGui.DeliveryHistory", function(props)
+	local node = props.node --[[@as Cybersyn.TrainStop]]
+	local node_id = node.id
 
-		relm_util.use_event_handler(
-			"cs2.delivery_state_changed",
-			---@param changed_delivery Cybersyn.Delivery
-			function(me, _, changed_delivery)
-				if
-					(
-						changed_delivery.from_id == stop_id
-						or changed_delivery.to_id == stop_id
-					) and changed_delivery:is_in_final_state()
-				then
-					relm.paint(me)
-				end
-			end
-		)
-
-		local deliveries = tlib.t_map_a(storage.deliveries, function(delivery)
-			if
-				(delivery.from_id == stop_id or delivery.to_id == stop_id)
-				and delivery:is_in_final_state()
-			then
-				return delivery
-			end
-		end)
-		table.sort(
-			deliveries,
-			function(a, b) return a.created_tick > b.created_tick end
-		)
-		for i = #deliveries, limit, -1 do
-			deliveries[i] = nil
-		end
-
-		local children = tlib.map(
-			deliveries,
-			function(delivery)
-				return delivery_gui.TrainDeliveryFrame({
-					delivery = delivery,
-					show_header = true,
-				})
-			end
-		)
-
-		return {
-			ultros.WellSection({ caption = "Delivery History" }, children),
-		}
-	end
-)
+	return {
+		ultros.WellSection({ caption = "Delivery History" }, {
+			delivery_gui.DeliveryList({
+				filter = function(delivery)
+					return (delivery.from_id == node_id or delivery.to_id == node_id)
+						and delivery:is_in_final_state()
+				end,
+				show_header = true,
+			}),
+		}),
+	}
+end)
 
 --------------------------------------------------------------------------------
 -- Trainstop Debug rendering
@@ -202,9 +170,12 @@ local Stop = relm.define("NodeGui.Stop", function(props)
 		StopDebugRenderer({
 			stop = stop,
 		}),
+		inventory_gui.NodeInventory({
+			node = stop,
+		}),
 		TrainDeliveryQueue({ stop = stop }),
-		TrainDeliveryHistory({
-			stop = stop,
+		DeliveryHistory({
+			node = stop,
 		}),
 	}
 end)
@@ -253,16 +224,17 @@ relm.define("NodeGui", function(props)
 			type = "frame",
 			style = "inside_shallow_frame",
 			direction = "vertical",
-			width = 340,
-			minimal_height = 800,
+			width = 366,
+			height = 800,
 			horizontally_stretchable = false,
-			vertically_stretchable = true,
+			vertically_stretchable = false,
 		}, {
 			Pr({
 				type = "scroll-pane",
 				direction = "vertical",
 				vertically_stretchable = true,
 				horizontal_scroll_policy = "never",
+				vertical_scroll_policy = "always",
 				extra_top_padding_when_activated = 0,
 				extra_left_padding_when_activated = 0,
 				extra_right_padding_when_activated = 0,

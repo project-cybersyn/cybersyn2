@@ -2,9 +2,9 @@
 Version: 0.1.5
 Date: ????
   Changes:
+    - Added Node GUIs, which can be accessed by opening the Station combinator for a node. This GUI includes information about node inventory as well as future and past deliveries.
     - Top-level GUI windows are now pinnable.
     - Top-level GUI windows will now memorize their positions and re-open where they were last positioned.
-    - Stop GUI now opens when the stop's associated Station combinator GUI is opened.
   Bugfixes:
     - Fixed an unintended dependency on flib styles.
     - Fixed an issue where priority alerts would incorrectly trigger for pure vanilla stations.

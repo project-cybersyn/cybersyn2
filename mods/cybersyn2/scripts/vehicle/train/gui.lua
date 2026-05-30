@@ -99,7 +99,10 @@ local Delivery = relm.define_element({
 
 		return delivery
 			and ultros.WellSection({ caption = "Current Delivery" }, {
-				delivery_gui.TrainDeliveryFrame({ delivery = delivery }),
+				delivery_gui.TrainDeliveryFrame({
+					show_header = true,
+					delivery = delivery,
+				}),
 			})
 	end,
 	state = function(props) return {} end,
@@ -116,56 +119,18 @@ local Delivery = relm.define_element({
 	end,
 })
 
-local DeliveryHistory = relm.define_element({
-	name = "TrainGui.DeliveryHistory",
-	render = function(props, state)
-		relm_util.use_event("cs2.delivery_state_changed")
+local DeliveryHistory = relm.define("TrainGui.DeliveryHistory", function(props)
+	local id = props.cstrain.id
 
-		local cstrain = props.cstrain --[[@as Cybersyn.Train]]
-		local deliveries = tlib.t_map_a(storage.deliveries, function(delivery)
-			if delivery.vehicle_id == cstrain.id and delivery:is_in_final_state() then
-				return delivery
-			end
-		end)
-		table.sort(
-			deliveries,
-			function(a, b) return a.created_tick > b.created_tick end
-		)
-		local previous_delivery = deliveries[1]
-
-		if previous_delivery then
-			local t0 = previous_delivery.state_tick
-			local caption_element = ultros.TimedRepaintWrapper({
-				render = function(t)
-					local time_in_state = t - t0
-					local time_in_state_s = math.floor(time_in_state / 60)
-					return Pr({
-						type = "label",
-						style = "subheader_caption_label",
-						caption = "Previous Delivery - " .. time_in_state_s .. "s ago",
-					})
-				end,
-			})
-
-			return ultros.WellSection({ caption_element = caption_element }, {
-				delivery_gui.TrainDeliveryFrame({ delivery = previous_delivery }),
-			})
-		end
-	end,
-	state = function(props) return {} end,
-	message = function(me, message, props, state)
-		if message.key == "cs2.delivery_state_changed" then
-			local delivery = message[1] --[[@as Cybersyn.Delivery]]
-			local cstrain = props.cstrain --[[@as Cybersyn.Train]]
-			if delivery.vehicle_id == cstrain.id and delivery:is_in_final_state() then
-				relm.paint(me)
-			end
-			return true
-		else
-			return false
-		end
-	end,
-})
+	return ultros.WellSection({ caption = "Delivery History" }, {
+		delivery_gui.DeliveryList({
+			filter = function(delivery)
+				return (delivery.vehicle_id == id) and delivery:is_in_final_state()
+			end,
+			show_header = true,
+		}),
+	})
+end)
 
 local CsTrain = relm.define(
 	"TrainGui.CsTrain",
@@ -265,9 +230,10 @@ relm.define("TrainGui", function(props)
 			type = "frame",
 			style = "inside_shallow_frame",
 			direction = "vertical",
-			width = 350,
+			width = 366,
 			height = window_height,
 			horizontally_stretchable = false,
+			vertically_stretchable = false,
 		}, {
 			Pr({
 				type = "scroll-pane",
