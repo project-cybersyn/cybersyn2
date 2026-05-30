@@ -122,11 +122,17 @@ end
 ---@param stop_entity LuaEntity
 local function coordinate_entry(stop_entity)
 	---@type AddRecordData
-	local add = {
-		rail = stop_entity.connected_rail,
-		rail_direction = stop_entity.connected_rail_direction,
-	}
-	return add
+	if mod_settings.constrain_coordinate_stops then
+		return {
+			rail = stop_entity.connected_rail,
+			rail_direction = stop_entity.connected_rail_direction,
+		}
+	else
+		return {
+			rail = stop_entity.connected_rail,
+			rail_direction = nil,
+		}
+	end
 end
 
 ---@param conditions WaitCondition[]
