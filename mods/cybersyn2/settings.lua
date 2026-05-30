@@ -111,4 +111,11 @@ data:extend({
 		setting_type = "runtime-global",
 		default_value = true,
 	},
+	{
+		type = "bool-setting",
+		name = "cybersyn2-setting-constrain-coordinate-stop-direction",
+		order = "ce",
+		setting_type = "runtime-global",
+		default_value = true,
+	},
 })
