@@ -171,6 +171,8 @@ local OrderStatus = {
 	"no_capacity",
 	"unknown",
 	"delivery",
+	"provider_queue_full",
+	"requester_max_deliveries",
 	["fulfilled"] = 1,
 	["no_provider"] = 2,
 	["no_vehicle"] = 3,
@@ -178,6 +180,8 @@ local OrderStatus = {
 	["no_capacity"] = 5,
 	["unknown"] = 6,
 	["delivery"] = 7,
+	["provider_queue_full"] = 8,
+	["requester_max_deliveries"] = 9,
 }
 lib.OrderStatus = OrderStatus
 
@@ -189,6 +193,8 @@ local OrderStatusColor = {
 	[OrderStatus.no_capacity] = "red",
 	[OrderStatus.unknown] = "black",
 	[OrderStatus.delivery] = "green",
+	[OrderStatus.provider_queue_full] = "yellow",
+	[OrderStatus.requester_max_deliveries] = "yellow",
 }
 lib.OrderStatusColor = OrderStatusColor
 
@@ -197,11 +203,13 @@ lib.OrderStatusColor = OrderStatusColor
 local OrderStatusDescription = {
 	[OrderStatus.fulfilled] = "Fulfilled",
 	[OrderStatus.no_provider] = "No matching provider",
-	[OrderStatus.no_vehicle] = "No matching vehicle",
+	[OrderStatus.no_vehicle] = "No vehicle",
 	[OrderStatus.invalidation] = "Late invalidation",
 	[OrderStatus.no_capacity] = "Requester capacity mismatch (check allowlist)",
 	[OrderStatus.unknown] = "Unknown",
 	[OrderStatus.delivery] = "Being fulfilled",
+	[OrderStatus.provider_queue_full] = "Provider queue became full",
+	[OrderStatus.requester_max_deliveries] = "Requester reached max deliveries",
 }
 lib.OrderStatusDescription = OrderStatusDescription
 
@@ -238,6 +246,7 @@ lib.OrderStatusDescription = OrderStatusDescription
 ---@field public needs_stale boolean? `true` if this order should have its needs recomputed during `get_needs`
 ---@field public status? Cybersyn.OrderStatus Status for a requesting order.
 ---@field public status_info? table? Additional info related to the status
+---@field public status_tick? uint64 The tick on which the current status was assigned.
 
 ---@class Cybersyn.Inventory
 ---@field public id Id

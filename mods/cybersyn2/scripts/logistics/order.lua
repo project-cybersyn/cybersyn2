@@ -100,6 +100,7 @@ end
 function Order:set_status(status, info)
 	self.status = status
 	self.status_info = info
+	self.status_tick = game.tick
 end
 
 ---Read the value of this order from its known combinator

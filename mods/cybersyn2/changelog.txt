@@ -2,6 +2,7 @@
 Version: 0.1.6
 Date: ????
   Changes:
+    - Added additional order status information to the Node GUI.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.5
 Date: 2026-05-30

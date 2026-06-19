@@ -78,17 +78,40 @@ local NodeOrder = relm.define("NodeGui.Order", function(props)
 				style = "slot_table",
 			}),
 		}),
-		ultros.CallIf(
-			is_requester,
-			function()
-				return HF({ vertical_align = "center" }, {
-					ultros.Indicator(OrderStatusColor[order.status or ""] or "black"),
-					ultros.Label(
-						OrderStatusDescription[order.status or ""] or "No status"
-					),
-				})
+		ultros.CallIf(is_requester, function()
+			local label = OrderStatusDescription[order.status or ""] or "No status" --[[@as LocalisedString]]
+
+			-- Special case for no_Vehicle status: extended description
+			if order.status == OrderStatus.no_vehicle then
+				local info = order.status_info or tlib.EMPTY
+				local n = info.n or 0
+				local busy = info.busy or 0
+				local capacity = info.capacity or 0
+				local allowlist = info.allowlist or 0
+				label = {
+					"",
+					label,
+					" ",
+					busy,
+					"/",
+					n,
+					" busy, ",
+					capacity,
+					"/",
+					n,
+					" capacity, ",
+					allowlist,
+					"/",
+					n,
+					" not allowed",
+				}
 			end
-		),
+
+			return HF({ vertical_align = "center" }, {
+				ultros.Indicator(OrderStatusColor[order.status or ""] or "black"),
+				ultros.Label(label),
+			})
+		end),
 	})
 end)
 

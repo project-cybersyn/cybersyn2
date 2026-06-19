@@ -408,6 +408,7 @@ function LogisticsThread:loop_trains()
 	local avail_train = self.avail_trains[index]
 	if avail_train == false then
 		-- Train is not available
+		self.busy_rejections = self.busy_rejections + 1
 		return
 	elseif avail_train == nil then
 		-- No more trains
@@ -546,7 +547,7 @@ function LogisticsThread:route_train()
 			"to:",
 			to.id
 		)
-		requester:set_status(OrderStatus.invalidation)
+		requester:set_status(OrderStatus.provider_queue_full)
 		self:set_state("loop_matches")
 		return
 	end
@@ -559,7 +560,7 @@ function LogisticsThread:route_train()
 			"to:",
 			to.id
 		)
-		requester:set_status(OrderStatus.invalidation)
+		requester:set_status(OrderStatus.requester_max_deliveries)
 		self:set_state("loop_matches")
 		return
 	end
