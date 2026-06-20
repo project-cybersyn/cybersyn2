@@ -309,6 +309,15 @@ function TrainDelivery:goto_from()
 		self:set_state("to_from")
 	elseif reason == "interrupted" then
 		self:set_state("interrupted_from")
+	elseif reason == "tainted" then
+		-- The train's schedule is tainted, likely due to intervention by outside mods.
+		stlib.error(
+			"Failed to dispatch train for delivery",
+			self.id,
+			"to provider, because its schedule is tainted.",
+			train
+		)
+		return self:fail()
 	else
 		-- TODO: failed to add schedule record, what now?
 	end
@@ -349,6 +358,15 @@ function TrainDelivery:goto_to()
 		self:set_state("to_to")
 	elseif reason == "interrupted" then
 		self:set_state("interrupted_to")
+	elseif reason == "tainted" then
+		-- The train's schedule is tainted, likely due to intervention by outside mods.
+		stlib.error(
+			"Failed to dispatch train for delivery",
+			self.id,
+			" to requester, because its schedule is tainted.",
+			train
+		)
+		return self:fail()
 	else
 		-- TODO: failed to add schedule record, what now?
 	end
@@ -397,12 +415,8 @@ end
 ---@param train Cybersyn.Train
 ---@param luatrain LuaTrain
 function TrainDelivery:notify_departed(stop, train, luatrain)
-	-- TODO: before release, remove "to_x" states from here. These are
-	-- only needed because of alpha migration reasons.
-	if
-		(self.state == "to_from" or self.state == "at_from")
-		and stop.id == self.from_id
-	then
+	if self.state == "at_from" and stop.id == self.from_id then
+		-- Departure from provider
 		self:clear_from_charge()
 
 		-- Compute actual loaded contents
@@ -420,9 +434,9 @@ function TrainDelivery:notify_departed(stop, train, luatrain)
 		end
 		self:set_state("wait_to")
 		to:enqueue(self.id)
-	elseif
-		(self.state == "to_to" or self.state == "at_to") and stop.id == self.to_id
-	then
+	elseif self.state == "at_to" and stop.id == self.to_id then
+		-- Departure from requester, delivery complete
+
 		self:complete()
 	else
 		strace(

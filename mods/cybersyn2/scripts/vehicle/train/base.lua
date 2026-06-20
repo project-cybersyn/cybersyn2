@@ -299,17 +299,19 @@ end
 ---@param schedule LuaSchedule
 ---@return boolean in_interrupt `true` if the schedule is currently interrupted
 ---@return boolean in_depot `true` if the active schedule entry is the depot
+---@return boolean only_depot `true` if the schedule only has a single entry, which is the depot
 local function get_schedule_state(schedule)
+	local only_depot = schedule.get_record_count() == 1
 	local current_record =
 		schedule.get_record({ schedule_index = schedule.current })
 	if current_record then
 		if current_record.created_by_interrupt then
-			return true, false
+			return true, false, only_depot
 		elseif not current_record.temporary then
-			return false, true
+			return false, true, only_depot
 		end
 	end
-	return false, false
+	return false, false, only_depot
 end
 
 ---@param schedule LuaSchedule
@@ -336,11 +338,13 @@ end
 
 ---Add temporary records to the train's schedule.
 ---@return boolean success `true` if all records were added, `false` if the schedule is interrupted.
----@return "interrupted"|"failed"|nil reason If `success` is `false`, the reason why.
+---@return "interrupted"|"failed"|"tainted"|nil reason If `success` is `false`, the reason why.
 function Train:schedule(...)
 	local schedule = self.lua_train.get_schedule()
-	local is_interrupted, is_depot = get_schedule_state(schedule)
+	local is_interrupted, is_depot, only_depot = get_schedule_state(schedule)
 	if is_interrupted then return false, "interrupted" end
+	-- The schedule still has temporary entries from a previous scheduling job.
+	if not only_depot then return false, "tainted" end
 	for i = 1, select("#", ...) do
 		local record = select(i, ...)
 		if not add_temp_record(schedule, record) then
