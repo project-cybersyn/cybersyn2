@@ -5,6 +5,7 @@ local PrimitiveType = types.PrimitiveType
 local Inventory = _G.cs2.Inventory
 
 local map = tlib.map
+local t_map_a = tlib.t_map_a
 local Combinator = _G.cs2.Combinator
 local Vehicle = _G.cs2.Vehicle
 local Train = _G.cs2.Train
@@ -29,6 +30,19 @@ function _G.cs2.query_handlers.combinators(arg)
 	return { data = res or {}, type = comb_list_datatype }
 end
 
+local stop_datatype =
+	{ false, ContainerType.value, PrimitiveType["Cybersyn.TrainStop"] }
+
+---@param arg Cybersyn.Query.Stop.Input
+---@return Cybersyn.Query.Stop.Result
+function _G.cs2.query_handlers.stop(arg)
+	local res = nil
+	if arg.unit_number then
+		res = cs2.get_stop_from_unit_number(arg.unit_number)
+	end
+	return { data = res, type = stop_datatype }
+end
+
 local stop_list_datatype = {
 	true,
 	ContainerType.list,
@@ -48,6 +62,10 @@ function _G.cs2.query_handlers.stops(arg)
 				return TrainStop.get_stop_from_unit_number(unit_number)
 			end
 		)
+	elseif arg.all then
+		res = t_map_a(storage.nodes, function(n)
+			if n.type == "stop" then return n end
+		end)
 	end
 	return { data = res, type = stop_list_datatype }
 end

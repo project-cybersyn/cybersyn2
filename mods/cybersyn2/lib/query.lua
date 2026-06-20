@@ -63,9 +63,19 @@ lib.QueryType = QueryType
 ---@field public type "stops"
 ---@field public ids Id[]? List of IDs to query.
 ---@field public unit_numbers UnitNumber[]? Query by `train-stop` unit number.
+---@field public all boolean? Whether to query all stops. Ignored if `ids` or `unit_numbers` is provided.
 
 ---@class Cybersyn.Query.Stops.Result: Cybersyn.QueryResult
 ---@field public data Cybersyn.TrainStop[]
+
+----------- "stop"
+
+---@class Cybersyn.Query.Stop.Input: Cybersyn.QueryInput
+---@field public type "stop"
+---@field public unit_number UnitNumber? Query by `train-stop` unit number.
+
+---@class Cybersyn.Query.Stop.Result: Cybersyn.QueryResult
+---@field public data Cybersyn.TrainStop?
 
 ----------- "inventories"
 
