@@ -1,6 +1,5 @@
 --------------------------------------------------------------------------------
--- Stop management GUI.
--- This GUI is attached to the Stop window when a stop is selected in game.
+-- Node management GUI.
 --------------------------------------------------------------------------------
 
 local events = require("lib.core.event")
@@ -160,6 +159,49 @@ local StopDebugRenderer = relm.define("StopDebugRenderer", function(props)
 end)
 
 --------------------------------------------------------------------------------
+-- Allowlist
+--------------------------------------------------------------------------------
+
+local StopAllowList = relm.define("NodeGui.StopAllowList", function(props)
+	local stop = props.stop --[[@as Cybersyn.TrainStop]]
+	local elts = {}
+
+	if stop.allowed_layouts then
+		for tl_id in ipairs(stop.allowed_layouts) do
+			local tlayout = storage.train_layouts[tl_id]
+			if tlayout then
+				local str = table.concat(
+					tlib.map(
+						(tlayout.carriage_names or tlib.EMPTY),
+						function(name) return "[item=" .. name .. "]" end
+					)
+				)
+				elts[#elts + 1] = ultros.RtLabel(str)
+			end
+		end
+	else
+		elts[#elts + 1] =
+			ultros.RtLgLabel("[virtual-signal=signal-everything] All trains allowed.")
+	end
+
+	if #elts == 0 then
+		elts[#elts + 1] =
+			ultros.RtLgLabel("[virtual-signal=signal-alert] No trains allowed!")
+	end
+
+	relm_util.use_event_handler(
+		"cs2.stop_allow_list_changed",
+		function(me, _, changed_stop)
+			if changed_stop.id == stop.id then relm.paint(me) end
+		end
+	)
+
+	return {
+		ultros.WellSection({ caption = "Allow List" }, elts),
+	}
+end)
+
+--------------------------------------------------------------------------------
 -- Trainstop
 --------------------------------------------------------------------------------
 
@@ -176,6 +218,9 @@ local Stop = relm.define("NodeGui.Stop", function(props)
 		TrainDeliveryQueue({ stop = stop }),
 		DeliveryHistory({
 			node = stop,
+		}),
+		StopAllowList({
+			stop = stop,
 		}),
 	}
 end)
