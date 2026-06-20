@@ -33,6 +33,16 @@ local NodeOrder = relm.define("NodeGui.Order", function(props)
 	local thresh = order.thresh_in or EMPTY
 
 	local buttons = {}
+	buttons[#buttons + 1] = {
+		signal = siglib.key_to_signal("cybersyn2-priority"),
+		count = order.priority,
+	}
+	for k, v in pairs(order.networks or EMPTY) do
+		buttons[#buttons + 1] = {
+			signal = siglib.key_to_signal(k),
+			count = v,
+		}
+	end
 	for k, v in pairs(order.provides or EMPTY) do
 		buttons[#buttons + 1] = {
 			signal = siglib.key_to_signal(k),
