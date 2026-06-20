@@ -172,3 +172,18 @@ function _G.cs2.query_handlers.deliveries(arg)
 	end
 	return { data = res or {} }
 end
+
+local string_list_datatype = {
+	true,
+	ContainerType.list,
+	PrimitiveType.string,
+}
+
+---@param arg Cybersyn.Query.Groups.Input
+---@return Cybersyn.Query.Groups.Result
+function _G.cs2.query_handlers.groups(arg)
+	---@type string[]?
+	local res = nil
+	if arg.all then res = tlib.keys(storage.train_groups) end
+	return { data = res or tlib.EMPTY, type = string_list_datatype }
+end

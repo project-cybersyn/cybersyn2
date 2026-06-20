@@ -96,6 +96,8 @@ lib.QueryType = QueryType
 ---@class Cybersyn.Query.Vehicles.Result: Cybersyn.QueryResult
 ---@field public data Cybersyn.Vehicle[]
 
+----------- "topologies"
+
 ---@class Cybersyn.Query.Topologies.Input: Cybersyn.QueryInput
 ---@field public type "topologies"
 ---@field public ids Id[]? List of topology IDs to query.
@@ -103,5 +105,14 @@ lib.QueryType = QueryType
 
 ---@class Cybersyn.Query.Topologies.Result: Cybersyn.QueryResult
 ---@field public data Cybersyn.Topology[]
+
+----------- "groups"
+
+---@class Cybersyn.Query.Groups.Input: Cybersyn.QueryInput
+---@field public type "groups"
+---@field public all boolean? Whether to query all groups.
+
+---@class Cybersyn.Query.Groups.Result: Cybersyn.QueryResult
+---@field public data string[] List of train group names.
 
 return lib

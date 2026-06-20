@@ -7,6 +7,7 @@ Date: ????
     - API: added vehicle busy plugins. See online docs for details.
     - API: added `stops.all` query
     - API: added `stop` query by unit number
+    - API: added `groups.all` query
   Bugfixes:
     - Added `/cs2-reset-gui-positions` command which clears saved positions of Cybersyn GUIs in case they are offscreen
     - Fixed an issue where delivery caps at stations that were both providers and requesters were not being respected.
