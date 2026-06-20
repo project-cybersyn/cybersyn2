@@ -432,11 +432,39 @@ function TrainDelivery:notify_departed(stop, train, luatrain)
 			-- TODO: alert/log for missing or destroyed requester
 			return self:fail()
 		end
+
+		-- Detaint train schedule if it was tainted by a user advancing the schedule in front of time, but only if the first entry is the expected one. If the schedule was tainted in some other way, fail the delivery to avoid unpredictable behavior.
+		local tainted, detainted =
+			train:detaint_departure_schedule(stop.entity.backer_name)
+		if detainted then
+			game.print(
+				{
+					"cybersyn2-errors.tainted-schedule",
+					self.id,
+				},
+				{ skip = defines.print_skip.never, sound = defines.print_sound.always }
+			)
+		elseif tainted then
+			stlib.error(
+				"Train schedule for delivery",
+				self.id,
+				"was tainted in an unexpected way. Failing delivery to avoid unpredictable behavior.",
+				train
+			)
+			return self:fail("tainted_schedule")
+		end
+
 		self:set_state("wait_to")
 		to:enqueue(self.id)
 	elseif self.state == "at_to" and stop.id == self.to_id then
 		-- Departure from requester, delivery complete
-
+		local entity = stop.entity --[[@as LuaEntity ]]
+		local delivery_train = cs2.get_train(self.vehicle_id)
+		if (not delivery_train) or (delivery_train.id ~= train.id) then
+			error("LOGIC ERROR: delivery train mismatch on departure notification")
+			return self:fail()
+		end
+		-- TODO: schedule taint check
 		self:complete()
 	else
 		strace(

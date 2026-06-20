@@ -14,7 +14,9 @@ local strsub = string.sub
 local mod_settings = _G.cs2.mod_settings
 local iwq_to_key = signal_lib.iwq_to_key
 local fluid_name_to_key = signal_lib.fluid_name_to_key
+
 local NO_FUEL = defines.entity_status.no_fuel
+local FIRST_ENTRY = { schedule_index = 1 }
 
 --------------------------------------------------------------------------------
 -- Group tracking
@@ -364,6 +366,35 @@ function Train:clear_schedule()
 	clear_schedule(schedule)
 	if lua_train.manual_mode then return end
 	schedule.go_to_station(1)
+end
+
+---If the train has a single temp schedule entry referring to the given station,
+---clear its schedule. This can be used to "Detaint" a schedule caused by
+---user error immediately after a train departure event.
+---@param stop_backer_name string The name of the station to check against.
+---@return boolean tainted `true` if the schedule was tainted.
+---@return boolean detainted `true` if the schedule was tainted and has now been cleared.
+function Train:detaint_departure_schedule(stop_backer_name)
+	local lua_train = self.lua_train --[[@as LuaTrain]]
+	local schedule = lua_train.get_schedule()
+	local first_entry = schedule.get_record(FIRST_ENTRY)
+	if not first_entry then
+		-- uber broken schedule, no depot
+		return true, false
+	end
+	if not first_entry.temporary then
+		-- Schedule is not tainted, just has a non-temp depot entry
+		return false, false
+	end
+	if
+		first_entry.station == stop_backer_name
+		and first_entry.temporary
+		and not first_entry.created_by_interrupt
+	then
+		clear_schedule(schedule)
+		return true, true
+	end
+	return true, false
 end
 
 function Train:is_available()
