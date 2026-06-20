@@ -21,6 +21,7 @@ data:extend({
 		data = {
 			route_plugins = {},
 			custom_stop_names = {},
+			busy_plugins = {},
 		},
 	},
 })

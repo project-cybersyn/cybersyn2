@@ -142,6 +142,14 @@ function LogisticsThread:loop_providers()
 		trace("Skipping provider", provider.node_id, "because queue is full")
 		return
 	end
+	if provider_node:has_max_deliveries() then
+		trace(
+			"Skipping provider",
+			provider.node_id,
+			"because it has reached max deliveries"
+		)
+		return
+	end
 
 	-- Check for netmatch
 	if not requester:matches_networks(provider) then return end
@@ -407,7 +415,8 @@ function LogisticsThread:loop_trains()
 	local index = self.train_index --[[@as int]]
 	local avail_train = self.avail_trains[index]
 	if avail_train == false then
-		-- Train is not available
+		-- Train was determined not available elsewhere in this loop cycle; early
+		-- rejection.
 		self.busy_rejections = self.busy_rejections + 1
 		return
 	elseif avail_train == nil then
@@ -471,6 +480,7 @@ end
 
 function LogisticsThread:route_train()
 	local train = self.best_train
+	local train_index = self.best_train_index
 	local match = self.match
 	local requester = match.requester
 	local satisfaction = match.satisfaction
@@ -539,10 +549,10 @@ function LogisticsThread:route_train()
 	end
 
 	-- Asynchrony requires rechecking queues
-	if from:is_queue_full() then
-		-- Source queue is full, abort
+	if from:is_queue_full() or from:has_max_deliveries() then
+		-- Source queue is full or reached max deliveries, abort
 		strace.trace(
-			"route_train: Source queue became full during train routing from:",
+			"route_train: Source queue became full or reached max deliveries during train routing from:",
 			from.id,
 			"to:",
 			to.id

@@ -54,10 +54,10 @@ end
 _G.cs2.get_or_create_player_state = get_or_create_player_state
 
 ---Get the player state for a player.
----@param player_index PlayerIndex
+---@param player_index PlayerIndex?
 ---@return Cybersyn.PlayerState?
 local function get_player_state(player_index)
-	return storage.players[player_index]
+	return storage.players[player_index or ""]
 end
 _G.cs2.get_player_state = get_player_state
 

@@ -386,6 +386,17 @@ function Train:is_available()
 	-- Interrupted trains are not available
 	local schedule = lua_train.get_schedule()
 	if get_schedule_state(schedule) then return false end
+
+	-- Finally, check with plugins
+	if cs2.query_busy_plugins(self.id, lua_train) then return false end
+
+	return true
+end
+
+function Train:late_is_available()
+	if not self:is_valid() then return false end
+	local lua_train = self.lua_train --[[@as LuaTrain]]
+	if cs2.query_busy_plugins(self.id, lua_train) then return false end
 	return true
 end
 

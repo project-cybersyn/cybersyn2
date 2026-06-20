@@ -296,6 +296,11 @@ function TrainDelivery:goto_from()
 		end
 	end
 
+	if not train:late_is_available() then
+		-- Train is not available anymore, likely due to an asynchronous change since it was last checked. Fail the delivery.
+		return self:fail()
+	end
+
 	local ok, reason = train:schedule(
 		coordinate_entry(from.entity),
 		pickup_entry(from, self.manifest)

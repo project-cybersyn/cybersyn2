@@ -3,6 +3,10 @@ Version: 0.1.6
 Date: ????
   Changes:
     - Added additional order status information to the Node GUI.
+    - API: added vehicle busy plugins. See online docs for details.
+  Bugfixes:
+    - Added `/cs2-reset-gui-positions` command which clears saved positions of Cybersyn GUIs in case they are offscreen
+    - Fixed an issue where delivery caps at stations that were both providers and requesters were not being respected.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.5
 Date: 2026-05-30

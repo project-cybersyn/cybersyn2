@@ -8,6 +8,29 @@ local events = require("lib.core.event")
 
 local cs2 = _G.cs2
 
+local rcall = remote.call
+
+--------------------------------------------------------------------------------
+-- Busy_plugins
+--------------------------------------------------------------------------------
+
+local busy_plugins = prototypes.mod_data["cybersyn2"].data.busy_plugins --[[@as Core.RemoteCallbackSpec[] ]]
+
+---@param vehicle_id Id
+---@param lua_train LuaTrain?
+---@return boolean
+function _G.cs2.query_busy_plugins(vehicle_id, lua_train)
+	for i = 1, #busy_plugins do
+		local plugin = busy_plugins[i]
+		if rcall(plugin[1], plugin[2], vehicle_id, lua_train) then return true end
+	end
+	return false
+end
+
+--------------------------------------------------------------------------------
+-- Vehicle
+--------------------------------------------------------------------------------
+
 ---@class Cybersyn.Vehicle
 local Vehicle = class("Vehicle")
 _G.cs2.Vehicle = Vehicle
@@ -46,6 +69,14 @@ function Vehicle.all() return storage.vehicles end
 ---Determine if the vehicle is available for processing a delivery
 ---@return boolean
 function Vehicle:is_available() return false end
+
+---This function is called by the dispatcher thread on the very frame
+---it is about to dispatch a vehicle that was previously deemed available
+---and gives a chance to do last-second checks to ensure nothing changed
+---asynchronously. Only things that could've changed in a few frames since
+---`is_available` should be checked here.
+---@return boolean
+function Vehicle:late_is_available() return false end
 
 function Vehicle:destroy()
 	self.is_being_destroyed = true
