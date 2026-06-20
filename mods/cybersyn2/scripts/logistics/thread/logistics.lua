@@ -134,22 +134,21 @@ function LogisticsThread:loop_providers()
 
 	local provider_node = cs2.get_node(provider.node_id, true) --[[@as Cybersyn.TrainStop]]
 	if not provider_node then return end
+
+	-- Cull provider from this loop if queue is full.
+	if provider_node:is_queue_full() or provider_node:has_max_deliveries() then
+		trace(
+			"Culling provider",
+			provider.node_id,
+			"because queue is full or has max deliveries"
+		)
+		table.remove(self.providers, index)
+		self.prov_index = self.prov_index - 1
+		return
+	end
+
 	local requester_node = cs2.get_node(requester.node_id, true)
 	if not requester_node then return end
-
-	-- Don't route into a full queue
-	if provider_node:is_queue_full() then
-		trace("Skipping provider", provider.node_id, "because queue is full")
-		return
-	end
-	if provider_node:has_max_deliveries() then
-		trace(
-			"Skipping provider",
-			provider.node_id,
-			"because it has reached max deliveries"
-		)
-		return
-	end
 
 	-- Check for netmatch
 	if not requester:matches_networks(provider) then return end
