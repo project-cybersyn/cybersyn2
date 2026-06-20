@@ -26,10 +26,14 @@ local lib = {}
 local NodeOrder = relm.define("NodeGui.Order", function(props)
 	local order = props.order --[[@as Cybersyn.Order]]
 
+	-- Skip orders not delivered to this node (shared inv)
+	if order.node_id ~= props.node.id then return end
+
 	-- Skip orders not doing anything
 	local is_requester = order:is_requester()
 	local is_provider = order:is_provider()
 	if (not is_requester) and not is_provider then return end
+
 	local thresh = order.thresh_in or EMPTY
 
 	local buttons = {}
@@ -208,18 +212,19 @@ local NodeInventory = relm.define("NodeGui.Inventory", function(props)
 	return {
 		ultros.WellSection(
 			{ caption = "Inventory" },
-			NodeInv({ inventory = inventory.inventory })
+			NodeInv({ node = node, inventory = inventory.inventory })
 		),
 		ultros.WellSection(
 			{ caption = "Orders" },
 			tlib.map(
 				inventory.orders,
-				function(order) return NodeOrder({ order = order }) end
+				function(order) return NodeOrder({ node = node, order = order }) end
 			)
 		),
 		ultros.WellSection(
 			{ caption = "Flows" },
 			NodeFlows({
+				node = node,
 				inflow = inventory.inflow,
 				outflow = inventory.outflow,
 			})
