@@ -9,6 +9,7 @@ Date: ????
   Bugfixes:
     - Added `/cs2-reset-gui-positions` command which clears saved positions of Cybersyn GUIs in case they are offscreen
     - Fixed an issue where delivery caps at stations that were both providers and requesters were not being respected.
+    - Fixed an issue where trains could be given invalid schedules. Deliveries will fast-fail if CS2 cannot write a clean schedule.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.5
 Date: 2026-05-30
