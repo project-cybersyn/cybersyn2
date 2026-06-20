@@ -29,12 +29,6 @@ commands.add_command(
 )
 
 commands.add_command(
-	"cs2-log-all",
-	{ "cybersyn2-commands.log-all-command-help" },
-	function() cs2.debug.set_strace(0, 0, nil) end
-)
-
-commands.add_command(
 	"cs2-reset-gui-positions",
 	{ "cybersyn2-commands.reset-gui-positions-command-help" },
 	function(data)
