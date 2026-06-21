@@ -162,7 +162,7 @@ local StopAllowList = relm.define("NodeGui.StopAllowList", function(props)
 	local elts = {}
 
 	if stop.allowed_layouts then
-		for tl_id in ipairs(stop.allowed_layouts) do
+		for tl_id in pairs(stop.allowed_layouts) do
 			local tlayout = storage.train_layouts[tl_id]
 			if tlayout then
 				local str = table.concat(
