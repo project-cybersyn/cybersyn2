@@ -128,6 +128,7 @@ local DeliveryHistory = relm.define("TrainGui.DeliveryHistory", function(props)
 				return (delivery.vehicle_id == id) and delivery:is_in_final_state()
 			end,
 			show_header = true,
+			show_train = false,
 		}),
 	})
 end)

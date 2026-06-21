@@ -109,6 +109,11 @@ function Delivery:is_in_final_state()
 	return self.state == "completed" or self.state == "failed"
 end
 
+function Delivery:is_successfully_completed() return self.state == "completed" end
+
+---Determine if this delivery is in a non-failed state between picking up items from the provider and delivery completion.
+function Delivery:has_departed_provider() return false end
+
 ---Determine if this delivery is in a state where it is validly waiting for
 ---another world event (e.g. a queue slot to empty.)
 function Delivery:is_in_wait_state() return false end

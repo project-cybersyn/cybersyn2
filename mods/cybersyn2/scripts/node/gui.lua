@@ -44,24 +44,15 @@ local TrainDeliveryQueue = relm.define(
 			stop.deliveries,
 			function(_, id) return cs2.get_delivery(id) end
 		)
-		table.sort(
-			deliveries,
-			function(a, b) return a.created_tick > b.created_tick end
-		)
-
-		local children = tlib.map(
-			deliveries,
-			function(delivery)
-				return delivery_gui.TrainDeliveryFrame({
-					delivery = delivery,
-					train_frame = true,
-					show_header = true,
-				})
-			end
-		)
 
 		return {
-			ultros.WellSection({ caption = "Future Deliveries" }, children),
+			ultros.WellSection({ caption = "Future Deliveries" }, {
+				delivery_gui.DeliveryList({
+					base_list = deliveries,
+					filter = function(delivery) return true end,
+					show_header = true,
+				}),
+			}),
 		}
 	end
 )
@@ -74,8 +65,12 @@ local DeliveryHistory = relm.define("NodeGui.DeliveryHistory", function(props)
 		ultros.WellSection({ caption = "Delivery History" }, {
 			delivery_gui.DeliveryList({
 				filter = function(delivery)
-					return (delivery.from_id == node_id or delivery.to_id == node_id)
-						and delivery:is_in_final_state()
+					local am_prov = delivery.from_id == node_id
+					local am_req = delivery.to_id == node_id
+					-- Incomplete deliveries that are no longer in the provider future deliveries but should still be displayed in UX because they are enroute from.
+					if am_prov and delivery:has_departed_provider() then return true end
+					-- All completed or failed deliveries.
+					return (am_prov or am_req) and delivery:is_in_final_state()
 				end,
 				show_header = true,
 			}),

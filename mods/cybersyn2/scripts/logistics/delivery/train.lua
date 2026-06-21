@@ -98,6 +98,14 @@ function TrainDelivery:clear_from_charge()
 	end
 end
 
+function TrainDelivery:has_departed_provider()
+	local state = self.state
+	return (state == "to_to")
+		or (state == "at_to")
+		or (state == "wait_to")
+		or (state == "interrupted_to")
+end
+
 ---Clear virtual charge on `to` inventory.
 function TrainDelivery:clear_to_charge()
 	if self.to_charge then

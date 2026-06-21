@@ -274,7 +274,7 @@ local TrainDeliveryFrame = relm.define_element({
 					height = 180,
 				}),
 				ultros.If(
-					props.train_frame,
+					props.train_frame and train_entity,
 					LabeledMapFrame({
 						entity = train_entity,
 						caption = { "", "[item=locomotive]" },
@@ -296,9 +296,18 @@ local TrainDeliveryFrame = relm.define_element({
 })
 lib.TrainDeliveryFrame = TrainDeliveryFrame
 
+local function default_delivery_sort(a, b)
+	return a.created_tick > b.created_tick
+end
+
 local DeliveryList = relm.define("NodeGui.DeliveryList", function(props)
-	local filter = props.filter
+	local list = props.base_list
+	local tbl = props.base_table or storage.deliveries
+	local filter = props.filter or function() return true end
 	local limit = props.limit or 3
+	local sort = props.sort or default_delivery_sort
+	local show_header = props.show_header
+	local show_train = props.show_train
 
 	relm_util.use_event_handler(
 		"cs2.delivery_state_changed",
@@ -308,26 +317,36 @@ local DeliveryList = relm.define("NodeGui.DeliveryList", function(props)
 		end
 	)
 
-	local deliveries = tlib.t_map_a(storage.deliveries, function(delivery)
-		if filter(delivery) then return delivery end
-	end)
-	table.sort(
-		deliveries,
-		function(a, b) return a.created_tick > b.created_tick end
-	)
+	local deliveries = tlib.EMPTY
+	if list then
+		deliveries = tlib.filter(list, filter)
+	elseif tbl then
+		deliveries = tlib.t_map_a(tbl, function(delivery)
+			if filter(delivery) then return delivery end
+		end)
+	end
+
+	table.sort(deliveries, sort)
+
 	for i = #deliveries, limit + 1, -1 do
 		deliveries[i] = nil
 	end
-	local children = tlib.map(
-		deliveries,
-		function(delivery)
-			return TrainDeliveryFrame({
-				delivery = delivery,
-				show_header = props.show_header,
-				train_frame = props.train_frame,
-			})
+
+	local children = tlib.map(deliveries, function(delivery)
+		local really_show_train = false
+		if show_train == true then
+			really_show_train = true
+		elseif
+			show_train ~= false and (not delivery:is_successfully_completed())
+		then
+			really_show_train = true
 		end
-	)
+		return TrainDeliveryFrame({
+			delivery = delivery,
+			show_header = show_header,
+			train_frame = really_show_train,
+		})
+	end)
 
 	return children
 end)

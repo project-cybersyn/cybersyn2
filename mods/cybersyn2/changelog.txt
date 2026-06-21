@@ -6,7 +6,8 @@ Date: ????
     - Added allow list information to the node GUI.
     - Added networks and priority to orders in the node GUI.
     - Split orders for shared inventories per-stop in the node GUI.
-    - Added tolerance for certain types of user error in manipulating CS2 train schedules, such as advancing the schedule when a train is stuck. (Note that these practices are still banned and will still void your warranty.)
+    - Deliveries enroute from provider to requester are now shown in the past deliveries list of the provider node GUI.
+    - Added tolerance for certain types of user error in manipulating CS2 train schedules, such as manually advancing the schedule. (Note that these practices are still banned and will still void your warranty.)
     - API: added vehicle busy plugins. See online docs for details.
     - API: added `stops.all` query
     - API: added `stop` query by unit number
@@ -14,7 +15,7 @@ Date: ????
   Bugfixes:
     - Added `/cs2-reset-gui-positions` command which clears saved positions of Cybersyn GUIs in case they are offscreen.
     - Fixed an issue where delivery caps at stations that were both providers and requesters were not being respected.
-    - Fixed an issue where trains could be given invalid schedules. Deliveries will now fast-fail if CS2 cannot write a clean schedule.
+    - Fixed an issue where trains could be given invalid schedules. Deliveries will now fast-fail if CS2 is not able to produce a clean schedule.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.5
 Date: 2026-05-30
