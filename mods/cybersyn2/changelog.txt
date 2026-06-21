@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.6
-Date: ????
+Date: 2026-06-20
   Changes:
     - Added additional order status information to the Node GUI.
     - Added allow list information to the node GUI.
