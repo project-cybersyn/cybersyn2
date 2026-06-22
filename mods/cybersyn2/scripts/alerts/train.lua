@@ -96,6 +96,7 @@ function StuckTrain:should_persist()
 	-- If delivery has completed or changed state, no longer stuck.
 	if (not delivery) or delivery:is_in_final_state() then return false end
 	if delivery.state ~= self.stuck_state then return false end
+	if (not self.stock) or not self.stock.valid then return false end
 	-- If delivery has moved considerably, no longer stuck.
 	local distsq = poslib.pos_distsq(self.stock.position, self.stuck_pos)
 	if distsq >= 4 then return false end
