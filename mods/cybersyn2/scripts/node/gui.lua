@@ -91,17 +91,19 @@ local function render_stop_overlay(stop)
 	local render_objs = {}
 
 	-- BBox rect
-	local l, t, r, b = bbox_lib.bbox_get(layout.bbox)
-	render_objs[#render_objs + 1] = rendering.draw_rectangle({
-		surface = surface,
-		left_top = { l, t },
-		right_bottom = { r, b },
-		color = { r = 100, g = 149, b = 237 },
-		width = 2,
-	})
+	if layout.bbox then
+		local l, t, r, b = bbox_lib.bbox_get(layout.bbox)
+		render_objs[#render_objs + 1] = rendering.draw_rectangle({
+			surface = surface,
+			left_top = { l, t },
+			right_bottom = { r, b },
+			color = { r = 100, g = 149, b = 237 },
+			width = 2,
+		})
+	end
 
 	-- Combinator associations
-	for comb_id in pairs(stop.combinator_set) do
+	for comb_id in pairs(stop.combinator_set or tlib.EMPTY) do
 		local comb = cs2.get_combinator(comb_id)
 		if comb and comb:is_real() then
 			render_objs[#render_objs + 1] = rendering.draw_line({
