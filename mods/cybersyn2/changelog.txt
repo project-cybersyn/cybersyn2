@@ -1,7 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.10
-Date: ????
-  Changes:
+Date: 2026-06-24
+  Bugfixes:
+    - Fixed a false positive failed delivery state that could occur when interrupts trigger while leaving providers.
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.9
 Date: 2026-06-23

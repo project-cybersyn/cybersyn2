@@ -386,6 +386,10 @@ function Train:detaint_departure_schedule(stop_backer_name)
 		-- Schedule is not tainted, just has a non-temp depot entry
 		return false, false
 	end
+	if first_entry.created_by_interrupt then
+		-- First entry was created by an interrupt, probably interrupted while leaving station.
+		return false, false
+	end
 	if
 		first_entry.station == stop_backer_name
 		and first_entry.temporary
