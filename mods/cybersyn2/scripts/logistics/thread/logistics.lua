@@ -11,6 +11,11 @@ local train_lib = require("lib.trains")
 local OrderStatus = require("lib.types").OrderStatus
 local cs2 = _G.cs2
 
+-- Type-assert storage due to EmmyLua issues
+---@diagnostic disable-next-line: missing-fields
+---@type Cybersyn.Storage
+storage = {}
+
 local pairs = _G.pairs
 local next = _G.next
 local table_size = _G.table_size
@@ -28,7 +33,7 @@ local trace = strace.trace
 local warn = strace.warn
 local normalize_capacity = train_lib.normalize_capacity
 
----@class Cybersyn.LogisticsThread
+---@class (partial) Cybersyn.LogisticsThread
 ---@field public req_index int?
 ---@field public prov_index int?
 ---@field public train_index int?

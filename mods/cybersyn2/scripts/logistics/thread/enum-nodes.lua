@@ -19,7 +19,12 @@ local empty = tlib.empty
 local add_workload = thread_lib.add_workload
 local table_size = _G.table_size
 
----@class Cybersyn.LogisticsThread
+-- Type-assert storage due to EmmyLua issues
+---@diagnostic disable-next-line: missing-fields
+---@type Cybersyn.Storage
+storage = {}
+
+---@class (partial) Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
 function LogisticsThread:enter_enum_nodes()

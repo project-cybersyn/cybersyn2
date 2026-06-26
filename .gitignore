@@ -3,3 +3,4 @@
 # Krita autosave files
 *-autosave.kra
 .luarc.json
+.emmyrc.json

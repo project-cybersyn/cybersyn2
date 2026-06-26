@@ -126,6 +126,7 @@ local function evaluate_capacity_for_layout(topology_id, layout_id, cache)
 	end
 end
 
+-- XXX: figure out what this is/was for???
 local function generate_cache_for_stops_in_topology(topology_id)
 	local cache = {}
 	for _, stop in pairs(storage.nodes) do

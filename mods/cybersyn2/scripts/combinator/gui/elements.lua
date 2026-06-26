@@ -4,6 +4,7 @@
 
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
+local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 local Pr = relm.Primitive
 local HF = ultros.HFlow
@@ -79,7 +80,7 @@ function _G.cs2.gui.VirtualSignalPicker(combinator, setting, tooltip)
 				setter(combinator, signal)
 			else
 				game
-					.get_player(elem.player_index)
+					.get_player(elem.player_index) --[[@as LuaPlayer]]
 					.print("Invalid signal type. Please select a virtual signal.", {
 						color = { 255, 128, 0 },
 						skip = defines.print_skip.never,
@@ -161,7 +162,7 @@ _G.cs2.gui.Input = relm.define("CombinatorGui.Input", function(props)
 		value = props.displayed_default_value
 	end
 	local recent_value, set_recent_value = relm.use_state(value)
-	local tf_props = ultros.assign({
+	local tf_props = tlib.assign({
 		value = value,
 		on_change = function(_, _value)
 			set_recent_value(_value)
@@ -300,7 +301,9 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 _G.cs2.gui.OrderWireHelp = relm.define("OrderWireHelp", function(props)
 	local wire_color = props.wire_color
 	local network_signal = props.network_signal
+	---@type LocalisedString
 	local network_signals = ""
+	---@type LocalisedString
 	local network_signals_desc = ""
 	if network_signal == "signal-each" then
 		network_signals =

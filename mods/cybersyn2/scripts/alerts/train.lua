@@ -52,7 +52,7 @@ end
 
 event.bind(
 	"cs2.alert.misdirected_train",
-	function(cstrain) return MisdirectedTrain:new(cstrain) end
+	function(cstrain) MisdirectedTrain:new(cstrain) end
 )
 
 --------------------------------------------------------------------------------
@@ -106,6 +106,6 @@ end
 event.bind(
 	"cs2.train_stuck",
 	function(delivery_id, cstrain, stock, stuck_pos, stuck_state)
-		return StuckTrain:new(delivery_id, stock, stuck_pos, stuck_state)
+		StuckTrain:new(delivery_id, stock, stuck_pos, stuck_state)
 	end
 )

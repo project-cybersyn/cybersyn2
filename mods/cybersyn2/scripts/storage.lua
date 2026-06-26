@@ -6,22 +6,22 @@ local events = require("lib.core.event")
 
 ---The entire synchronized game state for Cybersyn.
 ---@class (exact) Cybersyn.Storage
----@field public players table<PlayerIndex, Cybersyn.PlayerState> Per-player state
----@field public vehicles table<Id, Cybersyn.Vehicle> All Cybersyn vehicles indexed by id
----@field public combinators table<int64, Cybersyn.Combinator> All Cybersyn combinators indexed by Thing ID
+---@field public players {[PlayerIndex]: Cybersyn.PlayerState} Per-player state
+---@field public vehicles {[Id]: Cybersyn.Vehicle} All Cybersyn vehicles indexed by id
+---@field public combinators {[int64]: Cybersyn.Combinator} All Cybersyn combinators indexed by Thing ID
 ---@field public topologies table<Id, Cybersyn.Topology> All Cybersyn topologies indexed by id
----@field public nodes table<Id, Cybersyn.Node> All Cybersyn nodes indexed by id
----@field public inventories table<Id, Cybersyn.Inventory> All Cybersyn inventories indexed by id
----@field public deliveries table<Id, Cybersyn.Delivery> All Cybersyn deliveries indexed by id
----@field public task_ids table<string, Scheduler.TaskId> Ids of core tasks
----@field public train_groups table<string, Cybersyn.Internal.TrainGroup> All Cybersyn-controlled train groups indexed by Factorio group name
----@field public luatrain_id_to_vehicle_id table<Id, Id> Map of LuaTrain ids to Cybersyn vehicle ids
----@field public rail_id_to_node_id table<UnitNumber, Id> Map of rail unit numbers to node ids of the associated train stop
----@field public stop_id_to_node_id table<UnitNumber, Id> Map from UnitNumbers of `train-stop` entities to the corresponding node id
----@field public stop_layouts table<Id, Cybersyn.TrainStopLayout> Layouts of train stops, indexed by node id
----@field public train_layouts table<Id, Cybersyn.TrainLayout> Layouts of trains, indexed by layout id
+---@field public nodes {[Id]: Cybersyn.Node} All Cybersyn nodes indexed by id
+---@field public inventories {[Id]: Cybersyn.Inventory} All Cybersyn inventories indexed by id
+---@field public deliveries {[Id]: Cybersyn.Delivery} All Cybersyn deliveries indexed by id
+---@field public task_ids {[string]: Scheduler.TaskId} Ids of core tasks
+---@field public train_groups {[string]: Cybersyn.Internal.TrainGroup} All Cybersyn-controlled train groups indexed by Factorio group name
+---@field public luatrain_id_to_vehicle_id {[Id]: Id} Map of LuaTrain ids to Cybersyn vehicle ids
+---@field public rail_id_to_node_id {[UnitNumber]: Id} Map of rail unit numbers to node ids of the associated train stop
+---@field public stop_id_to_node_id {[UnitNumber]: Id} Map from UnitNumbers of `train-stop` entities to the corresponding node id
+---@field public stop_layouts {[Id]: Cybersyn.TrainStopLayout} Layouts of train stops, indexed by node id
+---@field public train_layouts {[Id]: Cybersyn.TrainLayout} Layouts of trains, indexed by layout id
 ---@field public debug_state Cybersyn.Internal.DebugState Debug state, should remain empty unless debug mode is enabled for the save
----@field public surface_index_to_train_topology table<uint,Id> Map from planetary surfaces to associated train topologies
+---@field public surface_index_to_train_topology {[uint]: Id} Map from planetary surfaces to associated train topologies
 ---@field public alerts {[Id]: Cybersyn.Alert} Currently displayed alerts
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
 ---@field public views {[Id]: Cybersyn.View} All views currently active, indexed by id
@@ -57,7 +57,8 @@ _G.cs2.get_or_create_player_state = get_or_create_player_state
 ---@param player_index PlayerIndex?
 ---@return Cybersyn.PlayerState?
 local function get_player_state(player_index)
-	return storage.players[player_index or ""]
+	if not player_index then return nil end
+	return storage.players[player_index]
 end
 _G.cs2.get_player_state = get_player_state
 

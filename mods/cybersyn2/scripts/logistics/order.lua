@@ -32,6 +32,7 @@ local trace = strace.trace
 
 ---@param item SignalKey
 ---@param species "fluid"|"item"|nil
+---@param stack_size uint?
 ---@param request_qty uint
 ---@param frac number
 ---@param amfc uint?
@@ -52,7 +53,7 @@ local function compute_depletion_threshold(
 		return min(ceil(thresh), amfc)
 	elseif species == "item" then
 		if not amisc then return nil end
-		local max_thresh = amisc * stack_size
+		local max_thresh = amisc * (stack_size or 1)
 		return min(ceil(thresh), max_thresh)
 	else
 		-- TODO: error log here
@@ -60,7 +61,7 @@ local function compute_depletion_threshold(
 	end
 end
 
----@class Cybersyn.Order
+---@class (partial) Cybersyn.Order
 local Order = class("Order")
 _G.cs2.Order = Order
 
@@ -69,6 +70,7 @@ _G.cs2.Order = Order
 ---@param arity "primary" | "secondary"
 ---@param combinator_id Id
 ---@param combinator_input "red" | "green"
+---@return Cybersyn.Order
 function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 	local obj = {
 		inventory = inventory,
@@ -92,7 +94,7 @@ function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 		no_starvation = false,
 	}
 	setmetatable(obj, self)
-	return obj
+	return obj --[[@as Cybersyn.Order]]
 end
 
 ---@param status Cybersyn.OrderStatus
@@ -209,7 +211,9 @@ function Order:read(workload)
 	local quality_spread = nil
 	---@type int32?
 	local all_items_value
-	for signal_key, count in pairs(inputs or EMPTY) do
+	for signal_key, count in
+		pairs(inputs or EMPTY --[[@as SignalCounts]])
+	do
 		local genus, species = classify_key(signal_key)
 		if genus == "cargo" then
 			if count > 0 then
@@ -315,7 +319,7 @@ function Order:read(workload)
 				thresh_in[signal_key] = direct_threshold
 				thresh_explicit[signal_key] = direct_threshold
 			elseif generic_item_threshold then
-				local th = generic_item_threshold * key_to_stacksize(signal_key)
+				local th = generic_item_threshold * (key_to_stacksize(signal_key) or 1)
 				thresh_in[signal_key] = th
 				thresh_explicit[signal_key] = th
 			end

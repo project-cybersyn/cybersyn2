@@ -18,6 +18,11 @@ local fluid_name_to_key = signal_lib.fluid_name_to_key
 local NO_FUEL = defines.entity_status.no_fuel
 local FIRST_ENTRY = { schedule_index = 1 }
 
+-- EmmyLua storage issue fix
+---@diagnostic disable-next-line: missing-fields
+---@type Cybersyn.Storage
+storage = {}
+
 --------------------------------------------------------------------------------
 -- Group tracking
 --------------------------------------------------------------------------------
@@ -121,7 +126,7 @@ end
 -- Train
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Train
+---@class (partial) Cybersyn.Train
 local Train = class("Train", _G.cs2.Vehicle)
 _G.cs2.Train = Train
 
@@ -185,7 +190,8 @@ _G.cs2.get_train = get_train
 ---@param luatrain_id Id?
 ---@return Cybersyn.Train?
 local function get_from_luatrain_id(luatrain_id)
-	local vid = storage.luatrain_id_to_vehicle_id[luatrain_id or ""]
+	if not luatrain_id then return nil end
+	local vid = storage.luatrain_id_to_vehicle_id[luatrain_id]
 	if not vid then return nil end
 	return storage.vehicles[vid] --[[@as Cybersyn.Train]]
 end
@@ -452,7 +458,6 @@ end
 
 ---Examine the rolling stock of the train and re-compute the item and
 ---fluid capacity.
----@param self Cybersyn.Train A *valid* train.
 ---@return boolean #`true` if the capacity of the train changed.
 function Train:evaluate_capacity()
 	local old_item_slot_capacity = self.item_slot_capacity

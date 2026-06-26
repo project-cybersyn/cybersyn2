@@ -20,7 +20,7 @@ local EMPTY = tlib.EMPTY
 -- Settings
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 ---@field public get_dropoff_signal fun(): SignalID?
 ---@field public get_pickup_signal fun(): SignalID?
 

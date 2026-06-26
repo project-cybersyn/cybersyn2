@@ -17,7 +17,7 @@ local HF = ultros.HFlow
 -- Settings
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 ---@field public get_allow_mode fun(): "auto" | "layout" | "group" | "all" LEGACY: old allowlist
 ---@field public get_allowed_layouts fun(): string[][] Manual allowlist entries
 
@@ -162,6 +162,8 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 	local function add_custom_layout(_, layout_string, elt)
 		layout_string = normalize_layout_string(layout_string)
 		if not layout_string then
+			-- This cannot be nil because the player clicking must be a real player.
+			---@diagnostic disable-next-line: need-check-nil
 			game.get_player(elt.player_index).print(
 				{ "cybersyn2-combinator-mode-allow.invalid-layout-string" },
 				{ sound = defines.print_sound.always, skip = defines.print_skip.never }

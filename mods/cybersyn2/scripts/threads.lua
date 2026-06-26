@@ -54,7 +54,7 @@ function StatefulThread:main()
 			self.friendly_name
 		)
 	end
-	local total_workload
+	local total_workload = 0.0
 	local loops = 0
 	self.yielded = nil
 	while true do
@@ -125,8 +125,9 @@ end
 ---@param finish fun(self: StatefulThread)
 function StatefulThread:step_async_loop(step, finish)
 	local array = self.iterable
+	local stride = self.stride or 1
 	if not array then return finish(self) end
-	local max_index = min(self.index + max(self.stride, 1) - 1, #array)
+	local max_index = min(self.index + stride - 1, #array)
 	for i = self.index, max_index do
 		step(self, array[i], i, array)
 	end

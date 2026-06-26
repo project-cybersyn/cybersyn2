@@ -32,9 +32,10 @@ local mod_settings = _G.cs2.mod_settings
 local Order = _G.cs2.Order
 local add_workload = thread.add_workload
 local table_size = _G.table_size
+local EMPTY = tlib.EMPTY
 
----@param base table<string,int>
----@param addend table<string,int>
+---@param base { [string]: int }
+---@param addend { [string]: int }
 ---@param sign int
 local function table_add_positive(base, addend, sign)
 	for k, v in pairs(addend) do
@@ -47,7 +48,7 @@ local function table_add_positive(base, addend, sign)
 	end
 end
 
----@class Cybersyn.Inventory
+---@class (partial) Cybersyn.Inventory
 ---@field public inflow_rebate SignalCounts? Amount to be refunded to inflows during next base inventory update.
 ---@field public outflow_rebate SignalCounts? Amount to be refunded to outflows during next base inventory update.
 ---@field public used_item_stack_capacity uint? Cached value of used item stack capacity.
@@ -123,7 +124,7 @@ function Inventory:set_base(counts)
 end
 
 ---@param counts SignalCounts
----@param sign number
+---@param sign int
 function Inventory:add_inflow(counts, sign)
 	self.used_fluid_capacity = nil
 	self.used_item_stack_capacity = nil
@@ -131,7 +132,7 @@ function Inventory:add_inflow(counts, sign)
 end
 
 ---@param counts SignalCounts
----@param sign number
+---@param sign int
 function Inventory:add_inflow_rebate(counts, sign)
 	if not self.inflow_rebate then self.inflow_rebate = {} end
 	return table_add(self.inflow_rebate, sign, counts)
@@ -152,13 +153,13 @@ function Inventory:add_single_item_inflow(item, qty)
 end
 
 ---@param counts SignalCounts
----@param sign number
+---@param sign int
 function Inventory:add_outflow(counts, sign)
 	return table_add_positive(self.outflow, counts, sign)
 end
 
 ---@param counts SignalCounts
----@param sign number
+---@param sign int
 function Inventory:add_outflow_rebate(counts, sign)
 	if not self.outflow_rebate then self.outflow_rebate = {} end
 	return table_add(self.outflow_rebate, sign, counts)
@@ -246,6 +247,7 @@ function Inventory:update(workload, reread) return false end
 local StopInventory = class("StopInventory", Inventory)
 _G.cs2.StopInventory = StopInventory
 
+---@return Cybersyn.StopInventory
 function StopInventory:new()
 	local inv = Inventory.new(self)
 	return inv --[[@as Cybersyn.StopInventory]]
@@ -299,12 +301,18 @@ function StopInventory:update(workload, reread)
 			if primary_wire == "green" then
 				self:set_base(master_station_comb.green_inputs)
 				if workload then
-					add_workload(workload, table_size(master_station_comb.green_inputs))
+					add_workload(
+						workload,
+						table_size(master_station_comb.green_inputs or EMPTY)
+					)
 				end
 			else
 				self:set_base(master_station_comb.red_inputs)
 				if workload then
-					add_workload(workload, table_size(master_station_comb.red_inputs))
+					add_workload(
+						workload,
+						table_size(master_station_comb.red_inputs or EMPTY)
+					)
 				end
 			end
 		end

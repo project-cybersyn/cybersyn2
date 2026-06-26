@@ -45,7 +45,7 @@ end
 
 event.bind(
 	"cs2.alert.no_station_comb",
-	function(stop) return NoStationComb:new(stop) end
+	function(stop) NoStationComb:new(stop) end
 )
 
 --------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ local TOO_MANY_STATION_MSG = { "cybersyn2-alerts.too-many-station" }
 event.bind(
 	"cs2.alert.too_many_station_comb",
 	function(stop)
-		return TooManyStationComb:new(
+		TooManyStationComb:new(
 			stop,
 			"too_many_station",
 			"station",
@@ -99,7 +99,7 @@ local TOO_MANY_ALLOWLIST_MSG = { "cybersyn2-alerts.too-many-allowlist" }
 event.bind(
 	"cs2.alert.too_many_allowlist_comb",
 	function(stop)
-		return TooManyStationComb:new(
+		TooManyStationComb:new(
 			stop,
 			"too_many_allow",
 			"allow",
@@ -143,7 +143,7 @@ end
 
 event.bind(
 	"cs2.alert.deprecated_comb",
-	function(comb) return DeprecatedComb:new(comb) end
+	function(comb) DeprecatedComb:new(comb) end
 )
 
 --------------------------------------------------------------------------------
@@ -180,5 +180,5 @@ end
 
 event.bind(
 	"cs2.alert.vanilla_priority",
-	function(stop_entity) return VanillaPriority:new(stop_entity) end
+	function(stop_entity) VanillaPriority:new(stop_entity) end
 )

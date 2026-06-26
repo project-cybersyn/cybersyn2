@@ -47,7 +47,7 @@ end
 -- Topology
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Topology
+---@class (partial) Cybersyn.Topology
 local Topology = class("Topology")
 _G.cs2.Topology = Topology
 
@@ -68,7 +68,10 @@ end
 ---Get a topology by its id
 ---@param id Id?
 ---@return Cybersyn.Topology?
-local function get_topology(id) return storage.topologies[id or ""] end
+local function get_topology(id)
+	if not id then return nil end
+	return storage.topologies[id]
+end
 Topology.get = get_topology
 _G.cs2.get_topology = get_topology
 
@@ -106,9 +109,17 @@ end
 ---@param surface_index uint
 local function create_train_topology(surface_index)
 	local surface_set = query_topo_plugins(surface_index)
+	local surface = game.get_surface(surface_index)
+	if not surface then
+		error(
+			"LOGIC ERROR: create_train_topology called with invalid surface index "
+				.. surface_index
+		)
+		return
+	end
 
 	local t = Topology:new()
-	t.name = game.get_surface(surface_index).name
+	t.name = surface.name
 	t.surface_set = surface_set
 	for s_index, _ in pairs(surface_set) do
 		storage.surface_index_to_train_topology[s_index] = t.id

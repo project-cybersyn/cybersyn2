@@ -34,7 +34,12 @@ local Thread = thread_lib.Thread
 local mod_settings = _G.cs2.mod_settings
 local add_workload = thread_lib.add_workload
 
----@class Cybersyn.TrainDelivery
+-- Type-assert storage due to EmmyLua issues
+---@diagnostic disable-next-line: missing-fields
+---@type Cybersyn.Storage
+storage = {}
+
+---@class (partial) Cybersyn.TrainDelivery
 local TrainDelivery = class("TrainDelivery", Delivery)
 _G.cs2.TrainDelivery = TrainDelivery
 
@@ -129,7 +134,6 @@ end
 
 ---@param stop_entity LuaEntity
 local function coordinate_entry(stop_entity)
-	---@type AddRecordData
 	if mod_settings.directional_routing then
 		return {
 			rail = stop_entity.connected_rail,
@@ -285,6 +289,10 @@ function TrainDelivery:goto_from()
 	-- stale duplicate enqueue from process_queue. Bail out.
 	if self.state == "plugin_handoff" and train.volatile then return end
 
+	-- No nil check because validated above.
+	---@diagnostic disable-next-line: need-check-nil
+	if not from.entity.connected_rail then return self:fail() end
+
 	if self.state ~= "plugin_handoff" then
 		local result = query_route_plugins(
 			self.id,
@@ -310,7 +318,7 @@ function TrainDelivery:goto_from()
 	end
 
 	local ok, reason = train:schedule(
-		coordinate_entry(from.entity),
+		coordinate_entry(from.entity --[[@as LuaEntity ]]),
 		pickup_entry(from, self.manifest)
 	)
 	if ok then

@@ -31,7 +31,7 @@ end
 -- Vehicle
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Vehicle
+---@class (partial) Cybersyn.Vehicle
 local Vehicle = class("Vehicle")
 _G.cs2.Vehicle = Vehicle
 
@@ -63,7 +63,7 @@ function Vehicle.get(id, skip_validation)
 	return nil
 end
 
----@return table<Id, Cybersyn.Vehicle>
+---@return {[Id]: Cybersyn.Vehicle}
 function Vehicle.all() return storage.vehicles end
 
 ---Determine if the vehicle is available for processing a delivery

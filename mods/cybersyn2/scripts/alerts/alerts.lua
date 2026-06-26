@@ -53,7 +53,7 @@ local GameAlert = class("GameAlert", Alert)
 _G.cs2.GameAlert = GameAlert
 
 ---Create a new alert attached to an entity.
----@param entity LuaEntity Entity to attach the alert to
+---@param entity LuaEntity? Entity to attach the alert to
 ---@param key string? Unique key for the alert. Only one alert with this key will be allowed per entity.
 ---@param icon SignalID? Icon for the alert.
 ---@param message LocalisedString User-facing message for the alert.
@@ -64,7 +64,9 @@ function GameAlert:new(entity, key, message, icon, players)
 	if not entity or not entity.valid then return end
 
 	-- Uniqueness
-	local abe = storage.alerts_by_entity[entity.unit_number]
+	local abe = storage.alerts_by_entity[
+		entity.unit_number --[[@as UnitNumber]]
+	]
 	if abe then
 		if key and abe[key] then return end
 	end
@@ -75,7 +77,10 @@ function GameAlert:new(entity, key, message, icon, players)
 
 	if not abe then
 		abe = {}
-		storage.alerts_by_entity[entity.unit_number] = abe
+		storage.alerts_by_entity[
+			entity.unit_number --[[@as UnitNumber]]
+		] =
+			abe
 	end
 
 	local alert = Alert.new(self) --[[@as Cybersyn.GameAlert]]
@@ -161,7 +166,9 @@ function _G.cs2.get_alert(id) return storage.alerts and storage.alerts[id] end
 ---@return Cybersyn.Alert[] alerts List of alerts targeting the entity.
 function _G.cs2.get_alerts_for_entity(entity)
 	local abe = storage.alerts_by_entity
-		and storage.alerts_by_entity[entity.unit_number]
+		and storage.alerts_by_entity[
+			entity.unit_number --[[@as UnitNumber]]
+		]
 	if not abe then return {} end
 	return tlib.t_map_a(abe, function(_, id)
 		local alert = storage.alerts and storage.alerts[id]

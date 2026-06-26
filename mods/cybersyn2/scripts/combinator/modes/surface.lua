@@ -21,7 +21,7 @@ local empty = tlib.empty
 -- Settings
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 ---@field public get_surface_inventory_mode fun(): "provided" | "pulled" | "pushed" | "sunk"
 
 -- Which inventory data to include in the combinator output.

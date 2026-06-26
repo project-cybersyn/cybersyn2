@@ -104,6 +104,8 @@ events.bind(defines.events.on_selected_entity_changed, function(event)
 		(event.last_entity and cs2_lib.entity_is_combinator(event.last_entity))
 		or (entity and cs2_lib.entity_is_combinator(entity))
 	then
+		-- nil entity is okay, it just means the player deselected a combinator.
+		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_selected(entity, event.last_entity, player)
 	end
 end)

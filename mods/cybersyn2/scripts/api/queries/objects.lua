@@ -22,7 +22,7 @@ local comb_list_datatype = {
 ---@param arg Cybersyn.Query.Combinators.Input
 ---@return Cybersyn.Query.Combinators.Result
 function _G.cs2.query_handlers.combinators(arg)
-	---@type Cybersyn.Combinator[]
+	---@type Cybersyn.Combinator[]?
 	local res = nil
 	if arg.ids then
 		res = map(arg.ids, function(id) return cs2.get_combinator(id) end)

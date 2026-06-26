@@ -16,14 +16,14 @@ local ONE_MINUS_ALPHA = 1 - ALPHA
 
 ---@alias Cybersyn.LogisticsThreadState "init"|"enum_nodes"|"poll_nodes"|"logistics"
 
----@class (exact) Cybersyn.LogisticsThread: StatefulThread
+---@class (partial) Cybersyn.LogisticsThread: StatefulThread
 ---@field public state Cybersyn.LogisticsThreadState State of the task.
 ---@field public topology_id Id Id of topology being serviced by this thread.
----@field public nodes Cybersyn.Node[]? Nodes found within topology.
----@field public providers? Cybersyn.Order[] Orders providing something
----@field public requesters? Cybersyn.Order[] Orders requesting something
----@field public trains? Cybersyn.Train[] Available trains
----@field public avail_trains? boolean[] Trains used this loop
+---@field public nodes Cybersyn.Node[] Nodes found within topology.
+---@field public providers Cybersyn.Order[] Orders providing something
+---@field public requesters Cybersyn.Order[] Orders requesting something
+---@field public trains Cybersyn.Train[] Available trains
+---@field public avail_trains boolean[] Availability of each train in `trains`
 local LogisticsThread = class("LogisticsThread", cs2.StatefulThread)
 _G.cs2.LogisticsThread = LogisticsThread
 

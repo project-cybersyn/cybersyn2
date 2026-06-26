@@ -32,10 +32,10 @@ local STOPPED_NO_CONNECTED_RAIL =
 
 local empty = {}
 
----@class Cybersyn.TrainStop
+---@class (partial) Cybersyn.TrainStop
 local TrainStop = _G.cs2.TrainStop
 
----@class Cybersyn.TrainStopLayout
+---@class (partial) Cybersyn.TrainStopLayout
 local TrainStopLayout = class("TrainStopLayout")
 _G.cs2.TrainStopLayout = TrainStopLayout
 
@@ -167,7 +167,9 @@ local function bbox_iterative_check(state)
 
 	-- Extend the bounding box to include the current rail.
 	mlib.bbox_union(state.bbox, current_rail.bounding_box)
-	state.rail_set[current_rail.unit_number] = true
+	state.rail_set[
+		current_rail.unit_number --[[@as UnitNumber]]
+	] = true
 	return true
 end
 
@@ -176,7 +178,6 @@ end
 --------------------------------------------------------------------------------
 
 ---Recompute the layout of a train stop.
----@param self Cybersyn.TrainStop A train stop state. Will be validated by this method.
 ---@param ignored_entity_set? UnitNumberSet A set of entities to ignore when scanning for equipment. Used for e.g. equipment that is in the process of being destroyed.
 function TrainStop:compute_layout(ignored_entity_set)
 	if not self:is_valid() then return end
@@ -311,19 +312,14 @@ function TrainStop:compute_layout(ignored_entity_set)
 		"combinators in bbox for stop",
 		stop_id
 	)
-	local reassociable_comb_id_set = tlib.t_map_t(
-		comb_entities,
-		function(_, entity)
-			if
-				not ignored_entity_set or not ignored_entity_set[entity.unit_number]
-			then
-				local _, id = remote.call("things", "get_thing_id", entity)
-				return id, true
-			else
-				return nil, nil
-			end
+	local reassociable_comb_id_set = tlib.a_map_t(comb_entities, function(entity)
+		if not ignored_entity_set or not ignored_entity_set[entity.unit_number] then
+			local _, id = remote.call("things", "get_thing_id", entity)
+			return id, true
+		else
+			return nil, nil
 		end
-	)
+	end)
 	for comb_id in pairs(self.combinator_set) do
 		reassociable_comb_id_set[comb_id] = true
 	end

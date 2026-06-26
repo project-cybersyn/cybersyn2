@@ -39,7 +39,7 @@ local modes = _G.cs2.combinator_modes
 -- Combinator
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 local Combinator = class("Combinator")
 _G.cs2.Combinator = Combinator
 
@@ -168,7 +168,11 @@ function Combinator:clear_outputs()
 
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
-	param.outputs = {}
+	if not param then
+		param = { outputs = {}, conditions = cs2.COMBINATOR_DECIDER_CONDITIONS }
+	else
+		param.outputs = {}
+	end
 	beh.parameters = param
 end
 
@@ -176,6 +180,7 @@ end
 ---Arguments are pairs of `SignalCounts` and
 ---`int` values representing the signals to add to the output along
 ---with a multiplier.
+---@return DeciderCombinatorOutput[]
 function Combinator:encode_outputs(...)
 	local outputs = {}
 
@@ -207,7 +212,13 @@ function Combinator:write_outputs(...)
 	if not entity or not entity.valid then return end
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
-	param.outputs = self:encode_outputs(...)
+	local outputs = self:encode_outputs(...)
+	if not param then
+		param =
+			{ outputs = outputs, conditions = cs2.COMBINATOR_DECIDER_CONDITIONS }
+	else
+		param.outputs = outputs
+	end
 	beh.parameters = param
 end
 
@@ -218,7 +229,12 @@ function Combinator:direct_write_outputs(outputs)
 	if not entity or not entity.valid then return end
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
-	param.outputs = outputs
+	if not param then
+		param =
+			{ outputs = outputs, conditions = cs2.COMBINATOR_DECIDER_CONDITIONS }
+	else
+		param.outputs = outputs
+	end
 	beh.parameters = param
 end
 
@@ -282,7 +298,7 @@ function Combinator:find_connected_wagon()
 	})
 	if #wagons == 0 then return nil end
 	if #wagons == 1 then return wagons[1] end
-	local pos = self.real_entity.position
+	local pos = combinator_entity.position
 	local closest = math.huge
 	local wagon = nil
 	for i = 1, #wagons do

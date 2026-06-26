@@ -5,6 +5,7 @@
 --------------------------------------------------------------------------------
 
 local tlib = require("lib.core.table")
+require("lib.core.signal")
 
 local empty = tlib.empty
 local strsub = string.sub
@@ -39,7 +40,7 @@ lib.get_quality_name = get_quality_name
 ---order. This function forces Factorio to instantiate a bunch of prototypes
 ---and should therefore be avoided.
 ---@param name string
----@return string?
+---@return SignalIDType?
 local function get_signal_type_from_name(name)
 	if prototypes.item[name] ~= nil then
 		return "item"
@@ -76,7 +77,7 @@ local parameter_names = {
 }
 
 ---Cache mapping keys to signals
----@type table<SignalKey, SignalID>
+---@type {[SignalKey]: SignalID}
 local key_to_sig = {}
 
 ---Cached set of virtual signal keys
@@ -131,13 +132,14 @@ local function signal_to_key(signal)
 		quality_name = quality.name
 	end
 	-- TODO: benchmark caching this in a 2d hash like hash[quality][type]
-	---@type string
+	---@type SignalKey
 	local key
 	if quality_name == nil or quality_name == "normal" then
-		key = signal.name
+		key = signal.name --[[@as SignalKey]]
 	else
 		key = signal.name .. "|" .. quality_name
 	end
+	---@cast key SignalKey
 	if stype == "item" or stype == "fluid" then
 		signal.quality = quality_name -- don't cache signal qualities as prototypes
 		key_to_sig[key] = signal
@@ -171,7 +173,7 @@ lib.fluid_name_to_key = fluid_name_to_key
 
 ---@param key string
 ---@return string? name
----@return string? type
+---@return SignalIDType? type
 ---@return string? quality
 local function missed_key_to_signal_parts(key)
 	local index = strfind(key, "|", 1, true)
@@ -296,6 +298,7 @@ end
 lib.key_to_richtext = key_to_richtext
 
 ---@param key SignalKey?
+---@return uint? stack_size
 local function key_to_stacksize(key)
 	if not key then return nil end
 	local sz = key_stack_size[key]
@@ -388,7 +391,9 @@ function lib.item_filter_any_quality_OR(key, item_filter)
 	local sig = key_to_signal(key)
 	if not sig then return false end
 	if sig.type == "item" or sig.type == "fluid" then
-		return item_filter[sig.name] ~= nil
+		return item_filter[
+			sig.name --[[@as string]]
+		] ~= nil
 	end
 	return false
 end

@@ -63,10 +63,10 @@ local function create_or_destroy_hidden_chest(combinator, force_destroy)
 		end
 
 		-- Wire chest to combinator outputs
-		local comb_red = combinator_entity.get_wire_connector(O_RED, true)
-		local comb_green = combinator_entity.get_wire_connector(O_GREEN, true)
-		local chest_red = chest.get_wire_connector(O_CHEST_RED, true)
-		local chest_green = chest.get_wire_connector(O_CHEST_GREEN, true)
+		local comb_red = combinator_entity.get_wire_connector(O_RED, true) --[[@as LuaWireConnector]]
+		local comb_green = combinator_entity.get_wire_connector(O_GREEN, true) --[[@as LuaWireConnector]]
+		local chest_red = chest.get_wire_connector(O_CHEST_RED, true) --[[@as LuaWireConnector]]
+		local chest_green = chest.get_wire_connector(O_CHEST_GREEN, true) --[[@as LuaWireConnector]]
 		chest_red.connect_to(comb_red, false, SCRIPT)
 		chest_green.connect_to(comb_green, false, SCRIPT)
 

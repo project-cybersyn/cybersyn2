@@ -18,7 +18,7 @@ local If = ultros.If
 -- Station combinator settings.
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 ---@field public get_network_signal fun(self: Cybersyn.Combinator): string
 ---@field public get_pr fun(self: Cybersyn.Combinator): number
 ---@field public get_use_stack_thresholds fun(self: Cybersyn.Combinator): boolean
@@ -30,19 +30,19 @@ local If = ultros.If
 ---@field public get_allow_departure_signal fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_force_departure_signal fun(self: Cybersyn.Combinator): SignalID?
 ---@field public get_inactivity_mode fun(self: Cybersyn.Combinator): number
----@field public get_inactivity_timeout fun(self: Cybersyn.Combinator): number
+---@field public get_inactivity_timeout fun(self: Cybersyn.Combinator): uint
 ---@field public get_disable_cargo_condition fun(self: Cybersyn.Combinator): boolean
----@field public get_spillover fun(self: Cybersyn.Combinator): number
----@field public get_reserved_slots fun(self: Cybersyn.Combinator): number
----@field public get_reserved_capacity fun(self: Cybersyn.Combinator): number
+---@field public get_spillover fun(self: Cybersyn.Combinator): uint
+---@field public get_reserved_slots fun(self: Cybersyn.Combinator): uint
+---@field public get_reserved_capacity fun(self: Cybersyn.Combinator): uint
 ---@field public get_produce_single_item fun(self: Cybersyn.Combinator): boolean
 ---@field public get_ignore_secondary_thresholds fun(self: Cybersyn.Combinator): boolean
----@field public get_topology_signal fun(self: Cybersyn.Combinator): SignalID?
----@field public get_signal_depletion_percentage fun(self: Cybersyn.Combinator): SignalID?
----@field public get_signal_fullness_percentage fun(self: Cybersyn.Combinator): SignalID?
----@field public get_signal_reserved_slots fun(self: Cybersyn.Combinator): SignalID?
----@field public get_signal_reserved_fluid fun(self: Cybersyn.Combinator): SignalID?
----@field public get_signal_spillover fun(self: Cybersyn.Combinator): SignalID?
+---@field public get_topology_signal fun(self: Cybersyn.Combinator): NamedSignalID?
+---@field public get_signal_depletion_percentage fun(self: Cybersyn.Combinator): NamedSignalID?
+---@field public get_signal_fullness_percentage fun(self: Cybersyn.Combinator): NamedSignalID?
+---@field public get_signal_reserved_slots fun(self: Cybersyn.Combinator): NamedSignalID?
+---@field public get_signal_reserved_fluid fun(self: Cybersyn.Combinator): NamedSignalID?
+---@field public get_signal_spillover fun(self: Cybersyn.Combinator): NamedSignalID?
 ---@field public get_shared_inventory_independent_orders fun(self: Cybersyn.Combinator): boolean
 ---@field public get_fullness_when_providing fun(self: Cybersyn.Combinator): boolean
 ---@field public get_allow_strict fun(): boolean

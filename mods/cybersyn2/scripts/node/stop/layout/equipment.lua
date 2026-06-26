@@ -8,7 +8,9 @@ local pos_lib = require("lib.core.math.pos")
 local pos_get = pos_lib.pos_get
 local cs2 = _G.cs2
 
----@class Cybersyn.TrainStop
+local EMPTY = tlib.EMPTY
+
+---@class (partial) Cybersyn.TrainStop
 local TrainStop = _G.cs2.TrainStop
 local bbox_contains = mlib.bbox_contains
 
@@ -139,6 +141,7 @@ function TrainStop:register_loading_equipment(entity, pos, is_cargo, is_fluid)
 	return changed
 end
 
+---@param equipment LuaEntity
 ---@param stop Cybersyn.TrainStop
 local function register_equipment_if_applicable(
 	equipment,
@@ -175,9 +178,11 @@ local function register_equipment_if_applicable(
 			)
 		end
 	elseif equipment.type == "pump" then
-		if equipment.pump_rail_target then
-			local rail = equipment.pump_rail_target
-			if rail and bbox_contains(rail_bbox, rail.position) then
+		local input_rails = equipment.pump_input_rail_targets or EMPTY
+		local output_rails = equipment.pump_output_rail_targets or EMPTY
+
+		for _, rail in ipairs(input_rails) do
+			if bbox_contains(rail_bbox, rail.position) then
 				stop:register_loading_equipment(
 					equipment,
 					equipment.position,
@@ -187,8 +192,27 @@ local function register_equipment_if_applicable(
 				return
 			end
 		end
-		-- Fallthrough: remove pump from stop equipment manifest
-		stop:register_loading_equipment(equipment, equipment.position, false, false)
+
+		for _, rail in ipairs(output_rails) do
+			if bbox_contains(rail_bbox, rail.position) then
+				stop:register_loading_equipment(
+					equipment,
+					equipment.position,
+					false,
+					register_flag
+				)
+			end
+		end
+
+		if #input_rails == 0 and #output_rails == 0 then
+			-- If the pump has no input or output rails, it is not connected to any rail and should be unregistered.
+			stop:register_loading_equipment(
+				equipment,
+				equipment.position,
+				false,
+				false
+			)
+		end
 	elseif equipment.type == "loader-1x1" then
 		if can_loader1x1_load(equipment, stop) then
 			stop:register_loading_equipment(
@@ -288,11 +312,21 @@ local function built_or_destroyed_equipment(equipment, is_being_destroyed)
 			end
 		end
 	elseif equipment.type == "pump" then
-		if equipment.pump_rail_target then
-			local stop = TrainStop.find_stop_from_rail(equipment.pump_rail_target)
-			if stop then
-				register_equipment_if_applicable(equipment, stop, is_being_destroyed)
-			end
+		-- Find all impacted stops for the pump's input and output rails, and register the pump with each of them.
+		local input_rails = equipment.pump_input_rail_targets or EMPTY
+		local output_rails = equipment.pump_output_rail_targets or EMPTY
+		local stop_set = {}
+		for _, rail in ipairs(input_rails) do
+			local stop = TrainStop.find_stop_from_rail(rail)
+			if stop then stop_set[stop.id] = stop end
+		end
+		for _, rail in ipairs(output_rails) do
+			local stop = TrainStop.find_stop_from_rail(rail)
+			if stop then stop_set[stop.id] = stop end
+		end
+
+		for _, stop in pairs(stop_set) do
+			register_equipment_if_applicable(equipment, stop, is_being_destroyed)
 		end
 	elseif equipment.type == "loader-1x1" then
 		local stop = get_loader1x1_loading_stop(equipment)

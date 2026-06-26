@@ -66,12 +66,13 @@ end
 ---@return LuaEntity? rail_br The rail entity connected to the given rail entity in the back-right direction, if it exists.
 function lib.get_all_connected_rails(rail_entity)
 	local get_connected_rail = rail_entity.get_connected_rail
+	local br_rail = get_connected_rail(connected_rail_br)
 	return get_connected_rail(connected_rail_fs),
 		get_connected_rail(connected_rail_fl),
 		get_connected_rail(connected_rail_fr),
 		get_connected_rail(connected_rail_bs),
 		get_connected_rail(connected_rail_bl),
-		get_connected_rail(connected_rail_br)
+		br_rail
 end
 
 --------------------------------------------------------------------------------
@@ -179,8 +180,8 @@ end
 ---Determine the net capacity of a train car. Returns `0, 0` for entities that
 ---are not train cars.
 ---@param carriage LuaEntity A *valid* carriage entity that is a rolling stock in a train.
----@return number item_slot_capacity The number of item slots the carriage can hold.
----@return number fluid_capacity The total amount of fluid the carriage can hold.
+---@return uint item_slot_capacity The number of item slots the carriage can hold.
+---@return uint fluid_capacity The total amount of fluid the carriage can hold.
 function lib.get_carriage_capacity(carriage)
 	if
 		carriage.type == "cargo-wagon" or carriage.type == "infinity-cargo-wagon"
@@ -190,7 +191,7 @@ function lib.get_carriage_capacity(carriage)
 	elseif carriage.type == "fluid-wagon" then
 		local wagon_proto = carriage.prototype
 		local cap = wagon_proto.get_fluid_capacity(carriage.quality)
-		return 0, cap
+		return 0, math.floor(cap)
 	else
 		return 0, 0
 	end

@@ -8,19 +8,19 @@ local lib = {}
 
 ---@alias UnitNumber uint A Factorio `unit_number` associated uniquely with a particular `LuaEntity`.
 
----@alias UnitNumberSet table<UnitNumber, true> A collection of Factorio entities referenced by their `unit_number`.
+---@alias UnitNumberSet {[UnitNumber]: true} A collection of Factorio entities referenced by their `unit_number`.
 
 ---@alias Id int Unique id of a Cybersyn object, when that id is not a unit_number.
 
----@alias IdSet table<int, true> A collection of Cybersyn objects referenced by their `id`.
+---@alias IdSet {[Id]: true} A collection of Cybersyn objects referenced by their `id`.
 
 ---@alias PlayerIndex uint A Factorio `player_index` associated uniquely with a particular `LuaPlayer`.
 
 ---@alias SignalKey string A string identifying a particular SignalID.
 
----@alias SignalCounts table<SignalKey, int> Signals and associated counts.
+---@alias SignalCounts {[SignalKey]: int} Signals and associated counts.
 
----@alias SignalSet table<SignalKey, true> A collection of signals referenced by their `SignalKey`.
+---@alias SignalSet {[SignalKey]: true} A collection of signals referenced by their `SignalKey`.
 
 ---@alias Cybersyn.Manifest SignalCounts
 
@@ -35,7 +35,7 @@ local lib = {}
 ---@field public log_buffer any[] The full log ring buffer.
 
 ---Combinator game state.
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 ---@field public id int64 The unique Thing ID associated with this combinator.
 ---@field public real_entity LuaEntity? If the combinator is real and not a ghost, this is the LuaEntity representing it. NOTE: This is a cached value and must ALWAYS be checked for validity before use.
 ---@field public node_id? uint The id of the node this combinator is associated with, if any.
@@ -48,7 +48,7 @@ local lib = {}
 ---@field public connected_rail LuaEntity? If this combinator was built next to a rail, this is that rail.
 
 ---A vehicle managed by Cybersyn.
----@class Cybersyn.Vehicle
+---@class (partial) Cybersyn.Vehicle
 ---@field public id int Unique id of the vehicle.
 ---@field public topology_id int? Topology this vehicle can service
 ---@field public type string The type of the vehicle.
@@ -57,7 +57,7 @@ local lib = {}
 ---@field public created_tick uint The tick this vehicle was created.
 
 ---A train managed by Cybersyn.
----@class Cybersyn.Train: Cybersyn.Vehicle
+---@class (partial) Cybersyn.Train: Cybersyn.Vehicle
 ---@field public type "train"
 ---@field public lua_train LuaTrain? The most recent LuaTrain object representing this train. Note that this is a cached value and must ALWAYS be checked for validity before use.
 ---@field public lua_train_id Id? The id of the last known good LuaTrain object. Note that this is a cached value and persists even if the lua_train is expired/invalid.
@@ -96,14 +96,14 @@ lib.CarriageType = {
 ---@field public recent boolean? `true` if this layout was recently created or re-used. Used to prevent thrashing of train layouts in the async train monitor loop.
 
 ---An isolated group of `Node`s that can only communicate with each other.
----@class Cybersyn.Topology
+---@class (partial) Cybersyn.Topology
 ---@field public id Id Unique id of the topology.
 ---@field public surface_set? table<uint, boolean> A SET of surface indices associated with this topology, if any. This is used when multiple surfaces are logically connected.
 ---@field public name? string The name of the topology, if any.
 ---@field public thread_id? int The id of the thread servicing this topology if any.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
----@class Cybersyn.Node: RingBufferLog
+---@class (partial) Cybersyn.Node: RingBufferLog
 ---@field public id Id Unique id of the node.
 ---@field public topology_id Id? Id of the topology this node belongs to.
 ---@field public type string The type of the node.
@@ -125,7 +125,7 @@ lib.CarriageType = {
 ---@field public produce_single_item boolean? `true` if the node should only provide single items per delivery
 
 ---A reference to a train stop managed by Cybersyn.
----@class Cybersyn.TrainStop: Cybersyn.Node
+---@class (partial) Cybersyn.TrainStop: Cybersyn.Node
 ---@field public type "stop"
 ---@field public entity LuaEntity? The `train-stop` entity for this stop, if it exists.
 ---@field public entity_id UnitNumber? The unit number of the `train-stop` entity for this stop, if it exists.
@@ -152,7 +152,7 @@ lib.CarriageType = {
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
----@class Cybersyn.TrainStopLayout
+---@class (partial) Cybersyn.TrainStopLayout
 ---@field public node_id Id The id of the node this layout is for.
 ---@field public cargo_loader_map {[UnitNumber]: uint} Map of equipment that can load cargo to tile indices relative to the train stop.
 ---@field public fluid_loader_map {[UnitNumber]: uint} Map of equipment that can load fluid to tile indices relative to the train stop.
@@ -213,7 +213,7 @@ local OrderStatusDescription = {
 }
 lib.OrderStatusDescription = OrderStatusDescription
 
----@class Cybersyn.Order
+---@class (partial) Cybersyn.Order
 ---@field public inventory Cybersyn.Inventory The inventory against which this order is placed.
 ---@field public node_id Id The id of the node this order will deliver to/from
 ---@field public combinator_id? Id The id of the governing combinator that created this order if it exists.
@@ -248,7 +248,7 @@ lib.OrderStatusDescription = OrderStatusDescription
 ---@field public status_info? table? Additional info related to the status
 ---@field public status_tick? uint64 The tick on which the current status was assigned.
 
----@class Cybersyn.Inventory
+---@class (partial) Cybersyn.Inventory
 ---@field public id Id
 ---@field public created_for_node_id? Id If this inventory was created implicitly for a node, that node's id.
 ---@field public inventory SignalCounts True full contents of the inventory.
@@ -257,7 +257,7 @@ lib.OrderStatusDescription = OrderStatusDescription
 ---@field public inflow SignalCounts Future incoming cargo
 ---@field public outflow SignalCounts Future outgoing cargo
 
----@class Cybersyn.Delivery: StateMachine
+---@class (partial) Cybersyn.Delivery: StateMachine
 ---@field public id Id
 ---@field public type string
 ---@field public is_being_destroyed true? `true` if the delivery is in the process of being removed from game state.
@@ -272,7 +272,7 @@ lib.OrderStatusDescription = OrderStatusDescription
 ---@field public loaded SignalCounts? The actual contents loaded onto the vehicle at the provider.
 ---@field public topology_id Id The id of the topology this delivery is operating within.
 
----@class Cybersyn.TrainDelivery: Cybersyn.Delivery
+---@class (partial) Cybersyn.TrainDelivery: Cybersyn.Delivery
 ---@field public from_charge SignalCounts? Amount charged against the source station's inventory, which may differ from the manifest by spillover.
 ---@field public to_charge SignalCounts? Amount charged towards the destination station's inventory. Equal to the manifest, but `nil`ed when charge is cleared.
 ---@field public spillover uint Spillover used when calculating this delivery

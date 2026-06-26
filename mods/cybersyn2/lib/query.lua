@@ -1,10 +1,6 @@
 -- Types and reusable code for the public Cybersyn query interface.
 
-if ... ~= "__cybersyn2__.lib.query" then
-	return require("__cybersyn2__.lib.query")
-end
-
-require("__cybersyn2__.lib.types")
+require("lib.types")
 
 local lib = {}
 

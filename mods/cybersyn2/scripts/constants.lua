@@ -96,3 +96,27 @@ _G.cs2.ROLLING_STOCK_TYPES = {
 	["artillery-wagon"] = true,
 	["infinity-cargo-wagon"] = true,
 }
+
+local NO_NETWORKS = { red = false, green = false }
+
+---@type DeciderCombinatorCondition[]
+_G.cs2.COMBINATOR_DECIDER_CONDITIONS = {
+	{
+		comparator = "=",
+		first_signal = nil,
+		second_signal = nil,
+		compare_type = "or",
+		first_signal_networks = NO_NETWORKS,
+		second_signal_networks = NO_NETWORKS,
+	},
+	{
+		comparator = "=",
+		first_signal = nil,
+		second_signal = nil,
+		compare_type = "or",
+		first_signal_networks = NO_NETWORKS,
+		second_signal_networks = NO_NETWORKS,
+	},
+}
+
+cs2.BIG_INT32 = 2147483648

@@ -27,12 +27,12 @@ local NodeOrder = relm.define("NodeGui.Order", function(props)
 	local order = props.order --[[@as Cybersyn.Order]]
 
 	-- Skip orders not delivered to this node (shared inv)
-	if order.node_id ~= props.node.id then return end
+	if order.node_id ~= props.node.id then return nil end
 
 	-- Skip orders not doing anything
 	local is_requester = order:is_requester()
 	local is_provider = order:is_provider()
-	if (not is_requester) and not is_provider then return end
+	if (not is_requester) and not is_provider then return nil end
 
 	local thresh = order.thresh_in or EMPTY
 
@@ -93,6 +93,7 @@ local NodeOrder = relm.define("NodeGui.Order", function(props)
 			}),
 		}),
 		ultros.CallIf(is_requester, function()
+			---@diagnostic disable-next-line: undefined-field
 			local label = OrderStatusDescription[order.status or ""] or "No status" --[[@as LocalisedString]]
 
 			-- Special case for no_Vehicle status: extended description
@@ -212,7 +213,7 @@ local NodeInventory = relm.define("NodeGui.Inventory", function(props)
 	return {
 		ultros.WellSection(
 			{ caption = "Inventory" },
-			NodeInv({ node = node, inventory = inventory.inventory })
+			{ NodeInv({ node = node, inventory = inventory.inventory }) }
 		),
 		ultros.WellSection(
 			{ caption = "Orders" },
@@ -221,14 +222,13 @@ local NodeInventory = relm.define("NodeGui.Inventory", function(props)
 				function(order) return NodeOrder({ node = node, order = order }) end
 			)
 		),
-		ultros.WellSection(
-			{ caption = "Flows" },
+		ultros.WellSection({ caption = "Flows" }, {
 			NodeFlows({
 				node = node,
 				inflow = inventory.inflow,
 				outflow = inventory.outflow,
-			})
-		),
+			}),
+		}),
 	}
 end)
 

@@ -15,7 +15,7 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 ---@field public get_dt_unstacked fun(): boolean
 
 cs2.register_flag_setting("dt_inbound", "dt_flags", 0) -- DEPRECATED

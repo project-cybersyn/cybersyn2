@@ -19,7 +19,7 @@ local empty = tlib.empty
 local EMPTY = tlib.EMPTY_STRICT
 local min = math.min
 
----@class Cybersyn.TrainStop
+---@class (partial) Cybersyn.TrainStop
 local TrainStop = class("TrainStop", Node)
 _G.cs2.TrainStop = TrainStop
 
@@ -40,7 +40,7 @@ function TrainStop.new(stop_entity)
 end
 
 ---Get a train stop from storage by id.
----@param id Id
+---@param id Id?
 ---@param skip_validation boolean?
 ---@return Cybersyn.TrainStop?
 local function get_stop(id, skip_validation)
@@ -58,7 +58,9 @@ TrainStop.get = get_stop
 ---@param rail_entity LuaEntity A *valid* rail.
 ---@return Cybersyn.TrainStop? #The stop state, if found. For performance reasons, this state is not checked for validity.
 function TrainStop.find_stop_from_rail(rail_entity)
-	local stop_id = storage.rail_id_to_node_id[rail_entity.unit_number]
+	local stop_id = storage.rail_id_to_node_id[
+		rail_entity.unit_number --[[@as UnitNumber]]
+	]
 	if stop_id then
 		return storage.nodes[stop_id] --[[@as Cybersyn.TrainStop?]]
 	end
@@ -67,7 +69,11 @@ _G.cs2.find_stop_from_rail = TrainStop.find_stop_from_rail
 
 ---Check if this is a valid train stop.
 function TrainStop:is_valid()
-	return not self.is_being_destroyed and self.entity and self.entity.valid
+	if not self.is_being_destroyed and self.entity and self.entity.valid then
+		return true
+	else
+		return false
+	end
 end
 
 ---Determine if a stop accepts the given layout ID.
@@ -93,10 +99,8 @@ end
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence.
 ---@return Cybersyn.TrainStop?
 local function get_stop_from_unit_number(unit_number, skip_validation)
-	return cs2.get_node(
-		storage.stop_id_to_node_id[unit_number or ""],
-		skip_validation
-	) --[[@as Cybersyn.TrainStop?]]
+	if not unit_number then return nil end
+	return cs2.get_node(storage.stop_id_to_node_id[unit_number], skip_validation) --[[@as Cybersyn.TrainStop?]]
 end
 TrainStop.get_stop_from_unit_number = get_stop_from_unit_number
 _G.cs2.get_stop_from_unit_number = get_stop_from_unit_number

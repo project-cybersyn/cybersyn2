@@ -19,7 +19,7 @@ local VF = ultros.VFlow
 -- Settings
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 ---@field public get_deliveries_exclude_inbound fun(self: Cybersyn.Combinator): boolean
 ---@field public get_deliveries_exclude_outbound fun(self: Cybersyn.Combinator): boolean
 

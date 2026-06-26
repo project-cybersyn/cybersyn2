@@ -8,7 +8,7 @@ local events = require("lib.core.event")
 local cs2 = _G.cs2
 local CarriageType = require("lib.types").CarriageType
 
----@class Cybersyn.TrainStop
+---@class (partial) Cybersyn.TrainStop
 local TrainStop = _G.cs2.TrainStop
 
 local Locomotive = CarriageType.Locomotive
@@ -237,6 +237,8 @@ local function evaluate_stop(stop, changed_layout_id)
 	elseif #allowlist_combs == 0 then
 		make_default_allow_list(stop, station_comb, changed_layout_id)
 	else
+		-- Can't be nil because of prechecks
+		---@diagnostic disable-next-line: need-check-nil
 		local manually_allowed_layouts = allowlist_combs[1]:get_allowed_layouts()
 		if manually_allowed_layouts and #manually_allowed_layouts > 0 then
 			make_manual_allow_list(stop, manually_allowed_layouts, changed_layout_id)

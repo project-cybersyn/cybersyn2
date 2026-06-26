@@ -8,7 +8,7 @@ local counters = require("lib.core.counters")
 local CarriageType = require("lib.types").CarriageType
 local cs2 = _G.cs2
 
----@class Cybersyn.Train
+---@class (partial) Cybersyn.Train
 local Train = _G.cs2.Train
 
 local INF = math.huge

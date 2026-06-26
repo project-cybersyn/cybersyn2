@@ -12,7 +12,7 @@ local EMPTY_STRICT = tlib.EMPTY_STRICT
 local bit_extract = bit32.extract
 local bit_replace = bit32.replace
 
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 ---@field public tag_cache? Tags The cached tags for this combinator.
 local Combinator = cs2.Combinator
 
@@ -65,12 +65,14 @@ end
 function _G.cs2.register_flag_setting(setting_name, bitfield_key, bit_index)
 	Combinator["get_" .. setting_name] = function(self)
 		local tags = self:get_tags()
+		---@type int?
 		local bits = tags[bitfield_key]
 		if type(bits) ~= "number" then bits = bits and 1 or 0 end
 		return (bit_extract(bits, bit_index, 1) ~= 0)
 	end
 	Combinator["set_" .. setting_name] = function(self, new_value)
 		local tags = self:get_tags()
+		---@type int?
 		local bits = tags[bitfield_key]
 		if type(bits) ~= "number" then bits = bits and 1 or 0 end
 		local new_bits = bit_replace(bits, new_value and 1 or 0, bit_index, 1) --[[@as int]]

@@ -24,7 +24,7 @@ relm.define_element({
 
 relm.define_element({
 	name = "CombinatorGui.Mode.Wagon.Help",
-	render = function(props) end,
+	render = function(props) return nil end,
 })
 
 --------------------------------------------------------------------------------

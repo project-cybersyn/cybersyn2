@@ -221,6 +221,7 @@ local DeliveryHeader = relm.define("CS2.DeliveryHeader", function(props)
 
 	return {
 		ultros.TimedRepaintWrapper({
+			---@param t int64
 			render = function(t)
 				local time_in_state = t - state_tick
 				return ultros.RtLgLabel({
@@ -250,14 +251,14 @@ local TrainDeliveryFrame = relm.define_element({
 		local from_name = "Unknown"
 		if from_stop then
 			from_entity = from_stop.entity --[[@as LuaEntity]]
-			from_name = from_entity.backer_name
+			from_name = from_entity.backer_name or "Unknown"
 		end
 		local to_stop = cs2.get_stop(delivery.to_id)
 		local to_entity = nil
 		local to_name = "Unknown"
 		if to_stop then
 			to_entity = to_stop.entity --[[@as LuaEntity]]
-			to_name = to_entity.backer_name
+			to_name = to_entity.backer_name or "Unknown"
 		end
 		local cstrain = cs2.get_train(delivery.vehicle_id)
 		local train_entity = nil

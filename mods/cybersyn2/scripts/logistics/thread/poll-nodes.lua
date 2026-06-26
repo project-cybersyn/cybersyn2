@@ -29,7 +29,7 @@ local pairs = _G.pairs
 local clamp = nmlib.clamp
 local STATUS_WORKING = defines.entity_status.working
 
----@class Cybersyn.LogisticsThread
+---@class (partial) Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
 --------------------------------------------------------------------------------
@@ -160,7 +160,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	if (not is_valid) or not can_proceed then return false end
 
 	-- Verify status of station comb
-	local comb = combs[1]
+	local comb = combs[1] --[[@as Cybersyn.Combinator]]
 	add_workload(workload, 2)
 	local comb_entity = comb.real_entity
 	if
@@ -235,20 +235,21 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	end
 
 	if signal_reserved_slots then
-		stop.reserved_slots = clamp(inputs[signal_reserved_slots.name], 0, INF, 0)
+		stop.reserved_slots =
+			clamp(inputs[signal_reserved_slots.name], 0, cs2.BIG_INT32, 0) --[[@as uint]]
 	else
 		stop.reserved_slots = comb:get_reserved_slots() or 0
 	end
 
 	if signal_reserved_fluid then
 		stop.reserved_capacity =
-			clamp(inputs[signal_reserved_fluid.name], 0, INF, 0)
+			clamp(inputs[signal_reserved_fluid.name], 0, cs2.BIG_INT32, 0) --[[@as uint]]
 	else
 		stop.reserved_capacity = comb:get_reserved_capacity() or 0
 	end
 
 	if signal_spillover then
-		stop.spillover = clamp(inputs[signal_spillover.name], 0, INF, 0)
+		stop.spillover = clamp(inputs[signal_spillover.name], 0, cs2.BIG_INT32, 0) --[[@as uint]]
 	else
 		stop.spillover = comb:get_spillover() or 0
 	end

@@ -20,7 +20,7 @@ local strformat = string.format
 -- Settings
 --------------------------------------------------------------------------------
 
----@class Cybersyn.Combinator
+---@class (partial) Cybersyn.Combinator
 ---@field public get_order_primary_stacked_requests fun(self: Cybersyn.Combinator): boolean
 ---@field public get_order_secondary_stacked_requests fun(self: Cybersyn.Combinator): boolean
 ---@field public get_order_primary_network_matching_mode fun(self: Cybersyn.Combinator): "and" | "or"

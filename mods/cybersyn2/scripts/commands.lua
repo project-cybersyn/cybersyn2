@@ -25,7 +25,11 @@ commands.add_command(
 commands.add_command(
 	"cs2-debugger",
 	{ "cybersyn2-commands.debugger-command-help" },
-	function(command) cs2.debug.open_debugger(command.player_index) end
+	function(command)
+		if not command.player_index then return end
+
+		cs2.debug.open_debugger(command.player_index)
+	end
 )
 
 commands.add_command(

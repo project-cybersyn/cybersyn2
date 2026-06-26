@@ -41,7 +41,7 @@ cs2.register_combinator_mode({
 
 relm.define_element({
 	name = "CombinatorGui.Mode.WagonSplit",
-	render = function(props) end,
+	render = function(props) return nil end,
 })
 
 relm.define_element({
@@ -161,6 +161,7 @@ local function lock_item_slots(cw_manifests, n_slots, item, count, stack_size)
 	return true
 end
 
+---@param qty number
 ---@param fw_manifests Cybersyn.Internal.WagonManifest[]
 local function distribute_fluid(fw_manifests, fluid, qty)
 	local target_amount_per_wagon = ceil(qty / #fw_manifests)
@@ -171,7 +172,7 @@ local function distribute_fluid(fw_manifests, fluid, qty)
 			local available_capacity = fw_manifest.capacity
 			if available_capacity > 0 then
 				local qty_to_distribute =
-					min(qty, available_capacity, target_amount_per_wagon)
+					floor(min(qty, available_capacity, target_amount_per_wagon))
 				fw_manifest.manifest[fluid] = (fw_manifest.manifest[fluid] or 0)
 					+ qty_to_distribute
 				fw_manifest.capacity = fw_manifest.capacity - qty_to_distribute

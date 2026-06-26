@@ -16,7 +16,12 @@ local strace = stlib.strace
 local WARN = stlib.WARN
 local add_workload = thread_lib.add_workload
 
----@class Cybersyn.Delivery: StateMachine
+-- Type-assert storage due to EmmyLua issues
+---@diagnostic disable-next-line: missing-fields
+---@type Cybersyn.Storage
+storage = {}
+
+---@class (partial) Cybersyn.Delivery: StateMachine
 local Delivery = class("Delivery", StateMachine)
 _G.cs2.Delivery = Delivery
 

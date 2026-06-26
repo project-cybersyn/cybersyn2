@@ -259,7 +259,10 @@ cs2.on_broken_train_stop(function(stop_entity)
 		storage.entities_being_destroyed = {}
 	end
 
-	storage.entities_being_destroyed[stop_entity.unit_number] = true
+	storage.entities_being_destroyed[
+		stop_entity.unit_number --[[@as UnitNumber]]
+	] =
+		true
 	stop:destroy()
 	strace.trace("on_broken_train_stop: finished destroying stop", stop.id)
 end)

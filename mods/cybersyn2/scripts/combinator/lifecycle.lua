@@ -33,24 +33,7 @@ local function clear_combinator_outputs(combinator_entity)
 	-- Add LHS conditions. First is so we can control what displays in the
 	-- combinator's window, second is generic "always-true"
 	beh.parameters = {
-		conditions = {
-			{
-				comparator = "=",
-				first_signal = nil,
-				second_signal = nil,
-				compare_type = "or",
-				first_signal_networks = NO_NETWORKS,
-				second_signal_networks = NO_NETWORKS,
-			},
-			{
-				comparator = "=",
-				first_signal = nil,
-				second_signal = nil,
-				compare_type = "or",
-				first_signal_networks = NO_NETWORKS,
-				second_signal_networks = NO_NETWORKS,
-			},
-		},
+		conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
 		outputs = {},
 	}
 end
@@ -59,7 +42,7 @@ end
 ---@param thing things.ThingSummary
 local function create_combinator(thing)
 	local comb = Combinator:new(thing)
-	comb.mode = (thing.tags or EMPTY).mode or "unknown" --[[@as string]]
+	comb.mode = ((thing.tags or EMPTY).mode or "unknown") --[[@as string]]
 	if thing.entity then clear_combinator_outputs(thing.entity) end
 	events.raise("cs2.combinator_created", comb)
 	events.raise("cs2.combinator_status_changed", comb)

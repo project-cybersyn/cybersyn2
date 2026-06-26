@@ -22,7 +22,7 @@ local key_to_stacksize = signal.key_to_stacksize
 local Combinator = _G.cs2.Combinator
 local empty = tlib.empty
 
----@class Cybersyn.Node
+---@class (partial) Cybersyn.Node
 local Node = class("Node")
 _G.cs2.Node = Node
 
