@@ -191,6 +191,7 @@ data:extend({ proxy_entity })
 local comb_registration = {
 	name = "cybersyn2-combinator",
 	intercept_construction = true,
+	movable = "never",
 	migrate_tags_callback = { "cybersyn2", "migrate_tags_callback" },
 	initial_tags_callback = { "cybersyn2", "initial_tags_callback" },
 	custom_events = {
@@ -203,16 +204,6 @@ local comb_registration = {
 
 data.raw["mod-data"]["things-names"].data["cybersyn2-combinator"] =
 	comb_registration
-
--- local chest_registration = {
--- 	name = "cybersyn2-proxy-chest",
--- 	intercept_construction = false,
--- 	no_garbage_collection = true,
--- 	allow_in_cursor = "never",
--- }
-
--- data.raw["mod-data"]["things-names"].data["cybersyn2-proxy-chest"] =
--- 	chest_registration
 
 data.raw["mod-data"]["things-graphs"].data["cybersyn2-shared-inventory"] = {
 	directed = true,
