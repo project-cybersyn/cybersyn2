@@ -6,18 +6,16 @@
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
 local events = require("lib.core.event")
+-- XXX: TYPES: EmmyLua require paths
+---@diagnostic disable-next-line: unresolved-require
+local things_client = require("__0-things__.client.client") --[[@as things.client]]
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 
 local EMPTY = tlib.EMPTY_STRICT
-local strace = stlib.strace
-local ERROR = stlib.ERROR
-local TRACE = stlib.TRACE
-local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
 local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
-local get_raw_settings = _G.cs2.get_raw_settings
 
-local NO_NETWORKS = { red = false, green = false }
+local get_tag = things_client.tags_v1.get_tag
 
 --------------------------------------------------------------------------------
 -- Combinator lifecycle events.
@@ -35,14 +33,16 @@ local function clear_combinator_outputs(combinator_entity)
 	beh.parameters = {
 		conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
 		outputs = {},
+		else_outputs = {},
 	}
 end
 
 ---Create a combinator from a real Thing.
----@param thing things.ThingSummary
+---@param thing things.ThingShortSummary
 local function create_combinator(thing)
 	local comb = Combinator:new(thing)
-	comb.mode = ((thing.tags or EMPTY).mode or "unknown") --[[@as string]]
+	local mode = (get_tag(thing.id, "mode") or "unknown") --[[@as string]]
+	comb.mode = mode
 	if thing.entity then clear_combinator_outputs(thing.entity) end
 	events.raise("cs2.combinator_created", comb)
 	events.raise("cs2.combinator_status_changed", comb)

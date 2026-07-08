@@ -45,7 +45,7 @@ _G.cs2.Combinator = Combinator
 
 ---Create a new saved combinator state. Should only be called by
 ---combinator lifecycle controller.
----@param thing things.ThingSummary
+---@param thing things.ThingShortSummary
 ---@return Cybersyn.Combinator
 function Combinator:new(thing)
 	local id = thing.id
