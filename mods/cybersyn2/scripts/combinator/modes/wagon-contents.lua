@@ -35,8 +35,10 @@ local SCRIPT = defines.wire_origin.script
 ---@param combinator Cybersyn.Combinator
 ---@param force_destroy boolean?
 local function create_or_destroy_hidden_chest(combinator, force_destroy)
-	local _, chest =
-		remote.call("things", "get_transient_child", combinator.id, "proxy_chest")
+	---@type nil, things.ThingChildInfo
+	local _, chest_info =
+		remote.call("things", "get_child", combinator.id, "proxy_chest")
+	local chest = chest_info and chest_info.entity
 	if
 		combinator.mode == "wagon_contents"
 		and combinator.real_entity
@@ -75,35 +77,25 @@ local function create_or_destroy_hidden_chest(combinator, force_destroy)
 			combinator.id,
 			"Created hidden proxy chest entity"
 		)
-		remote.call(
-			"things",
-			"add_transient_child",
-			combinator.id,
-			"proxy_chest",
-			chest
-		)
+		remote.call("things", "add_child", combinator.id, "proxy_chest", chest)
 	elseif chest then
 		stlib.debug(
 			"Combinator",
 			combinator.id,
 			"Destroying hidden proxy chest entity"
 		)
-		remote.call(
-			"things",
-			"remove_transient_child",
-			combinator.id,
-			"proxy_chest",
-			true
-		)
+		remote.call("things", "remove_child", combinator.id, "proxy_chest", true)
 	end
 end
 
 ---@param comb Cybersyn.Combinator
 local function clear_combinator(comb)
 	comb:direct_write_outputs(empty)
-	local _, chest =
-		remote.call("things", "get_transient_child", comb.id, "proxy_chest")
-	if chest and chest.valid then
+	---@type nil, things.ThingChildInfo
+	local _, chest_info =
+		remote.call("things", "get_child", comb.id, "proxy_chest")
+	local chest = chest_info and chest_info.entity
+	if chest then
 		chest.proxy_target_entity = nil
 		stlib.debug("Combinator", comb.id, "Cleared proxy target entity")
 	end
@@ -112,9 +104,11 @@ end
 ---@param comb Cybersyn.Combinator
 ---@param wagon LuaEntity
 local function set_proxy_chest_inventory(comb, wagon)
-	local _, chest =
-		remote.call("things", "get_transient_child", comb.id, "proxy_chest")
-	if chest and chest.valid then
+	---@type nil, things.ThingChildInfo
+	local _, chest_info =
+		remote.call("things", "get_child", comb.id, "proxy_chest")
+	local chest = chest_info and chest_info.entity
+	if chest then
 		if wagon and wagon.type == "cargo-wagon" then
 			chest.proxy_target_entity = wagon
 			chest.proxy_target_inventory = defines.inventory.cargo_wagon
