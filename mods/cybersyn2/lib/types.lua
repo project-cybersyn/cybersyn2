@@ -6,8 +6,6 @@
 
 local lib = {}
 
----@alias UnitNumber uint A Factorio `unit_number` associated uniquely with a particular `LuaEntity`.
-
 ---@alias UnitNumberSet {[UnitNumber]: true} A collection of Factorio entities referenced by their `unit_number`.
 
 ---@alias Id int Unique id of a Cybersyn object, when that id is not a unit_number.
@@ -16,18 +14,9 @@ local lib = {}
 
 ---@alias PlayerIndex uint A Factorio `player_index` associated uniquely with a particular `LuaPlayer`.
 
----@alias SignalKey string A string identifying a particular SignalID.
-
----@alias SignalCounts {[SignalKey]: int} Signals and associated counts.
-
 ---@alias SignalSet {[SignalKey]: true} A collection of signals referenced by their `SignalKey`.
 
 ---@alias Cybersyn.Manifest SignalCounts
-
----@class StateMachine
----@field public state string Current state.
----@field public is_changing_state boolean? `true` if a state change is ongoing
----@field public queued_state_changes string[]? A queue of state changes to be applied
 
 ---@class RingBufferLog
 ---@field public log_size uint Max size of the log
@@ -50,7 +39,8 @@ local lib = {}
 ---A vehicle managed by Cybersyn.
 ---@class (partial) Cybersyn.Vehicle
 ---@field public id int Unique id of the vehicle.
----@field public topology_id int? Topology this vehicle can service
+---@field public default_topology_id int? Default topology
+---@field public topology_id int? Explicitly-set topology id for this vehicle, if any. If `nil`, the vehicle is using its default topology.
 ---@field public type string The type of the vehicle.
 ---@field public is_being_destroyed true? `true` if the vehicle is in the process of being removed from game state.
 ---@field public delivery_id Id? The current delivery this vehicle is processing.
@@ -95,7 +85,7 @@ lib.CarriageType = {
 ---@field public no_trains boolean? `true` if no extant trains match this layout.
 ---@field public recent boolean? `true` if this layout was recently created or re-used. Used to prevent thrashing of train layouts in the async train monitor loop.
 
----An isolated group of `Node`s that can only communicate with each other.
+---An isolated group of `Node`s and `Vehicle`s that can only communicate with each other.
 ---@class (partial) Cybersyn.Topology
 ---@field public id Id Unique id of the topology.
 ---@field public surface_set? table<uint, boolean> A SET of surface indices associated with this topology, if any. This is used when multiple surfaces are logically connected.
@@ -105,7 +95,8 @@ lib.CarriageType = {
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
 ---@class (partial) Cybersyn.Node: RingBufferLog
 ---@field public id Id Unique id of the node.
----@field public topology_id Id? Id of the topology this node belongs to.
+---@field public default_topology_id Id? Default topology id for this node.
+---@field public topology_id Id? Id of the topology this node belongs to. If `nil`, `default_topology_id` is used.
 ---@field public type string The type of the node.
 ---@field public combinator_set UnitNumberSet Set of combinators associated to this node, by unit number.
 ---@field public created_tick uint Tick number when this node was created.
