@@ -85,10 +85,19 @@ function Vehicle:destroy()
 	storage.vehicles[self.id] = nil
 end
 
----@param topology_id int64?
+--------------------------------------------------------------------------------
+-- Topology
+--------------------------------------------------------------------------------
+
+---@param topology_id Id?
 function Vehicle:set_topology(topology_id)
 	local previous_topology_id = self.topology_id
 	if previous_topology_id == topology_id then return end
 	self.topology_id = topology_id
 	events.raise("cs2.vehicle_topology_changed", self, previous_topology_id)
+end
+
+---@return Id? topology_id Id of the topology this vehicle belongs to, if any.
+function Vehicle:get_topology_id()
+	return self.topology_id or self.default_topology_id
 end

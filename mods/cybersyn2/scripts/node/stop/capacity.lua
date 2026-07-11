@@ -21,10 +21,10 @@ local function find_similar_train(
 			---@cast train Cybersyn.Train
 			if
 				train.id ~= id
-				and train.topology_id == topology_id
 				and train.layout_id == layout_id
 				and train.item_slot_capacity == item_slot_capacity
 				and train.fluid_capacity == fluid_capacity
+				and train:get_topology_id() == topology_id
 			then
 				return train
 			end
@@ -58,7 +58,7 @@ local function evaluate_capacity_for_stop(stop, cache)
 		if veh.type == "train" then
 			---@cast veh Cybersyn.Train
 			if
-				veh.topology_id == stop.topology_id
+				veh:get_topology_id() == stop:get_topology_id()
 				and veh:is_valid()
 				and stop:accepts_layout(veh.layout_id)
 			then
@@ -116,7 +116,7 @@ local function evaluate_capacity_for_layout(topology_id, layout_id, cache)
 		if stop.type == "stop" then
 			---@cast stop Cybersyn.TrainStop
 			if
-				stop.topology_id == topology_id
+				stop:get_topology_id() == topology_id
 				and stop:accepts_layout(layout_id)
 				and stop:is_valid()
 			then
@@ -151,13 +151,17 @@ events.bind(
 		if
 			not find_similar_train(
 				vehicle.id,
-				vehicle.topology_id,
+				vehicle:get_topology_id(),
 				vehicle.layout_id,
 				vehicle.item_slot_capacity,
 				vehicle.fluid_capacity
 			)
 		then
-			evaluate_capacity_for_layout(vehicle.topology_id, vehicle.layout_id, {})
+			evaluate_capacity_for_layout(
+				vehicle:get_topology_id(),
+				vehicle.layout_id,
+				{}
+			)
 		end
 	end
 )
@@ -168,13 +172,17 @@ events.bind("cs2.vehicle_destroyed", function(vehicle)
 	if
 		not find_similar_train(
 			vehicle.id,
-			vehicle.topology_id,
+			vehicle:get_topology_id(),
 			vehicle.layout_id,
 			vehicle.item_slot_capacity,
 			vehicle.fluid_capacity
 		)
 	then
-		evaluate_capacity_for_layout(vehicle.topology_id, vehicle.layout_id, {})
+		evaluate_capacity_for_layout(
+			vehicle:get_topology_id(),
+			vehicle.layout_id,
+			{}
+		)
 	end
 end)
 
@@ -212,13 +220,17 @@ events.bind(
 		if
 			not find_similar_train(
 				vehicle.id,
-				vehicle.topology_id,
+				vehicle:get_topology_id(),
 				vehicle.layout_id,
 				vehicle.item_slot_capacity,
 				vehicle.fluid_capacity
 			)
 		then
-			evaluate_capacity_for_layout(vehicle.topology_id, vehicle.layout_id, {})
+			evaluate_capacity_for_layout(
+				vehicle:get_topology_id(),
+				vehicle.layout_id,
+				{}
+			)
 		end
 
 		if previous_topology_id then

@@ -31,7 +31,7 @@ function LogisticsThread:enter_enum_nodes()
 	-- Find all nodes in the topology
 	local topology_id = self.topology_id
 	local nodes = tlib.t_map_a(storage.nodes, function(node)
-		if node.topology_id == topology_id then return node end
+		if node:get_topology_id() == topology_id then return node end
 	end)
 	self.nodes = nodes
 	local n_nodes = #nodes

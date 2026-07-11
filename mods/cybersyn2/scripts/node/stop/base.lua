@@ -27,6 +27,7 @@ _G.cs2.TrainStop = TrainStop
 ---@return Cybersyn.TrainStop
 function TrainStop.new(stop_entity)
 	local stop_id = stop_entity.unit_number
+	-- TODO: topology
 	local topology = cs2.get_train_topology(stop_entity.surface_index)
 	local node = Node.new("stop") --[[@as Cybersyn.TrainStop]]
 	setmetatable(node, TrainStop)

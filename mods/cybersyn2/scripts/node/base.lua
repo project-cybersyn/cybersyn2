@@ -180,7 +180,7 @@ end
 --------------------------------------------------------------------------------
 
 ---Set the topology ID for this node.
----@param topology_id Id
+---@param topology_id Id?
 function Node:set_topology(topology_id)
 	local previous_topology_id = self.topology_id
 	if previous_topology_id == topology_id then return end
@@ -190,7 +190,9 @@ function Node:set_topology(topology_id)
 end
 
 ---@return Id? topology_id Id of the topology this node belongs to, if any.
-function Node:get_topology_id() return self.topology_id end
+function Node:get_topology_id()
+	return self.topology_id or self.default_topology_id
+end
 
 --------------------------------------------------------------------------------
 -- Inventory

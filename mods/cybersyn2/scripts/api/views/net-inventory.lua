@@ -54,7 +54,7 @@ function NetInventoryView:snapshot(workload)
 	if not top then return end
 	self:enter_nodes(workload, top)
 	for _, node in pairs(storage.nodes) do
-		if node.topology_id == self.topology_id then
+		if node:get_topology_id() == self.topology_id then
 			self:enter_node(workload, node)
 			local inv = node:get_inventory()
 			if inv then
@@ -81,7 +81,7 @@ end
 function NetInventoryView:enter_node(workload, node)
 	-- Skip nodes with potentially invalid inventory
 	self.skip_node = true
-	if node.topology_id ~= self.topology_id then return end
+	if node:get_topology_id() ~= self.topology_id then return end
 	local inv = nil
 	local ninv = node:get_inventory() or EMPTY
 	-- Don't count slave inventories

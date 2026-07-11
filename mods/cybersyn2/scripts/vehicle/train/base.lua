@@ -152,6 +152,7 @@ function Train.new(lua_train)
 		)
 	if not stock then return nil end
 
+	-- TODO: topology
 	local topology = cs2.get_train_topology(stock.surface_index)
 	if not topology then return nil end
 
@@ -348,6 +349,7 @@ end
 ---@return boolean success `true` if all records were added, `false` if the schedule is interrupted.
 ---@return "interrupted"|"failed"|"tainted"|nil reason If `success` is `false`, the reason why.
 function Train:schedule(...)
+	if not self.lua_train then return false, "failed" end
 	local schedule = self.lua_train.get_schedule()
 	local is_interrupted, is_depot, only_depot = get_schedule_state(schedule)
 	if is_interrupted then return false, "interrupted" end
@@ -462,6 +464,12 @@ end
 function Train:evaluate_capacity()
 	local old_item_slot_capacity = self.item_slot_capacity
 	local old_fluid_capacity = self.fluid_capacity
+	if not self.lua_train then
+		self.item_slot_capacity = 0
+		self.fluid_capacity = 0
+		return (old_item_slot_capacity ~= 0 or old_fluid_capacity ~= 0)
+	end
+
 	local pwfc = {} -- per-wagon fluid capacity cache
 	local pwisc = {} -- per-wagon item slot capacity cache
 

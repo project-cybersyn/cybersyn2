@@ -762,7 +762,7 @@ function LogisticsThread:enum_trains()
 	local avail_trains = {}
 	local topology_id = self.topology_id
 	for _, veh in pairs(storage.vehicles) do
-		if veh.type == "train" and veh.topology_id == topology_id then
+		if veh.type == "train" and veh:get_topology_id() == topology_id then
 			trains[#trains + 1] = veh
 			avail_trains[#avail_trains + 1] = true
 		end

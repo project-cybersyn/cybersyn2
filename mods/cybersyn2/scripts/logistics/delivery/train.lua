@@ -71,7 +71,7 @@ function TrainDelivery.new(
 	delivery.manifest = manifest
 	delivery.from_id = from.id
 	delivery.to_id = to.id
-	delivery.topology_id = from.topology_id
+	delivery.topology_id = from:get_topology_id()
 	delivery.from_inventory_id = from_inv.id
 	delivery.to_inventory_id = to_inv.id
 	delivery.spillover = spillover
