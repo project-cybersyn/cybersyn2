@@ -2,6 +2,7 @@
 Version: 0.2.1
 Date: ????
   Changes:
+    - Updated for Things 0.5.0.
     - Cybersyn 2 combinators can no longer be moved with picker dollies.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
