@@ -55,6 +55,25 @@ local Group = relm.define_element({
 						cs2.set_train_group_decomissioned(group, not st)
 					end,
 				}),
+				ultros.Labeled({ caption = "Topology" }, {
+					ultros.SignalPicker({
+						tooltip = "The topology assigned to trains in this group. If no topology is selected, the default topology will be used.",
+						virtual_signal = group.topology,
+						on_change = function(_, signal, elem)
+							if not signal then
+								cs2.set_train_group_topology(group, nil)
+							elseif signal.type == "virtual" then
+								cs2.set_train_group_topology(group, signal.name)
+							else
+								game.print(
+									{ "cybersyn2-gui.virtual-signals-only" },
+									cs2.ERROR_PRINT_OPTS
+								)
+								elem.elem_value = nil
+							end
+						end,
+					}),
+				}),
 			})
 		)
 	end,

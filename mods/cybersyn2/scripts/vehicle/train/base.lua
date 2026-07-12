@@ -30,6 +30,7 @@ storage = {}
 ---@class Cybersyn.Internal.TrainGroup
 ---@field public name string The factorio train group name.
 ---@field public trains IdSet The set of vehicle ids of trains in the group.
+---@field public topology string? The virutal signal name of the topology manually assigned to this group, if any.
 ---@field public topology_id Id? The id of the topology manually assigned to this group, if any.
 ---@field public decomissioned boolean? Whether the group is marked for decomissioning.
 
@@ -117,13 +118,17 @@ end
 ---@param signal_name string?
 function cs2.set_train_group_topology(group, signal_name)
 	if not signal_name then
+		group.topology = nil
 		group.topology_id = nil
 		events.raise("cs2.group_settings_changed", group)
 		return
 	end
-	local topology = cs2.get_or_create_topology_by_name(signal_name)
-	group.topology_id = topology.id
-	events.raise("cs2.group_settings_changed", group)
+	if signal_name ~= group.topology then
+		local topology = cs2.get_or_create_topology_by_name(signal_name)
+		group.topology = signal_name
+		group.topology_id = topology.id
+		events.raise("cs2.group_settings_changed", group)
+	end
 end
 
 --------------------------------------------------------------------------------
