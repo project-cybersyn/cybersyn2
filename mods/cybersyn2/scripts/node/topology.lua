@@ -150,7 +150,7 @@ cs2.get_or_create_train_topology = get_or_create_train_topology
 --------------------------------------------------------------------------------
 
 function cs2.retopologize()
-	strace.info("cs2.retopologize(): Retopologizing all nodes and vehicles...")
+	strace.warn("cs2.retopologize(): Retopologizing all nodes and vehicles...")
 
 	-- Re-query default topologies for all nodes and vehicles.
 	for _, node in pairs(storage.nodes) do
