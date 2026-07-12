@@ -132,6 +132,24 @@ function Delivery:check_stuck(workload) end
 ---@return boolean
 function Delivery:is_cancellable() return false end
 
+---Clear virtual charge on `from` inventory.
+function Delivery:clear_from_charge()
+	if self.from_charge then
+		local from_inv = cs2.get_inventory(self.from_inventory_id)
+		if from_inv then from_inv:add_outflow_rebate(self.from_charge, -1) end
+		self.from_charge = nil
+	end
+end
+
+---Clear virtual charge on `to` inventory.
+function Delivery:clear_to_charge()
+	if self.to_charge then
+		local to_inv = cs2.get_inventory(self.to_inventory_id)
+		if to_inv then to_inv:add_inflow_rebate(self.to_charge, -1) end
+		self.to_charge = nil
+	end
+end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------

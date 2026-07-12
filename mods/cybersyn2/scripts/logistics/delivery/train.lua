@@ -21,6 +21,7 @@ local tlib = require("lib.core.table")
 local thread_lib = require("lib.core.thread")
 local events = require("lib.core.event")
 local pos_lib = require("lib.core.math.pos")
+local cs2 = cs2
 
 local empty = tlib.empty
 local strace = stlib.strace
@@ -94,30 +95,12 @@ function TrainDelivery.new(
 	return delivery
 end
 
----Clear virtual charge on `from` inventory.
-function TrainDelivery:clear_from_charge()
-	if self.from_charge then
-		local from_inv = Inventory.get(self.from_inventory_id)
-		if from_inv then from_inv:add_outflow_rebate(self.from_charge, -1) end
-		self.from_charge = nil
-	end
-end
-
 function TrainDelivery:has_departed_provider()
 	local state = self.state
 	return (state == "to_to")
 		or (state == "at_to")
 		or (state == "wait_to")
 		or (state == "interrupted_to")
-end
-
----Clear virtual charge on `to` inventory.
-function TrainDelivery:clear_to_charge()
-	if self.to_charge then
-		local to_inv = Inventory.get(self.to_inventory_id)
-		if to_inv then to_inv:add_inflow_rebate(self.to_charge, -1) end
-		self.to_charge = nil
-	end
 end
 
 ---Clear all consequences of this delivery from queues, caches etc

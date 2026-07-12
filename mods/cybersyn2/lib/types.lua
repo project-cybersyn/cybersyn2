@@ -262,10 +262,10 @@ lib.OrderStatusDescription = OrderStatusDescription
 ---@field public manifest SignalCounts The intended contents of the delivery.
 ---@field public loaded SignalCounts? The actual contents loaded onto the vehicle at the provider.
 ---@field public topology_id Id The id of the topology this delivery is operating within.
+---@field public from_charge SignalCounts? Amount charged against the source station's inventory.
+---@field public to_charge SignalCounts? Amount charged towards the destination station's inventory.
 
 ---@class (partial) Cybersyn.TrainDelivery: Cybersyn.Delivery
----@field public from_charge SignalCounts? Amount charged against the source station's inventory, which may differ from the manifest by spillover.
----@field public to_charge SignalCounts? Amount charged towards the destination station's inventory. Equal to the manifest, but `nil`ed when charge is cleared.
 ---@field public spillover uint Spillover used when calculating this delivery
 ---@field public reserved_slots uint Reserved slots used when calculating this delivery
 ---@field public reserved_fluid_capacity uint Reserved capacity used when calculating this delivery
