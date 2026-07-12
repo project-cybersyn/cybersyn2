@@ -90,9 +90,10 @@ end
 --------------------------------------------------------------------------------
 
 ---@param topology_id Id?
+---@return boolean was_set `true` if the topology was changed from the previous effective topology.
 function Vehicle:set_topology(topology_id)
 	local previous_topology_id = self.topology_id
-	if previous_topology_id == topology_id then return end
+	if previous_topology_id == topology_id then return false end
 	local previous_effective_topology_id = previous_topology_id
 		or self.default_topology_id
 	self.topology_id = topology_id
@@ -103,7 +104,9 @@ function Vehicle:set_topology(topology_id)
 			self,
 			previous_effective_topology_id
 		)
+		return true
 	end
+	return false
 end
 
 ---@param topology_id Id?
