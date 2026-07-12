@@ -157,14 +157,22 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 		return
 	end
 
+	-- Flag layout as seen
 	local layout_id = train.layout_id
 	if not layout_id then
 		-- Train has no layout, nothing to do.
 		strace(stlib.WARN, "message", "enum_cstrain: train had no layout", train)
 		return
 	end
-
 	self.seen_layouts[layout_id] = true
+
+	-- Apply group topo settings
+	local group = cs2.get_train_group(train.group)
+	if group then
+		train:set_topology(group.topology_id)
+	else
+		stlib.warn("enum_cstrain: train had no group", train, train.group)
+	end
 
 	-- View vehicle visitors
 	for _, view in pairs(storage.views) do

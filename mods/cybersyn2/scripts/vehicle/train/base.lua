@@ -44,20 +44,10 @@ _G.cs2.is_cybersyn_train_group_name = is_cybersyn_train_group_name
 
 ---@param name string
 local function create_train_group(name)
-	-- Check for topology name after group name
-	local prefix = cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX
-	local rest = strsub(name or "", #prefix + 1)
-	local _, _, signal = string.find(rest, "^(%[virtual%-signal=[%w_%-]+%])")
-	local topology_id = nil
-	if signal then
-		local topology = cs2.get_or_create_topology_by_name(signal)
-		topology_id = topology.id
-	end
-
 	storage.train_groups[name] = {
 		name = name,
 		trains = {},
-		topology_id = topology_id,
+		topology_id = nil,
 	}
 	events.raise("cs2.group_created", name)
 end
@@ -110,6 +100,7 @@ end
 _G.cs2.remove_train_from_group = remove_train_from_group
 
 ---@param group_name string?
+---@return Cybersyn.Internal.TrainGroup?
 function _G.cs2.get_train_group(group_name)
 	return storage.train_groups[group_name or ""]
 end
@@ -119,6 +110,19 @@ end
 ---@param decomissioned boolean|nil
 function _G.cs2.set_train_group_decomissioned(group, decomissioned)
 	group.decomissioned = decomissioned
+	events.raise("cs2.group_settings_changed", group)
+end
+
+---@param group Cybersyn.Internal.TrainGroup
+---@param signal_name string?
+function cs2.set_train_group_topology(group, signal_name)
+	if not signal_name then
+		group.topology_id = nil
+		events.raise("cs2.group_settings_changed", group)
+		return
+	end
+	local topology = cs2.get_or_create_topology_by_name(signal_name)
+	group.topology_id = topology.id
 	events.raise("cs2.group_settings_changed", group)
 end
 

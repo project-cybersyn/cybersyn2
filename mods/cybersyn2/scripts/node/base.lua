@@ -183,9 +183,18 @@ end
 function Node:set_topology(topology_id)
 	local previous_topology_id = self.topology_id
 	if previous_topology_id == topology_id then return end
+	local previous_effective_topology_id = previous_topology_id
+		or self.default_topology_id
 	self.topology_id = topology_id
-	cs2.raise_node_data_changed(self)
-	events.raise("cs2.node_topology_changed", self, previous_topology_id)
+	local current_effective_topology_id = topology_id or self.default_topology_id
+	if previous_effective_topology_id ~= current_effective_topology_id then
+		cs2.raise_node_data_changed(self)
+		events.raise(
+			"cs2.node_topology_changed",
+			self,
+			previous_effective_topology_id
+		)
+	end
 end
 
 ---@param topology_id Id?
