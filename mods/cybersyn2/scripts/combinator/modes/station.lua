@@ -618,3 +618,45 @@ cs2.on_combinator_setting_changed(
 		end
 	end
 )
+
+-- Apply topology on station comb reassociation
+cs2.on_combinator_node_associated(function(combinator, from, to)
+	if combinator.mode == "station" then
+		local topology_signal = combinator:get_topology_signal()
+		if from then
+			---@cast from Cybersyn.Node
+			from:set_topology(nil)
+		end
+		if to then
+			---@cast to Cybersyn.Node
+			if topology_signal then
+				to:set_topology_by_name(topology_signal.name)
+			else
+				to:set_topology(nil)
+			end
+		end
+	end
+end)
+
+-- Apply topology on critical setting changes
+cs2.on_combinator_setting_changed(
+	function(combinator, setting, next_value, prev_value)
+		if
+			(
+				setting == "mode"
+				and (next_value == "station" or prev_value == "station")
+			)
+			or setting == "topology_signal"
+			or (combinator.mode == "station" and setting == nil)
+		then
+			local node = combinator:get_node()
+			if node then
+				if next_value then
+					node:set_topology_by_name(next_value.name)
+				else
+					node:set_topology(nil)
+				end
+			end
+		end
+	end
+)

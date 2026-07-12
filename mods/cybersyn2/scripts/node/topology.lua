@@ -107,14 +107,6 @@ local function get_or_create_topology_by_name(name)
 end
 _G.cs2.get_or_create_topology_by_name = get_or_create_topology_by_name
 
----Called to trigger the event indicating a topology's net inventory was
----computed by the logistics thread. Special handling must be taken to
----ensure that the event handlers, which are likely to be expensive, are
----lifted out of the main thread.
-function Topology:raise_inventory_updated()
-	-- TODO: implement this properly. is it even needed???
-end
-
 ---@param surface_index uint
 ---@return Cybersyn.Topology? topology The topology for the given surface, if any.
 local function create_train_topology(surface_index)

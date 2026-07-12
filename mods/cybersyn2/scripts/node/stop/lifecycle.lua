@@ -8,11 +8,8 @@ local cs2 = _G.cs2
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
 
-local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
 local TrainStop = _G.cs2.TrainStop
-local Delivery = _G.cs2.Delivery
-local Topology = _G.cs2.Topology
 
 local empty = tlib.empty
 

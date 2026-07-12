@@ -197,6 +197,16 @@ function Node:set_topology(topology_id)
 	end
 end
 
+---@param topology_name string?
+function Node:set_topology_by_name(topology_name)
+	if not topology_name then
+		self:set_topology(nil)
+		return
+	end
+	local topology = cs2.get_or_create_topology_by_name(topology_name)
+	self:set_topology(topology.id)
+end
+
 ---@param topology_id Id?
 function Node:set_default_topology(topology_id)
 	local previous_dt = self.default_topology_id
