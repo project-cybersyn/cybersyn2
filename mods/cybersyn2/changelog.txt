@@ -2,6 +2,8 @@
 Version: 0.2.2
 Date: ????
   Changes:
+    - API: Added node and vehicle topology plugins. See online docs for details.
+    - API: Added `retopologize()`
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: 2026-07-10

@@ -22,6 +22,8 @@ data:extend({
 			route_plugins = {},
 			custom_stop_names = {},
 			busy_plugins = {},
+			node_topology_plugins = {},
+			vehicle_topology_plugins = {},
 		},
 	},
 })

@@ -14,30 +14,42 @@ local cs2 = _G.cs2
 -- Topology plugin interface
 --------------------------------------------------------------------------------
 
-local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn2.RoutePlugin} ]]
+local v_topo_plugins =
+	prototypes.mod_data["cybersyn2"].data.vehicle_topology_plugins --[[@as Core.RemoteCallbackSpec[] ]]
 
-local topo_callbacks = tlib.t_map_a(
-	route_plugins or tlib.EMPTY_STRICT,
-	function(plugin) return plugin.train_topology_callback end
-) --[[@as Core.RemoteCallbackSpec[] ]]
+local n_topo_plugins =
+	prototypes.mod_data["cybersyn2"].data.node_topology_plugins --[[@as Core.RemoteCallbackSpec[] ]]
 
----Query all registered topology plugins for additional surfaces connected
----to the given surface.
----@param original_surface_id uint The surface index to query from.
----@return table<uint, boolean> #A SET of surface indices reachable from the given surface.
-local function query_topo_plugins(original_surface_id)
-	local surface_set = { [original_surface_id] = true }
-
-	for _, cb in pairs(topo_callbacks) do
-		if cb then
-			local result = remote.call(cb[1], cb[2], original_surface_id) --[[@as table<uint, boolean>? ]]
-			if result then tlib.set_union(surface_set, result) end
-		end
+---@param vehicle Cybersyn.Vehicle
+---@return Id? topology_id Id of the default topology to assign to this vehicle.
+function cs2.query_vehicle_topology_plugins(vehicle)
+	if #v_topo_plugins == 0 then return nil end
+	local lua_train
+	if vehicle.type == "train" then
+		---@cast vehicle Cybersyn.Train
+		lua_train = vehicle.lua_train
 	end
+	for i = 1, #v_topo_plugins do
+		local plugin = v_topo_plugins[i]
+		local result = remote.call(plugin[1], plugin[2], vehicle.id, lua_train) --[[@as Id? ]]
+		if result then return result end
+	end
+end
 
-	strace.trace("query_topo_plugins", original_surface_id, surface_set)
-
-	return surface_set
+---@param node Cybersyn.Node
+---@return Id? topology_id Id of the default topology to assign to this node.
+function cs2.query_node_topology_plugins(node)
+	if #n_topo_plugins == 0 then return nil end
+	local train_stop
+	if node.type == "stop" then
+		---@cast node Cybersyn.TrainStop
+		train_stop = node.entity
+	end
+	for i = 1, #n_topo_plugins do
+		local plugin = n_topo_plugins[i]
+		local result = remote.call(plugin[1], plugin[2], node.id, train_stop) --[[@as Id? ]]
+		if result then return result end
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -141,50 +153,34 @@ local function get_or_create_train_topology(surface_index)
 end
 cs2.get_or_create_train_topology = get_or_create_train_topology
 
--- TODO: topology: this on startup check should no longer be needed
-
----Check all surfaces for presence of cs2 combinator. Where they are present,
----create topologies.
-local function recheck_surfaces()
-	for _, surface in pairs(game.surfaces) do
-		local combs = surface.find_entities_filtered({
-			name = cs2.COMBINATOR_NAME,
-		})
-		if #combs > 0 then
-			if not cs2.get_train_topology(surface.index) then
-				create_train_topology(surface.index)
-			end
-		end
-	end
-end
-
--- At startup re-enumerate surfaces and create topologies as needed.
-events.bind("on_startup", function() recheck_surfaces() end)
-
--- When a combinator is built, create topology if necessary
-events.bind("cs2.combinator_status_changed", function(comb)
-	if (not comb.real_entity) or not comb.real_entity.valid then return end
-	local surface_index = comb.real_entity.surface_index
-	if not cs2.get_train_topology(surface_index) then
-		create_train_topology(surface_index)
-	end
-end, true)
-
 --------------------------------------------------------------------------------
 -- Retopologize
 --------------------------------------------------------------------------------
 
-function _G.cs2.rebuild_train_topologies()
-	-- Destroy all pre-existing train topologies
-	for _, top_id in pairs(storage.surface_index_to_train_topology) do
-		local topology = storage.topologies[top_id]
-		if topology then topology:destroy() end
+function cs2.retopologize()
+	strace.info("cs2.retopologize(): Retopologizing all nodes and vehicles...")
+
+	-- Re-query default topologies for all nodes and vehicles.
+	for _, node in pairs(storage.nodes) do
+		node:compute_default_topology()
 	end
-	storage.surface_index_to_train_topology = {}
+	for _, vehicle in pairs(storage.vehicles) do
+		vehicle:compute_default_topology()
+	end
 
-	-- Regenerate topologies
-	recheck_surfaces()
+	-- Mark topologies that are still in use
+	local used_topologies = {}
+	for _, node in pairs(storage.nodes) do
+		local topology_id = node:get_topology_id()
+		if topology_id then used_topologies[topology_id] = true end
+	end
+	for _, vehicle in pairs(storage.vehicles) do
+		local topology_id = vehicle:get_topology_id()
+		if topology_id then used_topologies[topology_id] = true end
+	end
 
-	-- Retopologize stops and vehicles
-	events.raise("cs2.topologies_rebuilt")
+	-- Destroy topologies that are no longer in use
+	for id, topology in pairs(storage.topologies) do
+		if not used_topologies[id] then topology:destroy() end
+	end
 end

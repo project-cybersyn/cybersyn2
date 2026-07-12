@@ -234,7 +234,7 @@ function Train:compute_default_topology()
 	if not stock then return false end
 	local topology = cs2.get_or_create_train_topology(stock.surface_index)
 	if not topology then return false end
-	self:set_default_topology(topology and topology.id or nil)
+	self:set_default_topology(topology.id)
 	return true
 end
 

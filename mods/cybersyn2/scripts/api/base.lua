@@ -39,12 +39,11 @@ function _G.cs2.remote_api.route_plugin_handoff(delivery_id, new_luatrain)
 	return nil
 end
 
----Force Cybersyn 2 to rebuild all train topologies. This should be called by
----routing plugins when the network of surfaces reachable from each other
----changes.
-function _G.cs2.remote_api.rebuild_train_topologies()
-	cs2.rebuild_train_topologies()
-end
+---@deprecated Use `retopologize()` instead.
+function _G.cs2.remote_api.rebuild_train_topologies() cs2.retopologize() end
+
+---Force Cybersyn 2 to re-evaluate all topologies.
+function cs2.remote_api.retopologize() cs2.retopologize() end
 
 ---Force a failure of a delivery.
 ---@param delivery_id Id ID of the delivery to fail.
