@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.3
-Date: ????
+Date: 2026-07-12
   Changes:
     - API: Added node match veto plugins. See online docs for details.
     - API: Added `get_or_create_topology(name)` to create a new topology or retrieve an existing one by name.
