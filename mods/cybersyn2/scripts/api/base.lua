@@ -1,6 +1,8 @@
 local strace = require("lib.core.strace")
 local cs2 = _G.cs2
 
+local mod_settings = cs2.mod_settings
+
 ---@type table<string, fun(query: Cybersyn.QueryInput): Cybersyn.QueryResult>
 _G.cs2.query_handlers = {}
 
@@ -57,4 +59,28 @@ function _G.cs2.remote_api.fail_delivery(delivery_id, reason)
 	strace.info("fail_delivery: Failing delivery ID", delivery_id)
 	delivery:fail(reason)
 	return nil
+end
+
+---Create a new topology.
+---@param name string Name of the topology to create.
+---@return Id? topology_id ID of the topology with the given name, either newly created or existing. `nil` if the topology could not be created.
+function cs2.remote_api.get_or_create_topology(name)
+	local topo = cs2.get_or_create_topology_by_name(name)
+	return topo and topo.id
+end
+
+---Get queues and capacities for a node.
+---@param node_id Id ID of the node to query.
+---@return uint? queue_size Size of the queue for the node. Includes all vehicles present or enroute, as well as additional vehicles that may be allowed by the queue_excess setting.
+---@return uint? vehicle_capacity Total number of vehicles that can be enroute or at the node simultaneously.
+---@return uint? total_deliveries Total number of deliveries for the node.
+---@return uint? queue_excess Allowance by which the queue size may exceed the vehicle capacity.
+---@return uint? delivery_excess Allowance by which the total deliveries may exceed the vehicle capacity.
+function cs2.remote_api.get_node_vehicle_capacities(node_id)
+	local node = cs2.get_node(node_id)
+	if not node then return nil, nil, nil end
+	local a, b, c = node:get_vehicle_capacities()
+	local d = mod_settings.queue_limit
+	local e = mod_settings.excess_delivery_limit
+	return a, b, c, d, e
 end

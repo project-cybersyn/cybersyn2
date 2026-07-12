@@ -221,6 +221,13 @@ function TrainStop:train_departed(train, luatrain)
 	self:update_inventory(nil, true)
 end
 
+function TrainStop:get_vehicle_capacities()
+	local entity = self.entity
+	local tlimit = entity.trains_limit
+	if tlimit == 0 then tlimit = 1000000 end
+	return #self.delivery_queue, tlimit, table_size(self.deliveries)
+end
+
 ---Determine if the queue of this train stop exceeds the user-set global limit.
 ---@return boolean
 function TrainStop:is_queue_full()

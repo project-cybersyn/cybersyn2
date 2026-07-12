@@ -24,6 +24,7 @@ data:extend({
 			busy_plugins = {},
 			node_topology_plugins = {},
 			vehicle_topology_plugins = {},
+			node_match_veto_plugins = {},
 		},
 	},
 })

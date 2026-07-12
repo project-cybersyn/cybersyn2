@@ -91,6 +91,10 @@ Node.get = get_node
 ---@return boolean
 function Node:is_valid() return false end
 
+--------------------------------------------------------------------------------
+-- Combs
+--------------------------------------------------------------------------------
+
 ---Associate the given combinator with the given node.
 ---@param combinator Cybersyn.Combinator Reference to a *valid* combinator.
 ---@param suppress_set_changed boolean? If `true`, does not raise the `node_combinator_set_changed` event. You must do so yourself if performing a batch of updates.
@@ -328,3 +332,15 @@ scheduler.register_handler("notify_deliveries", function(task)
 	cs2.raise_node_deliveries_changed(node)
 	events.raise("cs2.node_deliveries_changed", node)
 end)
+
+--------------------------------------------------------------------------------
+-- Queueing and Capacity
+--------------------------------------------------------------------------------
+
+---Get information about queue and capacity for this node.
+---@return uint queue_size Size of the queue for the node.
+---@return uint vehicle_capacity Capacity of the node.
+---@return uint total_deliveries Total number of deliveries for the node.
+function Node:get_vehicle_capacities()
+	return 0, 1000000, table_size(self.deliveries)
+end

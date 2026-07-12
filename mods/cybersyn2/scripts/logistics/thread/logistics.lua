@@ -9,9 +9,10 @@ local tlib = require("lib.core.table")
 local thread_lib = require("lib.core.thread")
 local train_lib = require("lib.trains")
 local OrderStatus = require("lib.types").OrderStatus
+local query = require("mods.cybersyn2.lib.core.relm.relm").query
 local cs2 = _G.cs2
 
--- Type-assert storage due to EmmyLua issues
+-- XXX: TYPES: Type-assert storage due to EmmyLua issues
 ---@diagnostic disable-next-line: missing-fields
 ---@type Cybersyn.Storage
 storage = {}
@@ -67,6 +68,38 @@ local LogisticsThread = _G.cs2.LogisticsThread
 ---@field public item string Reserved itemkey
 ---@field public qty uint32 Reserved quantity
 ---@field public from_inv Cybersyn.Inventory Provider inv
+
+--------------------------------------------------------------------------------
+-- Matching Plugins
+--------------------------------------------------------------------------------
+
+local node_match_veto_plugins =
+	prototypes.mod_data["cybersyn2"].data.node_match_veto_plugins --[[@as Core.RemoteCallbackSpec[] ]]
+
+---@param provider Cybersyn.Node
+---@param requester Cybersyn.Node
+---@param workload Core.Thread.Workload
+---@return boolean vetoed If `true`, the match is vetoed by a plugin.
+local function query_node_match_veto_plugins(provider, requester, workload)
+	for i = 1, #node_match_veto_plugins do
+		local plugin = node_match_veto_plugins[i]
+		local result, wkld = remote.call(
+			plugin[1],
+			plugin[2],
+			requester.id,
+			provider.id,
+			-- Bonus data in case of train-stop
+			---@diagnostic disable-next-line: undefined-field
+			requester.entity,
+			-- Bonus data in case of train-stop
+			---@diagnostic disable-next-line: undefined-field
+			provider.entity
+		) --[[@as boolean? ]]
+		add_workload(workload, 1 + (wkld or 0))
+		if result then return true end
+	end
+	return false
+end
 
 --------------------------------------------------------------------------------
 -- Matching
@@ -157,6 +190,23 @@ function LogisticsThread:loop_providers()
 
 	-- Check for netmatch
 	if not requester:matches_networks(provider) then return end
+
+	-- Allow plugins to reject this provider for this requester
+	if
+		query_node_match_veto_plugins(
+			provider_node,
+			requester_node,
+			self.workload_counter
+		)
+	then
+		trace(
+			"Match between (",
+			provider.node_id,
+			requester.node_id,
+			") vetoed by plugin"
+		)
+		return
+	end
 
 	-- Check for satisfying quantity
 	local satisfaction =

@@ -2,6 +2,9 @@
 Version: 0.2.3
 Date: ????
   Changes:
+    - API: Added node match veto plugins. See online docs for details.
+    - API: Added `get_or_create_topology(name)` to create a new topology or retrieve an existing one by name.
+    - API: Added `get_node_vehicle_capacities(node_id)` to retrieve queue and capacity information for a node.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.2
 Date: 2026-07-12
