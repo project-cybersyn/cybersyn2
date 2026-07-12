@@ -3,6 +3,7 @@
 local cs2 = _G.cs2
 local events = require("lib.core.event")
 local tlib = require("lib.core.table")
+local strace = require("lib.core.strace")
 
 local EMPTY = tlib.EMPTY_STRICT
 local INF = math.huge
@@ -235,6 +236,7 @@ events.bind(
 )
 
 function cs2.reevaluate_all_stop_capacities()
+	strace.warn("Re-evaluating all stop capacities...")
 	local cache = {}
 	for _, stop in pairs(storage.nodes) do
 		if stop.type == "stop" then
