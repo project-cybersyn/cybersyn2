@@ -320,6 +320,7 @@ end)
 ---Force re-evaluation of all allow lists globally. WARNING: this is a very
 ---slow operation.
 function _G.cs2.reevaluate_all_allow_lists()
+	stlib.warn("Re-evaluating all stop allow lists...")
 	for _, node in pairs(storage.nodes) do
 		if node.type == "stop" then
 			evaluate_stop(node --[[@as Cybersyn.TrainStop]])
