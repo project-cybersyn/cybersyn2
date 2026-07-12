@@ -126,42 +126,23 @@ local function evaluate_capacity_for_layout(topology_id, layout_id, cache)
 	end
 end
 
--- XXX: figure out what this is/was for???
-local function generate_cache_for_stops_in_topology(topology_id)
-	local cache = {}
-	for _, stop in pairs(storage.nodes) do
-		if
-			stop.type == "stop"
-			---@cast stop Cybersyn.TrainStop
-
-			and stop.allowed_layouts_key
-		then
-			cache[stop.allowed_layouts_key] = stop
-		end
-	end
-	return cache
-end
-
 events.bind(
 	"cs2.vehicle_created",
 	---@param vehicle Cybersyn.Vehicle
 	function(vehicle)
 		if vehicle.type ~= "train" or (not vehicle:is_valid()) then return end
 		---@cast vehicle Cybersyn.Train
+		local topology_id = vehicle:get_topology_id()
 		if
 			not find_similar_train(
 				vehicle.id,
-				vehicle:get_topology_id(),
+				topology_id,
 				vehicle.layout_id,
 				vehicle.item_slot_capacity,
 				vehicle.fluid_capacity
 			)
 		then
-			evaluate_capacity_for_layout(
-				vehicle:get_topology_id(),
-				vehicle.layout_id,
-				{}
-			)
+			evaluate_capacity_for_layout(topology_id, vehicle.layout_id, {})
 		end
 	end
 )
@@ -169,31 +150,33 @@ events.bind(
 events.bind("cs2.vehicle_destroyed", function(vehicle)
 	if vehicle.type ~= "train" then return end
 	---@cast vehicle Cybersyn.Train
+	local topology_id = vehicle:get_topology_id()
 	if
 		not find_similar_train(
 			vehicle.id,
-			vehicle:get_topology_id(),
+			topology_id,
 			vehicle.layout_id,
 			vehicle.item_slot_capacity,
 			vehicle.fluid_capacity
 		)
 	then
-		evaluate_capacity_for_layout(
-			vehicle:get_topology_id(),
-			vehicle.layout_id,
-			{}
-		)
+		evaluate_capacity_for_layout(topology_id, vehicle.layout_id, {})
 	end
 end)
 
-events.bind("cs2.train_capacity_changed", function(train, cache)
-	cache[train.topology_id] = cache[train.topology_id] or {}
-	evaluate_capacity_for_layout(
-		train.topology_id,
-		train.layout_id,
-		cache[train.topology_id]
-	)
-end)
+events.bind(
+	"cs2.train_capacity_changed",
+	---@param train Cybersyn.Train
+	function(train, cache)
+		local topology_id = train:get_topology_id()
+		cache[topology_id] = cache[topology_id] or {}
+		evaluate_capacity_for_layout(
+			topology_id,
+			train.layout_id,
+			cache[topology_id]
+		)
+	end
+)
 
 events.bind(
 	"cs2.stop_allow_list_changed",
@@ -250,3 +233,13 @@ events.bind(
 		end
 	end
 )
+
+function cs2.reevaluate_all_stop_capacities()
+	local cache = {}
+	for _, stop in pairs(storage.nodes) do
+		if stop.type == "stop" then
+			---@cast stop Cybersyn.TrainStop
+			evaluate_capacity_for_stop(stop, cache)
+		end
+	end
+end
