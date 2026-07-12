@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.2
-Date: ????
+Date: 2026-07-12
   Changes:
     - Enabled user-defined topologies for trains and stations.
     - Added "Topology" option to Train Group GUI, which can apply a user-defined topology to all trains in the group.
