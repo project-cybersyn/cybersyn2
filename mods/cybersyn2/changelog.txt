@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.6
-Date: ????
+Date: 2026-07-12
   Bugfixes:
     - Fixed an issue with calculating stop capacities and topologies.
     - Added a migration to force recalculate all stop capacities.
