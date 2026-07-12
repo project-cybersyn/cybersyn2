@@ -9,7 +9,6 @@ local tlib = require("lib.core.table")
 local thread_lib = require("lib.core.thread")
 local train_lib = require("lib.trains")
 local OrderStatus = require("lib.types").OrderStatus
-local query = require("mods.cybersyn2.lib.core.relm.relm").query
 local cs2 = _G.cs2
 
 -- XXX: TYPES: Type-assert storage due to EmmyLua issues
