@@ -179,7 +179,6 @@ end
 -- Topology
 --------------------------------------------------------------------------------
 
----Set the topology ID for this node.
 ---@param topology_id Id?
 function Node:set_topology(topology_id)
 	local previous_topology_id = self.topology_id
@@ -188,6 +187,20 @@ function Node:set_topology(topology_id)
 	cs2.raise_node_data_changed(self)
 	events.raise("cs2.node_topology_changed", self, previous_topology_id)
 end
+
+---@param topology_id Id?
+function Node:set_default_topology(topology_id)
+	local previous_dt = self.default_topology_id
+	if previous_dt == topology_id then return end
+	self.default_topology_id = topology_id
+	if self.topology_id == nil then
+		cs2.raise_node_data_changed(self)
+		events.raise("cs2.node_topology_changed", self, previous_dt)
+	end
+end
+
+---@return boolean was_set `true` if the default topology was set.
+function Node:compute_default_topology() return false end
 
 ---@return Id? topology_id Id of the topology this node belongs to, if any.
 function Node:get_topology_id()

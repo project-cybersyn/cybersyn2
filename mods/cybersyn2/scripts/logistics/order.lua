@@ -905,7 +905,7 @@ function Order:satisfy_needs(workload, needs)
 	local and_spread = needs.and_spread
 	if and_spread and qualities then
 		-- TODO: probably unnecessary, we can just mutate and_spread
-		local mutable_and_spread = tlib.assign({}, and_spread)
+		local mutable_and_spread = assign({}, and_spread)
 		if workload then add_workload(workload, table_size(and_spread)) end
 
 		items = tlib.t_reduce(provides, {}, function(itm, key, qty)

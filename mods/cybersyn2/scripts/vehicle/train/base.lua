@@ -152,19 +152,15 @@ function Train.new(lua_train)
 		)
 	if not stock then return nil end
 
-	-- TODO: topology
-	local topology = cs2.get_train_topology(stock.surface_index)
-	if not topology then return nil end
-
 	local train = Vehicle.new("train") --[[@as Cybersyn.Train]]
 	setmetatable(train, Train)
 	train.lua_train = lua_train
 	train.lua_train_id = lua_train.id
 	train.stock = stock
-	train.topology_id = topology.id
 	train.home_surface_index = stock.surface_index
 	train.item_slot_capacity = 0
 	train.fluid_capacity = 0
+	train:compute_default_topology()
 
 	storage.luatrain_id_to_vehicle_id[lua_train.id] = train.id
 
@@ -229,6 +225,17 @@ function Train:is_valid()
 	else
 		return false
 	end
+end
+
+function Train:compute_default_topology()
+	if Vehicle.compute_default_topology(self) then return true end
+
+	local stock = self:get_stock()
+	if not stock then return false end
+	local topology = cs2.get_or_create_train_topology(stock.surface_index)
+	if not topology then return false end
+	self:set_default_topology(topology and topology.id or nil)
+	return true
 end
 
 function Train:is_volatile()

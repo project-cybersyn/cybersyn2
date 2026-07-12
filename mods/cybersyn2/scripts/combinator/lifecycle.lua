@@ -99,7 +99,7 @@ events.bind(
 -- Blueprinting combinators
 --------------------------------------------------------------------------------
 
--- XXX: remove this
+-- XXX: Use cooperative blueprinting instead.
 -- Remove decider combinator outputs
 -- local changed = false
 -- for _, entity in pairs(bp_entities) do

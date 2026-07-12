@@ -232,7 +232,7 @@ events.bind("on_startup", function() TrainMonitor:new() end)
 --------------------------------------------------------------------------------
 
 local function retopologize_trains()
-	-- TODO: manual tops
+	-- TODO: topology
 	stlib.trace("Reassigning train topologies")
 	for _, veh in pairs(storage.vehicles) do
 		if veh.type == "train" then

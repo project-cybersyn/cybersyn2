@@ -27,15 +27,13 @@ _G.cs2.TrainStop = TrainStop
 ---@return Cybersyn.TrainStop
 function TrainStop.new(stop_entity)
 	local stop_id = stop_entity.unit_number
-	-- TODO: topology
-	local topology = cs2.get_train_topology(stop_entity.surface_index)
 	local node = Node.new("stop") --[[@as Cybersyn.TrainStop]]
 	setmetatable(node, TrainStop)
-	node.topology_id = topology and topology.id or nil
 	node.entity = stop_entity
 	node.entity_id = stop_id
 	node.allowed_groups = {}
 	node.allowed_layouts = {}
+	node:compute_default_topology()
 	cs2.raise_node_created(node)
 	return node
 end
@@ -92,7 +90,6 @@ function TrainStop:allows_train(train)
 	if not layout_id then return false end
 	if self.allowed_layouts == nil then return true end
 	return self.allowed_layouts[layout_id]
-	-- TODO: allowed groups
 end
 
 ---Given the unit number of a train stop entity, get the stop.
@@ -123,6 +120,20 @@ function TrainStop:is_train_reversed(lua_train)
 	end
 
 	return false
+end
+
+function TrainStop:compute_default_topology()
+	if Node.compute_default_topology(self) then return true end
+
+	local topology = cs2.get_or_create_train_topology(self
+		.entity--[[@cast -?]]
+		.surface_index)
+	if topology then
+		self:set_default_topology(topology.id)
+		return true
+	else
+		return false
+	end
 end
 
 --------------------------------------------------------------------------------

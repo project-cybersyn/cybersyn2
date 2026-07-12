@@ -273,7 +273,6 @@ function TrainStop:compute_layout(ignored_entity_set)
 	end
 
 	-- Update the rail set caches.
-	-- TODO: do we need bbox_new here??
 	stop_layout.rail_bbox = mlib.bbox_round(mlib.bbox_new(bbox))
 	clear_rail_set_from_storage(stop_layout.rail_set)
 	stop_layout.rail_set = rail_set

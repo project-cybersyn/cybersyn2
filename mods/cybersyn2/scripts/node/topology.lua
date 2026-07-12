@@ -3,9 +3,6 @@
 -- surface.
 --------------------------------------------------------------------------------
 
--- TODO: let other mods (space exploration, trains-on-platforms) intervene in
--- how topologies are built.
-
 local class = require("lib.core.class").class
 local counters = require("lib.core.counters")
 local events = require("lib.core.event")
@@ -107,36 +104,44 @@ function Topology:raise_inventory_updated()
 end
 
 ---@param surface_index uint
+---@return Cybersyn.Topology? topology The topology for the given surface, if any.
 local function create_train_topology(surface_index)
-	local surface_set = query_topo_plugins(surface_index)
 	local surface = game.get_surface(surface_index)
 	if not surface then
 		error(
 			"LOGIC ERROR: create_train_topology called with invalid surface index "
 				.. surface_index
 		)
-		return
+		return nil
 	end
 
 	local t = Topology:new()
 	t.name = surface.name
-	t.surface_set = surface_set
-	for s_index, _ in pairs(surface_set) do
-		storage.surface_index_to_train_topology[s_index] = t.id
-	end
+	storage.surface_index_to_train_topology[surface_index] = t.id
 
 	strace.info("Created train topology", t)
 	cs2.raise_topologies(t, "created")
 	events.raise("cs2.topology_created", t)
+	return t
 end
 
 ---Get train topology for a surface if it exists.
 ---@param surface_index uint
 ---@return Cybersyn.Topology?
-function _G.cs2.get_train_topology(surface_index)
+local function get_train_topology(surface_index)
 	local topology_id = storage.surface_index_to_train_topology[surface_index]
 	if topology_id then return storage.topologies[topology_id] end
 end
+cs2.get_train_topology = get_train_topology
+
+local function get_or_create_train_topology(surface_index)
+	local topology = get_train_topology(surface_index)
+	if not topology then topology = create_train_topology(surface_index) end
+	return topology
+end
+cs2.get_or_create_train_topology = get_or_create_train_topology
+
+-- TODO: topology: this on startup check should no longer be needed
 
 ---Check all surfaces for presence of cs2 combinator. Where they are present,
 ---create topologies.

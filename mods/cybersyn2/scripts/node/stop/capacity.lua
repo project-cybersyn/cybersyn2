@@ -216,21 +216,19 @@ events.bind(
 	---@param vehicle Cybersyn.Vehicle
 	function(vehicle, previous_topology_id)
 		if vehicle.type ~= "train" or (not vehicle:is_valid()) then return end
+		local current_topology_id = vehicle:get_topology_id()
+		if current_topology_id == previous_topology_id then return end
 		---@cast vehicle Cybersyn.Train
 		if
 			not find_similar_train(
 				vehicle.id,
-				vehicle:get_topology_id(),
+				current_topology_id,
 				vehicle.layout_id,
 				vehicle.item_slot_capacity,
 				vehicle.fluid_capacity
 			)
 		then
-			evaluate_capacity_for_layout(
-				vehicle:get_topology_id(),
-				vehicle.layout_id,
-				{}
-			)
+			evaluate_capacity_for_layout(current_topology_id, vehicle.layout_id, {})
 		end
 
 		if previous_topology_id then
