@@ -329,7 +329,10 @@ function _G.cs2.reevaluate_all_allow_lists()
 end
 
 -- When train layouts are destroyed, we need to re-evaluate all stops.
-cs2.on_train_layouts_destroyed(function() cs2.reevaluate_all_allow_lists() end)
+events.bind(
+	"cs2.train_layouts_destroyed",
+	function() cs2.reevaluate_all_allow_lists() end
+)
 
 --------------------------------------------------------------------------------
 -- Allowlist key calculation

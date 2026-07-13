@@ -122,11 +122,6 @@ _G.cs2.on_train_layout_changed, _G.cs2.raise_train_layout_changed = event(
 	"nil"
 )
 
----Event raised when train layouts are destroyed. This is a bulk event and
----a list of particular destroyed layouts is not provided.
-_G.cs2.on_train_layouts_destroyed, _G.cs2.raise_train_layouts_destroyed =
-	event("train_layouts_destroyed", "nil", "nil", "nil", "nil", "nil")
-
 ---@alias Cybersyn.TrainOrNil Cybersyn.Train|nil
 ---@alias Cybersyn.TrainStopOrNil Cybersyn.TrainStop|nil
 
