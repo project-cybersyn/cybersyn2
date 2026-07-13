@@ -246,11 +246,3 @@ _G.cs2.on_train_stop_pattern_changed, _G.cs2.raise_train_stop_pattern_changed =
 		"nil",
 		"nil"
 	)
-
---------------------------------------------------------------------------------
--- Inventories and deliveries.
---------------------------------------------------------------------------------
-
----Event raised when the collection of deliveries targeting a node changes.
-_G.cs2.on_node_deliveries_changed, _G.cs2.raise_node_deliveries_changed =
-	event("node_deliveries_changed", "Cybersyn.Node", "nil", "nil", "nil", "nil")
