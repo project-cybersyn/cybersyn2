@@ -70,7 +70,6 @@ end
 function Topology:destroy()
 	strace.info("Destroying topology", self.id, self.name)
 	events.raise("cs2.topology_destroyed", self)
-	cs2.raise_topologies(self, "destroyed")
 	storage.topologies[self.id] = nil
 end
 
@@ -101,7 +100,7 @@ local function get_or_create_topology_by_name(name)
 	if not topology then
 		topology = Topology:new()
 		topology.name = name
-		cs2.raise_topologies(topology, "created")
+		events.raise("cs2.topology_created", topology)
 	end
 	return topology
 end
@@ -124,7 +123,6 @@ local function create_train_topology(surface_index)
 	storage.surface_index_to_train_topology[surface_index] = t.id
 
 	strace.info("Created train topology", t)
-	cs2.raise_topologies(t, "created")
 	events.raise("cs2.topology_created", t)
 	return t
 end
