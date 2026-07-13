@@ -223,7 +223,15 @@ function Node:set_default_topology(topology_id)
 end
 
 ---@return boolean was_set `true` if the default topology was set.
-function Node:compute_default_topology() return false end
+function Node:compute_default_topology()
+	local plugin_id = cs2.query_node_topology_plugins(self)
+	if plugin_id then
+		self:set_default_topology(plugin_id)
+		return true
+	end
+
+	return false
+end
 
 ---@return Id? topology_id Id of the topology this node belongs to, if any.
 function Node:get_topology_id()
