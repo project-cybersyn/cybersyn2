@@ -263,20 +263,6 @@ _G.cs2.on_delivery_created, _G.cs2.raise_delivery_created =
 _G.cs2.on_delivery_destroyed, _G.cs2.raise_delivery_destroyed =
 	event("delivery_destroyed", "Cybersyn.Delivery", "nil", "nil", "nil", "nil")
 
----Event raised when a delivery's state changes. Not raised at the initial
----creation of the delivery.
---- * Arg 1 - `Cybersyn.Delivery` - The delivery.
---- * Arg 2 - `Cybersyn.Delivery.State` - The new state of the delivery.
---- * Arg 3 - `Cybersyn.Delivery.State` - The previous state of the delivery.
-_G.cs2.on_delivery_state_changed, _G.cs2.raise_delivery_state_changed = event(
-	"delivery_state_changed",
-	"Cybersyn.Delivery",
-	"string",
-	"StringOrNil",
-	"nil",
-	"nil"
-)
-
 ---Event raised when the collection of deliveries targeting a node changes.
 _G.cs2.on_node_deliveries_changed, _G.cs2.raise_node_deliveries_changed =
 	event("node_deliveries_changed", "Cybersyn.Node", "nil", "nil", "nil", "nil")
