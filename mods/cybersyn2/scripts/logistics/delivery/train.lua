@@ -91,7 +91,7 @@ function TrainDelivery.new(
 	delivery:set_state("wait_from")
 	from:enqueue(delivery.id)
 
-	cs2.raise_delivery_created(delivery)
+	events.raise("cs2.delivery_created", delivery)
 	return delivery
 end
 

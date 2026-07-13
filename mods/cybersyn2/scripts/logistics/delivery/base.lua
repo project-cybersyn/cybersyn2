@@ -62,7 +62,7 @@ function Delivery:destroy()
 	local delivery = storage.deliveries[id]
 	if not delivery then return end
 	delivery.is_being_destroyed = true
-	cs2.raise_delivery_destroyed(delivery)
+	events.raise("cs2.delivery_destroyed", delivery)
 	storage.deliveries[id] = nil
 end
 
