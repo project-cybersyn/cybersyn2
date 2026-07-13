@@ -197,12 +197,15 @@ local NodeInvUpdated = relm.define("NodeGui.InvUpdated", function(props)
 	local dt = tick - (node.polled_tick or 0)
 	local era = (node.polled_delta_era or {})[1] or 0
 
+	local dt_str = "a long time"
+	if dt <= 54000 then dt_str = nlib.format_ticks(dt) end
+
 	relm_util.use_timer_handler(60, function(me) relm.paint(me) end)
 
 	return ultros.RtLabel({
 		"",
 		"[font=default-bold]Updated:[/font] ",
-		nlib.format_ticks(dt),
+		dt_str,
 		" ago (avg ",
 		nlib.format_ticks(era),
 		")",
