@@ -91,7 +91,7 @@ function TrainDelivery.new(
 	delivery:set_state("wait_from")
 	from:enqueue(delivery.id)
 
-	cs2.raise_delivery_created(delivery)
+	events.raise("cs2.delivery_created", delivery)
 	return delivery
 end
 
@@ -101,18 +101,6 @@ function TrainDelivery:has_departed_provider()
 		or (state == "at_to")
 		or (state == "wait_to")
 		or (state == "interrupted_to")
-end
-
----Clear all consequences of this delivery from queues, caches etc
-function TrainDelivery:force_clear()
-	self:clear_to_charge()
-	self:clear_from_charge()
-	local from_stop = TrainStop.get(self.from_id)
-	if from_stop then from_stop:remove_delivery(self.id) end
-	local to_stop = TrainStop.get(self.to_id)
-	if to_stop then to_stop:remove_delivery(self.id) end
-	local train = cs2.get_train(self.vehicle_id)
-	if train then train:fail_delivery(self.id) end
 end
 
 ---@param stop_entity LuaEntity
@@ -402,12 +390,6 @@ function TrainDelivery:complete()
 	self:set_state("completed")
 end
 
-function TrainDelivery:fail(reason)
-	if self.state == "completed" or self.state == "failed" then return end
-	self:force_clear()
-	self:set_state("failed")
-end
-
 ---Train stop invokes this to notify a train on this delivery left
 ---that stop
 ---@param stop Cybersyn.TrainStop
@@ -601,10 +583,6 @@ function TrainDelivery:check_stuck(workload)
 			events.raise("cs2.train_unstuck", self.id, train, stock)
 		end
 	end
-end
-
-function TrainDelivery:is_cancellable()
-	return self.state ~= "completed" and self.state ~= "failed"
 end
 
 --------------------------------------------------------------------------------

@@ -114,6 +114,8 @@ lib.CarriageType = {
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds, always measured in units, not stacks.
 ---@field public auto_threshold_fraction number Fraction of requests to use for auto-thresholding.
 ---@field public produce_single_item boolean? `true` if the node should only provide single items per delivery
+---@field public polled_tick? uint Tick number when this node was last polled for its current state.
+---@field public polled_delta_era? Core.EraCounter Cached exponential rolling average of the delta between the last two polled ticks.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class (partial) Cybersyn.TrainStop: Cybersyn.Node

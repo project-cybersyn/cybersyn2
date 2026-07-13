@@ -9,6 +9,7 @@ local stlib = require("lib.core.strace")
 local slib = require("lib.signal")
 local nmlib = require("lib.core.math.numeric")
 local thread_lib = require("lib.core.thread")
+local era_lib = require("lib.core.math.era-counter")
 
 local cs2 = _G.cs2
 
@@ -28,6 +29,7 @@ local add_workload = thread_lib.add_workload
 local pairs = _G.pairs
 local clamp = nmlib.clamp
 local STATUS_WORKING = defines.entity_status.working
+local update_era_counter = era_lib.update_era_counter
 
 ---@class (partial) Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
@@ -327,6 +329,21 @@ function LogisticsThread:poll_train_stop_update_inventory()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
 	if not stop:is_valid() then return self:set_state("poll_nodes") end
 	stop:update_inventory(self.workload_counter, false)
+	-- Update polling stats
+	local t = game.tick
+	local t0 = stop.polled_tick
+	if t0 then
+		local delta = t - t0
+		if delta > 0 then
+			local era = stop.polled_delta_era
+			if not era then
+				era = era_lib.create_era_counter(delta)
+				stop.polled_delta_era = era
+			end
+			update_era_counter(era, delta)
+		end
+	end
+	stop.polled_tick = t
 	self:set_state("poll_train_stop_classify_inventory")
 end
 

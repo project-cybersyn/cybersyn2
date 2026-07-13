@@ -62,17 +62,15 @@ function Delivery:destroy()
 	local delivery = storage.deliveries[id]
 	if not delivery then return end
 	delivery.is_being_destroyed = true
-	cs2.raise_delivery_destroyed(delivery)
+	events.raise("cs2.delivery_destroyed", delivery)
 	storage.deliveries[id] = nil
 end
 
 ---Fail this delivery.
 function Delivery:fail(reason)
-	if self.state == "completed" or self.state == "failed" then
-		return
-	else
-		self:set_state("failed")
-	end
+	if self.state == "completed" or self.state == "failed" then return end
+	self:force_clear()
+	self:set_state("failed")
 end
 
 function Delivery:is_valid()
@@ -106,7 +104,6 @@ end
 function Delivery:on_changed_state(new_state, old_state)
 	self.state_tick = game.tick
 	StateMachine.on_changed_state(self, new_state, old_state)
-	cs2.raise_delivery_state_changed(self, new_state, old_state)
 	events.raise("cs2.delivery_state_changed", self, new_state, old_state)
 end
 
@@ -130,7 +127,9 @@ function Delivery:check_stuck(workload) end
 
 ---Determine if a delivery is cancellable by the user. This gates whether the "Cancel Delivery" button appears.
 ---@return boolean
-function Delivery:is_cancellable() return false end
+function Delivery:is_cancellable()
+	return self.state ~= "completed" and self.state ~= "failed"
+end
 
 ---Clear virtual charge on `from` inventory.
 function Delivery:clear_from_charge()
@@ -148,6 +147,18 @@ function Delivery:clear_to_charge()
 		if to_inv then to_inv:add_inflow_rebate(self.to_charge, -1) end
 		self.to_charge = nil
 	end
+end
+
+---Clear all consequences of this delivery from queues, caches etc
+function Delivery:force_clear()
+	self:clear_to_charge()
+	self:clear_from_charge()
+	local from = cs2.get_node(self.from_id, true)
+	if from then from:remove_delivery(self.id) end
+	local to = cs2.get_node(self.to_id, true)
+	if to then to:remove_delivery(self.id) end
+	local veh = cs2.get_vehicle(self.vehicle_id)
+	if veh then veh:fail_delivery(self.id) end
 end
 
 --------------------------------------------------------------------------------

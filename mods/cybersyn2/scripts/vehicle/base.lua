@@ -52,7 +52,7 @@ function Vehicle:is_valid() return false end
 
 ---@param id Id?
 ---@param skip_validation? boolean If `true`, return contents of storage without validation.
-function Vehicle.get(id, skip_validation)
+local function get_vehicle(id, skip_validation)
 	if not id then return nil end
 	local vehicle = storage.vehicles[id]
 	if skip_validation then
@@ -62,6 +62,8 @@ function Vehicle.get(id, skip_validation)
 	end
 	return nil
 end
+Vehicle.get = get_vehicle
+cs2.get_vehicle = get_vehicle
 
 ---@return {[Id]: Cybersyn.Vehicle}
 function Vehicle.all() return storage.vehicles end
@@ -83,6 +85,26 @@ function Vehicle:destroy()
 	cs2.raise_vehicle_destroyed(self)
 	events.raise("cs2.vehicle_destroyed", self)
 	storage.vehicles[self.id] = nil
+end
+
+---@param delivery Cybersyn.Delivery
+function Vehicle:set_delivery(delivery)
+	self.delivery_id = delivery.id
+	events.raise("cs2.vehicle_delivery_set", self, delivery)
+end
+
+---@param id Id
+function Vehicle:clear_delivery(id)
+	if self.delivery_id == id then
+		self.delivery_id = nil
+		events.raise("cs2.vehicle_delivery_cleared", self, id)
+	end
+end
+
+---@param id Id
+function Vehicle:fail_delivery(id)
+	if (not id) or (self.delivery_id ~= id) then return end
+	self:clear_delivery(id)
 end
 
 --------------------------------------------------------------------------------

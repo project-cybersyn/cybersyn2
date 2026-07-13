@@ -54,16 +54,15 @@ function LogisticsThread:init()
 	end
 end
 
--- Start/stop threads when topologies are created/destroyed.
-cs2.on_topologies(function(topology, action)
-	if action == "created" then
-		local thread = LogisticsThread:new(topology)
-		topology.thread_id = thread.id
-		thread:wake()
-	elseif action == "destroyed" then
-		local thread = thread_lib.get_thread(topology.thread_id)
-		if thread then thread:kill() end
-	end
+events.bind("cs2.topology_created", function(topology)
+	local thread = LogisticsThread:new(topology)
+	topology.thread_id = thread.id
+	thread:wake()
+end)
+
+events.bind("cs2.topology_destroyed", function(topology)
+	local thread = thread_lib.get_thread(topology.thread_id)
+	if thread then thread:kill() end
 end)
 
 ---@return Cybersyn.LogisticsThread?

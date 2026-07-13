@@ -6,6 +6,7 @@ local tlib = require("lib.core.table")
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local signal_lib = require("lib.signal")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local gui = _G.cs2.gui
 
@@ -140,7 +141,8 @@ local function update_delivery_combinators(node)
 	end
 end
 
-cs2.on_node_deliveries_changed(
+events.bind(
+	"cs2.node_deliveries_changed",
 	function(node) update_delivery_combinators(node) end
 )
 

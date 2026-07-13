@@ -220,7 +220,7 @@ function TrainMonitor:exit_enum_cstrains()
 		train_layout.recent = nil
 	end
 
-	if layouts_deleted then cs2.raise_train_layouts_destroyed() end
+	if layouts_deleted then events.raise("cs2.train_layouts_destroyed") end
 
 	for _, view in pairs(storage.views) do
 		view:exit_vehicles(self.workload_counter)

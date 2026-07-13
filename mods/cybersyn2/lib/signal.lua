@@ -5,7 +5,7 @@
 --------------------------------------------------------------------------------
 
 local tlib = require("lib.core.table")
-require("lib.core.signal")
+local siglib = require("lib.core.signal")
 
 local empty = tlib.empty
 local strsub = string.sub
@@ -19,62 +19,12 @@ local band = bit32.band
 local pairs = _G.pairs
 local next = _G.next
 
+local get_signal_type_from_name = siglib.get_signal_type_from_name
+local is_parameter_name = siglib.is_parameter_name
+
 local lib = {}
 
----Get the `string` quality name from a `QualityID` value.
----@param quality_id QualityID?
----@return string?
-local function get_quality_name(quality_id)
-	if quality_id == nil then
-		return nil
-	elseif type(quality_id) == "string" then
-		return quality_id
-	else
-		return quality_id.name
-	end
-end
-lib.get_quality_name = get_quality_name
-
----Get the type of a signal from the name of an item, fluid, virtual_signal,
----entity, recipe, space_location, or asteroid_chunk, prioritizing in that
----order. This function forces Factorio to instantiate a bunch of prototypes
----and should therefore be avoided.
----@param name string
----@return SignalIDType?
-local function get_signal_type_from_name(name)
-	if prototypes.item[name] ~= nil then
-		return "item"
-	elseif prototypes.fluid[name] ~= nil then
-		return "fluid"
-	elseif prototypes.virtual_signal[name] ~= nil then
-		return "virtual"
-	elseif prototypes.quality[name] ~= nil then
-		return "quality"
-	elseif prototypes.entity[name] ~= nil then
-		return "entity"
-	elseif prototypes.recipe[name] ~= nil then
-		return "recipe"
-	elseif prototypes.space_location[name] ~= nil then
-		return "space-location"
-	elseif prototypes.asteroid_chunk[name] ~= nil then
-		return "asteroid-chunk"
-	else
-		return nil
-	end
-end
-
-local parameter_names = {
-	["parameter-0"] = true,
-	["parameter-1"] = true,
-	["parameter-2"] = true,
-	["parameter-3"] = true,
-	["parameter-4"] = true,
-	["parameter-5"] = true,
-	["parameter-6"] = true,
-	["parameter-7"] = true,
-	["parameter-8"] = true,
-	["parameter-9"] = true,
-}
+lib.get_quality_name = siglib.get_quality_name
 
 ---Cache mapping keys to signals
 ---@type {[SignalKey]: SignalID}
@@ -143,7 +93,7 @@ local function signal_to_key(signal)
 	if stype == "item" or stype == "fluid" then
 		signal.quality = quality_name -- don't cache signal qualities as prototypes
 		key_to_sig[key] = signal
-		if not parameter_names[key] then key_v[key] = false end
+		if not is_parameter_name(key) then key_v[key] = false end
 	elseif stype == "virtual" then
 		key_to_sig[key] = signal
 		key_v[key] = true
@@ -204,7 +154,7 @@ local function key_to_signal(key)
 		signal = { name = name, type = ty, quality = quality }
 		if ty == "item" or ty == "fluid" then
 			key_to_sig[key] = signal
-			if not parameter_names[key] then key_v[key] = false end
+			if not is_parameter_name(key) then key_v[key] = false end
 		elseif ty == "virtual" then
 			key_to_sig[key] = signal
 			key_v[key] = true
@@ -232,7 +182,7 @@ lib.key_is_virtual = key_is_virtual
 local function key_is_cargo(key)
 	local verdict = key_v[key]
 	if verdict ~= nil then return not verdict end
-	if parameter_names[key] then return false end
+	if is_parameter_name(key) then return false end
 	local sig = key_to_signal(key)
 	return sig.type == "item" or sig.type == "fluid"
 end
@@ -260,7 +210,7 @@ lib.key_is_quality = key_is_quality
 ---@return "item"|"fluid"|nil species For `cargo` keys, species of the cargo.
 ---@return SignalID|nil signal Parsed signal determined during classification.
 local function classify_key(key)
-	if parameter_names[key] then return end
+	if is_parameter_name(key) then return end
 	local sig = key_to_signal(key)
 	if sig then
 		local sig_type = sig.type
