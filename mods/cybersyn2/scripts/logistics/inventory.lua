@@ -82,10 +82,7 @@ end
 Inventory.get = get_inventory
 _G.cs2.get_inventory = get_inventory
 
-function Inventory:destroy()
-	cs2.raise_inventory_destroyed(self)
-	storage.inventories[self.id] = nil
-end
+function Inventory:destroy() storage.inventories[self.id] = nil end
 
 ---Set base inventory from raw signal counts. Signals will be filtered for
 ---cargo validity.
@@ -392,7 +389,6 @@ cs2.on_node_created(function(node)
 		local inv = StopInventory:new()
 		node.created_inventory_id = inv.id
 		inv.created_for_node_id = node.id
-		cs2.raise_inventory_created(inv)
 		node:set_inventory(inv.id)
 	end
 end, true)

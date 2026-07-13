@@ -251,12 +251,6 @@ _G.cs2.on_train_stop_pattern_changed, _G.cs2.raise_train_stop_pattern_changed =
 -- Inventories and deliveries.
 --------------------------------------------------------------------------------
 
-_G.cs2.on_inventory_created, _G.cs2.raise_inventory_created =
-	event("inventory_created", "Cybersyn.Inventory", "nil", "nil", "nil", "nil")
-
-_G.cs2.on_inventory_destroyed, _G.cs2.raise_inventory_destroyed =
-	event("inventory_destroyed", "Cybersyn.Inventory", "nil", "nil", "nil", "nil")
-
 _G.cs2.on_delivery_created, _G.cs2.raise_delivery_created =
 	event("delivery_created", "Cybersyn.Delivery", "nil", "nil", "nil", "nil")
 
