@@ -113,8 +113,8 @@ local Delivery = relm.define_element({
 
 		local delivery = cstrain.delivery_id
 			and cs2.get_delivery(cstrain.delivery_id)
-		relm_util.use_event("cs2.train_delivery_set")
-		relm_util.use_event("cs2.train_delivery_cleared")
+		relm_util.use_event("cs2.vehicle_delivery_set")
+		relm_util.use_event("cs2.vehicle_delivery_cleared")
 
 		return delivery
 			and ultros.WellSection({ caption = "Current Delivery" }, {
@@ -127,8 +127,8 @@ local Delivery = relm.define_element({
 	state = function(props) return {} end,
 	message = function(me, payload, props, state)
 		if
-			payload.key == "cs2.train_delivery_set"
-			or payload.key == "cs2.train_delivery_cleared"
+			payload.key == "cs2.vehicle_delivery_set"
+			or payload.key == "cs2.vehicle_delivery_cleared"
 		then
 			local cstrain = props.cstrain --[[@as Cybersyn.Train]]
 			if payload[1] == cstrain then relm.paint(me) end
