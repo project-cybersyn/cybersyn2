@@ -2,6 +2,7 @@
 Version: 0.2.8
 Date: ????
   Changes:
+    - Added update timer to Node GUI inventory section, showing time since last update and average update interval.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.7
 Date: 2026-07-12

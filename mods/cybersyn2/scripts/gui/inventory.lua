@@ -11,6 +11,7 @@ local pos_lib = require("lib.core.math.pos")
 local gui_elements = require("scripts.gui.elements")
 local siglib = require("lib.signal")
 local types = require("lib.types")
+local nlib = require("lib.core.math.numeric")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -190,6 +191,24 @@ local NodeInv = relm.define("NodeGui.Inv", function(props)
 	})
 end)
 
+local NodeInvUpdated = relm.define("NodeGui.InvUpdated", function(props)
+	local node = props.node --[[@as Cybersyn.Node]]
+	local tick = relm.use_result(function() return game.tick end) or 0
+	local dt = tick - (node.polled_tick or 0)
+	local era = (node.polled_delta_era or {})[1] or 0
+
+	relm_util.use_timer_handler(60, function(me) relm.paint(me) end)
+
+	return ultros.RtLabel({
+		"",
+		"[font=default-bold]Updated:[/font] ",
+		nlib.format_ticks(dt),
+		" ago (avg ",
+		nlib.format_ticks(era),
+		")",
+	})
+end)
+
 local NodeInventory = relm.define("NodeGui.Inventory", function(props)
 	local node = props.node --[[@as Cybersyn.Node]]
 	local topology_id = node:get_topology_id()
@@ -211,10 +230,10 @@ local NodeInventory = relm.define("NodeGui.Inventory", function(props)
 	end
 
 	return {
-		ultros.WellSection(
-			{ caption = "Inventory" },
-			{ NodeInv({ node = node, inventory = inventory.inventory }) }
-		),
+		ultros.WellSection({ caption = "Inventory" }, {
+			NodeInvUpdated({ node = node }),
+			NodeInv({ node = node, inventory = inventory.inventory }),
+		}),
 		ultros.WellSection(
 			{ caption = "Orders" },
 			tlib.map(
