@@ -1,6 +1,12 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.2.8
+Version: 0.2.9
 Date: ????
+  Changes:
+    - Train GUI now shows the topology of the train.
+    - Node GUI now shows the topology of the node.
+---------------------------------------------------------------------------------------------------
+Version: 0.2.8
+Date: 2026-07-13
   Changes:
     - Added update timer to Node GUI inventory section, showing time since last update and average update interval.
   Bugfixes:

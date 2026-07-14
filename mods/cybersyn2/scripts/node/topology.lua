@@ -106,6 +106,13 @@ local function get_or_create_topology_by_name(name)
 end
 _G.cs2.get_or_create_topology_by_name = get_or_create_topology_by_name
 
+---@param id Id? Topology id
+---@return string? name The name of the topology, if it exists.
+function cs2.get_topology_name(id)
+	local topology = storage.topologies[id or 0]
+	return topology and topology.name
+end
+
 ---@param surface_index uint
 ---@return Cybersyn.Topology? topology The topology for the given surface, if any.
 local function create_train_topology(surface_index)

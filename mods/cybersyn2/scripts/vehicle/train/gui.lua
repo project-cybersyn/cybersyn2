@@ -10,6 +10,7 @@ local relm_util = require("lib.core.relm.util")
 local pos_lib = require("lib.core.math.pos")
 local delivery_gui = require("scripts.gui.delivery")
 local tlib = require("lib.core.table")
+local siglib = require("lib.core.signal")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -18,22 +19,44 @@ local Pr = relm.Primitive
 
 local function noop() end
 
-local TrainInfo = relm.define_element({
-	name = "TrainGui.TrainInfo",
-	render = function(props, state)
-		local cstrain = props.cstrain --[[@as Cybersyn.Train]]
-		return ultros.WellSection({ caption = "Train Info" }, {
-			ultros.Label(
-				"Capacity: "
-					.. cstrain.item_slot_capacity
-					.. " item slots, "
-					.. cstrain.fluid_capacity
-					.. " fluids"
-			),
-		})
-	end,
-	state = function(props) return {} end,
-})
+local TrainInfo = relm.define("TrainGui.TrainInfo", function(props)
+	local cstrain = props.cstrain --[[@as Cybersyn.Train]]
+
+	relm_util.use_event_handler(
+		"cs2.vehicle_topology_changed",
+		function(me, _, vehicle)
+			if vehicle.id == cstrain.id then relm.paint(me) end
+		end
+	)
+
+	local tid = cstrain:get_topology_id()
+	local dtid = cstrain.default_topology_id
+	local tname = cs2.get_topology_name(tid) or "<unknown>"
+	if siglib.key_is_virtual(tname) then
+		tname = "[virtual-signal=" .. tname .. "]"
+	end
+	local dtname = cs2.get_topology_name(dtid) or "<unknown>"
+	if siglib.key_is_virtual(dtname) then
+		dtname = "[virtual-signal=" .. dtname .. "]"
+	end
+	local topology_text = (tid == dtid) and tname
+		or tname .. " (default: " .. dtname .. ")"
+
+	local text = {
+		"",
+		"[font=default-bold]Topology:[/font] ",
+		topology_text,
+		"\n[font=default-bold]Capacity:[/font] ",
+		cstrain.item_slot_capacity,
+		" item slots, ",
+		cstrain.fluid_capacity,
+		" fluids",
+	}
+
+	return ultros.WellSection({ caption = "Train Info" }, {
+		ultros.RtMultilineLabel(text),
+	})
+end)
 
 local Group = relm.define_element({
 	name = "TrainGui.Group",

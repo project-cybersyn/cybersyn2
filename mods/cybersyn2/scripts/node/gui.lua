@@ -11,6 +11,7 @@ local bbox_lib = require("lib.core.math.bbox")
 local tlib = require("lib.core.table")
 local delivery_gui = require("scripts.gui.delivery")
 local inventory_gui = require("scripts.gui.inventory")
+local siglib = require("lib.core.signal")
 local cs2 = _G.cs2
 
 local HF = ultros.HFlow
@@ -153,6 +154,8 @@ local StopDebugRenderer = relm.define("StopDebugRenderer", function(props)
 			if changed_stop.id == stop_id then render() end
 		end
 	)
+
+	return nil
 end)
 
 --------------------------------------------------------------------------------
@@ -199,6 +202,43 @@ local StopAllowList = relm.define("NodeGui.StopAllowList", function(props)
 end)
 
 --------------------------------------------------------------------------------
+-- Info
+--------------------------------------------------------------------------------
+
+local NodeInfo = relm.define("NodeGui.NodeInfo", function(props)
+	local node = props.node --[[@as Cybersyn.Node]]
+
+	relm_util.use_event_handler(
+		"cs2.node_topology_changed",
+		function(me, _, changed_node)
+			if changed_node.id == node.id then relm.paint(me) end
+		end
+	)
+
+	local tid = node:get_topology_id()
+	local dtid = node.default_topology_id
+	local tname = cs2.get_topology_name(tid) or "<unknown>"
+	if siglib.key_is_virtual(tname) then
+		tname = "[virtual-signal=" .. tname .. "]"
+	end
+	local dtname = cs2.get_topology_name(dtid) or "<unknown>"
+	if siglib.key_is_virtual(dtname) then
+		dtname = "[virtual-signal=" .. dtname .. "]"
+	end
+	local topology_text = (tid == dtid) and tname
+		or tname .. " (default: " .. dtname .. ")"
+
+	local text = { "", "[font=default-bold]Topology:[/font] ", topology_text }
+
+	return {
+		ultros.WellSection(
+			{ caption = "Node Info" },
+			{ ultros.RtMultilineLabel(text) }
+		),
+	}
+end)
+
+--------------------------------------------------------------------------------
 -- Trainstop
 --------------------------------------------------------------------------------
 
@@ -208,6 +248,9 @@ local Stop = relm.define("NodeGui.Stop", function(props)
 	return {
 		StopDebugRenderer({
 			stop = stop,
+		}),
+		NodeInfo({
+			node = stop,
 		}),
 		inventory_gui.NodeInventory({
 			node = stop,
