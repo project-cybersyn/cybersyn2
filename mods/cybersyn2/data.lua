@@ -8,3 +8,5 @@ require("prototypes.item")
 require("prototypes.recipe")
 require("prototypes.custom-event")
 require("prototypes.misc")
+
+require("mod-compatibility.nullius-data")
