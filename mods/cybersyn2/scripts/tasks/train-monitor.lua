@@ -30,8 +30,7 @@ local TrainMonitor = class("TrainMonitor", cs2.StatefulTask)
 function TrainMonitor:new()
 	local thread = cs2.StatefulTask.new(self) --[[@as Cybersyn.Internal.TrainMonitor]]
 	thread._cmt_name = "TrainMonitor"
-	-- TODO: set caps
-	thread._cmt_work_cap = 20
+	thread._cmt_work_cap = 10
 	thread.last_tick = game and game.tick or 0
 	thread.loop_length_era = era_lib.create_era_counter(0)
 	thread.state = "init"

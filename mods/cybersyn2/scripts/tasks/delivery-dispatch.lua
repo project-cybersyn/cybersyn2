@@ -23,6 +23,7 @@ function DeliveryDispatchThread:new()
 	local thread = cmt_lib.Task.new(self) --[[@as Cybersyn.Internal.DeliveryDispatchThread]]
 	thread._cmt_name = "delivery_dispatch"
 	thread._cmt_realtime = true
+	thread._cmt_work_cap = 5
 	cmt_lib.add(thread)
 	cmt_lib.wake(thread)
 	return thread
@@ -35,9 +36,16 @@ function DeliveryDispatchThread:main()
 	local delivery_id = tremove(queue, 1) --[[@as Id]]
 	local operation = tremove(queue, 1) --[[@as string]]
 	local delivery = cs2.get_delivery(delivery_id)
-	if not delivery then return 1 end
+	if not delivery then
+		strace.warn(
+			"Dispatch thread: skipping because Delivery not found",
+			delivery_id
+		)
+		return 1
+	end
 	delivery[operation](delivery)
 	-- When performing an operation, be sure to exhaust the workload cap
+	cmt_lib.yield(self)
 	return 1000000000
 end
 

@@ -26,7 +26,7 @@ local DeliveryMonitor = class("DeliveryMonitor", cs2.StatefulTask)
 function DeliveryMonitor:new()
 	local thread = cs2.StatefulTask.new(self) --[[@as Cybersyn.Internal.DeliveryMonitor]]
 	thread._cmt_name = "delivery_monitor"
-	thread._cmt_work_cap = 20
+	thread._cmt_work_cap = 5
 	thread.state = "init"
 	cmt.add(thread)
 	cmt.wake(thread)
