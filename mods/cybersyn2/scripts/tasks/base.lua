@@ -1,7 +1,11 @@
-local class = require("lib.core.class").class
+local class_lib = require("lib.core.class")
 local cmt = require("lib.core.cmt")
 local StateMachine = require("lib.core.state-machine")
+local events = require("lib.core.event")
+local strace = require("lib.core.strace")
 
+local class = class_lib.class
+local instanceof = class_lib.instanceof
 local next = next
 local min = math.min
 
@@ -14,6 +18,14 @@ local lib = {}
 ---@field public workload_counter Core.Thread.Workload Current workload.
 local StatefulTask = class("StatefulTask", cmt.Task, StateMachine)
 cs2.StatefulTask = StatefulTask
+lib.StatefulTask = StatefulTask
+
+---@return StatefulTask
+function StatefulTask:new()
+	local task = cmt.Task.new(self) --[[@as StatefulTask]]
+	task.workload_counter = { workload = 0 }
+	return task
+end
 
 function StatefulTask:main()
 	local state = self.state
@@ -122,5 +134,26 @@ end
 ---@param workload Core.Thread.Workload | nil
 ---@return number workload
 function lib.get_workload(workload) return workload and workload.workload or 0 end
+
+--------------------------------------------------------------------------------
+-- Kill and restart handlers
+--------------------------------------------------------------------------------
+
+events.bind("cs2.threads_kill_all", function()
+	local threads = cmt.get_tasks()
+	for _, thread in pairs(threads) do
+		strace.warn("Killing CS2 thread: " .. (thread._cmt_name or thread._cmt_id))
+		cmt.kill(thread)
+	end
+end)
+
+events.bind("on_startup", function() events.raise("cs2.threads_start_all") end)
+
+events.bind("on_shutdown", function() events.raise("cs2.threads_kill_all") end)
+
+function cs2.restart_threads()
+	events.raise("cs2.threads_kill_all")
+	events.raise("cs2.threads_start_all")
+end
 
 return lib

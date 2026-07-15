@@ -38,11 +38,11 @@ local add_workload = thread_lib.add_workload
 -- Type-assert storage due to EmmyLua issues
 ---@diagnostic disable-next-line: missing-fields
 ---@type Cybersyn.Storage
-storage = {}
+storage = storage --[[@as Cybersyn.Storage]]
 
 ---@class (partial) Cybersyn.TrainDelivery
 local TrainDelivery = class("TrainDelivery", Delivery)
-_G.cs2.TrainDelivery = TrainDelivery
+cs2.TrainDelivery = TrainDelivery
 
 ---@param train Cybersyn.Train A *valid and available* Cybersyn train.
 ---@param from Cybersyn.TrainStop
@@ -644,57 +644,11 @@ cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 	end
 end)
 
---------------------------------------------------------------------------------
--- Dispatch thread
--- Due to the large cost incurred by calling the Factorio API to dispatch a
--- train, we want it to happen on its own frame isolated from all other processing.
---------------------------------------------------------------------------------
-
----@class Cybersyn.Internal.DeliveryDispatchThread: Core.Thread
----@field public queue (int|string)[] Queue of delivery IDs to be dispatched.
-local DeliveryDispatchThread = class("DeliveryDispatchThread", Thread)
-
-function DeliveryDispatchThread:new()
-	local thread = Thread.new(self) --[[@as Cybersyn.Internal.DeliveryDispatchThread]]
-	thread.friendly_name = "delivery_dispatch"
-	-- Guarantee that the thread gets its own exclusive frame.
-	thread.workload = 1000000000
-	thread.queue = {}
-	return thread
-end
-
-function DeliveryDispatchThread:main()
-	local queue = self.queue
-	if #queue == 0 then return self:sleep() end
-	-- Pop exactly one delivery and schedule it
-	local delivery_id = table.remove(queue, 1)
-	local operation = table.remove(queue, 1)
-	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-	if not delivery then return end
-	delivery[operation](delivery)
-	-- Sleep whenever queue is empty.
-	if #queue == 0 then return self:sleep() end
-end
-
----@param delivery_id int The ID of the delivery to be dispatched.
----@param operation string The operation to be performed on the delivery.
-function DeliveryDispatchThread:enqueue(delivery_id, operation)
-	self.queue[#self.queue + 1] = delivery_id
-	self.queue[#self.queue + 1] = operation
-	self:wake()
-end
-
-events.bind("on_startup", function()
-	-- Create the dispatch thread on startup.
-	local thread = DeliveryDispatchThread:new()
-	storage.task_ids["delivery_dispatch"] = thread.id
-end)
-
 ---Defer an operation that will schedule a train onto its own frame.
 ---@param delivery Cybersyn.TrainDelivery
 ---@param operation string The method to call on the delivery.
-function _G.cs2.enqueue_delivery_operation(delivery, operation)
-	local ddt = thread_lib.get_thread(storage.task_ids["delivery_dispatch"]) --[[@as Cybersyn.Internal.DeliveryDispatchThread?]]
-	if not ddt then return end
-	ddt:enqueue(delivery.id, operation)
+function cs2.enqueue_delivery_operation(delivery, operation)
+	local queue = storage.dispatch_queue
+	queue[#queue + 1] = delivery.id
+	queue[#queue + 1] = operation
 end

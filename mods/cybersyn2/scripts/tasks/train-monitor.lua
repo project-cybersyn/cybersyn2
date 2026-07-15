@@ -4,10 +4,14 @@ local tasks = require("scripts.tasks.base")
 local strace = require("lib.core.strace")
 local tlib = require("lib.core.table")
 local events = require("lib.core.event")
+local era_lib = require("lib.core.math.era-counter")
 
 local add_workload = tasks.add_workload
 local pairs = pairs
 local ALL_TRAINS_FILTER = {}
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 --------------------------------------------------------------------------------
 -- Train group monitor background thread
@@ -29,14 +33,23 @@ function TrainMonitor:new()
 	-- TODO: set caps
 	thread._cmt_work_cap = 20
 	thread.last_tick = game and game.tick or 0
-	thread.loop_length_era = cs2.EraCounter.new()
-	thread:set_state("init")
+	thread.loop_length_era = era_lib.create_era_counter(0)
+	thread.state = "init"
+	cmt.add(thread)
 	cmt.wake(thread)
 	return thread
 end
 
 function TrainMonitor:init()
-	if game and game.train_manager then self:set_state("enum_luatrains") end
+	if game and game.train_manager then
+		local t0 = self.last_tick
+		local t1 = game.tick
+		local dt = t1 - t0
+		era_lib.update_era_counter(self.loop_length_era, dt)
+		self.last_tick = t1
+
+		self:set_state("enum_luatrains")
+	end
 end
 
 function TrainMonitor:enter_enum_luatrains()
@@ -120,7 +133,7 @@ function TrainMonitor:enter_enum_cstrains()
 	for _, view in pairs(storage.views) do
 		view:enter_vehicles(self.workload_counter)
 	end
-	add_workload(self.workload_counter, 1 + #cstrains)
+	add_workload(self.workload_counter, 1)
 end
 
 function TrainMonitor:enum_cstrain(vehicle_id)
@@ -210,4 +223,7 @@ function TrainMonitor:exit_enum_cstrains()
 end
 
 -- Start thread on startup.
-events.bind("on_startup", function() TrainMonitor:new() end)
+events.bind("cs2.threads_start_all", function()
+	strace.warn("Starting TrainMonitor thread")
+	TrainMonitor:new()
+end)

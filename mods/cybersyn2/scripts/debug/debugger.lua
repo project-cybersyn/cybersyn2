@@ -126,7 +126,7 @@ local LoopState = relm.define_element({
 	name = "LogisticsLoopDebugger.State",
 	render = function(props, state)
 		-- TODO: factor logistics thread id up to a prop
-		local data = cs2.debug.get_logistics_thread()
+		local data = nil
 		if not data then return nil end
 		local tstate = data.state
 		local children = {
@@ -179,7 +179,7 @@ local LoopDebugger = relm.define_element({
 	end,
 	message = function(me, payload, props)
 		-- TODO: factor logistics thread id up to a prop
-		local data = cs2.debug.get_logistics_thread() or {}
+		local data = {}
 		if payload.key == "pause" then
 			data.paused = not data.paused
 			return true
