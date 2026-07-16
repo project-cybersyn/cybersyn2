@@ -36,6 +36,8 @@ local log = math.log
 local tremove = table.remove
 local ipairs = ipairs
 
+local rcall = remote.call --[[@as fun(iface:string, method:string, ...:Any):Any]]
+
 ---@class (partial) Cybersyn.LogisticsThread
 ---@field public req_index int
 ---@field public prov_index int
@@ -83,10 +85,9 @@ local node_match_veto_plugins =
 ---@param workload Core.Thread.Workload
 ---@return boolean vetoed If `true`, the match is vetoed by a plugin.
 local function query_node_match_veto_plugins(provider, requester, workload)
-	-- XXX: TYPES: FMTK bad remote.call typing
 	for i = 1, #node_match_veto_plugins do
 		local plugin = node_match_veto_plugins[i]
-		local result, wkld = remote.call(
+		local result, wkld = rcall(
 			plugin[1],
 			plugin[2],
 			requester.id,
@@ -160,6 +161,9 @@ function LogisticsThread:loop_providers()
 	self.prov_index = self.prov_index + 1
 	local index = self.prov_index --[[@as int]]
 	local provider = self.providers[index]
+
+	add_workload(self.workload_counter, 1)
+
 	if not provider then
 		-- End of provider loop...
 		self.prov_index = nil
@@ -178,6 +182,8 @@ function LogisticsThread:loop_providers()
 	if not provider_node then return end
 
 	-- Cull provider from this loop if queue is full.
+	-- TODO: OPTIMIZATION: These queuechecks wastes API calls by checking node train limit twice. At the very least, factor up. Also consider caching.
+	add_workload(self.workload_counter, 2)
 	if provider_node:is_queue_full() or provider_node:has_max_deliveries() then
 		trace(
 			"Culling provider",
@@ -211,6 +217,8 @@ function LogisticsThread:loop_providers()
 		)
 		return
 	end
+
+	add_workload(self.workload_counter, 2)
 
 	-- Check for satisfying quantity
 	local satisfaction =
@@ -786,6 +794,7 @@ function LogisticsThread:loop_complete()
 	self.reservations = nil
 	self.req_index = nil
 	self:set_state("init")
+	cmt.yield(self)
 end
 
 --------------------------------------------------------------------------------
