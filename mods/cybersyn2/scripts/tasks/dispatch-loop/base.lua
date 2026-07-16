@@ -43,8 +43,8 @@ function LogisticsThread:new(topology)
 	thread.state = "init"
 	thread._cmt_name = "logistics_" .. (topology.name or topology.id)
 	thread.topology_id = topology.id
-	thread._cmt_work_cap = 80
-	thread._cmt_spike_cap = 10
+	thread._cmt_work_cap = 100
+	thread._cmt_spike_cap = 20
 	cmt.add(thread)
 	cmt.wake(thread)
 	topology.thread_id = thread._cmt_id

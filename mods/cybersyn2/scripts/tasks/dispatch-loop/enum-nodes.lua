@@ -27,6 +27,8 @@ storage = storage --[[@as Cybersyn.Storage]]
 local LogisticsThread = _G.cs2.LogisticsThread
 
 function LogisticsThread:enter_enum_nodes()
+	-- TODO: PROFILING HOTSPOT (.700ms in large base)
+
 	-- Find all nodes in the topology
 	local topology_id = self.topology_id
 	local nodes = tlib.t_map_a(storage.nodes, function(node)

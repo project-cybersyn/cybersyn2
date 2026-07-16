@@ -319,7 +319,7 @@ function LogisticsThread:sort_matches()
 		return a_db > b_db
 	end)
 	-- This is an expensive sort.
-	local n = 3 * n_matches
+	local n = 4 * n_matches
 	add_workload(self.workload_counter, n * log(n))
 
 	self:start_match_loop()
@@ -499,6 +499,7 @@ function LogisticsThread:loop_trains()
 	end
 
 	-- Busy rejection
+	add_workload(self.workload_counter, 6) -- `is_available` is expensive
 	if not train:is_available() then
 		self.avail_trains[self.train_index] = false
 		self.busy_rejections = self.busy_rejections + 1
@@ -508,6 +509,7 @@ function LogisticsThread:loop_trains()
 	-- Allowlist rejection
 	local from = self.match.provider_node --[[@as Cybersyn.TrainStop]]
 	local to = self.match.requester_node --[[@as Cybersyn.TrainStop]]
+	add_workload(self.workload_counter, 2)
 	if not (from:allows_train(train) and to:allows_train(train)) then
 		self.allowlist_rejections = self.allowlist_rejections + 1
 		return
@@ -530,14 +532,13 @@ function LogisticsThread:loop_trains()
 
 	-- TODO: retrieve amount moved from train_score algorithm. If it's literal
 	-- zero, early-reject the train here with a capacity_rejection.
+	add_workload(self.workload_counter, 4)
 	local score = train_score(train, from, to, self.match.satisfaction)
 	if score and score > self.best_train_score then
 		self.best_train = train
 		self.best_train_index = index
 		self.best_train_score = score
 	end
-
-	add_workload(self.workload_counter, 5)
 end
 
 --------------------------------------------------------------------------------
@@ -617,6 +618,8 @@ function LogisticsThread:route_train()
 	end
 
 	-- Asynchrony requires rechecking queues
+	-- TODO: optimization: This wastes API calls by checking node train limit twice. At the very least, factor up. Also consider caching.
+	add_workload(self.workload_counter, 2)
 	if from:is_queue_full() or from:has_max_deliveries() then
 		-- Source queue is full or reached max deliveries, abort
 		strace.trace(
@@ -630,6 +633,7 @@ function LogisticsThread:route_train()
 		return
 	end
 
+	add_workload(self.workload_counter, 1)
 	if to:has_max_deliveries() then
 		-- Destination queue is full, abort
 		strace.trace(
@@ -644,7 +648,7 @@ function LogisticsThread:route_train()
 	end
 
 	-- Check fuel
-	add_workload(self.workload_counter, 2)
+	add_workload(self.workload_counter, 4)
 	if not train:has_fuel() then
 		-- Train has no fuel, abort
 		warn("route_train: Train has no fuel during logistics processing", train.id)
@@ -692,7 +696,7 @@ function LogisticsThread:route_train()
 		local b_qty = items[b] or 0
 		return a_qty > b_qty
 	end)
-	add_workload(self.workload_counter, n_item_keys * log(n_item_keys))
+	add_workload(self.workload_counter, n_item_keys)
 
 	for _, item in ipairs(item_keys) do
 		local qty = items[item] or 0

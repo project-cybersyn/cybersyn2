@@ -133,6 +133,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 				deprecated_combs[#deprecated_combs + 1] = comb
 			end
 		end
+		add_workload(workload, 1)
 	end
 	local is_valid = stop:is_valid()
 	local can_proceed = true
@@ -281,7 +282,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	stop.produce_single_item = comb:get_produce_single_item()
 	stop.fullness_when_providing = comb:get_fullness_when_providing()
 
-	add_workload(workload, 3)
+	add_workload(workload, 7)
 
 	return true
 end

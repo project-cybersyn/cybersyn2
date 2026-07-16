@@ -53,7 +53,9 @@ end
 
 function TrainMonitor:enter_enum_luatrains()
 	self.seen_groups = {}
-	self:begin_async_loop(game.train_manager.get_trains(ALL_TRAINS_FILTER), 1)
+	local luatrains = game.train_manager.get_trains(ALL_TRAINS_FILTER)
+	add_workload(self.workload_counter, #luatrains)
+	self:begin_async_loop(luatrains, 1)
 end
 
 ---@param luatrain LuaTrain
