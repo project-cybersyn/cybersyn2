@@ -199,6 +199,7 @@ local comb_registration = {
 		on_status = "cybersyn2-combinator-on_status",
 		on_edge_status = "cybersyn2-combinator-on_edge_status",
 		on_tags_changed = "cybersyn2-combinator-on_tags_changed",
+		on_trigger = "cybersyn2-combinator-on_trigger",
 	},
 }
 
@@ -218,4 +219,5 @@ data:extend({
 	{ type = "custom-event", name = "cybersyn2-combinator-on_edge_status" },
 	{ type = "custom-event", name = "cybersyn2-combinator-on_edge_changed" },
 	{ type = "custom-event", name = "cybersyn2-combinator-on_tags_changed" },
+	{ type = "custom-event", name = "cybersyn2-combinator-on_trigger" },
 })

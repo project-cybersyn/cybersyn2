@@ -1,10 +1,11 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.2.9
+Version: 0.3.0
 Date: ????
   Changes:
     - Train GUI now shows the topology of the train.
     - Node GUI now shows the topology of the node.
-    - Implemented a significantly more aggressive thread scheduling algorithm. This should lead to faster dispatch loops in general.
+    - Increased limit for number of deliveries shown in GUIs.
+    - Implemented a significantly more aggressive thread scheduling algorithm.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.8
 Date: 2026-07-13

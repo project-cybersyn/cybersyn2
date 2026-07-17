@@ -7,9 +7,18 @@ local tlib = require("lib.core.table")
 local signal_lib = require("lib.signal")
 local mlib = require("lib.core.math.pos")
 local thread_lib = require("lib.core.thread")
-
+---@diagnostic disable-next-line: unresolved-require
+local things_client = require("__0-things__.client.client") --[[@as things.client]]
+local strace = require("lib.core.strace")
 local cs2 = _G.cs2
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
+local comb_client = things_client.combinators_v1
+local child_client = things_client.parent_child_v1
+local trigger_client = things_client.triggers_v1
 
 local signal_to_key = signal_lib.signal_to_key
 local key_to_signal = signal_lib.key_to_signal
@@ -96,7 +105,9 @@ end
 ---@param check_type string?
 ---@return Cybersyn.Node?
 function Combinator:get_node(check_type)
-	local node = storage.nodes[self.node_id or ""]
+	local nid = self.node_id
+	if not nid then return nil end
+	local node = storage.nodes[nid]
 	if node and (not check_type or node.type == check_type) then return node end
 end
 
@@ -169,7 +180,11 @@ function Combinator:clear_outputs()
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
 	if not param then
-		param = { outputs = {}, conditions = cs2.COMBINATOR_DECIDER_CONDITIONS }
+		param = {
+			outputs = {},
+			conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
+			else_outputs = {},
+		}
 	else
 		param.outputs = {}
 	end
@@ -214,8 +229,11 @@ function Combinator:write_outputs(...)
 	local param = beh.parameters
 	local outputs = self:encode_outputs(...)
 	if not param then
-		param =
-			{ outputs = outputs, conditions = cs2.COMBINATOR_DECIDER_CONDITIONS }
+		param = {
+			outputs = outputs,
+			conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
+			else_outputs = {},
+		}
 	else
 		param.outputs = outputs
 	end
@@ -230,8 +248,11 @@ function Combinator:direct_write_outputs(outputs)
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
 	if not param then
-		param =
-			{ outputs = outputs, conditions = cs2.COMBINATOR_DECIDER_CONDITIONS }
+		param = {
+			outputs = outputs,
+			conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
+			else_outputs = {},
+		}
 	else
 		param.outputs = outputs
 	end
@@ -285,9 +306,6 @@ local WAGON_TYPES = { "locomotive", "cargo-wagon", "fluid-wagon" }
 ---is pointing at if any.
 ---@return LuaEntity? wagon The wagon the combinator is pointing at.
 function Combinator:find_connected_wagon()
-	-- TODO: this can be slightly optimized by looking at a 1x1 square
-	-- around the combinator (its bbox shifted 1 tile towards the rail)
-	-- instead of the whole rail.
 	local rail = self.connected_rail
 	if not rail then return nil end
 	local combinator_entity = self.real_entity
@@ -310,4 +328,44 @@ function Combinator:find_connected_wagon()
 		end
 	end
 	return wagon
+end
+
+---Create or destroy a circuit change detector for this combinator based on its current mode.
+function Combinator:wire_circuit_change_detector()
+	local combinator_entity = self.real_entity
+	if not combinator_entity or not combinator_entity.valid then return end
+
+	local mdef = cs2.combinator_modes[self.mode or ""]
+	if mdef and mdef.is_input then
+		-- Check if detector already exists
+		local child = child_client.get_child(self.id, "_trigger")
+		if child then
+			strace.debug(
+				"Combinator",
+				self.id,
+				"already has a circuit change detector attached."
+			)
+			return
+		end
+
+		-- Create detector
+		local r_comb_in = combinator_entity.get_wire_connector(I_RED, true) --[[@as LuaWireConnector]]
+		local g_comb_in = combinator_entity.get_wire_connector(I_GREEN, true) --[[@as LuaWireConnector]]
+		local trigger_id = trigger_client.create_circuit_change_detector(
+			self.id,
+			"",
+			r_comb_in,
+			g_comb_in
+		)
+
+		strace.debug(
+			"Attached circuit change detector for combinator",
+			self.id,
+			"with trigger id",
+			trigger_id
+		)
+	else
+		trigger_client.destroy_circuit_change_detector(self.id, "")
+		strace.debug("Detached circuit change detector for combinator", self.id)
+	end
 end

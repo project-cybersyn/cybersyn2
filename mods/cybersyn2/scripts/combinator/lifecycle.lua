@@ -12,6 +12,9 @@ local things_client = require("__0-things__.client.client") --[[@as things.clien
 local cs2 = _G.cs2
 local Combinator = _G.cs2.Combinator
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local EMPTY = tlib.EMPTY_STRICT
 local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
 
@@ -139,15 +142,25 @@ events.bind(
 -- if changed then bpinfo:set_entities(bp_entities) end
 
 --------------------------------------------------------------------------------
--- Combinator hotwiring
+-- Combinator hidden circuit wiring
 --------------------------------------------------------------------------------
 
 ---@param combinator Cybersyn.Combinator
-local function hotwire_combinator(combinator) return combinator:hotwire() end
-events.bind("cs2.combinator_status_changed", hotwire_combinator)
+local function wire_combinator(combinator)
+	combinator:hotwire()
+	combinator:wire_circuit_change_detector()
+end
+events.bind("cs2.combinator_status_changed", wire_combinator)
 events.bind("cs2.combinator_settings_changed", function(combinator, setting)
-	if setting == "mode" or setting == nil then hotwire_combinator(combinator) end
+	if setting == "mode" or setting == nil then wire_combinator(combinator) end
 end)
+
+---Rewire all combinators in the world. This is useful for bugfixing or migrations.
+function cs2.rewire_all_combinators()
+	for _, combinator in pairs(storage.combinators) do
+		wire_combinator(combinator)
+	end
+end
 
 --------------------------------------------------------------------------------
 -- Reset
@@ -160,6 +173,7 @@ events.bind("on_startup", function(reset_data)
 			pairs(surface.find_entities_filtered({ name = COMBINATOR_NAME }))
 		do
 			local _, thing = remote.call("things", "get", comb_entity)
+			---@cast thing things.ThingSummary?
 			if not thing then
 				error(
 					"Referential integrity failure: no matching Thing for combinator "
