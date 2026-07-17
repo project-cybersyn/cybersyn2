@@ -4,39 +4,44 @@
 
 local strace = require("lib.core.strace")
 local slib = require("lib.signal")
-local nmlib = require("lib.core.math.numeric")
 local tlib = require("lib.core.table")
 local thread_lib = require("lib.core.thread")
 local train_lib = require("lib.trains")
 local OrderStatus = require("lib.types").OrderStatus
+local cmt = require("lib.core.cmt")
 local cs2 = _G.cs2
 
--- XXX: TYPES: Type-assert storage due to EmmyLua issues
----@diagnostic disable-next-line: missing-fields
 ---@type Cybersyn.Storage
-storage = {}
+storage = storage --[[@as Cybersyn.Storage]]
 
 local pairs = _G.pairs
 local next = _G.next
 local table_size = _G.table_size
 local add_workload = thread_lib.add_workload
 local INF = math.huge
+local NINF = -INF
 local min = math.min
 local max = math.max
 local ceil = math.ceil
 local dist = _G.cs2.lib.dist
 local EMPTY = tlib.EMPTY_STRICT
 local key_to_stacksize = slib.key_to_stacksize
-local TrainDelivery = _G.cs2.TrainDelivery
+local TrainDelivery = cs2.TrainDelivery
 local mod_settings = _G.cs2.mod_settings
 local trace = strace.trace
 local warn = strace.warn
 local normalize_capacity = train_lib.normalize_capacity
+local tsort = table.sort
+local log = math.log
+local tremove = table.remove
+local ipairs = ipairs
+
+local rcall = remote.call --[[@as fun(iface:string, method:string, ...:Any):Any]]
 
 ---@class (partial) Cybersyn.LogisticsThread
----@field public req_index int?
----@field public prov_index int?
----@field public train_index int?
+---@field public req_index int
+---@field public prov_index int
+---@field public train_index int
 ---@field public requester Cybersyn.Order
 ---@field public reservations Cybersyn.Internal.Reservation[]
 ---@field public matches Cybersyn.Internal.Match[]
@@ -52,7 +57,7 @@ local normalize_capacity = train_lib.normalize_capacity
 ---@field public match_pass int
 ---@field public pass_match_routed boolean
 ---@field public this_match_routed boolean
-local LogisticsThread = _G.cs2.LogisticsThread
+local LogisticsThread = cs2.LogisticsThread
 
 ---@class Cybersyn.Internal.Match
 ---@field public requester_node Cybersyn.Node
@@ -82,7 +87,7 @@ local node_match_veto_plugins =
 local function query_node_match_veto_plugins(provider, requester, workload)
 	for i = 1, #node_match_veto_plugins do
 		local plugin = node_match_veto_plugins[i]
-		local result, wkld = remote.call(
+		local result, wkld = rcall(
 			plugin[1],
 			plugin[2],
 			requester.id,
@@ -152,9 +157,13 @@ end
 
 function LogisticsThread:loop_providers()
 	local requester = self.requester
+	local requester_needs = requester.needs --[[@as Cybersyn.Internal.Needs]]
 	self.prov_index = self.prov_index + 1
 	local index = self.prov_index --[[@as int]]
 	local provider = self.providers[index]
+
+	add_workload(self.workload_counter, 1)
+
 	if not provider then
 		-- End of provider loop...
 		self.prov_index = nil
@@ -173,13 +182,15 @@ function LogisticsThread:loop_providers()
 	if not provider_node then return end
 
 	-- Cull provider from this loop if queue is full.
+	-- TODO: OPTIMIZATION: These queuechecks wastes API calls by checking node train limit twice. At the very least, factor up. Also consider caching.
+	add_workload(self.workload_counter, 2)
 	if provider_node:is_queue_full() or provider_node:has_max_deliveries() then
 		trace(
 			"Culling provider",
 			provider.node_id,
 			"because queue is full or has max deliveries"
 		)
-		table.remove(self.providers, index)
+		tremove(self.providers, index)
 		self.prov_index = self.prov_index - 1
 		return
 	end
@@ -207,9 +218,11 @@ function LogisticsThread:loop_providers()
 		return
 	end
 
+	add_workload(self.workload_counter, 2)
+
 	-- Check for satisfying quantity
 	local satisfaction =
-		provider:satisfy_needs(self.workload_counter, requester.needs)
+		provider:satisfy_needs(self.workload_counter, requester_needs)
 
 	-- Register a match
 	if satisfaction then
@@ -218,11 +231,12 @@ function LogisticsThread:loop_providers()
 			requester = requester,
 			provider_node = provider_node,
 			provider = provider,
-			needs = requester.needs,
+			needs = requester_needs,
 			satisfaction = satisfaction,
 		}
 	else
-		local starvation_item = requester.needs.starvation_item
+		-- Reserve starvation item if there is one.
+		local starvation_item = requester_needs.starvation_item
 		if starvation_item then
 			local avail = provider:get_provided_qty(starvation_item)
 			if avail > 0 then
@@ -270,12 +284,13 @@ end
 
 function LogisticsThread:sort_matches()
 	local requester = self.requester
+	local requester_needs = requester.needs --[[@as Cybersyn.Internal.Needs]]
 	local requester_node = cs2.get_node(requester.node_id, true) --[[@as Cybersyn.TrainStop]]
 	local requester_stop_entity = requester_node and requester_node.entity
 	if not requester then
 		error("Logic error: sort_matches called with no requester set")
 	end
-	local starvation_item = requester.needs.starvation_item
+	local starvation_item = requester_needs.starvation_item
 	if requester_node:is_sharing_inventory() then
 		self.requester_is_sharing_inventory = true
 	else
@@ -284,7 +299,7 @@ function LogisticsThread:sort_matches()
 
 	local n_matches = #self.matches
 
-	table.sort(self.matches, function(a, b)
+	tsort(self.matches, function(a, b)
 		-- Check provider priority
 		local a_prio, b_prio = a.provider.priority, b.provider.priority
 		if a_prio > b_prio then return true end
@@ -304,8 +319,8 @@ function LogisticsThread:sort_matches()
 		return a_db > b_db
 	end)
 	-- This is an expensive sort.
-	local n = 3 * n_matches
-	add_workload(self.workload_counter, n * math.log(n))
+	local n = 4 * n_matches
+	add_workload(self.workload_counter, n * log(n))
 
 	self:start_match_loop()
 end
@@ -408,8 +423,7 @@ function LogisticsThread:loop_matches()
 
 		-- Recompute satisfaction for this provider
 		local provider = match.provider
-		local satisfaction =
-			provider:satisfy_needs(self.workload_counter, requester.needs)
+		local satisfaction = provider:satisfy_needs(self.workload_counter, needs)
 		if satisfaction then
 			match.satisfaction = satisfaction
 			self.match = match
@@ -449,14 +463,13 @@ local function train_score(train, from, to, satisfaction)
 
 	-- Prefer trains that can move the most material.
 	local n_train_cap =
-		train_lib.normalize_capacity(train.item_slot_capacity, train.fluid_capacity)
-	local n_moved =
-		train_lib.normalize_capacity(max_moved_stacks, max_moved_fluid)
+		normalize_capacity(train.item_slot_capacity, train.fluid_capacity)
+	local n_moved = normalize_capacity(max_moved_stacks, max_moved_fluid)
 	-- Amongst those trains, prefer those that use the most of their capacity.
 	local cap_ratio = min(n_train_cap < 1 and 0.0 or (n_moved / n_train_cap), 1.0)
 	-- Amongst the best-fitting trains, penalize those that are further away
 	local train_stock = train:get_stock()
-	if not train_stock then return -math.huge end
+	if not train_stock then return NINF end
 	local stop = from.entity --[[@as LuaEntity]]
 	local dx = dist(stop, train_stock)
 
@@ -486,6 +499,7 @@ function LogisticsThread:loop_trains()
 	end
 
 	-- Busy rejection
+	add_workload(self.workload_counter, 6) -- `is_available` is expensive
 	if not train:is_available() then
 		self.avail_trains[self.train_index] = false
 		self.busy_rejections = self.busy_rejections + 1
@@ -495,6 +509,7 @@ function LogisticsThread:loop_trains()
 	-- Allowlist rejection
 	local from = self.match.provider_node --[[@as Cybersyn.TrainStop]]
 	local to = self.match.requester_node --[[@as Cybersyn.TrainStop]]
+	add_workload(self.workload_counter, 2)
 	if not (from:allows_train(train) and to:allows_train(train)) then
 		self.allowlist_rejections = self.allowlist_rejections + 1
 		return
@@ -517,14 +532,13 @@ function LogisticsThread:loop_trains()
 
 	-- TODO: retrieve amount moved from train_score algorithm. If it's literal
 	-- zero, early-reject the train here with a capacity_rejection.
+	add_workload(self.workload_counter, 4)
 	local score = train_score(train, from, to, self.match.satisfaction)
 	if score and score > self.best_train_score then
 		self.best_train = train
 		self.best_train_index = index
 		self.best_train_score = score
 	end
-
-	add_workload(self.workload_counter, 5)
 end
 
 --------------------------------------------------------------------------------
@@ -533,7 +547,6 @@ end
 
 function LogisticsThread:route_train()
 	local train = self.best_train
-	local train_index = self.best_train_index
 	local match = self.match
 	local requester = match.requester
 	local satisfaction = match.satisfaction
@@ -572,6 +585,9 @@ function LogisticsThread:route_train()
 		return
 	end
 
+	-- We now know this is non-nil
+	local best_train_index = self.best_train_index --[[@as int]]
+
 	-- Asynchrony requires revalidation of train
 	add_workload(self.workload_counter, 1)
 	if not train:is_valid() then
@@ -580,7 +596,7 @@ function LogisticsThread:route_train()
 			"route_train: Train became invalid during logistics processing",
 			train.id
 		)
-		self.avail_trains[self.best_train_index] = false
+		self.avail_trains[best_train_index] = false
 		requester:set_status(OrderStatus.invalidation)
 		self:set_state("loop_matches")
 		return
@@ -602,6 +618,8 @@ function LogisticsThread:route_train()
 	end
 
 	-- Asynchrony requires rechecking queues
+	-- TODO: optimization: This wastes API calls by checking node train limit twice. At the very least, factor up. Also consider caching.
+	add_workload(self.workload_counter, 2)
 	if from:is_queue_full() or from:has_max_deliveries() then
 		-- Source queue is full or reached max deliveries, abort
 		strace.trace(
@@ -615,6 +633,7 @@ function LogisticsThread:route_train()
 		return
 	end
 
+	add_workload(self.workload_counter, 1)
 	if to:has_max_deliveries() then
 		-- Destination queue is full, abort
 		strace.trace(
@@ -629,11 +648,11 @@ function LogisticsThread:route_train()
 	end
 
 	-- Check fuel
-	add_workload(self.workload_counter, 2)
+	add_workload(self.workload_counter, 4)
 	if not train:has_fuel() then
 		-- Train has no fuel, abort
 		warn("route_train: Train has no fuel during logistics processing", train.id)
-		self.avail_trains[self.best_train_index] = false
+		self.avail_trains[best_train_index] = false
 		requester:set_status(OrderStatus.invalidation)
 		self:set_state("loop_matches")
 		return
@@ -670,14 +689,14 @@ function LogisticsThread:route_train()
 	local items = satisfaction.items or EMPTY
 	local item_keys = tlib.keys(items)
 	local n_item_keys = #item_keys
-	table.sort(item_keys, function(a, b)
+	tsort(item_keys, function(a, b)
 		if a == starvation_item then return true end
 		if b == starvation_item then return false end
 		local a_qty = items[a] or 0
 		local b_qty = items[b] or 0
 		return a_qty > b_qty
 	end)
-	add_workload(self.workload_counter, n_item_keys * math.log(n_item_keys))
+	add_workload(self.workload_counter, n_item_keys)
 
 	for _, item in ipairs(item_keys) do
 		local qty = items[item] or 0
@@ -708,7 +727,7 @@ function LogisticsThread:route_train()
 	end
 
 	-- Update various caches
-	self.avail_trains[self.best_train_index] = false
+	self.avail_trains[best_train_index] = false
 	local tick = game.tick
 	match.requester.last_fulfilled_tick = tick
 	match.requester:mark_needs_as_stale()
@@ -774,11 +793,12 @@ end
 
 function LogisticsThread:loop_complete()
 	for _, res in pairs(self.reservations) do
-		res.from_inv:add_single_item_outflow(res.item, -res.qty)
+		res.from_inv:add_single_item_outflow(res.item, -res.qty --[[@as int]])
 	end
 	self.reservations = nil
 	self.req_index = nil
 	self:set_state("init")
+	cmt.yield(self)
 end
 
 --------------------------------------------------------------------------------
@@ -788,7 +808,7 @@ end
 function LogisticsThread:sort_requesters()
 	local n = #self.requesters
 	-- Requester sort
-	table.sort(self.requesters, function(a, b)
+	tsort(self.requesters, function(a, b)
 		local a_prio, b_prio = a.priority, b.priority
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
@@ -802,7 +822,7 @@ function LogisticsThread:sort_requesters()
 		if a_last > b_last then return false end
 		return a.busy_value < b.busy_value
 	end)
-	add_workload(self.workload_counter, n * math.log(n))
+	add_workload(self.workload_counter, n * log(n))
 	self:set_state("enum_trains")
 end
 
@@ -827,8 +847,15 @@ end
 --------------------------------------------------------------------------------
 
 function LogisticsThread:enter_logistics()
-	if not self.providers or not self.requesters then
+	if
+		not self.providers
+		or not self.requesters
+		or (#self.providers == 0)
+		or (#self.requesters == 0)
+	then
 		self:set_state("init")
+		cmt.sleep(self, 10 * 60) -- 10 sec
+		cmt.yield(self)
 		return
 	end
 end

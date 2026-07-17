@@ -26,6 +26,7 @@ local events = require("lib.core.event")
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
 ---@field public views {[Id]: Cybersyn.View} All views currently active, indexed by id
 ---@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events
+---@field public dispatch_queue (string|int)[] Queue of delivery IDs to be dispatched. Used by the delivery dispatch thread.
 storage = {}
 
 ---Per-player global state.
@@ -98,6 +99,7 @@ local function clear_storage()
 	storage.alerts_by_entity = {}
 	storage.views = {}
 	storage.entities_being_destroyed = {}
+	storage.dispatch_queue = {}
 end
 _G.__clear_storage = clear_storage
 

@@ -411,6 +411,7 @@ function Train:detaint_departure_schedule(stop_backer_name)
 end
 
 function Train:is_available()
+	-- TODO: PROFILING HOTSPOT This function is expensive.
 	if self.delivery_id or self.volatile or not self:is_valid() then
 		return false
 	end

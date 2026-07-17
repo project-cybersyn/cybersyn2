@@ -219,8 +219,8 @@ local NodeInventory = relm.define("NodeGui.Inventory", function(props)
 	local render_tick, set_render_tick = relm.use_state(tick)
 
 	relm_util.use_event_handler(
-		"cs2.logistics_thread_init",
-		function(me, _, _topology_id)
+		"cs2.logistics_loop_start",
+		function(me, _, _thread, _topology_id)
 			if _topology_id ~= topology_id then return end
 			local _tick = game and game.tick or 0
 			if _tick - render_tick > 60 then set_render_tick(_tick) end

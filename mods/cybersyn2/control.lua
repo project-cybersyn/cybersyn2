@@ -1,8 +1,5 @@
 -- Unique global table to avoid polluting `_G`.
---
--- Whenever setting a global, always use `_G.cs2.x.y = ...`
--- as sumneko code completion gets confused otherwise.
-_G.cs2 = {
+cs2 = {
 	remote_api = {},
 	gui = {},
 	lib = {},
@@ -25,7 +22,6 @@ require("scripts.storage")
 require("scripts.reset")
 require("scripts.settings")
 require("scripts.lib")
-require("scripts.threads")
 
 require("scripts.api.plugins.route")
 require("scripts.logistics.order")
@@ -70,10 +66,16 @@ require("scripts.combinator.modes.surface")
 require("scripts.combinator.modes.wagon-contents")
 require("scripts.combinator.modes.wagon-split")
 
-require("scripts.logistics.thread.base")
-require("scripts.logistics.thread.enum-nodes")
-require("scripts.logistics.thread.poll-nodes")
-require("scripts.logistics.thread.logistics")
+-- Threads
+require("scripts.tasks.base")
+require("scripts.tasks.train-monitor")
+require("scripts.tasks.delivery-monitor")
+require("scripts.tasks.delivery-dispatch")
+-- Dispatch loop threads
+require("scripts.tasks.dispatch-loop.base")
+require("scripts.tasks.dispatch-loop.enum-nodes")
+require("scripts.tasks.dispatch-loop.poll-nodes")
+require("scripts.tasks.dispatch-loop.logistics")
 
 require("scripts.alerts.alerts")
 require("scripts.alerts.station")

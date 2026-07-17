@@ -65,8 +65,8 @@ end
 Vehicle.get = get_vehicle
 cs2.get_vehicle = get_vehicle
 
----@return {[Id]: Cybersyn.Vehicle}
-function Vehicle.all() return storage.vehicles end
+local function get_all_vehicles() return storage.vehicles end
+cs2.get_all_vehicles = get_all_vehicles
 
 ---Determine if the vehicle is available for processing a delivery
 ---@return boolean

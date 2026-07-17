@@ -6,6 +6,7 @@
 
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
+local cmt = require("lib.core.cmt")
 local thread_lib = require("lib.core.thread")
 local cs2 = _G.cs2
 local mod_settings = _G.cs2.mod_settings
@@ -19,15 +20,15 @@ local empty = tlib.empty
 local add_workload = thread_lib.add_workload
 local table_size = _G.table_size
 
--- Type-assert storage due to EmmyLua issues
----@diagnostic disable-next-line: missing-fields
 ---@type Cybersyn.Storage
-storage = {}
+storage = storage --[[@as Cybersyn.Storage]]
 
 ---@class (partial) Cybersyn.LogisticsThread
 local LogisticsThread = _G.cs2.LogisticsThread
 
 function LogisticsThread:enter_enum_nodes()
+	-- TODO: PROFILING HOTSPOT (.700ms in large base)
+
 	-- Find all nodes in the topology
 	local topology_id = self.topology_id
 	local nodes = tlib.t_map_a(storage.nodes, function(node)
@@ -41,11 +42,8 @@ function LogisticsThread:enter_enum_nodes()
 	-- again later.
 	if n_nodes == 0 then
 		self:set_state("init")
-		self.workload = 1
-		self.ema_workload = 1
-		self.workload_counter.workload = 1
-		self:sleep_for(10 * 60) -- 10 sec
-		self:yield()
+		cmt.sleep(self, 10 * 60) -- 10 sec
+		cmt.yield(self)
 		return
 	end
 end
