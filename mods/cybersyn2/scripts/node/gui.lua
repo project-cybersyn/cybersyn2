@@ -14,6 +14,9 @@ local inventory_gui = require("scripts.gui.inventory")
 local siglib = require("lib.core.signal")
 local cs2 = _G.cs2
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local HF = ultros.HFlow
 local VF = ultros.VFlow
 local Pr = relm.Primitive
@@ -88,6 +91,7 @@ local function render_stop_overlay(stop)
 	if (not stop) or (not stop:is_valid()) then return {} end
 	local layout = stop:get_layout()
 	if not layout then return {} end
+	---@diagnostic disable-next-line: need-check-nil
 	local surface = stop.entity.surface
 	local render_objs = {}
 
@@ -111,8 +115,8 @@ local function render_stop_overlay(stop)
 				color = { r = 0, g = 1, b = 0.25, a = 0.25 },
 				width = 2,
 				surface = surface,
-				from = comb.real_entity,
-				to = stop.entity,
+				from = comb.real_entity --[[@as LuaEntity]],
+				to = stop.entity --[[@as LuaEntity]],
 			})
 		end
 	end
@@ -282,6 +286,8 @@ relm.define("NodeGui", function(props)
 
 	local close_me = ultros.use_memoized_window_position(_close_me, function()
 		local player_state = cs2.get_player_state(player_index)
+		-- XXX: TYPES: FMTK vector bug
+		---@diagnostic disable-next-line: return-type-mismatch
 		return player_state and player_state.stop_gui_pos
 	end, pinned and noop or function(loc)
 		local player_state = cs2.get_or_create_player_state(player_index)
