@@ -173,7 +173,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 
 	-- Elide if not dirty
 	if not stop.poll_dirty then return true end
-	stop.poll_dirty = nil
+	stop:mark_clean()
 
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()

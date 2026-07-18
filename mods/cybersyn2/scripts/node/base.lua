@@ -91,6 +91,19 @@ Node.get = get_node
 ---@return boolean
 function Node:is_valid() return false end
 
+---Mark a node as dirty, requiring polling
+function Node:mark_dirty()
+	if self.poll_dirty or self.is_being_destroyed then return end
+	stlib.trace("marking node", self.id, "as dirty")
+	self.poll_dirty = true
+end
+
+function Node:mark_clean()
+	if not self.poll_dirty then return end
+	stlib.trace("marking node", self.id, "as clean")
+	self.poll_dirty = nil
+end
+
 --------------------------------------------------------------------------------
 -- Combs
 --------------------------------------------------------------------------------
@@ -113,6 +126,7 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 		stlib.trace("associating comb", combinator.id, "to node", self.id)
 		self.combinator_set[combinator.id] = true
 		combinator.node_id = self.id
+		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_combinator_node_associated(combinator, self, nil)
 		events.raise("cs2.combinator_node_associated", combinator, self, nil)
 		if not suppress_set_changed then
@@ -144,6 +158,7 @@ function Node.disassociate_combinator(combinator, suppress_set_changed)
 	end
 	stlib.trace("disassociating comb", combinator.id, "from node", node.id)
 	node.combinator_set[combinator.id] = nil
+	---@diagnostic disable-next-line: param-type-mismatch
 	cs2.raise_combinator_node_associated(combinator, nil, node)
 	events.raise("cs2.combinator_node_associated", combinator, nil, node)
 	if not suppress_set_changed then

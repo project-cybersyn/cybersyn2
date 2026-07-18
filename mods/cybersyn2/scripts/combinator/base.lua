@@ -400,7 +400,7 @@ events.bind(
 		-- Mark dirty
 		combinator.inputs_dirty = true
 		local node = combinator:get_node()
-		if node then node.poll_dirty = true end
+		if node then node:mark_dirty() end
 
 		-- Suppress trigger till cleaned
 		trigger_client.arm_trigger(event.trigger_id, false)
