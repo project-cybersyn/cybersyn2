@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local class = require("lib.core.class").class
+local events = require("lib.core.event")
 local tlib = require("lib.core.table")
 local signal_lib = require("lib.signal")
 local mlib = require("lib.core.math.pos")
@@ -129,12 +130,18 @@ function Combinator:read_inputs(which, workload)
 		self.inputs = nil
 		self.red_inputs = nil
 		self.green_inputs = nil
+		self.inputs_dirty = nil
 		return
 	end
+	-- Don't reread if clean
+	if not self.inputs_dirty then return end
 	-- Don't read inputs more than once per tick.
 	local now = game.tick
 	if now - (self.last_read_tick or 0) < 1 then return end
 	self.last_read_tick = now
+	self.inputs_dirty = nil
+	-- Re-arm the circuit change detector if one is attached
+	if self.trigger_id then trigger_client.arm_trigger(self.trigger_id, true) end
 
 	if mdef.independent_input_wires then
 		-- Read red and green inputs separately
@@ -343,8 +350,13 @@ function Combinator:wire_circuit_change_detector()
 			strace.debug(
 				"Combinator",
 				self.id,
-				"already has a circuit change detector attached."
+				"already has a circuit change detector attached. Rearming it."
 			)
+			local trigger_id = child
+				.entity--[[@cast -?]]
+				.unit_number --[[@as UnitNumber]]
+			self.trigger_id = trigger_id
+			trigger_client.arm_trigger(trigger_id, true)
 			return
 		end
 
@@ -357,15 +369,45 @@ function Combinator:wire_circuit_change_detector()
 			r_comb_in,
 			g_comb_in
 		)
+		self.trigger_id = trigger_id
 
 		strace.debug(
-			"Attached circuit change detector for combinator",
+			"Added circuit change detector for combinator",
 			self.id,
 			"with trigger id",
 			trigger_id
 		)
 	else
 		trigger_client.destroy_circuit_change_detector(self.id, "")
-		strace.debug("Detached circuit change detector for combinator", self.id)
+		self.trigger_id = nil
+		strace.debug("Destroyed circuit change detector for combinator", self.id)
 	end
 end
+
+--------------------------------------------------------------------------------
+-- Circuit change detector event
+--------------------------------------------------------------------------------
+
+events.bind(
+	"cybersyn2-combinator-on_trigger",
+
+	---@param event things.EventData.on_trigger
+	function(event)
+		local thing_id = event.thing_id
+		local combinator = get_combinator(thing_id, true)
+		if not combinator then return end
+
+		game.print(
+			{ "", "combinator inputs changed" },
+			{ skip = defines.print_skip.never }
+		)
+
+		-- Mark dirty
+		combinator.inputs_dirty = true
+		local node = combinator:get_node()
+		if node then node.poll_dirty = true end
+
+		-- Suppress trigger till cleaned
+		trigger_client.arm_trigger(event.trigger_id, false)
+	end
+)

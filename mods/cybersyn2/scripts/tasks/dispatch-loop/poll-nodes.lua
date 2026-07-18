@@ -117,7 +117,7 @@ end
 ---@param workload Core.Thread.Workload
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop_station_comb(workload, stop)
-	add_workload(workload, 2)
+	add_workload(workload, 1)
 
 	-- Enumerate combinators
 	---@type Cybersyn.Combinator[]
@@ -170,6 +170,10 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	then
 		return false
 	end
+
+	-- Elide if not dirty
+	if not stop.poll_dirty then return true end
+	stop.poll_dirty = nil
 
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()

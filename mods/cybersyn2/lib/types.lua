@@ -35,6 +35,8 @@ local lib = {}
 ---@field public green_inputs? SignalCounts As `inputs` but for only the green wire. Exists only for modes with `independent_input_wires` set.
 ---@field public last_read_tick uint The tick this combinator was last read.
 ---@field public connected_rail LuaEntity? If this combinator was built next to a rail, this is that rail.
+---@field public inputs_dirty? true `true` if the combinator's inputs have changed since the last time they were read.
+---@field public trigger_id? UnitNumber The unit number of the circuit change detector entity attached to this combinator, if any.
 
 ---A vehicle managed by Cybersyn.
 ---@class (partial) Cybersyn.Vehicle
@@ -116,6 +118,7 @@ lib.CarriageType = {
 ---@field public produce_single_item boolean? `true` if the node should only provide single items per delivery
 ---@field public polled_tick? uint Tick number when this node was last polled for its current state.
 ---@field public polled_delta_era? Core.EraCounter Cached exponential rolling average of the delta between the last two polled ticks.
+---@field public poll_dirty? true `true` if this node's combinators need to be re-polled.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class (partial) Cybersyn.TrainStop: Cybersyn.Node
