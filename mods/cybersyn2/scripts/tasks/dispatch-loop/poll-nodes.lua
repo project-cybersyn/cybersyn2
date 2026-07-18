@@ -175,6 +175,22 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	if not stop.poll_dirty then return true end
 	stop:mark_clean()
 
+	-- Update polling stats
+	local t = game.tick
+	local t0 = stop.polled_tick
+	if t0 then
+		local delta = t - t0
+		if delta > 0 then
+			local era = stop.polled_delta_era
+			if not era then
+				era = era_lib.create_era_counter(delta)
+				stop.polled_delta_era = era
+			end
+			update_era_counter(era, delta)
+		end
+	end
+	stop.polled_tick = t
+
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()
 	comb:read_inputs(nil, workload)
@@ -331,22 +347,6 @@ function LogisticsThread:poll_train_stop_update_inventory()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
 	if not stop:is_valid() then return self:set_state("poll_nodes") end
 	stop:update_inventory(self.workload_counter, false)
-
-	-- Update polling stats
-	local t = game.tick
-	local t0 = stop.polled_tick
-	if t0 then
-		local delta = t - t0
-		if delta > 0 then
-			local era = stop.polled_delta_era
-			if not era then
-				era = era_lib.create_era_counter(delta)
-				stop.polled_delta_era = era
-			end
-			update_era_counter(era, delta)
-		end
-	end
-	stop.polled_tick = t
 
 	self:set_state("poll_train_stop_classify_inventory")
 end
