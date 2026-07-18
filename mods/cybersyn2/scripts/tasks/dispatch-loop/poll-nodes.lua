@@ -366,12 +366,13 @@ function LogisticsThread:poll_train_stop()
 		event.raise("cs2.alert.vanilla_priority", stop_entity)
 		return self:set_state("poll_nodes")
 	end
+	local stop_is_dirty = stop.poll_dirty
 	-- Get station comb info
 	if not self:poll_train_stop_station_comb(workload, stop) then
 		return self:set_state("poll_nodes")
 	end
 	-- Get delivery thresholds
-	self:poll_dt_combs(workload, stop)
+	if stop_is_dirty then self:poll_dt_combs(workload, stop) end
 	self:set_state("poll_train_stop_update_inventory")
 end
 
