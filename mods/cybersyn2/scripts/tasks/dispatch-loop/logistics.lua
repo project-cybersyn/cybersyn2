@@ -850,11 +850,10 @@ function LogisticsThread:enter_logistics()
 	if
 		not self.providers
 		or not self.requesters
-		or (#self.providers == 0)
-		or (#self.requesters == 0)
+		or ((#self.providers == 0) and (#self.requesters == 0))
 	then
 		self:set_state("init")
-		cmt.sleep(self, 10 * 60) -- 10 sec
+		cmt.sleep(self, 5 * 60)
 		cmt.yield(self)
 		return
 	end
