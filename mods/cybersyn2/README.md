@@ -9,7 +9,7 @@ Cybersyn 2 is the next generation of the [Project Cybersyn](https://mods.factori
 ## Quick Links
 
 - **[Official Documentation](https://project-cybersyn.github.io/cybersyn2/) <- START HERE**
-- [Discord](https://discord.gg/zmgUBu95HX) - Please join our discord and ask for the Testing role if you want to help us test.
+- [Discord](https://discord.gg/zmgUBu95HX) - Please join our Discord if using this mod. Feel free to ask questions in the #cs2-help channel.
 - [GitHub](https://github.com/project-cybersyn/cybersyn2) - DO NOT file issues without asking us on Discord first. DO NOT file drive-by vibe coded PRs.
 
 ## A brief note for those coming from the original Project Cybersyn
@@ -28,4 +28,13 @@ If this sounds like what you need, Cybersyn 2 is for you. To get started, you'll
 
 We also have a very helpful community on our [official Discord](https://discord.gg/zmgUBu95HX). After reading the documentation, feel free to ask in Discord if you have any further questions or issues.
 
-*NOTE: While the mod is in Alpha, please use the CS2 Alpha discord channel for discussion. You can request access upon joining Discord.*
+## Credits
+
+- **Mami** for the original **Project Cybersyn** mod without which this mod would not exist.
+- **Tetlanesh** and **Tekbox** for innumerable intellectual contributions to the mod's design, as well as tirelessly helping people in the Discord.
+- **jagoly** for the idea (and graphics) for the modular combinators, and various technical contributions to logistics algorithms.
+
+And to the following indirect contributors:
+
+- @L0laapk3 and @nicejacket on Discord - for suggesting API and plugin ideas.
+- BurninSun - for working with me on enhancing Space Exploration's Elevator API.
