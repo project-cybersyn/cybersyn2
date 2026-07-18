@@ -39,9 +39,6 @@ end
 
 function DeliveryMonitor:enter_enum_deliveries()
 	self:begin_async_loop(tlib.keys(storage.deliveries), 1)
-	for _, view in pairs(storage.views) do
-		view:enter_deliveries(self.workload_counter)
-	end
 end
 
 function DeliveryMonitor:enum_delivery(delivery_id)
@@ -63,10 +60,6 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 	-- Check stuck deliveries
 	if not is_finalized then delivery:check_stuck(self.workload_counter) end
 
-	for _, view in pairs(storage.views) do
-		view:enter_delivery(self.workload_counter, delivery)
-		view:exit_delivery(self.workload_counter, delivery)
-	end
 	add_workload(self.workload_counter, 2)
 end
 
@@ -77,13 +70,7 @@ function DeliveryMonitor:enum_deliveries()
 	)
 end
 
-function DeliveryMonitor:exit_enum_deliveries()
-	self.delivery_ids = nil
-
-	for _, view in pairs(storage.views) do
-		view:exit_deliveries(self.workload_counter)
-	end
-end
+function DeliveryMonitor:exit_enum_deliveries() self.delivery_ids = nil end
 
 -- Start delivery monitor thread on startup.
 events.bind("cs2.threads_start_all", function()

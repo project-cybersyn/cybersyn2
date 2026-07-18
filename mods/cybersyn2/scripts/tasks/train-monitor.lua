@@ -131,9 +131,6 @@ function TrainMonitor:enter_enum_cstrains()
 		if veh.type == "train" then return veh.id end
 	end)
 	self:begin_async_loop(cstrains, 1)
-	for _, view in pairs(storage.views) do
-		view:enter_vehicles(self.workload_counter)
-	end
 	add_workload(self.workload_counter, 1)
 end
 
@@ -174,12 +171,6 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 	else
 		strace.warn("enum_cstrain: train had no group", train, train.group)
 	end
-
-	-- View vehicle visitors
-	for _, view in pairs(storage.views) do
-		view:enter_vehicle(self.workload_counter, train)
-		view:exit_vehicle(self.workload_counter, train)
-	end
 end
 
 function TrainMonitor:enum_cstrains()
@@ -212,10 +203,6 @@ function TrainMonitor:exit_enum_cstrains()
 	end
 
 	if layouts_deleted then events.raise("cs2.train_layouts_destroyed") end
-
-	for _, view in pairs(storage.views) do
-		view:exit_vehicles(self.workload_counter)
-	end
 
 	-- Cleanup
 	self.seen_layouts = nil
