@@ -397,11 +397,6 @@ events.bind(
 		local combinator = get_combinator(thing_id, true)
 		if not combinator then return end
 
-		game.print(
-			{ "", "combinator inputs changed" },
-			{ skip = defines.print_skip.never }
-		)
-
 		-- Mark dirty
 		combinator.inputs_dirty = true
 		local node = combinator:get_node()
