@@ -173,7 +173,6 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 
 	-- Elide if not dirty
 	if not stop.poll_dirty then return true end
-	stop:mark_clean()
 
 	-- Update polling stats
 	local t = game.tick
@@ -200,6 +199,8 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 		strace(WARN, "message", "Couldn't read station comb inputs", stop.entity)
 		return false
 	end
+
+	stop:mark_clean()
 
 	-- Set defaults
 	stop.priority = inputs["cybersyn2-priority"] or 0

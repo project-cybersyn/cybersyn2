@@ -151,12 +151,19 @@ local function wire_combinator(combinator)
 	combinator:wire_circuit_change_detector()
 end
 events.bind("cs2.combinator_status_changed", wire_combinator)
-events.bind("cs2.combinator_settings_changed", function(combinator, setting)
-	if setting == "mode" or setting == nil then wire_combinator(combinator) end
-	-- Any setting change requires a node repoll
-	local node = combinator:get_node()
-	if node then node:mark_dirty() end
-end)
+events.bind(
+	"cs2.combinator_settings_changed",
+	---@param combinator Cybersyn.Combinator
+	---@param setting string?
+	function(combinator, setting)
+		-- Mode change requires rewiring and rereading inputs
+		if setting == "mode" or setting == nil then wire_combinator(combinator) end
+
+		-- Any setting change requires a node repoll
+		local node = combinator:get_node()
+		if node then node:mark_dirty() end
+	end
+)
 
 ---Rewire all combinators in the world. This is useful for bugfixing or migrations.
 function cs2.rewire_all_combinators()
