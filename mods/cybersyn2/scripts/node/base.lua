@@ -33,6 +33,7 @@ function Node.new(type)
 	local node = setmetatable({
 		id = id,
 		type = type or "generic", -- default type
+		poll_dirty = true,
 		combinator_set = {},
 		created_tick = game.tick,
 		deliveries = {},

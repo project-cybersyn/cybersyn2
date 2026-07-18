@@ -166,6 +166,7 @@ function reassociate_recursive(combinators, depth)
 	for stop_id in pairs(affected_stop_set) do
 		local stop = Node.get(stop_id)
 		if stop then
+			stop:mark_dirty()
 			strace.trace(
 				"reassociate_recursive: raising set_changed for stop",
 				stop.id

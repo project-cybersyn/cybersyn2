@@ -62,7 +62,8 @@ function Combinator:new(thing)
 	if (not id) or storage.combinators[id] then
 		error("Bad or duplicate combinator creation.")
 	end
-	local obj = setmetatable({ id = id, last_read_tick = 0 }, self)
+	local obj =
+		setmetatable({ id = id, last_read_tick = 0, inputs_dirty = true }, self)
 	if thing.status == "real" then obj.real_entity = thing.entity end
 	storage.combinators[id] = obj
 	return obj
@@ -137,7 +138,13 @@ function Combinator:read_inputs(which, workload)
 	if not self.inputs_dirty then return end
 	-- Don't read inputs more than once per tick.
 	local now = game.tick
-	if now - (self.last_read_tick or 0) < 1 then return end
+	if now - (self.last_read_tick or 0) < 1 then
+		-- Keep the detector armed even when deferring the read to next tick.
+		if self.trigger_id then
+			trigger_client.arm_trigger(self.trigger_id, true)
+		end
+		return
+	end
 	self.last_read_tick = now
 	self.inputs_dirty = nil
 	-- Re-arm the circuit change detector if one is attached
@@ -344,6 +351,9 @@ function Combinator:wire_circuit_change_detector()
 
 	local mdef = cs2.combinator_modes[self.mode or ""]
 	if mdef and mdef.is_input then
+		-- Paranoid force reread on input mode
+		self.inputs_dirty = true
+
 		-- Check if detector already exists
 		local child = child_client.get_child(self.id, "_trigger")
 		if child then
