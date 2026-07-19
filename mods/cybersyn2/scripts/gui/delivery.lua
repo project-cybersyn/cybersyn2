@@ -16,6 +16,8 @@ local cs2 = _G.cs2
 local HF = ultros.HFlow
 local VF = ultros.VFlow
 local Pr = relm.Primitive
+local pairs = pairs
+local rcall = remote.call --[[@as fun(mod: string, fn: string, ...: any): any]]
 
 local lib = {}
 
@@ -30,13 +32,14 @@ end
 
 local function on_click_cancel_delivery(delivery_id)
 	return function(me, event)
-		remote.call("cybersyn2", "fail_delivery", delivery_id, "CANCELLED_BY_USER")
+		rcall("cybersyn2", "fail_delivery", delivery_id, "CANCELLED_BY_USER")
 	end
 end
 
-local MinimapButton = relm.define_element({
-	name = "CS2.MinimapButton",
-	render = function(props, state)
+local MinimapButton = relm.define(
+	"CS2.MinimapButton",
+	---@param props {entity: LuaEntity?, width?: number, height?: number}
+	function(props)
 		local entity = props.entity
 		local width = props.width or 100
 		local height = props.height or 100
@@ -54,12 +57,13 @@ local MinimapButton = relm.define_element({
 				entity = entity,
 			}),
 		})
-	end,
-})
+	end
+)
 
-local MinimapLabelButton = relm.define_element({
-	name = "CS2.MinimapLabelButton",
-	render = function(props, state)
+local MinimapLabelButton = relm.define(
+	"CS2.MinimapLabelButton",
+	---@param props {entity: LuaEntity?, caption: LocalisedString, width?: number}
+	function(props)
 		local width = props.width or 100
 		return ultros.Button({
 			style = "train_status_button",
@@ -67,15 +71,16 @@ local MinimapLabelButton = relm.define_element({
 			width = width,
 			on_click = on_click_focus_on(props.entity),
 		})
-	end,
-})
+	end
+)
 
 local MAP_FRAME_WIDTH_PADDING = 24
 local MAP_FRAME_HEIGHT_PADDING = 65
 
-local LabeledMapFrame = relm.define_element({
-	name = "CS2.LabeledMapFrame",
-	render = function(props, state)
+local LabeledMapFrame = relm.define(
+	"CS2.LabeledMapFrame",
+	---@param props {entity: LuaEntity?, caption: LocalisedString, width?: number, height?: number}
+	function(props)
 		local width = props.width or 150
 		local height = props.height or 200
 
@@ -97,15 +102,21 @@ local LabeledMapFrame = relm.define_element({
 				height = height - MAP_FRAME_HEIGHT_PADDING,
 			}),
 		})
-	end,
-})
+	end
+)
 lib.LabeledMapFrame = LabeledMapFrame
 
-local TrainDeliveryCancelButton = relm.define_element({
-	name = "CS2.TrainDeliveryCancelButton",
-	render = function(props, state)
-		local delivery = props.delivery --[[@as Cybersyn.TrainDelivery ]]
-		relm_util.use_event("cs2.delivery_state_changed")
+local TrainDeliveryCancelButton = relm.define(
+	"CS2.TrainDeliveryCancelButton",
+	---@param props {delivery: Cybersyn.TrainDelivery}
+	function(props)
+		local delivery = props.delivery
+		relm_util.use_event_handler(
+			"cs2.delivery_state_changed",
+			function(me, _, changed_delivery)
+				if changed_delivery.id == delivery.id then relm.paint(me) end
+			end
+		)
 
 		return ultros.If(
 			delivery:is_cancellable(),
@@ -115,22 +126,23 @@ local TrainDeliveryCancelButton = relm.define_element({
 				on_click = on_click_cancel_delivery(delivery.id),
 			})
 		)
-	end,
-	message = function(me, message, props)
-		if message.key == "cs2.delivery_state_changed" then
-			if message[1] == props.delivery then relm.paint(me) end
-			return true
-		else
-			return false
-		end
-	end,
-})
+	end
+)
 
-local TrainManifest = relm.define_element({
-	name = "CS2.TrainManifest",
-	render = function(props, state)
-		local delivery = props.delivery --[[@as Cybersyn.TrainDelivery ]]
-		relm_util.use_event("cs2.delivery_state_changed")
+local TrainManifest = relm.define(
+	"CS2.TrainManifest",
+	---@param props {delivery: Cybersyn.TrainDelivery}
+	function(props)
+		local delivery = props.delivery
+
+		relm_util.use_event_handler(
+			"cs2.delivery_state_changed",
+			function(me, _, changed_delivery, state)
+				if changed_delivery.id == delivery.id and state == "wait_to" then
+					relm.paint(me)
+				end
+			end
+		)
 
 		local buttons_table = {}
 		for k, v in pairs(delivery.manifest or tlib.EMPTY) do
@@ -181,18 +193,8 @@ local TrainManifest = relm.define_element({
 				}),
 			}),
 		})
-	end,
-	message = function(me, message, props)
-		if message.key == "cs2.delivery_state_changed" then
-			if message[1] == props.delivery and message[2] == "wait_to" then
-				relm.paint(me)
-			end
-			return true
-		else
-			return false
-		end
-	end,
-})
+	end
+)
 
 local delivery_state_friendly_names = {
 	wait_from = "Queued for provider",
@@ -207,101 +209,103 @@ local delivery_state_friendly_names = {
 	failed = "[color=red]Failed[/color]",
 }
 
-local DeliveryHeader = relm.define("CS2.DeliveryHeader", function(props)
-	local delivery = props.delivery --[[@as Cybersyn.TrainDelivery]]
-	local delivery_id = delivery.id
-	local state_tick = delivery.state_tick or 0
-	local state_name = delivery_state_friendly_names[delivery.state] or "Unknown"
-	relm_util.use_event_handler(
-		"cs2.delivery_state_changed",
-		function(me, _, changed_delivery)
-			if changed_delivery.id == delivery_id then relm.paint(me) end
-		end
-	)
-
-	return {
-		ultros.TimedRepaintWrapper({
-			---@param t int64
-			render = function(t)
-				local time_in_state = t - state_tick
-				return ultros.RtLgLabel({
-					"",
-					"[font=default-large-bold]#",
-					delivery_id,
-					"[/font] ",
-					state_name,
-					" (",
-					nlib.format_ticks(time_in_state),
-					")",
-				})
-			end,
-		}),
-		Pr({
-			type = "line",
-		}),
-	}
-end)
-
-local TrainDeliveryFrame = relm.define_element({
-	name = "CS2.TrainDeliveryFrame",
-	render = function(props, state)
-		local delivery = props.delivery --[[@as Cybersyn.TrainDelivery ]]
-		local from_stop = relm.use_result(
-			function() return cs2.get_stop(delivery.from_id) end
+local DeliveryHeader = relm.define(
+	"CS2.DeliveryHeader",
+	---@param props {delivery: Cybersyn.TrainDelivery}
+	function(props)
+		local delivery = props.delivery --[[@as Cybersyn.TrainDelivery]]
+		local delivery_id = delivery.id
+		local state_tick = delivery.state_tick or 0
+		local state_name = delivery_state_friendly_names[delivery.state]
+			or "Unknown"
+		relm_util.use_event_handler(
+			"cs2.delivery_state_changed",
+			function(me, _, changed_delivery)
+				if changed_delivery.id == delivery_id then relm.paint(me) end
+			end
 		)
-		local from_entity = nil
-		local from_name = "Unknown"
-		if from_stop then
-			from_entity = from_stop.entity --[[@as LuaEntity]]
-			from_name = from_entity.backer_name or "Unknown"
-		end
-		local to_stop = relm.use_result(
-			function() return cs2.get_stop(delivery.to_id) end
-		)
-		local to_entity = nil
-		local to_name = "Unknown"
-		if to_stop then
-			to_entity = to_stop.entity --[[@as LuaEntity]]
-			to_name = to_entity.backer_name or "Unknown"
-		end
-		local cstrain = relm.use_result(
-			function() return cs2.get_train(delivery.vehicle_id) end
-		)
-		local train_entity = relm.use_result(function()
-			if cstrain then return cstrain:get_stock() end
-		end)
-		local width = props.train_frame and 109 or 166
 
-		return VF({
-			ultros.If(props.show_header, DeliveryHeader({ delivery = delivery })),
-			HF({
-				LabeledMapFrame({
-					entity = from_entity,
-					caption = { "", "[item=train-stop] Provider" },
-					width = width,
-					height = 180,
-				}),
-				ultros.If(
-					props.train_frame and train_entity,
-					LabeledMapFrame({
-						entity = train_entity,
-						caption = { "", "[item=locomotive]" },
-						width = width,
-						height = 180,
+		return {
+			ultros.TimedRepaintWrapper({
+				---@param t int64
+				render = function(t)
+					local time_in_state = t - state_tick
+					return ultros.RtLgLabel({
+						"",
+						"[font=default-large-bold]#",
+						delivery_id,
+						"[/font] ",
+						state_name,
+						" (",
+						nlib.format_ticks(time_in_state),
+						")",
 					})
-				),
+				end,
+			}),
+			Pr({
+				type = "line",
+			}),
+		}
+	end
+)
+
+local TrainDeliveryFrame = relm.define("CS2.TrainDeliveryFrame", function(props)
+	local delivery = props.delivery --[[@as Cybersyn.TrainDelivery ]]
+	local from_stop = relm.use_result(
+		function() return cs2.get_stop(delivery.from_id) end
+	)
+	local from_entity = nil
+	local from_name = "Unknown"
+	if from_stop then
+		from_entity = from_stop.entity --[[@as LuaEntity]]
+		from_name = from_entity.backer_name or "Unknown"
+	end
+	local to_stop = relm.use_result(
+		function() return cs2.get_stop(delivery.to_id) end
+	)
+	local to_entity = nil
+	local to_name = "Unknown"
+	if to_stop then
+		to_entity = to_stop.entity --[[@as LuaEntity]]
+		to_name = to_entity.backer_name or "Unknown"
+	end
+	local cstrain = relm.use_result(
+		function() return cs2.get_train(delivery.vehicle_id) end
+	)
+	local train_entity = relm.use_result(function()
+		if cstrain then return cstrain:get_stock() end
+	end)
+	local width = props.train_frame and 109 or 166
+
+	return VF({
+		ultros.If(props.show_header, DeliveryHeader({ delivery = delivery })),
+		HF({
+			LabeledMapFrame({
+				entity = from_entity,
+				caption = { "", "[item=train-stop] Provider" },
+				width = width,
+				height = 180,
+			}),
+			ultros.If(
+				props.train_frame and train_entity,
 				LabeledMapFrame({
-					entity = to_entity,
-					caption = { "", "[item=train-stop] Requester" },
+					entity = train_entity,
+					caption = { "", "[item=locomotive]" },
 					width = width,
 					height = 180,
-				}),
+				})
+			),
+			LabeledMapFrame({
+				entity = to_entity,
+				caption = { "", "[item=train-stop] Requester" },
+				width = width,
+				height = 180,
 			}),
-			TrainManifest({ delivery = delivery }),
-			TrainDeliveryCancelButton({ delivery = delivery }),
-		})
-	end,
-})
+		}),
+		TrainManifest({ delivery = delivery }),
+		TrainDeliveryCancelButton({ delivery = delivery }),
+	})
+end)
 lib.TrainDeliveryFrame = TrainDeliveryFrame
 
 local function default_delivery_sort(a, b)
