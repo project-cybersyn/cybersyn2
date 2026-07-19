@@ -67,7 +67,7 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 		view:enter_delivery(self.workload_counter, delivery)
 		view:exit_delivery(self.workload_counter, delivery)
 	end
-	add_workload(self.workload_counter, 2)
+	add_workload(self.workload_counter, 1)
 end
 
 function DeliveryMonitor:enum_deliveries()
