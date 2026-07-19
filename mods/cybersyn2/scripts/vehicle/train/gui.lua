@@ -193,7 +193,11 @@ relm.define("TrainGui", function(props)
 	local luatrain_valid = not not (luatrain and luatrain.valid)
 	---@diagnostic disable-next-line: need-check-nil
 	local luatrain_id = luatrain_valid and luatrain.id or 0
-	local cstrain = luatrain_valid and cs2.get_train_from_luatrain_id(luatrain_id)
+	local cstrain = relm.use_result(
+		function()
+			return luatrain_valid and cs2.get_train_from_luatrain_id(luatrain_id)
+		end
+	)
 	local window_height = cstrain and 800 or 100
 
 	-- Window management

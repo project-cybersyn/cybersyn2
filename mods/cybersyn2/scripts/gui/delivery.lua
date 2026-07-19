@@ -246,23 +246,30 @@ local TrainDeliveryFrame = relm.define_element({
 	name = "CS2.TrainDeliveryFrame",
 	render = function(props, state)
 		local delivery = props.delivery --[[@as Cybersyn.TrainDelivery ]]
-		local from_stop = cs2.get_stop(delivery.from_id)
+		local from_stop = relm.use_result(
+			function() return cs2.get_stop(delivery.from_id) end
+		)
 		local from_entity = nil
 		local from_name = "Unknown"
 		if from_stop then
 			from_entity = from_stop.entity --[[@as LuaEntity]]
 			from_name = from_entity.backer_name or "Unknown"
 		end
-		local to_stop = cs2.get_stop(delivery.to_id)
+		local to_stop = relm.use_result(
+			function() return cs2.get_stop(delivery.to_id) end
+		)
 		local to_entity = nil
 		local to_name = "Unknown"
 		if to_stop then
 			to_entity = to_stop.entity --[[@as LuaEntity]]
 			to_name = to_entity.backer_name or "Unknown"
 		end
-		local cstrain = cs2.get_train(delivery.vehicle_id)
-		local train_entity = nil
-		if cstrain then train_entity = cstrain:get_stock() end
+		local cstrain = relm.use_result(
+			function() return cs2.get_train(delivery.vehicle_id) end
+		)
+		local train_entity = relm.use_result(function()
+			if cstrain then return cstrain:get_stock() end
+		end)
 		local width = props.train_frame and 109 or 166
 
 		return VF({
