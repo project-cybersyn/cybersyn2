@@ -174,6 +174,18 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	-- Elide if not dirty
 	if not stop.poll_dirty then return true end
 
+	-- Read primary input wire
+	local primary_wire = comb:get_primary_wire()
+	comb:read_inputs(nil, workload)
+	local inputs = comb.red_inputs
+	if primary_wire == "green" then inputs = comb.green_inputs end
+	if not inputs then
+		strace(WARN, "message", "Couldn't read station comb inputs", stop.entity)
+		return false
+	end
+
+	-- Mark clean
+	stop:mark_clean()
 	-- Update polling stats
 	local t = game.tick
 	local t0 = stop.polled_tick
@@ -189,18 +201,6 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 		end
 	end
 	stop.polled_tick = t
-
-	-- Read primary input wire
-	local primary_wire = comb:get_primary_wire()
-	comb:read_inputs(nil, workload)
-	local inputs = comb.red_inputs
-	if primary_wire == "green" then inputs = comb.green_inputs end
-	if not inputs then
-		strace(WARN, "message", "Couldn't read station comb inputs", stop.entity)
-		return false
-	end
-
-	stop:mark_clean()
 
 	-- Set defaults
 	stop.priority = inputs["cybersyn2-priority"] or 0
