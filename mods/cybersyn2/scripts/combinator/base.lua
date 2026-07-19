@@ -27,6 +27,13 @@ local signals_to_signal_counts = signal_lib.signals_to_signal_counts
 local distsq = mlib.pos_distsq
 local add_workload = thread_lib.add_workload
 
+local EMPTY = tlib.EMPTY
+local I_RED = defines.wire_connector_id.combinator_input_red
+local I_GREEN = defines.wire_connector_id.combinator_input_green
+local O_RED = defines.wire_connector_id.combinator_output_red
+local O_GREEN = defines.wire_connector_id.combinator_output_green
+local SCRIPT = defines.wire_origin.script
+
 --------------------------------------------------------------------------------
 -- Modes
 --------------------------------------------------------------------------------
@@ -113,9 +120,6 @@ function Combinator:get_node(check_type)
 	if node and (not check_type or node.type == check_type) then return node end
 end
 
-local RED_INPUTS = defines.wire_connector_id.combinator_input_red
-local GREEN_INPUTS = defines.wire_connector_id.combinator_input_green
-
 ---If the combinator is in an input-supporting mode, read and cache its input
 ---signals.
 ---@param which "red"|"green"|nil If given, and the combinator has independent input wires, read only the given wire. If `nil`, read both wires.
@@ -153,7 +157,7 @@ function Combinator:read_inputs(which, workload)
 	if mdef.independent_input_wires then
 		-- Read red and green inputs separately
 		if which == "red" or which == nil then
-			local red_signals = entity.get_signals(RED_INPUTS)
+			local red_signals = entity.get_signals(I_RED)
 			if red_signals then
 				self.red_inputs = signals_to_signal_counts(red_signals)
 			else
@@ -162,7 +166,7 @@ function Combinator:read_inputs(which, workload)
 		end
 
 		if which == "green" or which == nil then
-			local green_signals = entity.get_signals(GREEN_INPUTS)
+			local green_signals = entity.get_signals(I_GREEN)
 			if green_signals then
 				self.green_inputs = signals_to_signal_counts(green_signals)
 			else
@@ -172,7 +176,7 @@ function Combinator:read_inputs(which, workload)
 
 		self.inputs = nil
 	else
-		local signals = entity.get_signals(RED_INPUTS, GREEN_INPUTS)
+		local signals = entity.get_signals(I_RED, I_GREEN)
 		if signals then
 			self.inputs = signals_to_signal_counts(signals)
 		else
@@ -197,7 +201,7 @@ function Combinator:clear_outputs()
 		param = {
 			outputs = {},
 			conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
-			else_outputs = {},
+			else_outputs = EMPTY,
 		}
 	else
 		param.outputs = {}
@@ -246,7 +250,7 @@ function Combinator:write_outputs(...)
 		param = {
 			outputs = outputs,
 			conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
-			else_outputs = {},
+			else_outputs = EMPTY,
 		}
 	else
 		param.outputs = outputs
@@ -265,19 +269,13 @@ function Combinator:direct_write_outputs(outputs)
 		param = {
 			outputs = outputs,
 			conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
-			else_outputs = {},
+			else_outputs = EMPTY,
 		}
 	else
 		param.outputs = outputs
 	end
 	beh.parameters = param
 end
-
-local I_RED = defines.wire_connector_id.combinator_input_red
-local I_GREEN = defines.wire_connector_id.combinator_input_green
-local O_RED = defines.wire_connector_id.combinator_output_red
-local O_GREEN = defines.wire_connector_id.combinator_output_green
-local SCRIPT = defines.wire_origin.script
 
 local function cross_wires(entity, state)
 	local i_red = entity.get_wire_connector(I_RED, true)
@@ -406,13 +404,11 @@ events.bind(
 		local thing_id = event.thing_id
 		local combinator = get_combinator(thing_id, true)
 		if not combinator then return end
-
+		-- Suppress trigger till cleaned
+		trigger_client.arm_trigger(event.trigger_id, false)
 		-- Mark dirty
 		combinator.inputs_dirty = true
 		local node = combinator:get_node()
 		if node then node:mark_dirty() end
-
-		-- Suppress trigger till cleaned
-		trigger_client.arm_trigger(event.trigger_id, false)
 	end
 )
