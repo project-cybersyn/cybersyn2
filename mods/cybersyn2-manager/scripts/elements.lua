@@ -62,9 +62,9 @@ _G.mgr.SignalCountsTable = relm.define_element({
 
 ---@param handle Relm.Handle
 local function view_effect(handle, filter)
-	local view_id = remote.call("cybersyn2", "create_view", filter.type, filter)
+	local view_id = nil
 	if not view_id then return 0 end
-	local snapshot = remote.call("cybersyn2", "read_view", view_id) or empty
+	local snapshot = empty
 	relm.set_state(handle, function(current_state)
 		---@cast current_state table
 		local x = tlib.assign(current_state, { view_id = view_id })
@@ -75,9 +75,7 @@ local function view_effect(handle, filter)
 end
 
 ---@param view_id Id
-local function view_cleanup(view_id)
-	if view_id then remote.call("cybersyn2", "destroy_view", view_id) end
-end
+local function view_cleanup(view_id) end
 
 _G.mgr.ViewWrapper = relm.define_element({
 	name = "Cybersyn.Manager.ViewWrapper",
@@ -98,7 +96,7 @@ _G.mgr.ViewWrapper = relm.define_element({
 			local updated_view_id = payload[1]
 			local view_id = state.view_id
 			if updated_view_id == view_id then
-				local snapshot = remote.call("cybersyn2", "read_view", view_id) or empty
+				local snapshot = empty
 				relm.set_state(me, function(current_state)
 					---@cast current_state table
 					return tlib.assign(current_state, snapshot)

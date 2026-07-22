@@ -39,9 +39,7 @@ function LogisticsThread:enter_poll_train_stop_classify_inventory()
 	-- Only run on first entry
 	if not self.order_index then
 		local stop = self.node --[[@as Cybersyn.TrainStop]]
-		for _, view in pairs(storage.views) do
-			view:enter_node(self.workload_counter, stop)
-		end
+
 		if stop.shared_inventory_master then
 			-- Shared inventory slave; allow the master to classify inventory
 			return self:set_state("poll_nodes")
@@ -57,10 +55,6 @@ end
 function LogisticsThread:exit_poll_train_stop_classify_inventory()
 	self.order_index = nil
 	self.orders = nil
-	local stop = self.node --[[@as Cybersyn.TrainStop]]
-	for _, view in pairs(storage.views) do
-		view:exit_node(self.workload_counter, stop)
-	end
 end
 
 function LogisticsThread:poll_train_stop_classify_inventory()
@@ -86,9 +80,6 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 
 	add_workload(self.workload_counter, 1)
 
-	for _, view in pairs(storage.views) do
-		view:enter_order(self.workload_counter, order, stop)
-	end
 	if order_stop and order_stop.is_producer and order:is_provider() then
 		providers[#providers + 1] = order
 	end
@@ -104,9 +95,6 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 		end
 	else
 		order:clear_needs()
-	end
-	for _, view in pairs(storage.views) do
-		view:exit_order(self.workload_counter, order, stop)
 	end
 end
 
@@ -387,13 +375,6 @@ function LogisticsThread:enter_poll_nodes()
 		self.providers = {}
 		self.requesters = {}
 		self.node_index = 0
-
-		local topology = cs2.get_topology(self.topology_id)
-		if topology then
-			for _, view in pairs(storage.views) do
-				view:enter_nodes(self.workload_counter, topology)
-			end
-		end
 	end
 end
 
@@ -404,12 +385,6 @@ function LogisticsThread:poll_nodes()
 	self.node = node
 	if not node then
 		self.node_index = nil
-		local topology = cs2.get_topology(self.topology_id)
-		if topology then
-			for _, view in pairs(storage.views) do
-				view:exit_nodes(self.workload_counter, topology)
-			end
-		end
 		return self:set_state("logistics")
 	end
 
