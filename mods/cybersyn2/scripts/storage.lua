@@ -37,9 +37,10 @@ storage = {}
 ---@field public connection_render_objects? LuaRenderObject[] The render objects used to visualize connections in the player's UI.
 ---@field public connection_source? Id ID of the TrainStop from which the player is connecting a shared inventory.
 ---@field public hide_help? boolean Whether the player has hidden the help pane
----@field public train_gui_pos? [number, number] The position of the train GUI for this player, if any.
----@field public stop_gui_pos? [number, number] The position of the stop GUI for this player, if any.
----@field public combinator_gui_pos? [number, number] The position of the combinator GUI for this player, if any.
+---@field public train_gui_pos? [int, int] The position of the train GUI for this player, if any.
+---@field public stop_gui_pos? [int, int] The position of the stop GUI for this player, if any.
+---@field public combinator_gui_pos? [int, int] The position of the combinator GUI for this player, if any.
+---@field public manager_gui_pos? [int, int] The position of the manager GUI for this player, if any.
 
 ---Get the player state for a player, creating it if it doesn't exist.
 ---@param player_index PlayerIndex
