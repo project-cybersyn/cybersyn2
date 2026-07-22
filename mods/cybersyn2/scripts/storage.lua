@@ -104,3 +104,16 @@ end
 _G.__clear_storage = clear_storage
 
 events.bind("on_startup", clear_storage, true)
+
+-- Clean up destroyed players
+events.bind(
+	defines.events.on_player_left_game,
+	---@param ev EventData.on_player_left_game
+	function(ev)
+		local state = get_player_state(ev.player_index)
+		if state then
+			storage.players[ev.player_index] = nil
+			events.raise("cs2.player_state_destroyed", state)
+		end
+	end
+)
