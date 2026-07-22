@@ -60,7 +60,7 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 	-- Check stuck deliveries
 	if not is_finalized then delivery:check_stuck(self.workload_counter) end
 
-	add_workload(self.workload_counter, 2)
+	add_workload(self.workload_counter, 1)
 end
 
 function DeliveryMonitor:enum_deliveries()
