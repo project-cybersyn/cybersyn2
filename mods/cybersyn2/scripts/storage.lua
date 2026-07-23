@@ -12,7 +12,7 @@ local events = require("lib.core.event")
 ---@field public topologies table<Id, Cybersyn.Topology> All Cybersyn topologies indexed by id
 ---@field public nodes {[Id]: Cybersyn.Node} All Cybersyn nodes indexed by id
 ---@field public inventories {[Id]: Cybersyn.Inventory} All Cybersyn inventories indexed by id
----@field public deliveries {[Id]: Cybersyn.Delivery} All Cybersyn deliveries indexed by id
+---@field public deliveries table<Id, Cybersyn.Delivery> All Cybersyn deliveries indexed by id
 ---@field public task_ids {[string]: Scheduler.TaskId} Ids of core tasks
 ---@field public train_groups {[string]: Cybersyn.Internal.TrainGroup} All Cybersyn-controlled train groups indexed by Factorio group name
 ---@field public luatrain_id_to_vehicle_id {[Id]: Id} Map of LuaTrain ids to Cybersyn vehicle ids
@@ -24,7 +24,6 @@ local events = require("lib.core.event")
 ---@field public surface_index_to_train_topology {[uint]: Id} Map from planetary surfaces to associated train topologies
 ---@field public alerts {[Id]: Cybersyn.Alert} Currently displayed alerts
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
----@field public views {[Id]: Cybersyn.View} All views currently active, indexed by id
 ---@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events
 ---@field public dispatch_queue (string|int)[] Queue of delivery IDs to be dispatched. Used by the delivery dispatch thread.
 storage = {}

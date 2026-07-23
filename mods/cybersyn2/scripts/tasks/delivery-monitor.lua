@@ -21,12 +21,14 @@ storage = storage --[[@as Cybersyn.Storage]]
 
 ---@class Cybersyn.Internal.DeliveryMonitor: StatefulTask
 ---@field state "init"|"enum_deliveries" State of the task.
+---@field n_deliveries int Number of deliveries enumerated in last full loop.
 local DeliveryMonitor = class("DeliveryMonitor", cs2.StatefulTask)
 
 function DeliveryMonitor:new()
 	local thread = cs2.StatefulTask.new(self) --[[@as Cybersyn.Internal.DeliveryMonitor]]
 	thread._cmt_name = "delivery_monitor"
 	thread._cmt_work_cap = 5
+	thread.n_deliveries = 0
 	thread.state = "init"
 	cmt.add(thread)
 	cmt.wake(thread)
@@ -38,7 +40,10 @@ function DeliveryMonitor:init()
 end
 
 function DeliveryMonitor:enter_enum_deliveries()
-	self:begin_async_loop(tlib.keys(storage.deliveries), 1)
+	local deliveries = storage.deliveries
+	local keys, n = tlib.keys_n(deliveries)
+	self.n_deliveries = n
+	self:begin_async_loop(keys, 1)
 end
 
 function DeliveryMonitor:enum_delivery(delivery_id)
