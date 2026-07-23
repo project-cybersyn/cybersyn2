@@ -21,6 +21,7 @@ local Tabs = relm.define(
 	---@param props {player_state: Cybersyn.PlayerState}
 	function(props)
 		return ultros.TabbedPane({
+			style = "relm_tabbed_pane",
 			horizontally_stretchable = true,
 			vertically_stretchable = true,
 			tabs = {
@@ -80,8 +81,8 @@ relm.define(
 		-- Window frame
 		return ultros.WindowFrame({
 			caption = "Cybersyn 2 Manager",
-			width = 800,
-			height = 600,
+			width = 1024,
+			height = 768,
 			on_close = close_me,
 			decoration = function()
 				return ultros.PinButton({ pinned = pinned, set_pinned = set_pinned })
@@ -89,7 +90,7 @@ relm.define(
 		}, {
 			Pr({
 				type = "frame",
-				style = "inside_shallow_frame",
+				style = "inside_deep_frame",
 				direction = "vertical",
 			}, { Tabs({ player_state = player_state }) }),
 		})

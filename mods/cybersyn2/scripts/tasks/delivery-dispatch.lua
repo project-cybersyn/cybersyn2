@@ -2,6 +2,7 @@ local class = require("lib.core.class").class
 local cmt_lib = require("lib.core.cmt")
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
+local era_lib = require("lib.core.math.era-counter")
 
 local tremove = table.remove
 
@@ -15,7 +16,9 @@ storage = storage --[[@as Cybersyn.Storage]]
 --------------------------------------------------------------------------------
 
 ---@class Cybersyn.Internal.DeliveryDispatchThread: Core.CMT.Task
----@field public queue (int|string)[] Queue of delivery IDs to be dispatched.
+---@field public n_dispatches int64 The number of dispatches performed by this thread
+---@field public last_dispatch_tick? int64 The tick of the last dispatch performed by this thread
+---@field public frames_per_dispatch Core.EraCounter The number of frames between dispatches performed by this thread
 local DeliveryDispatchThread = class("DeliveryDispatchThread", cmt_lib.Task)
 cs2.DeliveryDispatchThread = DeliveryDispatchThread
 
@@ -24,6 +27,8 @@ function DeliveryDispatchThread:new()
 	thread._cmt_name = "delivery_dispatch"
 	thread._cmt_realtime = true
 	thread._cmt_work_cap = 5
+	thread.n_dispatches = 0
+	thread.frames_per_dispatch = era_lib.create_era_counter(0)
 	cmt_lib.add(thread)
 	cmt_lib.wake(thread)
 	return thread
@@ -43,6 +48,18 @@ function DeliveryDispatchThread:main()
 		)
 		return 1
 	end
+	local ldt = self.last_dispatch_tick
+	local t = game.tick
+	if ldt then
+		local fpd = self.frames_per_dispatch
+		if not fpd then
+			fpd = era_lib.create_era_counter(0)
+			self.frames_per_dispatch = fpd
+		end
+		era_lib.update_era_counter(fpd, t - ldt)
+	end
+	self.last_dispatch_tick = t
+	self.n_dispatches = (self.n_dispatches or 0) + 1
 	delivery[operation](delivery)
 	-- When performing an operation, be sure to exhaust the workload cap
 	cmt_lib.yield(self)
