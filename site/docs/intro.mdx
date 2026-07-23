@@ -47,14 +47,54 @@ configuring Cybersyn trains, including refueling.
 
 ### Provider
 
-Make a provider
+TODO
 
 ### Requester
 
-Make a requester
+TODO
 
-## More
+## What's new in CS2
 
-This is only the very tip of the iceberg of what can be done using Cybersyn 2.
-Continue reading
+For those coming from CS1, this is some of what's new in CS2. This is an incomplete list.
 
+### Logistics
+
+- **Automatic Thresholds**: in CS2, there is virtually no need to set or worry about thresholds unless you suffer from OCD. Thresholds are computed algorithmically using true inventories and request values. Just build a station, set your requests, and roll with the vibes.
+
+- **Orders**: in CS2, a station can have multiple orders offering or requesting different subsets of inventory to different networks. This allows many more logistics scenarios to be modeled using fewer stations.
+
+- **Quality Spread**: in CS2 it is possible to request a given number of items spread over a given range of qualities, i.e. "Give me 5000 total iron ore with quality at least rare."
+
+- **OR orders**: It is further possible to request a total number item stacks with the composition of the items being an OR over any set/mask of given items.
+
+- **All Items orders**: It is further possible to order a given number of stacks of any item whatsoever. This can be useful to create "pull", "sink", or "dump" type stations that will always pull anything offered on a given network.
+
+- **Correct global priority**: unlike CS1, where priorities are compared only between deliveries of the same item, CS2's priorities operate globally per-order. (This means, for example, that your nuclear power plants set to priority 100 won't die because your fluid trains are tied up transporting oil at priority 0)
+
+- **AND network matching**: Requesters can be set so that a provider must share ALL networks (Rather than just one) in order to match. This opens up additional logistical solutions for some of the rarer edge cases encountered in advanced modpacks like Py.
+
+- **Topologies**: Topologies are isolated collections of stations and trains that get their own separate dispatch thread.
+
+### Trains, Loading, and Unloading
+
+- **Better Auto Allow List**: CS2's auto allow list works more correctly in more situations, and has visual indicators to find issues in how it is being computed.
+
+- **Manual Allow List**: For modded wagons and other situations where the auto allow list does not meet your needs, CS2 has a manual allow list where you can specify exactly which trains you want to arrive.
+
+- **Spillover**: CS2 can compensate for imprecise loading by charging additional amounts against the providing station's inventory. This fixes a common CS1 issue by preventing a second train from getting stuck if a first train gets slightly overloaded due to extra inserter swings.
+
+- **Live Wagon Reader**: For multi-wagon trains, CS2 provides a builtin UPS efficient wagon reader for cargo wagons (implemented using a proxy inventory) that can be used to help precisely load individual wagons.
+
+- **Circuit and Timeout Controls**: CS2 provides a full array of manual circuit controls and timeout controls for deciding when trains depart a station.
+
+### Efficiency
+
+- **Removal of loop scaling bottlenecks**: CS2 can dispatch as many trains as needed per loop cycle and is not limited by a single train per item. Therefore the phenomenon of "dispatch loop starvation" does not exist any longer in CS2. (This completely fixes the most common performance issue that is constantly reported on our Discord.)
+
+- **Cooperative multitasking**: CS2 runs on a custom thread library that controls its work per frame. It can manage an entire megabase while still staying under its defined global work cap.
+
+- **Circuit change detection**: CS2 detects when inventory and order input changes and only polls stations that need it. This allows it to skip a lot of expensive operations that CS1 cannot.
+
+- **Queueing system**: CS2 can queue trains beyond ordinary train limits, allowing it to route more of its traffic outside the dispatch loop. This results in VASTLY increased train usage uptime and correspondingly fewer trains needed for a given workload.
+
+- **Removal of depots and refueling**: CS2 does not manage depots or refueling, instead leaving these to vanilla Factorio mechanisms. Regular stations are used as depots and standard interrupts are used to refuel.
