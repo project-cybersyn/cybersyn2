@@ -81,7 +81,7 @@ relm.define_element({
 ---@field public carriage LuaEntity
 ---@field public index integer
 ---@field public capacity integer
----@field public manifest Cybersyn.Manifest
+---@field public manifest SignalCounts
 
 ---@class Cybersyn.Internal.CargoWagonManifest: Cybersyn.Internal.WagonManifest
 ---@field public type "cargo"
@@ -197,7 +197,7 @@ end
 ---@param train Cybersyn.Train
 ---@param stop Cybersyn.TrainStop
 ---@param delivery Cybersyn.TrainDelivery
----@return table<int, Cybersyn.Manifest>
+---@return table<int, SignalCounts>
 local function create_wagon_manifests(train, stop, delivery)
 	-- Build base carriage manifest records
 	local carriages = train.lua_train.carriages

@@ -16,8 +16,6 @@ local lib = {}
 
 ---@alias SignalSet {[SignalKey]: true} A collection of signals referenced by their `SignalKey`.
 
----@alias Cybersyn.Manifest SignalCounts
-
 ---Combinator game state.
 ---@class (partial) Cybersyn.Combinator
 ---@field public id int64 The unique Thing ID associated with this combinator.
