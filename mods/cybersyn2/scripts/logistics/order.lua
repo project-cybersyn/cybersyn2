@@ -278,10 +278,6 @@ function Order:read(workload)
 		elseif network then
 			-- Default to the network specified on the combinator
 			self.networks[network] = mod_settings.default_netmask
-		elseif stop.default_networks then
-			-- Default to the stop's default networks
-			-- XXX: deprecated, remove for Beta
-			assign(self.networks, stop.default_networks)
 		end
 	end
 	add_workload(workload, 2)
