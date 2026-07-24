@@ -10,6 +10,7 @@ local HF = ultros.HFlow
 local VF = ultros.VFlow
 local table_size = table_size
 local EMPTY = tlib.EMPTY
+local strformat = string.format
 
 local lib = {}
 
@@ -109,7 +110,7 @@ local DispatcherEntry = relm.define("Manager.DispatcherEntry", function()
 				ultros.RtLabel({
 					"",
 					"[font=default-bold]Frames per Dispatch[/font] ",
-					fpd,
+					strformat("%.2f", fpd),
 				}),
 			}),
 		}),
@@ -125,6 +126,10 @@ local TrainMonitorEntry = relm.define("Manager.TrainMonitorEntry", function()
 		tasks,
 		function(t) return t._cmt_name == "TrainMonitor" end
 	) or EMPTY
+	---@cast task Cybersyn.Internal.TrainMonitor
+	local loop_length_era = (task.loop_length_era or EMPTY)[1] or 0
+	local n_luatrains = task.n_luatrains or 0
+	local n_cstrains = task.n_cstrains or 0
 	local wpi = (task._cmt_work_per_iter or EMPTY)[1] or 0
 	local work_cap = task._cmt_work_cap or 0
 	local spike_cap = task._cmt_spike_cap or 0
@@ -142,7 +147,29 @@ local TrainMonitorEntry = relm.define("Manager.TrainMonitorEntry", function()
 				ultros.RtLabel({
 					"",
 					"[font=default-bold]Work per Iteration[/font] ",
-					wpi,
+					strformat("%.2f", wpi),
+				}),
+			}),
+			HF({ horizontally_stretchable = true }, {
+				ultros.RtLabel({
+					"",
+					"[font=default-bold]Loop length[/font] ",
+					strformat("%.2f", loop_length_era),
+					" frames",
+				}),
+			}),
+			HF({ horizontally_stretchable = true }, {
+				ultros.RtLabel({
+					"",
+					"[font=default-bold]LuaTrains[/font] ",
+					n_luatrains,
+				}),
+			}),
+			HF({ horizontally_stretchable = true }, {
+				ultros.RtLabel({
+					"",
+					"[font=default-bold]CS Trains[/font] ",
+					n_cstrains,
 				}),
 			}),
 			HF({ horizontally_stretchable = true }, {
@@ -182,9 +209,14 @@ local DeliveryMonitorEntry = relm.define(
 			tasks,
 			function(t) return t._cmt_name == "delivery_monitor" end
 		) or EMPTY
+		---@cast task Cybersyn.Internal.DeliveryMonitor
 		local wpi = (task._cmt_work_per_iter or EMPTY)[1] or 0
 		local work_cap = task._cmt_work_cap or 0
 		local spike_cap = task._cmt_spike_cap or 0
+		local n_deliveries = task.n_deliveries or 0
+		local n_active = task.n_active or 0
+		local n_finalized = task.n_finalized or 0
+		local loop_length_era = (task.loop_length_era or EMPTY)[1] or 0
 
 		return Pr({
 			type = "frame",
@@ -201,7 +233,36 @@ local DeliveryMonitorEntry = relm.define(
 						ultros.RtLabel({
 							"",
 							"[font=default-bold]Work per Iteration[/font] ",
-							wpi,
+							strformat("%.2f", wpi),
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Loop length[/font] ",
+							strformat("%.2f", loop_length_era),
+							" frames",
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Deliveries[/font] ",
+							n_deliveries,
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Active[/font] ",
+							n_active,
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Finalized[/font] ",
+							n_finalized,
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {

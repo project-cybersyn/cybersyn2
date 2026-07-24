@@ -21,7 +21,13 @@ storage = storage --[[@as Cybersyn.Storage]]
 
 ---@class Cybersyn.Internal.DeliveryMonitor: StatefulTask
 ---@field state "init"|"enum_deliveries" State of the task.
----@field n_deliveries int Number of deliveries enumerated in last full loop.
+---@field n_deliveries int Number of deliveries enumerated in current loop
+---@field _n_active int Temp counter
+---@field n_active int Number of active deliveries enumerated in last loop
+---@field _n_finalized int Temp counter
+---@field n_finalized int Number of finalized deliveries enumerated in last loop
+---@field last_tick int64 Last tick the monitor completed a sweep.
+---@field loop_length_era Core.EraCounter Era of loop length.
 local DeliveryMonitor = class("DeliveryMonitor", cs2.StatefulTask)
 
 function DeliveryMonitor:new()
@@ -29,6 +35,11 @@ function DeliveryMonitor:new()
 	thread._cmt_name = "delivery_monitor"
 	thread._cmt_work_cap = 5
 	thread.n_deliveries = 0
+	thread._n_active = 0
+	thread.n_active = 0
+	thread._n_finalized = 0
+	thread.n_finalized = 0
+	thread.loop_length_era = era_lib.create_era_counter(0)
 	thread.state = "init"
 	cmt.add(thread)
 	cmt.wake(thread)
@@ -50,6 +61,12 @@ function DeliveryMonitor:enum_delivery(delivery_id)
 	local delivery = cs2.get_delivery(delivery_id, true)
 	if not delivery then return end
 	local is_finalized = delivery:is_in_final_state()
+
+	if is_finalized then
+		self._n_finalized = (self._n_finalized or 0) + 1
+	else
+		self._n_active = (self._n_active or 0) + 1
+	end
 
 	-- Destroy expired deliveries.
 	if
@@ -75,7 +92,26 @@ function DeliveryMonitor:enum_deliveries()
 	)
 end
 
-function DeliveryMonitor:exit_enum_deliveries() self.delivery_ids = nil end
+function DeliveryMonitor:exit_enum_deliveries()
+	local t = game.tick
+	local t0 = self.last_tick
+	if t0 then
+		local dt = t - t0
+		local era = self.loop_length_era
+		if not era then
+			era = era_lib.create_era_counter(0)
+			self.loop_length_era = era
+		end
+		era_lib.update_era_counter(era, dt)
+	end
+	self.last_tick = t
+
+	self.delivery_ids = nil
+	self.n_active = self._n_active
+	self.n_finalized = self._n_finalized
+	self._n_active = 0
+	self._n_finalized = 0
+end
 
 -- Start delivery monitor thread on startup.
 events.bind("cs2.threads_start_all", function()
