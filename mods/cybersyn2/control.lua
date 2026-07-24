@@ -83,9 +83,7 @@ require("scripts.alerts.train")
 
 require("scripts.gui.manager.manager")
 
-require("scripts.debug.base")
 require("scripts.debug.overlay")
-require("scripts.debug.debugger")
 
 require("scripts.api.base")
 require("scripts.api.query")
