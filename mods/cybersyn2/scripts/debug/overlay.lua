@@ -8,7 +8,8 @@ local tlib = require("lib.core.table")
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
 local cs2 = _G.cs2
-local mod_settings = _G.cs2.mod_settings
+local mod_settings = cs2.mod_settings
+local pairs = pairs
 
 ---@type Cybersyn.Storage
 storage = storage --[[@as Cybersyn.Storage]]
@@ -51,6 +52,7 @@ local function clear_stop_overlay(state)
 end
 
 local function clear_all_overlays()
+	---@diagnostic disable-next-line: undefined-field
 	local ovl_data = storage.debug_state and storage.debug_state.overlay
 	if not ovl_data then
 		strace.trace("clear_all_overlays: no overlay data to clear")
@@ -63,6 +65,7 @@ local function clear_all_overlays()
 		clear_stop_overlay(ovl)
 	end
 	if ovl_data.bbox_overlay then ovl_data.bbox_overlay.destroy() end
+	---@diagnostic disable-next-line: undefined-field
 	if storage.debug_state then storage.debug_state.overlay = nil end
 end
 

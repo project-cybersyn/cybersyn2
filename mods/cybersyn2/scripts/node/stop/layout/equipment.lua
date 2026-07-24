@@ -11,7 +11,7 @@ local cs2 = _G.cs2
 local EMPTY = tlib.EMPTY
 
 ---@class (partial) Cybersyn.TrainStop
-local TrainStop = _G.cs2.TrainStop
+local TrainStop = cs2.TrainStop
 local bbox_contains = mlib.bbox_contains
 
 local rail_types =
@@ -111,8 +111,13 @@ function TrainStop:register_loading_equipment(entity, pos, is_cargo, is_fluid)
 	if not layout then return false end
 	local equipment_id = entity.unit_number --[[@as UnitNumber]]
 	-- Compute position relative to stop.
-	local tile_index =
-		math.floor(mlib.bbox_measure_ortho(layout.bbox, layout.direction, pos))
+	local tile_index = math.floor(
+		mlib.bbox_measure_ortho(
+			layout.bbox --[[@cast -?]],
+			layout.direction --[[@cast -?]],
+			pos
+		)
+	)
 	-- Determine if there is an actual change.
 	local changed = false
 	local previous_cargo = layout.cargo_loader_map[equipment_id]

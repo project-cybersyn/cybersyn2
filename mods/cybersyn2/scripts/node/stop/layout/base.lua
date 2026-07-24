@@ -10,7 +10,6 @@ local pos_lib = require("lib.core.math.pos")
 local stlib = require("lib.core.strace")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local Node = _G.cs2.Node
 
 ---@type Cybersyn.Storage
 storage = storage --[[@as Cybersyn.Storage]]
@@ -35,11 +34,11 @@ local STOPPED_NO_CONNECTED_RAIL =
 local empty = {}
 
 ---@class (partial) Cybersyn.TrainStop
-local TrainStop = _G.cs2.TrainStop
+local TrainStop = cs2.TrainStop
 
 ---@class (partial) Cybersyn.TrainStopLayout
 local TrainStopLayout = class("TrainStopLayout")
-_G.cs2.TrainStopLayout = TrainStopLayout
+cs2.TrainStopLayout = TrainStopLayout
 
 function TrainStopLayout.new(node_id)
 	storage.stop_layouts[node_id] = setmetatable({
@@ -269,8 +268,16 @@ function TrainStop:compute_layout(ignored_entity_set)
 
 		if curve_left or curve_right then
 			mlib.bbox_extend_ortho(bbox, direction_from_stop, 3)
-			if curve_left then rail_set[curve_left.unit_number] = true end
-			if curve_right then rail_set[curve_right.unit_number] = true end
+			if curve_left then
+				rail_set[
+					curve_left.unit_number --[[@cast -?]]
+				] = true
+			end
+			if curve_right then
+				rail_set[
+					curve_right.unit_number --[[@cast -?]]
+				] = true
+			end
 		end
 	end
 
@@ -322,6 +329,7 @@ function TrainStop:compute_layout(ignored_entity_set)
 		end
 	end)
 	for comb_id in pairs(self.combinator_set) do
+		---@diagnostic disable-next-line: inject-field
 		reassociable_comb_id_set[comb_id] = true
 	end
 	stlib.trace(

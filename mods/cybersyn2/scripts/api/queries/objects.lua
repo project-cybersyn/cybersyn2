@@ -69,18 +69,18 @@ end
 local inv_list_datatype = {
 	true,
 	ContainerType.list,
-	PrimitiveType["Cybersyn.Combinator"],
+	PrimitiveType["Cybersyn.Inventory"],
 }
 
 ---@param arg Cybersyn.Query.Inventories.Input
 ---@return Cybersyn.Query.Inventories.Result
 function cs2.query_handlers.inventories(arg)
 	---@type Cybersyn.Inventory[]
-	local res = nil
+	local res = EMPTY
 	if arg.ids then
 		res = map(arg.ids, function(id) return cs2.get_inventory(id) end)
 	end
-	return { data = res or {}, type = inv_list_datatype }
+	return { data = res, type = inv_list_datatype }
 end
 
 local veh_list_datatype = {
@@ -135,25 +135,33 @@ function cs2.query_handlers.topologies(arg)
 	return { data = res, type = top_list_datatype }
 end
 
+local delivery_list_datatype = {
+	true,
+	ContainerType.list,
+	PrimitiveType["Cybersyn.Delivery"],
+}
+
+---@param arg Cybersyn.Query.Deliveries.Input
+---@return Cybersyn.Query.Deliveries.Result
 function cs2.query_handlers.deliveries(arg)
 	---@type Cybersyn.Delivery[]
-	local res = nil
+	local res = EMPTY
 	if arg.ids then
 		res = map(arg.ids, function(id) return cs2.get_delivery(id) end)
 	elseif arg.vehicle_id then
 		local vehicle_id = arg.vehicle_id
-		local filtered = tlib.t_map_a(storage.deliveries, function(d)
+		local filtered = t_map_a(storage.deliveries, function(d)
 			if d.vehicle_id == vehicle_id then return d end
 		end)
 		res = filtered
 	elseif arg.node_id then
 		local node_id = arg.node_id
-		local filtered = tlib.t_map_a(storage.deliveries, function(d)
+		local filtered = t_map_a(storage.deliveries, function(d)
 			if d.from_id == node_id or d.to_id == node_id then return d end
 		end)
 		res = filtered
 	end
-	return { data = res or {} }
+	return { data = res, type = delivery_list_datatype }
 end
 
 local string_list_datatype = {

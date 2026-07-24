@@ -309,6 +309,7 @@ local PrimitiveType = {
 	"Nil",
 	"Cybersyn.Inventory",
 	"Cybersyn.Topology",
+	"Cybersyn.Delivery",
 	["boolean"] = 1,
 	["int"] = 2,
 	["number"] = 3,
@@ -330,6 +331,7 @@ local PrimitiveType = {
 	["Nil"] = 19,
 	["Cybersyn.Inventory"] = 20,
 	["Cybersyn.Topology"] = 21,
+	["Cybersyn.Delivery"] = 22,
 }
 lib.PrimitiveType = PrimitiveType
 
