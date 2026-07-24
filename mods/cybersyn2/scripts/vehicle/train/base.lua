@@ -10,6 +10,9 @@ local cs2 = _G.cs2
 local Vehicle = _G.cs2.Vehicle
 local Topology = _G.cs2.Topology
 
+local next = next
+local pairs = pairs
+local select = select
 local strsub = string.sub
 local mod_settings = _G.cs2.mod_settings
 local iwq_to_key = signal_lib.iwq_to_key
@@ -189,8 +192,7 @@ local function get_train(id, skip_validation)
 		return nil
 	end
 end
-Train.get = get_train
-_G.cs2.get_train = get_train
+cs2.get_train = get_train
 
 ---Get a `Cybersyn.Train` from a Factorio lua train id.
 ---@param luatrain_id Id?
@@ -201,8 +203,7 @@ local function get_from_luatrain_id(luatrain_id)
 	if not vid then return nil end
 	return storage.vehicles[vid] --[[@as Cybersyn.Train]]
 end
-Train.get_from_luatrain_id = get_from_luatrain_id
-_G.cs2.get_train_from_luatrain_id = get_from_luatrain_id
+cs2.get_train_from_luatrain_id = get_from_luatrain_id
 
 ---Get a `Cybersyn.Train` from a Factorio `LuaTrain` object.
 ---@param luatrain LuaTrain?
@@ -210,7 +211,7 @@ local function get_from_luatrain(luatrain)
 	if not luatrain or not luatrain.valid then return nil end
 	return get_from_luatrain_id(luatrain.id)
 end
-_G.cs2.get_train_from_luatrain = get_from_luatrain
+cs2.get_train_from_luatrain = get_from_luatrain
 
 function Train:destroy()
 	self.is_being_destroyed = true
@@ -380,10 +381,11 @@ end
 ---If the train has a single temp schedule entry referring to the given station,
 ---clear its schedule. This can be used to "Detaint" a schedule caused by
 ---user error immediately after a train departure event.
----@param stop_backer_name string The name of the station to check against.
+---@param stop_backer_name string? The name of the station to check against.
 ---@return boolean tainted `true` if the schedule was tainted.
 ---@return boolean detainted `true` if the schedule was tainted and has now been cleared.
 function Train:detaint_departure_schedule(stop_backer_name)
+	if not stop_backer_name then return false, false end
 	local lua_train = self.lua_train --[[@as LuaTrain]]
 	local schedule = lua_train.get_schedule()
 	local first_entry = schedule.get_record(FIRST_ENTRY)

@@ -108,7 +108,7 @@ function _G.cs2.query_handlers.vehicles(arg)
 	if arg.luatrain_ids then
 		local ids = arg.luatrain_ids --[[@as Id[] ]]
 		for i = 1, #ids do
-			local veh = Train.get_from_luatrain_id(ids[i])
+			local veh = cs2.get_train_from_luatrain_id(ids[i])
 			if veh then res[#res + 1] = veh end
 		end
 	end

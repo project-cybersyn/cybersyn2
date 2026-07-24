@@ -261,7 +261,7 @@ local function query_route_plugins(...)
 end
 
 function TrainDelivery:goto_from()
-	local train = Train.get(self.vehicle_id)
+	local train = cs2.get_train(self.vehicle_id)
 	local from = TrainStop.get(self.from_id)
 	if not train or not from then return self:fail() end
 	if self.state == "to_from" or self.state == "at_from" then return end
@@ -320,7 +320,7 @@ function TrainDelivery:goto_from()
 end
 
 function TrainDelivery:goto_to()
-	local train = Train.get(self.vehicle_id)
+	local train = cs2.get_train(self.vehicle_id)
 	local to = TrainStop.get(self.to_id)
 	self:clear_from_charge()
 	if not train or not to then return self:fail() end
@@ -372,7 +372,7 @@ end
 function TrainDelivery:complete()
 	self:clear_from_charge()
 	self:clear_to_charge()
-	local train = Train.get(self.vehicle_id)
+	local train = cs2.get_train(self.vehicle_id)
 	if train then
 		if self.state ~= "plugin_handoff" then
 			train:clear_delivery(self.id)
@@ -507,7 +507,7 @@ end
 function TrainDelivery:notify_plugin_handoff(new_luatrain)
 	if self.state ~= "plugin_handoff" then return end
 
-	local train = Train.get(self.vehicle_id, true)
+	local train = cs2.get_train(self.vehicle_id, true)
 	if not train then return end
 	train:clear_volatile(new_luatrain)
 
@@ -647,7 +647,7 @@ cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 	for _, delivery_id in pairs(stop.delivery_queue or empty) do
 		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		if delivery then
-			local train = Train.get(delivery.vehicle_id)
+			local train = cs2.get_train(delivery.vehicle_id)
 			if train then
 				local luatrain = train.lua_train
 				if luatrain then

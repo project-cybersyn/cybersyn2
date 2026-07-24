@@ -51,7 +51,7 @@ cs2.on_luatrain_changed_state(function(event)
 	end
 
 	-- Augment event with data about which Cybersyn objects are involved.
-	local cstrain = Train.get_from_luatrain_id(luatrain.id)
+	local cstrain = cs2.get_train_from_luatrain_id(luatrain.id)
 
 	if luatrain_state == WAIT_STATION then
 		-- Train arrived either at a station or a coordinate stop.
