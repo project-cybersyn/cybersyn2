@@ -97,7 +97,6 @@ local function clear_storage()
 	storage.surface_index_to_train_topology = {}
 	storage.alerts = {}
 	storage.alerts_by_entity = {}
-	storage.views = {}
 	storage.entities_being_destroyed = {}
 	storage.dispatch_queue = {}
 end
