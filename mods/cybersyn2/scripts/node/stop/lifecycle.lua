@@ -252,16 +252,16 @@ cs2.on_broken_train_stop(function(stop_entity)
 	if not stop then return end
 	strace.trace("on_broken_train_stop: destroying stop", stop.id)
 
-	-- XXX: prevent migration crash
-	if not storage.entities_being_destroyed then
-		storage.entities_being_destroyed = {}
+	local ebd = storage.entities_being_destroyed
+	if not ebd then
+		ebd = {}
+		storage.entities_being_destroyed = ebd
 	end
-
-	storage.entities_being_destroyed[
+	ebd[
 		stop_entity.unit_number --[[@as UnitNumber]]
-	] =
-		true
+	] = true
 	stop:destroy()
+
 	strace.trace("on_broken_train_stop: finished destroying stop", stop.id)
 end)
 

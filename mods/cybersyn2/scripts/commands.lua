@@ -23,16 +23,6 @@ commands.add_command(
 )
 
 commands.add_command(
-	"cs2-debugger",
-	{ "cybersyn2-commands.debugger-command-help" },
-	function(command)
-		if not command.player_index then return end
-
-		cs2.debug.open_debugger(command.player_index)
-	end
-)
-
-commands.add_command(
 	"cs2-reset-gui-positions",
 	{ "cybersyn2-commands.reset-gui-positions-command-help" },
 	function(data)
@@ -42,5 +32,6 @@ commands.add_command(
 		player_state.combinator_gui_pos = nil
 		player_state.stop_gui_pos = nil
 		player_state.train_gui_pos = nil
+		player_state.manager_gui_pos = nil
 	end
 )

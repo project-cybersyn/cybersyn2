@@ -186,7 +186,6 @@ function Combinator:read_inputs(which, workload)
 		self.green_inputs = nil
 	end
 
-	-- TODO: better workload estimate
 	add_workload(workload, 5)
 end
 

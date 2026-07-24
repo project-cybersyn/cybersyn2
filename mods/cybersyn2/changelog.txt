@@ -7,6 +7,7 @@ Date: ????
     - Increased limit for number of deliveries shown in GUIs.
     - Added preliminary manager UI. This is a work in progress.
     - Added Threads information to the manager UI.
+    - Empty manual allow lists no longer fall back on the auto allow list.
   Optimizations:
     - Implemented a significantly more aggressive thread scheduling algorithm.
     - Implemented circuit change detection to avoid unnecessary scans of unchanged inventories.

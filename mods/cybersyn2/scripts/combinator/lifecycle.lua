@@ -6,7 +6,6 @@
 local stlib = require("lib.core.strace")
 local tlib = require("lib.core.table")
 local events = require("lib.core.event")
--- XXX: TYPES: EmmyLua require paths
 ---@diagnostic disable-next-line: unresolved-require
 local things_client = require("__0-things__.client.client") --[[@as things.client]]
 local cs2 = _G.cs2

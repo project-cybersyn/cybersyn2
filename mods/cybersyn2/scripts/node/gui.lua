@@ -286,8 +286,6 @@ relm.define("NodeGui", function(props)
 
 	local close_me = ultros.use_memoized_window_position(_close_me, function()
 		local player_state = cs2.get_player_state(player_index)
-		-- XXX: TYPES: FMTK vector bug
-		---@diagnostic disable-next-line: return-type-mismatch
 		return player_state and player_state.stop_gui_pos
 	end, pinned and noop or function(loc)
 		local player_state = cs2.get_or_create_player_state(player_index)
