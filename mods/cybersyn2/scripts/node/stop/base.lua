@@ -4,6 +4,8 @@ local stlib = require("lib.core.strace")
 local scheduler = require("lib.core.scheduler")
 local events = require("lib.core.event")
 local pos_lib = require("lib.core.math.pos")
+---@diagnostic disable-next-line: unresolved-require
+local things = require("__0-things__.client.client") --[[@as things.client]]
 
 ---@type Cybersyn.Storage
 storage = storage --[[@as Cybersyn.Storage]]
@@ -11,6 +13,7 @@ storage = storage --[[@as Cybersyn.Storage]]
 local cs2 = _G.cs2
 local Node = cs2.Node
 local mod_settings = cs2.mod_settings
+local graph = things.graph_v1
 
 local strace = stlib.strace
 local TRACE = stlib.TRACE
@@ -21,6 +24,8 @@ local empty = tlib.empty
 local EMPTY = tlib.EMPTY_STRICT
 local min = math.min
 local RAIL_DIRECTION_BACK = defines.rail_direction.back
+local next = next
+local pairs = pairs
 
 ---@class (partial) Cybersyn.TrainStop
 local TrainStop = class("TrainStop", Node)
@@ -366,18 +371,14 @@ end
 ---Get information about this stop's inventory sharing from the Thing graph.
 ---@return boolean is_sharing `true` if this stop is sharing inventory, `false` otherwise.
 ---@return Id|nil master_comb_id The shared inventory master combinator id, or `nil` if none.
----@return {[Id]: things.GraphEdge}|nil slave_combs A map of shared inventory slave combinator ids to their graph edges, or `nil` if none.
+---@return table<Id, things.GraphEdge>|nil slave_combs A map of shared inventory slave combinator ids to their graph edges, or `nil` if none.
 ---@return Cybersyn.Combinator|nil station_comb The station combinator for this stop, or `nil` if none.
 function TrainStop:get_sharing_info()
 	local station_comb = self:get_combinator_with_mode("station")
 	if not station_comb then return false, nil, nil, nil end
-	-- TODO: update to Things Client
-	local _, slaves, master = remote.call(
-		"things",
-		"get_edges",
-		"cybersyn2-shared-inventory",
-		station_comb.id
-	)
+	local slaves, master =
+		graph.get_edges("cybersyn2-shared-inventory", station_comb.id)
+
 	local master_id = master and next(master)
 	if (not slaves) or (not next(slaves)) then slaves = nil end
 	if master_id or slaves then
@@ -397,13 +398,8 @@ end
 function TrainStop:get_slaves()
 	local station_comb = self:get_combinator_with_mode("station")
 	if not station_comb then return EMPTY end
-	-- TODO: update to Things Client
-	local _, slaves = remote.call(
-		"things",
-		"get_edges",
-		"cybersyn2-shared-inventory",
-		station_comb.id
-	)
+	local slaves = graph.get_edges("cybersyn2-shared-inventory", station_comb.id)
+
 	if (not slaves) or (not next(slaves)) then return EMPTY end
 	return tlib.t_map_a(slaves, function(_, slave_comb_id)
 		local slave_comb = cs2.get_combinator(slave_comb_id)

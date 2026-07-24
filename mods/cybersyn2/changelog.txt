@@ -5,7 +5,7 @@ Date: ????
     - Train GUI now shows the topology of the train.
     - Node GUI now shows the topology of the node.
     - Increased limit for number of deliveries shown in GUIs.
-    - Added preliminary manager UI. This is a work in progress.
+    - Added preliminary manager UI. This is a work in progress. The separate `cybersyn2-manager` mod is now deprecated.
     - Added Threads information to the manager UI.
     - Empty manual allow lists no longer fall back on the auto allow list.
     - Removed legacy debug overlays.

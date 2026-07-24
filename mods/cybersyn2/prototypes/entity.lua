@@ -143,6 +143,7 @@ combinator_entity.sprites = make_4way_animation_from_spritesheet({
 	},
 })
 
+---@diagnostic disable-next-line: inject-field
 -- Cause entity to be ignored by Mouse-Over Construction mod
 -- TODO: watch issue https://codeberg.org/raiguard/MouseOverConstruction/issues/37
 combinator_entity.moc_ignore = true
