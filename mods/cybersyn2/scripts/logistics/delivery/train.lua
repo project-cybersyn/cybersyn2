@@ -34,6 +34,7 @@ local Train = _G.cs2.Train
 local Thread = thread_lib.Thread
 local mod_settings = _G.cs2.mod_settings
 local add_workload = thread_lib.add_workload
+local rcall = remote.call --[[@as fun(iface: string, func: string, ...: Any): Any ]]
 
 -- Type-assert storage due to EmmyLua issues
 ---@diagnostic disable-next-line: missing-fields
@@ -187,6 +188,10 @@ end
 ---@param stop Cybersyn.TrainStop
 ---@param manifest SignalCounts
 local function pickup_entry(stop, manifest)
+	local stop_entity = stop.entity
+	local station_name = stop_entity and stop_entity.backer_name
+		or "UNKNOWN STATION"
+
 	---@type WaitCondition[]
 	local conditions = {}
 	if not stop.disable_cargo_condition then
@@ -208,7 +213,7 @@ local function pickup_entry(stop, manifest)
 	forbid_empty_conditions(conditions, stop)
 	---@type AddRecordData
 	local add = {
-		station = stop.entity.backer_name,
+		station = station_name,
 		wait_conditions = conditions,
 	}
 	return add
@@ -216,6 +221,10 @@ end
 
 ---@param stop Cybersyn.TrainStop
 local function dropoff_entry(stop)
+	local stop_entity = stop.entity
+	local station_name = stop_entity and stop_entity.backer_name
+		or "UNKNOWN STATION"
+
 	---@type WaitCondition[]
 	local conditions = {}
 	if not stop.disable_cargo_condition then
@@ -229,7 +238,7 @@ local function dropoff_entry(stop)
 	forbid_empty_conditions(conditions, stop)
 	---@type AddRecordData
 	local add = {
-		station = stop.entity.backer_name,
+		station = station_name,
 		wait_conditions = conditions,
 	}
 	return add
@@ -245,7 +254,7 @@ local route_callbacks = tlib.t_map_a(
 local function query_route_plugins(...)
 	for _, route_callback in pairs(route_callbacks) do
 		if route_callback then
-			local result = remote.call(route_callback[1], route_callback[2], ...)
+			local result = rcall(route_callback[1], route_callback[2], ...)
 			if result then return result end
 		end
 	end
@@ -319,6 +328,7 @@ function TrainDelivery:goto_to()
 	-- If plugin_handoff is in progress (train still volatile), this is a
 	-- stale duplicate enqueue from process_queue. Bail out.
 	if self.state == "plugin_handoff" and train.volatile then return end
+	local to_entity = to.entity --[[@as LuaEntity]]
 
 	if self.state ~= "plugin_handoff" then
 		local result = query_route_plugins(
@@ -330,7 +340,7 @@ function TrainDelivery:goto_to()
 			train:get_stock(),
 			train.home_surface_index,
 			to.id,
-			to.entity
+			to_entity
 		)
 		if result then
 			self.handoff_state = "to_to"
@@ -340,7 +350,7 @@ function TrainDelivery:goto_to()
 	end
 
 	local ok, reason =
-		train:schedule(coordinate_entry(to.entity), dropoff_entry(to))
+		train:schedule(coordinate_entry(to_entity), dropoff_entry(to))
 	if ok then
 		self:set_state("to_to")
 	elseif reason == "interrupted" then
@@ -416,6 +426,7 @@ function TrainDelivery:notify_departed(stop, train, luatrain)
 
 		-- Detaint train schedule if it was tainted by a user advancing the schedule in front of time, but only if the first entry is the expected one. If the schedule was tainted in some other way, fail the delivery to avoid unpredictable behavior.
 		local tainted, detainted =
+			---@diagnostic disable-next-line: need-check-nil
 			train:detaint_departure_schedule(stop.entity.backer_name)
 		if detainted then
 			game.print(
@@ -606,9 +617,9 @@ cs2.on_train_departed(interrupt_checker)
 
 ---@param luatrain LuaTrain
 ---@param old_name string
----@param new_name string
+---@param new_name string?
 local function rename_stop_in_schedule(luatrain, old_name, new_name)
-	if not luatrain or not luatrain.valid then return end
+	if (not new_name) or not luatrain or not luatrain.valid then return end
 	local schedule = luatrain.get_schedule()
 	if not schedule then return end
 	local records = schedule.get_records()
@@ -638,7 +649,10 @@ cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 		if delivery then
 			local train = Train.get(delivery.vehicle_id)
 			if train then
-				rename_stop_in_schedule(train.lua_train, old_name, entity.backer_name)
+				local luatrain = train.lua_train
+				if luatrain then
+					rename_stop_in_schedule(luatrain, old_name, entity.backer_name)
+				end
 			end
 		end
 	end
