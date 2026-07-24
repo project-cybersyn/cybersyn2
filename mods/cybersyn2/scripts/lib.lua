@@ -23,6 +23,7 @@ local function stop_is_valid_station(stop_entity_or_name)
 			return false
 		end
 		if stop_entity_or_name.type ~= "train-stop" then return false end
+		---@diagnostic disable-next-line: assign-type-mismatch
 		stop_entity_or_name = stop_entity_or_name.name
 	end
 	return stop_entity_or_name == "train-stop"
@@ -76,8 +77,7 @@ end
 ---@param stop_entity LuaEntity A *valid* train stop entity.
 ---@return LuaEntity[]
 function _G.cs2.find_associable_combinator_entities(stop_entity)
-	local pos_x = stop_entity.position.x
-	local pos_y = stop_entity.position.y
+	local pos_x, pos_y = pos_get(stop_entity.position)
 	return cs2.lib.find_combinator_entities(stop_entity.surface, {
 		{ pos_x - 2, pos_y - 2 },
 		{ pos_x + 2, pos_y + 2 },
