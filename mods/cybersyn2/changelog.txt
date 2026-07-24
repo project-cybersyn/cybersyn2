@@ -5,7 +5,11 @@ Date: ????
     - Train GUI now shows the topology of the train.
     - Node GUI now shows the topology of the node.
     - Increased limit for number of deliveries shown in GUIs.
+    - Added preliminary manager UI. This is a work in progress.
+    - Added Threads information to the manager UI.
+  Optimizations:
     - Implemented a significantly more aggressive thread scheduling algorithm.
+    - Implemented circuit change detection to avoid unnecessary scans of unchanged inventories.
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.8
 Date: 2026-07-13
