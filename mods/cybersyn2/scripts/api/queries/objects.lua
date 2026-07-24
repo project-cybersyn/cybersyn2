@@ -80,7 +80,7 @@ function _G.cs2.query_handlers.inventories(arg)
 	---@type Cybersyn.Inventory[]
 	local res = nil
 	if arg.ids then
-		res = map(arg.ids, function(id) return Inventory.get(id) end)
+		res = map(arg.ids, function(id) return cs2.get_inventory(id) end)
 	end
 	return { data = res or {}, type = inv_list_datatype }
 end

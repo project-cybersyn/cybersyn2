@@ -83,7 +83,6 @@ local function get_inventory(inventory_id)
 	if not inventory_id then return nil end
 	return storage.inventories[inventory_id]
 end
-Inventory.get = get_inventory
 cs2.get_inventory = get_inventory
 
 function Inventory:destroy() storage.inventories[self.id] = nil end
