@@ -54,13 +54,11 @@ local stop_list_datatype = {
 function _G.cs2.query_handlers.stops(arg)
 	local res = nil
 	if arg.ids then
-		res = map(arg.ids, function(id) return TrainStop.get(id) end)
+		res = map(arg.ids, function(id) return cs2.get_stop(id) end)
 	elseif arg.unit_numbers then
 		res = map(
 			arg.unit_numbers,
-			function(unit_number)
-				return TrainStop.get_stop_from_unit_number(unit_number)
-			end
+			function(unit_number) return cs2.get_stop_from_unit_number(unit_number) end
 		)
 	elseif arg.all then
 		res = t_map_a(storage.nodes, function(n)
@@ -143,9 +141,9 @@ end
 local function format_deliveries(deliveries)
 	return map(deliveries, function(d_in)
 		local d = tlib.assign({}, d_in) --[[@as Cybersyn.Delivery ]]
-		local from_stop = TrainStop.get(d.from_id)
+		local from_stop = cs2.get_stop(d.from_id)
 		if from_stop then d.from_entity = from_stop.entity end
-		local to_stop = TrainStop.get(d.to_id)
+		local to_stop = cs2.get_stop(d.to_id)
 		if to_stop then d.to_entity = to_stop.entity end
 		return d
 	end)

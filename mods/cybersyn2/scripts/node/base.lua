@@ -270,7 +270,7 @@ end
 
 ---Change the inventory of a node. If there are currently deliveries enroute
 ---they will be failed.
----@param id Id
+---@param id Id?
 ---@return boolean was_changed `true` if the inventory was changed, `false` if not.
 function Node:set_inventory(id)
 	if id == self.inventory_id then return false end
@@ -278,7 +278,7 @@ function Node:set_inventory(id)
 		self.inventory_id = nil
 		return true
 	end
-	local inv = Inventory.get(id)
+	local inv = cs2.get_inventory(id)
 	if not inv then
 		self.inventory_id = nil
 	else

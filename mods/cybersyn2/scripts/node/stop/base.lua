@@ -3,12 +3,14 @@ local tlib = require("lib.core.table")
 local stlib = require("lib.core.strace")
 local scheduler = require("lib.core.scheduler")
 local events = require("lib.core.event")
+local pos_lib = require("lib.core.math.pos")
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local cs2 = _G.cs2
-local Node = _G.cs2.Node
-local Topology = _G.cs2.Topology
-local Delivery = _G.cs2.Delivery
-local mod_settings = _G.cs2.mod_settings
+local Node = cs2.Node
+local mod_settings = cs2.mod_settings
 
 local strace = stlib.strace
 local TRACE = stlib.TRACE
@@ -18,10 +20,11 @@ local abs = math.abs
 local empty = tlib.empty
 local EMPTY = tlib.EMPTY_STRICT
 local min = math.min
+local RAIL_DIRECTION_BACK = defines.rail_direction.back
 
 ---@class (partial) Cybersyn.TrainStop
 local TrainStop = class("TrainStop", Node)
-_G.cs2.TrainStop = TrainStop
+cs2.TrainStop = TrainStop
 
 ---@param stop_entity LuaEntity A *valid* train stop entity.
 ---@return Cybersyn.TrainStop
@@ -50,8 +53,7 @@ local function get_stop(id, skip_validation)
 		return nil
 	end
 end
-_G.cs2.get_stop = get_stop
-TrainStop.get = get_stop
+cs2.get_stop = get_stop
 
 ---Find the stop associated to the given rail using the rail cache.
 ---@param rail_entity LuaEntity A *valid* rail.
@@ -64,7 +66,7 @@ function TrainStop.find_stop_from_rail(rail_entity)
 		return storage.nodes[stop_id] --[[@as Cybersyn.TrainStop?]]
 	end
 end
-_G.cs2.find_stop_from_rail = TrainStop.find_stop_from_rail
+cs2.find_stop_from_rail = TrainStop.find_stop_from_rail
 
 ---Check if this is a valid train stop.
 function TrainStop:is_valid()
@@ -100,20 +102,20 @@ local function get_stop_from_unit_number(unit_number, skip_validation)
 	if not unit_number then return nil end
 	return cs2.get_node(storage.stop_id_to_node_id[unit_number], skip_validation) --[[@as Cybersyn.TrainStop?]]
 end
-TrainStop.get_stop_from_unit_number = get_stop_from_unit_number
-_G.cs2.get_stop_from_unit_number = get_stop_from_unit_number
+cs2.get_stop_from_unit_number = get_stop_from_unit_number
 
 ---Determine if a train parked at this stop is reversed relative to the stop.
 ---@param lua_train LuaTrain
 ---@return boolean #`true` if the train is parked backwards at this stop, `false` otherwise.
 function TrainStop:is_train_reversed(lua_train)
-	local back_end = lua_train.get_rail_end(defines.rail_direction.back)
+	local back_end = lua_train.get_rail_end(RAIL_DIRECTION_BACK)
+	local entity = self.entity --[[@as LuaEntity]]
 
 	if back_end and back_end.rail then
-		local back_pos = back_end.rail.position
-		local stop_pos = self.entity.position
+		local back_pos_x, back_pos_y = pos_lib.pos_get(back_end.rail.position)
+		local stop_pos_x, stop_pos_y = pos_lib.pos_get(entity.position)
 		if
-			abs(back_pos.x - stop_pos.x) < 3 and abs(back_pos.y - stop_pos.y) < 3
+			abs(back_pos_x - stop_pos_x) < 3 and abs(back_pos_y - stop_pos_y) < 3
 		then
 			return true
 		end
@@ -222,7 +224,7 @@ function TrainStop:train_departed(train, luatrain)
 end
 
 function TrainStop:get_vehicle_capacities()
-	local entity = self.entity
+	local entity = self.entity --[[@as LuaEntity]]
 	local tlimit = entity.trains_limit
 	if tlimit == 0 then tlimit = 1000000 end
 	return #self.delivery_queue, tlimit, table_size(self.deliveries)
@@ -231,7 +233,8 @@ end
 ---Determine if the queue of this train stop exceeds the user-set global limit.
 ---@return boolean
 function TrainStop:is_queue_full()
-	local tlimit = self.entity.trains_limit
+	local entity = self.entity --[[@as LuaEntity]]
+	local tlimit = entity.trains_limit
 	local limit = tlimit and mod_settings.queue_limit + tlimit
 		or mod_settings.queue_limit
 	if limit == 0 then return false end
@@ -242,7 +245,8 @@ end
 ---local queue
 ---@return boolean
 function TrainStop:has_max_deliveries()
-	local tlimit = self.entity.trains_limit
+	local entity = self.entity --[[@as LuaEntity]]
+	local tlimit = entity.trains_limit
 	local limit = tlimit and mod_settings.excess_delivery_limit + tlimit
 		or mod_settings.excess_delivery_limit
 	if limit == 0 then return false end
@@ -251,8 +255,9 @@ end
 
 ---Signal all deliveries below the station limit that they can come to the station.
 function TrainStop:process_queue()
+	local entity = self.entity --[[@as LuaEntity]]
 	local queue = self.delivery_queue
-	local n = min(self.entity.trains_limit or 1000, #queue)
+	local n = min(entity.trains_limit or 1000, #queue)
 	for i = 1, n do
 		local delivery_id = queue[i]
 		local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
@@ -276,8 +281,6 @@ end)
 ---Gets the total number of deliveries, present and queued, for this stop.
 ---@return uint
 function TrainStop:get_occupancy() return table_size(self.deliveries) end
-
-function TrainStop:get_queue_size() return #self.delivery_queue end
 
 --------------------------------------------------------------------------------
 -- INVENTORY
@@ -368,6 +371,7 @@ end
 function TrainStop:get_sharing_info()
 	local station_comb = self:get_combinator_with_mode("station")
 	if not station_comb then return false, nil, nil, nil end
+	-- TODO: update to Things Client
 	local _, slaves, master = remote.call(
 		"things",
 		"get_edges",
@@ -393,6 +397,7 @@ end
 function TrainStop:get_slaves()
 	local station_comb = self:get_combinator_with_mode("station")
 	if not station_comb then return EMPTY end
+	-- TODO: update to Things Client
 	local _, slaves = remote.call(
 		"things",
 		"get_edges",

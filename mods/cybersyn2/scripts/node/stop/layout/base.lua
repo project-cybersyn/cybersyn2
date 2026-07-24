@@ -10,8 +10,10 @@ local pos_lib = require("lib.core.math.pos")
 local stlib = require("lib.core.strace")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local Combinator = _G.cs2.Combinator
 local Node = _G.cs2.Node
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
@@ -376,9 +378,9 @@ events.bind("cs2.node_destroyed", function(node)
 	end
 end)
 
-local find_stop_from_rail = TrainStop.find_stop_from_rail
+local find_stop_from_rail = cs2.find_stop_from_rail
 local get_connected_stop = trains_lib.get_connected_stop
-local get_stop_from_unit_number = TrainStop.get_stop_from_unit_number
+local get_stop_from_unit_number = cs2.get_stop_from_unit_number
 local get_all_connected_rails = trains_lib.get_all_connected_rails
 
 -- When rails are built, we need to re-evaluate layouts of affected stops.

@@ -8,6 +8,9 @@ local cs2 = _G.cs2
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local Node = _G.cs2.Node
 local TrainStop = _G.cs2.TrainStop
 
@@ -94,10 +97,8 @@ function reassociate_recursive(combinators, depth)
 		local target_stop = nil
 		local is_proximate = nil
 		if target_stop_entity then
-			local stop = TrainStop.get_stop_from_unit_number(
-				target_stop_entity.unit_number,
-				true
-			)
+			local stop =
+				cs2.get_stop_from_unit_number(target_stop_entity.unit_number, true)
 			if stop then
 				target_stop = stop
 				is_proximate = true
@@ -203,7 +204,7 @@ function create_recursive(stop_entities, depth)
 
 	for _, stop_entity in ipairs(stop_entities) do
 		local stop_id = stop_entity.unit_number --[[@as uint]]
-		local stop = TrainStop.get_stop_from_unit_number(stop_id, true)
+		local stop = cs2.get_stop_from_unit_number(stop_id, true)
 		if not stop then
 			-- Create the new stop state.
 			stop = TrainStop.new(stop_entity)
@@ -247,8 +248,7 @@ end)
 
 -- When a stop is broken, destroy its node.
 cs2.on_broken_train_stop(function(stop_entity)
-	local stop =
-		TrainStop.get_stop_from_unit_number(stop_entity.unit_number, true)
+	local stop = cs2.get_stop_from_unit_number(stop_entity.unit_number, true)
 	if not stop then return end
 	strace.trace("on_broken_train_stop: destroying stop", stop.id)
 

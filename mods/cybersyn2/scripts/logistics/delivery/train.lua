@@ -262,7 +262,7 @@ end
 
 function TrainDelivery:goto_from()
 	local train = cs2.get_train(self.vehicle_id)
-	local from = TrainStop.get(self.from_id)
+	local from = cs2.get_stop(self.from_id)
 	if not train or not from then return self:fail() end
 	if self.state == "to_from" or self.state == "at_from" then return end
 	-- If plugin_handoff is in progress (train still volatile), this is a
@@ -321,7 +321,7 @@ end
 
 function TrainDelivery:goto_to()
 	local train = cs2.get_train(self.vehicle_id)
-	local to = TrainStop.get(self.to_id)
+	local to = cs2.get_stop(self.to_id)
 	self:clear_from_charge()
 	if not train or not to then return self:fail() end
 	if self.state == "to_to" or self.state == "at_to" then return end
@@ -642,7 +642,7 @@ end
 -- that may be using the stop.
 cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 	if renamed_type ~= "train-stop" then return end
-	local stop = TrainStop.get_stop_from_unit_number(entity.unit_number)
+	local stop = cs2.get_stop_from_unit_number(entity.unit_number)
 	if not stop then return end
 	for _, delivery_id in pairs(stop.delivery_queue or empty) do
 		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
