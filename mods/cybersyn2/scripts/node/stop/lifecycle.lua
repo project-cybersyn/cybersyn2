@@ -11,10 +11,10 @@ local strace = require("lib.core.strace")
 ---@type Cybersyn.Storage
 storage = storage --[[@as Cybersyn.Storage]]
 
-local Node = _G.cs2.Node
-local TrainStop = _G.cs2.TrainStop
-
+local Node = cs2.Node
+local TrainStop = cs2.TrainStop
 local empty = tlib.empty
+local next = next
 
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
@@ -34,7 +34,8 @@ events.bind("cs2.node_destroyed", function(node)
 		end
 
 		-- Remove from entity map
-		storage.stop_id_to_node_id[node.entity_id or ""] = nil
+		local entity_id = node.entity_id
+		if entity_id then storage.stop_id_to_node_id[entity_id] = nil end
 	end
 end, true)
 
@@ -165,7 +166,7 @@ function reassociate_recursive(combinators, depth)
 
 	-- Fire batch set-change events for all affected stops
 	for stop_id in pairs(affected_stop_set) do
-		local stop = Node.get(stop_id)
+		local stop = cs2.get_node(stop_id)
 		if stop then
 			stop:mark_dirty()
 			strace.trace(
@@ -180,6 +181,7 @@ function reassociate_recursive(combinators, depth)
 	-- the created stops.
 	if #new_stop_entities > 0 then
 		strace.trace("reassociate_recursive: creating new stops", new_stop_entities)
+		---@diagnostic disable-next-line: need-check-nil
 		create_recursive(new_stop_entities, depth + 1)
 	end
 
@@ -213,6 +215,7 @@ function create_recursive(stop_entities, depth)
 			if #combs > 0 then
 				local comb_states = tlib.map(combs, function(comb)
 					local _, id = remote.call("things", "get_thing_id", comb)
+					---@cast id int64?
 					return cs2.get_combinator(id, true)
 				end)
 				if #comb_states > 0 then
@@ -240,6 +243,7 @@ cs2.on_built_train_stop(function(stop_entity)
 	if #combs > 0 then
 		local comb_states = tlib.map(combs, function(comb)
 			local _, id = remote.call("things", "get_thing_id", comb)
+			---@cast id int64?
 			return cs2.get_combinator(id, true)
 		end)
 		cs2.lib.reassociate_combinators(comb_states)

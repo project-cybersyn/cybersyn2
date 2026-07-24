@@ -63,7 +63,7 @@ end
 
 ---@class (partial) Cybersyn.Order
 local Order = class("Order")
-_G.cs2.Order = Order
+cs2.Order = Order
 
 ---@param inventory Cybersyn.Inventory
 ---@param node_id Id
@@ -221,12 +221,15 @@ function Order:read(workload)
 				provides[signal_key] = count
 			elseif count < 0 then
 				-- Request
+				---@type uint
 				local requested_amt = abs(count)
 				local stack_size = key_to_stacksize(signal_key) or 1
 				if species == "item" then
 					if stacked_requests then
 						requested_amt = requested_amt * stack_size
 					end
+					-- XXX: TYPES: Numeric bullshit: this cast should not be needed.
+					---@cast requested_amt uint
 					requests[signal_key] = requested_amt
 				else
 					requested_fluids[signal_key] = requested_amt
@@ -342,8 +345,8 @@ function Order:read(workload)
 	end
 
 	-- Compute final thresholds
-	self.thresh_min_slots = thresh_fullness_slots
-	self.thresh_min_fluid = thresh_fullness_fluid
+	self.thresh_min_slots = floor(thresh_fullness_slots)
+	self.thresh_min_fluid = floor(thresh_fullness_fluid)
 
 	return true
 end
@@ -524,6 +527,7 @@ function Order:compute_needs(workload)
 	end
 	if workload then add_workload(workload, table_size(requested_fluids)) end
 	if (not met_thresh) or (not next(fluids)) then
+		---@diagnostic disable-next-line: assign-type-mismatch
 		fluids = nil
 	else
 		if not thresh_was_preset and min_thresh then
@@ -571,6 +575,7 @@ function Order:compute_needs(workload)
 		end
 		if workload then add_workload(workload, table_size(requests)) end
 		if (not met_thresh) or (not next(items)) then
+			---@diagnostic disable-next-line: assign-type-mismatch
 			items = nil
 		else
 			if not thresh_was_preset and min_thresh then
@@ -603,6 +608,7 @@ function Order:compute_needs(workload)
 			return nil
 		end
 	end
+	---@diagnostic disable-next-line: assign-type-mismatch
 	if (not items) or (not next(items)) then items = nil end
 
 	-- For exotica, we need inv net of inflow
@@ -647,6 +653,7 @@ function Order:compute_needs(workload)
 		end
 		if workload then add_workload(workload, table_size(requests)) end
 		if (not met_thresh) or (not next(and_spread)) then
+			---@diagnostic disable-next-line: assign-type-mismatch
 			and_spread = nil
 		else
 			if not thresh_was_preset and min_thresh then
@@ -705,6 +712,7 @@ function Order:compute_needs(workload)
 			or_mask = requests
 		end
 		local stack_threshold = requested_stacks * (depletion_fraction or 0)
+		---@type int
 		local deficit_stacks = requested_stacks - net_stacks
 		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
 			---@type Cybersyn.Internal.Needs
@@ -746,6 +754,7 @@ function Order:compute_needs(workload)
 			if workload then add_workload(workload, table_size(inv_net)) end
 		end
 		local stack_threshold = requested_stacks * (depletion_fraction or 0)
+		---@type int
 		local deficit_stacks = requested_stacks - net_stacks
 		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
 			---@type Cybersyn.Internal.Needs
@@ -934,6 +943,7 @@ function Order:satisfy_needs(workload, needs)
 			if qualities then
 				local sig = key_to_signal(key) --[[@as SignalID]]
 				mask_key = sig.name --[[@as string]]
+				---@diagnostic disable-next-line: undefined-field
 				matches_quality = qualities[sig.quality or "normal"]
 			end
 			if
@@ -968,6 +978,7 @@ function Order:satisfy_needs(workload, needs)
 			local matches_quality = true
 			if qualities then
 				local sig = key_to_signal(key) --[[@as SignalID]]
+				---@diagnostic disable-next-line: undefined-field
 				matches_quality = qualities[sig.quality or "normal"]
 			end
 			if avail > 0 and all_stacks > 0 and matches_quality then

@@ -9,7 +9,6 @@ local signal_lib = require("lib.signal")
 local stlib = require("lib.core.strace")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local gui = _G.cs2.gui
 
 local strace = stlib.strace
 local key_to_signal = signal_lib.key_to_signal
@@ -19,6 +18,7 @@ local get_quality_name = signal_lib.get_quality_name
 local ceil = math.ceil
 local floor = math.floor
 local min = math.min
+local pairs = pairs
 local empty = tlib.empty
 local Pr = relm.Primitive
 local VF = ultros.VFlow
@@ -199,8 +199,10 @@ end
 ---@param delivery Cybersyn.TrainDelivery
 ---@return table<int, SignalCounts>
 local function create_wagon_manifests(train, stop, delivery)
+	local lua_train = train.lua_train --[[@as LuaTrain]]
+
 	-- Build base carriage manifest records
-	local carriages = train.lua_train.carriages
+	local carriages = lua_train.carriages
 	---@type Cybersyn.Internal.CargoWagonManifest[]
 	local cw_manifests = {}
 	local n_cargo_wagons = 0
@@ -213,6 +215,8 @@ local function create_wagon_manifests(train, stop, delivery)
 				type = "fluid",
 				index = i,
 				carriage = carriage,
+				-- Cannot be nil here. Populated before call.
+				---@diagnostic disable-next-line: need-check-nil
 				capacity = train.per_wagon_fluid_capacity[i]
 					- delivery.reserved_fluid_capacity,
 				manifest = {},
@@ -222,6 +226,8 @@ local function create_wagon_manifests(train, stop, delivery)
 				type = "cargo",
 				index = i,
 				carriage = carriage,
+				-- Cannot be nil here. Populated before call.
+				---@diagnostic disable-next-line: need-check-nil
 				capacity = train.per_wagon_item_slot_capacity[i]
 					- delivery.reserved_slots,
 				manifest = {},
@@ -246,7 +252,7 @@ local function create_wagon_manifests(train, stop, delivery)
 			if #cw_manifests == 0 then
 				error("Impossible item allocation to a nonitem train")
 			end
-			local stack_size = key_to_stacksize(item)
+			local stack_size = key_to_stacksize(item) or 1
 			local n_slots = ceil(qty / stack_size)
 			-- Spillover calc: add net spillover to qty, then spread open
 			-- slots across all wagons.
@@ -315,7 +321,8 @@ end
 ---@param wagon LuaEntity
 ---@return uint?
 local function get_wagon_index(train, wagon)
-	for index, carriage in pairs(train.lua_train.carriages) do
+	local lua_train = train.lua_train --[[@as LuaTrain]]
+	for index, carriage in pairs(lua_train.carriages) do
 		if carriage.unit_number == wagon.unit_number then return index end
 	end
 end
@@ -344,6 +351,7 @@ local function set_provider_wagon_combs(cstrain, stop, delivery)
 		function(c) return c.mode == "wagon_split" end
 	)
 	if #combs == 0 then return end
+	---@diagnostic disable-next-line: undefined-field
 	local manifests = delivery.wagon_manifests
 	if not manifests then
 		stlib.error(
@@ -370,6 +378,7 @@ local function set_requester_wagon_combs(cstrain, stop, delivery)
 		function(c) return c.mode == "wagon_split" end
 	)
 	if #combs == 0 then return end
+	---@diagnostic disable-next-line: undefined-field
 	local manifests = delivery.requester_wagon_manifests
 	if not manifests then
 		stlib.error(

@@ -185,7 +185,7 @@ end
 ---@param id Id?
 ---@param skip_validation? boolean If `true`, blindly returns the storage object without validating actual existence
 local function get_train(id, skip_validation)
-	local train = Vehicle.get(id, skip_validation)
+	local train = cs2.get_vehicle(id, skip_validation)
 	if train and train.type == "train" then
 		return train --[[@as Cybersyn.Train]]
 	else

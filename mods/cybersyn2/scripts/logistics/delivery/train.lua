@@ -606,7 +606,7 @@ end
 local function interrupt_checker(train, cstrain, stop)
 	-- TODO: if cybersyn stops ever support interrupts, change this logic
 	if cstrain and not stop and cstrain.delivery_id then
-		local delivery = Delivery.get(cstrain.delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		local delivery = cs2.get_delivery(cstrain.delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		if delivery then delivery:notify_interrupted() end
 	end
 end
@@ -645,7 +645,7 @@ cs2.on_entity_renamed(function(renamed_type, entity, old_name)
 	local stop = cs2.get_stop_from_unit_number(entity.unit_number)
 	if not stop then return end
 	for _, delivery_id in pairs(stop.delivery_queue or empty) do
-		local delivery = Delivery.get(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 		if delivery then
 			local train = cs2.get_train(delivery.vehicle_id)
 			if train then

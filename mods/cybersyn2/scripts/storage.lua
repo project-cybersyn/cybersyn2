@@ -14,7 +14,7 @@ local events = require("lib.core.event")
 ---@field public inventories {[Id]: Cybersyn.Inventory} All Cybersyn inventories indexed by id
 ---@field public deliveries table<Id, Cybersyn.Delivery> All Cybersyn deliveries indexed by id
 ---@field public task_ids {[string]: Scheduler.TaskId} Ids of core tasks
----@field public train_groups {[string]: Cybersyn.Internal.TrainGroup} All Cybersyn-controlled train groups indexed by Factorio group name
+---@field public train_groups table<string, Cybersyn.Internal.TrainGroup> All Cybersyn-controlled train groups indexed by Factorio group name
 ---@field public luatrain_id_to_vehicle_id {[Id]: Id} Map of LuaTrain ids to Cybersyn vehicle ids
 ---@field public rail_id_to_node_id {[UnitNumber]: Id} Map of rail unit numbers to node ids of the associated train stop
 ---@field public stop_id_to_node_id {[UnitNumber]: Id} Map from UnitNumbers of `train-stop` entities to the corresponding node id

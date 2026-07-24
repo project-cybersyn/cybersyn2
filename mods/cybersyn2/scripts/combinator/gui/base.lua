@@ -6,7 +6,7 @@ local stlib = require("lib.core.strace")
 local cs2 = _G.cs2
 local events = require("lib.core.event")
 
-local combinator_modes = _G.cs2.combinator_modes
+local combinator_modes = cs2.combinator_modes
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
@@ -311,6 +311,7 @@ events.bind(
 		if not player then return end
 
 		local _, id = remote.call("things", "get_thing_id", event.entity)
+		---@cast id int64?
 		local comb = cs2.get_combinator(id)
 		if not comb then
 			player.print(

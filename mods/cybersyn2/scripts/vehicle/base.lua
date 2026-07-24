@@ -5,10 +5,12 @@
 local class = require("lib.core.class").class
 local counters = require("lib.core.counters")
 local events = require("lib.core.event")
-
 local cs2 = _G.cs2
 
-local rcall = remote.call
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
+local rcall = remote.call --[[@as fun(iface: string, method: string, ...: Any): Any ]]
 
 --------------------------------------------------------------------------------
 -- Busy_plugins
@@ -19,7 +21,7 @@ local busy_plugins = prototypes.mod_data["cybersyn2"].data.busy_plugins --[[@as 
 ---@param vehicle_id Id
 ---@param lua_train LuaTrain?
 ---@return boolean
-function _G.cs2.query_busy_plugins(vehicle_id, lua_train)
+function cs2.query_busy_plugins(vehicle_id, lua_train)
 	for i = 1, #busy_plugins do
 		local plugin = busy_plugins[i]
 		if rcall(plugin[1], plugin[2], vehicle_id, lua_train) then return true end
@@ -33,7 +35,7 @@ end
 
 ---@class (partial) Cybersyn.Vehicle
 local Vehicle = class("Vehicle")
-_G.cs2.Vehicle = Vehicle
+cs2.Vehicle = Vehicle
 
 ---Creates and stores a new vehicle state. Does not fire any events; this
 ---is delegated to constructors of specific vehicle types.
@@ -62,7 +64,6 @@ local function get_vehicle(id, skip_validation)
 	end
 	return nil
 end
-Vehicle.get = get_vehicle
 cs2.get_vehicle = get_vehicle
 
 local function get_all_vehicles() return storage.vehicles end

@@ -8,16 +8,6 @@ local tlib = require("lib.core.table")
 local thread_lib = require("lib.core.thread")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local mod_settings = _G.cs2.mod_settings
-local Train = _G.cs2.Train
-local Vehicle = _G.cs2.Vehicle
-local TrainStop = _G.cs2.TrainStop
-
-local ALL_TRAINS_FILTER = {}
-local strace = stlib.strace
-local WARN = stlib.WARN
-local INF = math.huge
-local add_workload = thread_lib.add_workload
 
 --------------------------------------------------------------------------------
 -- Handle trains arriving/leaving at stops

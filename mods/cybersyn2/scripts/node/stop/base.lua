@@ -46,7 +46,7 @@ end
 ---@param skip_validation boolean?
 ---@return Cybersyn.TrainStop?
 local function get_stop(id, skip_validation)
-	local stop = Node.get(id, skip_validation)
+	local stop = cs2.get_node(id, skip_validation)
 	if stop and stop.type == "stop" then
 		return stop --[[@as Cybersyn.TrainStop]]
 	else

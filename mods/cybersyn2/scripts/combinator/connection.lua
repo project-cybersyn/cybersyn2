@@ -5,7 +5,11 @@ local strace = require("lib.core.strace")
 local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local EMPTY = tlib.empty
+local pairs = pairs
 
 --- @type table<string, Color>
 local colors = {
@@ -68,9 +72,10 @@ end
 ---@param player LuaPlayer
 local function render_connection(player)
 	local pstate = cs2.get_or_create_player_state(player.index)
-	local objects = pstate.connection_render_objects or {}
+	local objects = pstate.connection_render_objects or EMPTY
 
 	for i = #objects, 1, -1 do
+		---@diagnostic disable-next-line: need-check-nil
 		objects[i].destroy()
 		objects[i] = nil
 	end
@@ -88,13 +93,14 @@ local function render_connection(player)
 
 	-- If in pairing mode, draw indicators from source to potential targets.
 	if source_stop then
+		local source_stop_entity = source_stop.entity --[[@as LuaEntity]]
 		if selected_stop then
 			draw_connection(
 				objects,
 				colors.teal,
 				true,
 				player.index,
-				source_stop.entity,
+				source_stop_entity,
 				selected_stop.entity
 			)
 		end
@@ -103,13 +109,14 @@ local function render_connection(player)
 			colors.teal,
 			true,
 			player.index,
-			source_stop.entity
+			source_stop_entity
 		)
 	end
 
 	-- Draw connections between selected combinator and associated ones
 	if selected_stop then
 		local _, master_comb_id, slave_ids = selected_stop:get_sharing_info()
+		local selected_stop_entity = selected_stop.entity --[[@as LuaEntity]]
 
 		if master_comb_id then
 			local master_comb = cs2.get_combinator(master_comb_id, true)
@@ -120,7 +127,7 @@ local function render_connection(player)
 					colors.green,
 					false,
 					player.index,
-					selected_stop.entity,
+					selected_stop_entity,
 					master_stop.entity
 				)
 			end
@@ -135,7 +142,7 @@ local function render_connection(player)
 						colors.green,
 						false,
 						player.index,
-						selected_stop.entity,
+						selected_stop_entity,
 						slave_stop.entity
 					)
 				end
@@ -152,17 +159,19 @@ end
 
 ---@param player_index int
 ---@param source_stop_id Id
-function _G.cs2.start_shared_inventory_connection(player_index, source_stop_id)
+function cs2.start_shared_inventory_connection(player_index, source_stop_id)
 	local player = game.get_player(player_index)
 	if not player then return end
-	if not player.cursor_stack.can_set_stack("cybersyn2-connection-tool") then
+	local player_cursor_stack = player.cursor_stack
+	if not player_cursor_stack then return end
+	if not player_cursor_stack.can_set_stack("cybersyn2-connection-tool") then
 		return
 	end
 	local pstate = cs2.get_or_create_player_state(player.index)
 	pstate.connection_source = source_stop_id
 	render_connection(player)
 	-- Force player to pickup connection tool
-	player.cursor_stack.set_stack("cybersyn2-connection-tool")
+	player_cursor_stack.set_stack("cybersyn2-connection-tool")
 end
 
 events.bind("cybersyn2-linked-clear-cursor", function(ev)
@@ -205,9 +214,9 @@ events.bind(
 			-- TODO: error message
 			return
 		end
-		local target_entity = ev.entities[1]
+		local target_entity = ev.entities[1] --[[@as LuaEntity]]
 		local target_stop =
-			cs2.get_stop(storage.stop_id_to_node_id[target_entity.unit_number or ""])
+			cs2.get_stop(storage.stop_id_to_node_id[target_entity.unit_number or 0])
 		if not target_stop then
 			-- TODO: error message "must target a cybersyn train stop"
 			player.clear_cursor()

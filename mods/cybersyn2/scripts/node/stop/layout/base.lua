@@ -101,7 +101,7 @@ function TrainStopLayout:clear_layout()
 	self.fluid_loader_map = {}
 	self.carriage_loading_pattern = {}
 
-	local stop = Node.get(self.node_id, true)
+	local stop = cs2.get_node(self.node_id, true)
 	if stop then
 		---@cast stop Cybersyn.TrainStop
 		cs2.raise_train_stop_layout_changed(stop, self)

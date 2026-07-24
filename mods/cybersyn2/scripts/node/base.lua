@@ -10,21 +10,23 @@ local signal = require("lib.signal")
 local scheduler = require("lib.core.scheduler")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local Inventory = _G.cs2.Inventory
-local mod_settings = _G.cs2.mod_settings
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
 local band = bit32.band
-local pairs = _G.pairs
+local pairs = pairs
+local next = next
 local key_is_fluid = signal.key_is_fluid
 local key_to_stacksize = signal.key_to_stacksize
-local Combinator = _G.cs2.Combinator
+local Combinator = cs2.Combinator
 local empty = tlib.empty
 
 ---@class (partial) Cybersyn.Node
 local Node = class("Node")
-_G.cs2.Node = Node
+cs2.Node = Node
 
 ---Create a new node state. No creation events are fired; that is delegated to
 ---the specific node type's lifecycle management.
@@ -85,8 +87,7 @@ local function get_node(id, skip_validation)
 		return (node and node:is_valid()) and node or nil
 	end
 end
-_G.cs2.get_node = get_node
-Node.get = get_node
+cs2.get_node = get_node
 
 ---Determine if a node is valid.
 ---@return boolean
@@ -119,7 +120,7 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 	local old_node
 	if combinator.node_id and combinator.node_id ~= self.id then
 		-- Combinator is already associated with a different node.
-		old_node = Node.get(combinator.node_id, true)
+		old_node = cs2.get_node(combinator.node_id, true)
 		Node.disassociate_combinator(combinator, suppress_set_changed)
 	end
 
@@ -146,7 +147,7 @@ end
 ---@return Cybersyn.Node? old_node If the combinator was disassociated, the node that it was disassociated from, otherwise `nil`.
 function Node.disassociate_combinator(combinator, suppress_set_changed)
 	if not combinator then return nil end
-	local node = Node.get(combinator.node_id, true)
+	local node = cs2.get_node(combinator.node_id, true)
 	combinator.node_id = nil
 	if not node then return nil end
 	if not node.combinator_set[combinator.id] then

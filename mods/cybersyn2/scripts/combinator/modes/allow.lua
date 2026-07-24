@@ -5,9 +5,11 @@
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local tlib = require("lib.core.table")
-local stlib = require("lib.core.strace")
+local strace = require("lib.core.strace")
 local cs2 = _G.cs2
-local gui = _G.cs2.gui
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local Pr = relm.Primitive
 local VF = ultros.VFlow
@@ -20,6 +22,7 @@ local HF = ultros.HFlow
 ---@class (partial) Cybersyn.Combinator
 ---@field public get_allow_mode fun(): "auto" | "layout" | "group" | "all" LEGACY: old allowlist
 ---@field public get_allowed_layouts fun(): string[][] Manual allowlist entries
+---@field public set_allowed_layouts fun(self: Cybersyn.Combinator, layouts: string[][]): void
 
 cs2.register_raw_setting("allow_mode", "allow_mode", "auto")
 cs2.register_raw_setting("allowed_layouts", "layouts", {})

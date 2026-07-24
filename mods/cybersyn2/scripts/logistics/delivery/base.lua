@@ -10,20 +10,18 @@ local tlib = require("lib.core.table")
 local events = require("lib.core.event")
 local thread_lib = require("lib.core.thread")
 local cs2 = _G.cs2
-local mod_settings = _G.cs2.mod_settings
+local mod_settings = cs2.mod_settings
 
 local strace = stlib.strace
 local WARN = stlib.WARN
 local add_workload = thread_lib.add_workload
 
--- Type-assert storage due to EmmyLua issues
----@diagnostic disable-next-line: missing-fields
 ---@type Cybersyn.Storage
-storage = {}
+storage = storage --[[@as Cybersyn.Storage]]
 
 ---@class (partial) Cybersyn.Delivery: StateMachine
 local Delivery = class("Delivery", StateMachine)
-_G.cs2.Delivery = Delivery
+cs2.Delivery = Delivery
 
 ---Create a new delivery object. No creation events are fired; that is
 ---delegated to the specific delivery lifecycle management.
@@ -54,8 +52,7 @@ local function get_delivery(id, skip_validation)
 		return x:is_valid() and x or nil
 	end
 end
-Delivery.get = get_delivery
-_G.cs2.get_delivery = get_delivery
+cs2.get_delivery = get_delivery
 
 function Delivery:destroy()
 	local id = self.id

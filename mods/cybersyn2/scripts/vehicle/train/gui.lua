@@ -219,7 +219,7 @@ relm.define("TrainGui", function(props)
 			local player = game.get_player(player_index)
 			if not player then return end
 			local scale = player.display_scale
-			elt.location = { 452 * scale, 40 * scale }
+			elt.location = { math.floor(452 * scale), math.floor(40 * scale) }
 		end
 	)
 	ultros.use_close_on_gui_closed(

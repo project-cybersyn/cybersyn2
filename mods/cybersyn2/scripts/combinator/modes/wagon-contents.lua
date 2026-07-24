@@ -35,9 +35,9 @@ local SCRIPT = defines.wire_origin.script
 ---@param combinator Cybersyn.Combinator
 ---@param force_destroy boolean?
 local function create_or_destroy_hidden_chest(combinator, force_destroy)
-	---@type nil, things.ThingChildInfo
 	local _, chest_info =
 		remote.call("things", "get_child", combinator.id, "proxy_chest")
+	---@cast chest_info things.ThingChildInfo?
 	local chest = chest_info and chest_info.entity
 	if
 		combinator.mode == "wagon_contents"
@@ -91,9 +91,9 @@ end
 ---@param comb Cybersyn.Combinator
 local function clear_combinator(comb)
 	comb:direct_write_outputs(empty)
-	---@type nil, things.ThingChildInfo
 	local _, chest_info =
 		remote.call("things", "get_child", comb.id, "proxy_chest")
+	---@cast chest_info things.ThingChildInfo?
 	local chest = chest_info and chest_info.entity
 	if chest then
 		chest.proxy_target_entity = nil
@@ -104,9 +104,9 @@ end
 ---@param comb Cybersyn.Combinator
 ---@param wagon LuaEntity
 local function set_proxy_chest_inventory(comb, wagon)
-	---@type nil, things.ThingChildInfo
 	local _, chest_info =
 		remote.call("things", "get_child", comb.id, "proxy_chest")
+	---@cast chest_info things.ThingChildInfo?
 	local chest = chest_info and chest_info.entity
 	if chest then
 		if wagon and wagon.type == "cargo-wagon" then

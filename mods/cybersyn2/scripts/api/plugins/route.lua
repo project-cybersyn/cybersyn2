@@ -6,6 +6,8 @@ local stlib = require("lib.core.strace")
 local signal = require("lib.signal")
 local cs2 = _G.cs2
 
+local rcall = remote.call --[[@as fun(iface: string, method: string, ...: Any): Any]]
+
 local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn2.RoutePlugin} ]]
 
 local reachable_callbacks = tlib.t_map_a(
@@ -33,7 +35,7 @@ function _G.cs2.query_reachable_callbacks(
 )
 	for _, callback in pairs(reachable_callbacks) do
 		if callback then
-			local result = remote.call(
+			local result = rcall(
 				callback[1],
 				callback[2],
 				vehicle_id,
