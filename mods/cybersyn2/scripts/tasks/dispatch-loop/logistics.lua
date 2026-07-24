@@ -9,6 +9,7 @@ local thread_lib = require("lib.core.thread")
 local train_lib = require("lib.trains")
 local OrderStatus = require("lib.types").OrderStatus
 local cmt = require("lib.core.cmt")
+local era_lib = require("lib.core.math.era-counter")
 local cs2 = _G.cs2
 
 ---@type Cybersyn.Storage
@@ -167,7 +168,7 @@ function LogisticsThread:loop_providers()
 	if not provider then
 		-- End of provider loop...
 		self.prov_index = nil
-		if #self.matches > 0 then
+		if next(self.matches) then
 			-- Found match: Go into routing loop
 			return self:set_state("sort_matches")
 		else
@@ -338,7 +339,7 @@ function LogisticsThread:start_match_loop()
 		"Match pass beginning for requester",
 		self.requester.node_id,
 		"with",
-		#self.matches,
+		function() return #self.matches end,
 		"matches"
 	)
 	self:set_state("loop_matches")
@@ -552,13 +553,14 @@ function LogisticsThread:route_train()
 	local satisfaction = match.satisfaction
 	local from = match.provider_node --[[@as Cybersyn.TrainStop]]
 	local to = match.requester_node --[[@as Cybersyn.TrainStop]]
+	local n_trains = #self.trains
 
 	if not train then
 		-- No train found for this allocation
 		-- Log failure at nodes
 		trace(
 			"DELIVERY FAILED: NO TRAIN: Examined",
-			#self.trains,
+			n_trains,
 			"trains, rejected busy:",
 			self.busy_rejections,
 			"capacity:",
@@ -575,7 +577,7 @@ function LogisticsThread:route_train()
 			satisfaction
 		)
 		requester:set_status(OrderStatus.no_vehicle, {
-			n = #self.trains,
+			n = n_trains,
 			busy = self.busy_rejections,
 			capacity = self.capacity_rejections,
 			allowlist = self.allowlist_rejections,
@@ -687,8 +689,7 @@ function LogisticsThread:route_train()
 	-- Item allocations
 	-- Prefer starvation_item first, then highest fulfillment qty.
 	local items = satisfaction.items or EMPTY
-	local item_keys = tlib.keys(items)
-	local n_item_keys = #item_keys
+	local item_keys, n_item_keys = tlib.keys_n(items)
 	tsort(item_keys, function(a, b)
 		if a == starvation_item then return true end
 		if b == starvation_item then return false end
@@ -754,12 +755,13 @@ function LogisticsThread:route_train()
 	)
 	add_workload(self.workload_counter, 10)
 	requester:set_status(OrderStatus.delivery)
+	self.n_deliveries = self.n_deliveries + 1
 	if mod_settings.debug then
 		trace(
 			"DELIVERY CREATED: Topology",
 			self.topology_id,
 			": Examined",
-			#self.trains,
+			n_trains,
 			"trains (rejected busy:",
 			self.busy_rejections,
 			"capacity:",
@@ -785,20 +787,6 @@ function LogisticsThread:route_train()
 	end
 
 	self:set_state("loop_matches")
-end
-
---------------------------------------------------------------------------------
--- Loop complete
---------------------------------------------------------------------------------
-
-function LogisticsThread:loop_complete()
-	for _, res in pairs(self.reservations) do
-		res.from_inv:add_single_item_outflow(res.item, -res.qty --[[@as int]])
-	end
-	self.reservations = nil
-	self.req_index = nil
-	self:set_state("init")
-	cmt.yield(self)
 end
 
 --------------------------------------------------------------------------------
@@ -830,20 +818,50 @@ function LogisticsThread:enum_trains()
 	local trains = {}
 	local avail_trains = {}
 	local topology_id = self.topology_id
+	local n, m = 0, 0
 	for _, veh in pairs(storage.vehicles) do
+		n = n + 1
 		if veh.type == "train" and veh:get_topology_id() == topology_id then
-			trains[#trains + 1] = veh
-			avail_trains[#avail_trains + 1] = true
+			m = m + 1
+			trains[m] = veh
+			avail_trains[m] = true
 		end
 	end
 	self.trains = trains
 	self.avail_trains = avail_trains
-	add_workload(self.workload_counter, table_size(storage.vehicles))
+	add_workload(self.workload_counter, n)
 	self:set_state("loop_requesters")
 end
 
 --------------------------------------------------------------------------------
--- Thread handlers
+-- Loop complete
+--------------------------------------------------------------------------------
+
+function LogisticsThread:loop_complete()
+	for _, res in pairs(self.reservations) do
+		res.from_inv:add_single_item_outflow(res.item, -res.qty --[[@as int]])
+	end
+	self.reservations = nil
+
+	local t = game.tick
+	local t0 = self.last_logistics_tick
+	if t0 then
+		era_lib.create_or_update_era_counter(self, "logistics_era", t - t0)
+	end
+
+	era_lib.create_or_update_era_counter(
+		self,
+		"deliveries_era",
+		self.n_deliveries
+	)
+
+	self.req_index = nil
+	self:set_state("init")
+	cmt.yield(self)
+end
+
+--------------------------------------------------------------------------------
+-- Loop start
 --------------------------------------------------------------------------------
 
 function LogisticsThread:enter_logistics()
@@ -857,10 +875,12 @@ function LogisticsThread:enter_logistics()
 		cmt.yield(self)
 		return
 	end
+	self.last_logistics_tick = game.tick
 end
 
 function LogisticsThread:logistics()
 	self.req_index = 0
+	self.n_deliveries = 0
 	self.reservations = {}
 	self:set_state("sort_requesters")
 end

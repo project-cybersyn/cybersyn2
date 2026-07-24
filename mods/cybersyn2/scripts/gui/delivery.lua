@@ -13,6 +13,9 @@ local siglib = require("lib.signal")
 local nlib = require("lib.core.math.numeric")
 local cs2 = _G.cs2
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local HF = ultros.HFlow
 local VF = ultros.VFlow
 local Pr = relm.Primitive

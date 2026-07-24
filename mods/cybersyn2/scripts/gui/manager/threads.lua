@@ -293,57 +293,132 @@ local DeliveryMonitorEntry = relm.define(
 	end
 )
 
-local DispatchLoop = relm.define("Manager.DispatchLoop", function(props)
-	local task = props.task
-	local wpi = (task._cmt_work_per_iter or EMPTY)[1] or 0
-	local work_cap = task._cmt_work_cap or 0
-	local spike_cap = task._cmt_spike_cap or 0
+local DispatchLoop = relm.define(
+	"Manager.DispatchLoop",
+	---@param props {task: Cybersyn.LogisticsThread}
+	function(props)
+		local task = props.task
+		local wpi = (task._cmt_work_per_iter or EMPTY)[1] or 0
+		local work_cap = task._cmt_work_cap or 0
+		local spike_cap = task._cmt_spike_cap or 0
+		local n_nodes = task.n_nodes or 0
+		local n_providers = task.n_providers or 0
+		local requesters_era = (task.requesters_era or EMPTY)[1] or 0
+		local loop_length_era = (task.loop_length_era or EMPTY)[1] or 0
+		local poll_nodes_era = (task.poll_nodes_era or EMPTY)[1] or 0
+		local logistics_era = (task.logistics_era or EMPTY)[1] or 0
+		local deliveries_era = (task.deliveries_era or EMPTY)[1] or 0
+		local deliveries_frame_era = (task.deliveries_frame_era or EMPTY)[1] or 0
+		local deliveries_per_min = deliveries_frame_era * 3600
 
-	return Pr({
-		type = "frame",
-		direction = "vertical",
-		style = "shallow_frame",
-		horizontally_stretchable = true,
-	}, {
-		ultros.RtLabel({
-			"",
-			"[font=default-bold]Logistics:[/font] ",
-			task._cmt_name or "",
-		}),
-		Pr({ type = "line" }),
-		Pr({ type = "table", column_count = 5, horizontally_stretchable = true }, {
-			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel({
-					"",
-					"[font=default-bold]Work per Iteration[/font] ",
-					wpi,
-				}),
+		return Pr({
+			type = "frame",
+			direction = "vertical",
+			style = "shallow_frame",
+			horizontally_stretchable = true,
+		}, {
+			ultros.RtLabel({
+				"",
+				"[font=default-bold]Logistics:[/font] ",
+				task._cmt_name or "",
 			}),
-			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel("[font=default-bold]Work Cap[/font]"),
-				ultros.UncontrolledInput({
-					numeric = true,
-					value = work_cap,
-					width = 60,
-					on_change = function(_, next_work_cap)
-						task._cmt_work_cap = next_work_cap
-					end,
-				}),
-			}),
-			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel("[font=default-bold]Spike Cap[/font]"),
-				ultros.UncontrolledInput({
-					numeric = true,
-					value = spike_cap,
-					width = 60,
-					on_change = function(_, next_spike_cap)
-						task._cmt_spike_cap = next_spike_cap
-					end,
-				}),
-			}),
-		}),
-	})
-end)
+			Pr({ type = "line" }),
+			Pr(
+				{ type = "table", column_count = 5, horizontally_stretchable = true },
+				{
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Work per Iteration[/font] ",
+							strformat("%.2f", wpi),
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Loop Length[/font] ",
+							strformat("%.2f", loop_length_era),
+							" frames",
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Poll Nodes[/font] ",
+							strformat("%.2f", poll_nodes_era),
+							" frames",
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Nodes[/font] ",
+							n_nodes,
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Logistics[/font] ",
+							strformat("%.2f", logistics_era),
+							" frames",
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Unfulfilled Req/Loop[/font] ",
+							strformat("%.2f", requesters_era),
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Providers[/font] ",
+							n_providers,
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Deliveries/Loop[/font] ",
+							strformat("%.2f", deliveries_era),
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Deliveries/Min[/font] ",
+							strformat("%.2f", deliveries_per_min),
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel("[font=default-bold]Work Cap[/font]"),
+						ultros.UncontrolledInput({
+							numeric = true,
+							value = work_cap,
+							width = 60,
+							on_change = function(_, next_work_cap)
+								task._cmt_work_cap = next_work_cap
+							end,
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel("[font=default-bold]Spike Cap[/font]"),
+						ultros.UncontrolledInput({
+							numeric = true,
+							value = spike_cap,
+							width = 60,
+							on_change = function(_, next_spike_cap)
+								task._cmt_spike_cap = next_spike_cap
+							end,
+						}),
+					}),
+				}
+			),
+		})
+	end
+)
 
 local DispatchLoops = relm.define("Manager.DispatchLoops", function(props)
 	relm_util.use_timer_handler(120, function(me) relm.paint(me) end)

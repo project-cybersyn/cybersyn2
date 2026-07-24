@@ -6,6 +6,7 @@ local class = require("lib.core.class").class
 local cmt = require("lib.core.cmt")
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
+local era_lib = require("lib.core.math.era-counter")
 local cs2 = _G.cs2
 local mod_settings = cs2.mod_settings
 
@@ -22,6 +23,18 @@ storage = storage --[[@as Cybersyn.Storage]]
 ---@field public requesters Cybersyn.Order[] Orders requesting something
 ---@field public trains Cybersyn.Train[] Available trains
 ---@field public avail_trains boolean[] Availability of each train in `trains`
+---@field public n_nodes integer Number of nodes in topology
+---@field public requesters_era Core.EraCounter Era of number of unsatisfied requesters
+---@field public n_providers integer Initial number of providers.
+---@field public last_loop_tick? int64 Last loop completion tick
+---@field public loop_length_era Core.EraCounter Era of loop length
+---@field public last_poll_nodes_tick? int64 Last tick the thread polled nodes
+---@field public poll_nodes_era Core.EraCounter Era of node polling time
+---@field public last_logistics_tick? int64 Last tick the thread completed logistics
+---@field public logistics_era Core.EraCounter Era of logistics time
+---@field public n_deliveries integer Number of deliveries made in last loop
+---@field public deliveries_era Core.EraCounter Era of number of deliveries
+---@field public deliveries_frame_era Core.EraCounter Era of number of deliveries per frame.
 local LogisticsThread = class("LogisticsThread", cs2.StatefulTask)
 cs2.LogisticsThread = LogisticsThread
 
@@ -45,6 +58,15 @@ function LogisticsThread:new(topology)
 	thread.topology_id = topology.id
 	thread._cmt_work_cap = 100
 	thread._cmt_spike_cap = 50
+	thread.n_nodes = 0
+	thread.n_avail_trains = 0
+	thread.n_providers = 0
+	thread.requesters_era = era_lib.create_era_counter(0)
+	thread.loop_length_era = era_lib.create_era_counter(0)
+	thread.poll_nodes_era = era_lib.create_era_counter(0)
+	thread.logistics_era = era_lib.create_era_counter(0)
+	thread.deliveries_era = era_lib.create_era_counter(0)
+	thread.deliveries_frame_era = era_lib.create_era_counter(0, 0.1)
 	cmt.add(thread)
 	cmt.wake(thread)
 	topology.thread_id = thread._cmt_id
@@ -57,16 +79,43 @@ function LogisticsThread:new(topology)
 	return thread
 end
 
+function LogisticsThread:clear_stats()
+	self.n_nodes = 0
+	self.n_avail_trains = 0
+	self.n_providers = 0
+	self.n_deliveries = 0
+	self.last_loop_tick = nil
+	local era = self.loop_length_era
+	if not era then self.loop_length_era = era_lib.create_era_counter(0) end
+end
+
+function LogisticsThread:mark_loop_start()
+	local t = game.tick
+	local t0 = self.last_loop_tick
+	if t0 then
+		local dt = t - t0
+		era_lib.create_or_update_era_counter(self, "loop_length_era", dt)
+		if dt > 0 then
+			era_lib.create_or_update_era_counter(
+				self,
+				"deliveries_frame_era",
+				(self.n_deliveries or 0) / dt,
+				0.1
+			)
+		end
+	end
+	self.last_loop_tick = t
+	events.raise("cs2.logistics_loop_start", self, self.topology_id)
+end
+
 function LogisticsThread:enter_init() self.nodes = nil end
 
 function LogisticsThread:init()
-	if mod_settings.enable_logistics then
-		events.raise("cs2.logistics_loop_start", self, self.topology_id)
+	if game and mod_settings.enable_logistics then
+		self:mark_loop_start()
 		self:set_state("enum_nodes")
-		-- Resample workload to pick up changes in work factor.
-		self._cmt_work_cap = cs2.PERF_BASE_LOGISTICS_WORKLOAD
-			* cs2.mod_settings.work_factor
 	else
+		self:clear_stats()
 		cmt.sleep(self, 5 * 60) -- 5 sec
 		cmt.yield(self)
 	end

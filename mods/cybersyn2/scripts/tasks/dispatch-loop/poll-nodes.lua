@@ -375,6 +375,7 @@ function LogisticsThread:enter_poll_nodes()
 		self.providers = {}
 		self.requesters = {}
 		self.node_index = 0
+		self.last_poll_nodes_tick = game.tick
 	end
 end
 
@@ -384,7 +385,19 @@ function LogisticsThread:poll_nodes()
 	local node = self.nodes[index]
 	self.node = node
 	if not node then
+		-- End of poll loop, move to logistics phase
 		self.node_index = nil
+		local t = game.tick
+		local t0 = self.last_poll_nodes_tick
+		if t0 then
+			era_lib.create_or_update_era_counter(self, "poll_nodes_era", t - t0)
+		end
+		era_lib.create_or_update_era_counter(
+			self,
+			"requesters_era",
+			#self.requesters
+		)
+		self.n_providers = #self.providers
 		return self:set_state("logistics")
 	end
 
