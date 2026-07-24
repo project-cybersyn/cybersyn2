@@ -103,6 +103,7 @@ lib.CarriageType = {
 ---@field public is_producer boolean? `true` if the node can send deliveries
 ---@field public is_consumer boolean? `true` if the node can receive deliveries
 ---@field public priority int? Default priority of the node.
+---@field public default_networks SignalCounts? Default item networks of the node.
 ---@field public threshold_item_in uint? General inbound item threshold, always measured in stacks.
 ---@field public threshold_fluid_in uint? General inbound fluid threshold
 ---@field public thresholds_in SignalCounts? Per-item inbound thresholds, always measured in units, not stacks.
