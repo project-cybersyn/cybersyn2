@@ -10,16 +10,6 @@ local event = require("lib.core.events").create_event
 ---@alias StringOrNil string|nil
 
 --------------------------------------------------------------------------------
--- Factorio core control phase events
---------------------------------------------------------------------------------
-
----Event raised when runtime mod settings are changed. By the time this
----event is dispatched, the global `mod_settings` contains the new settings.
---- * Arg 1 - string|nil - The name of the setting that was changed, or `nil` if unknown. When `nil` you must assume any/all settings have changed.
-_G.cs2.on_mod_settings_changed, _G.cs2.raise_mod_settings_changed =
-	event("mod_settings_changed", "StringOrNil", "nil", "nil", "nil", "nil")
-
---------------------------------------------------------------------------------
 -- Factorio world events
 --------------------------------------------------------------------------------
 

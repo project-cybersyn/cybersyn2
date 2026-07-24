@@ -6,7 +6,7 @@ local strace = require("lib.core.strace")
 ---@class (exact) Cybersyn.ModSettings
 ---@field public enable_logistics boolean Enable or disable scheduling globally.
 ---@field public debug boolean Enable debug mode.
----@field public debug_level string Debug level ("NONE", "INFO", "TRACE").
+---@field public debug_level "NONE"|"WARN"|"INFO"|"DEBUG"|"TRACE"
 ---@field public work_factor number Multiplier applied to work done per cycle.
 ---@field public warmup_time number Warmup time in seconds.
 ---@field public vehicle_warmup_time number Warmup time in seconds for vehicles.
@@ -24,7 +24,7 @@ local strace = require("lib.core.strace")
 ---@diagnostic disable-next-line: missing-fields
 local mod_settings = {}
 
-_G.cs2.mod_settings = mod_settings
+cs2.mod_settings = mod_settings
 
 ---Reload mod settings table from Factorio settings.
 local function update_mod_settings()
@@ -32,6 +32,7 @@ local function update_mod_settings()
 		settings.global["cybersyn2-setting-enable-logistics"].value --[[@as boolean]]
 	local debug_level = settings.global["cybersyn2-setting-debug-level"].value --[[@as string]]
 	mod_settings.debug = debug_level ~= "NONE"
+	---@diagnostic disable-next-line: assign-type-mismatch
 	mod_settings.debug_level = debug_level
 	mod_settings.work_factor =
 		settings.global["cybersyn2-setting-work-factor"].value --[[@as number]]
@@ -58,38 +59,29 @@ local function update_mod_settings()
 	mod_settings.directional_routing =
 		settings.global["cybersyn2-setting-directional-routing"].value --[[@as boolean]]
 end
-_G.cs2.update_mod_settings = update_mod_settings
+cs2.update_mod_settings = update_mod_settings
 
 -- Initial loading of settings
 update_mod_settings()
 
 -- On init we must treat settings as having been changed
 events.bind("on_startup", function()
-	cs2.raise_mod_settings_changed(nil)
+	update_mod_settings()
 	events.raise("cs2.mod_settings_changed", nil)
 end)
 
 -- Change settings when settings change
 events.bind(defines.events.on_runtime_mod_setting_changed, function(event)
 	update_mod_settings()
-	cs2.raise_mod_settings_changed(event.setting)
 	events.raise("cs2.mod_settings_changed", event.setting)
 end)
 
 -- Update debug log level when settings change
--- TODO: find a better home for this...
 events.bind("cs2.mod_settings_changed", function(setting_name)
 	if setting_name == nil or setting_name == "cybersyn2-setting-debug-level" then
 		local debug_level = mod_settings.debug_level
-		if debug_level == "NONE" then
-			storage._LOG_LEVEL = 50
-			strace.warn("Log level set to WARN")
-		elseif debug_level == "INFO" then
-			storage._LOG_LEVEL = 30
-			strace.warn("Log level set to INFO")
-		elseif debug_level == "TRACE" then
-			storage._LOG_LEVEL = 1
-			strace.warn("Log level set to ALL")
-		end
+		---@diagnostic disable-next-line: assign-type-mismatch
+		if debug_level == "NONE" then debug_level = "ERROR" end
+		strace.set_log_level_name(debug_level)
 	end
 end)

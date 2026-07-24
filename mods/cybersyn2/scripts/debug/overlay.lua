@@ -307,7 +307,7 @@ events.bind("on_shutdown", function()
 	clear_all_overlays()
 end)
 
-cs2.on_mod_settings_changed(enable_or_disable_overlays)
+events.bind("cs2.mod_settings_changed", enable_or_disable_overlays)
 cs2.on_combinator_destroyed(destroy_combinator_overlay)
 --cs2.on_combinator_created(update_combinator_overlay)
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
