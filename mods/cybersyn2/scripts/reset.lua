@@ -6,21 +6,30 @@
 local cs2 = _G.cs2
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
+local tlib = require("lib.core.table")
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
+local pairs = pairs
 
 ---Shuts down Cybersyn 2.
 ---@param force boolean If `true`, forces shutdown even if there are vetoes.
-function _G.cs2.shutdown(force)
+function cs2.shutdown(force)
 	---@type Core.ResetData
 	local try_shutdown_state =
 		{ init = false, handoff = false, veto_shutdown = {} }
 	strace.info("invoking on_try_shutdown")
 	events.raise("on_try_shutdown", try_shutdown_state)
-	if (not force) and (#try_shutdown_state.veto_shutdown > 0) then
-		table.insert(try_shutdown_state.veto_shutdown, 1, "")
+	local veto_shutdown = try_shutdown_state.veto_shutdown
+	if (not force) and veto_shutdown and #veto_shutdown > 0 then
+		table.insert(veto_shutdown, 1, "")
+		-- XXX: TYPES: FMTK type union bug (LocalisedString)
+		---@diagnostic disable-next-line: param-type-mismatch
 		game.print({
 			"",
 			"/cs2-shutdown failed. Reasons:\n",
-			try_shutdown_state.veto_shutdown,
+			veto_shutdown,
 			"\nResolve these issues and then reset again.\nUse `/cs2-shutdown force` to shut down anyway.",
 		})
 		return
@@ -53,7 +62,7 @@ function _G.cs2.shutdown(force)
 end
 
 ---Restarts Cybersyn 2 after a shutdown.
-function _G.cs2.restart()
+function cs2.restart()
 	if not storage._SHUTDOWN_DATA then
 		game.print(
 			"Cybersyn 2 restart failed: must shut down with `/cs2-shutdown` first."

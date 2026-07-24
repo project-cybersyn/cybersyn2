@@ -20,12 +20,12 @@ local events = require("lib.core.event")
 ---@field public stop_id_to_node_id {[UnitNumber]: Id} Map from UnitNumbers of `train-stop` entities to the corresponding node id
 ---@field public stop_layouts {[Id]: Cybersyn.TrainStopLayout} Layouts of train stops, indexed by node id
 ---@field public train_layouts {[Id]: Cybersyn.TrainLayout} Layouts of trains, indexed by layout id
----@field public debug_state Cybersyn.Internal.DebugState Debug state, should remain empty unless debug mode is enabled for the save
 ---@field public surface_index_to_train_topology {[uint]: Id} Map from planetary surfaces to associated train topologies
 ---@field public alerts {[Id]: Cybersyn.Alert} Currently displayed alerts
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
 ---@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events
 ---@field public dispatch_queue (string|int)[] Queue of delivery IDs to be dispatched. Used by the delivery dispatch thread.
+---@field public _SHUTDOWN_DATA? Core.ResetData Data used to track shutdown state. Only present during shutdown.
 storage = {}
 
 ---Per-player global state.
@@ -93,14 +93,13 @@ local function clear_storage()
 	storage.stop_id_to_node_id = {}
 	storage.stop_layouts = {}
 	storage.train_layouts = {}
-	storage.debug_state = {}
 	storage.surface_index_to_train_topology = {}
 	storage.alerts = {}
 	storage.alerts_by_entity = {}
 	storage.entities_being_destroyed = {}
 	storage.dispatch_queue = {}
 end
-_G.__clear_storage = clear_storage
+__clear_storage = clear_storage
 
 events.bind("on_startup", clear_storage, true)
 
