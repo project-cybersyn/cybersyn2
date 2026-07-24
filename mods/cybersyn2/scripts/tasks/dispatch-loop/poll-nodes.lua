@@ -16,7 +16,7 @@ storage = storage --[[@as Cybersyn.Storage]]
 
 local cs2 = _G.cs2
 
-local mod_settings = _G.cs2.mod_settings
+local mod_settings = cs2.mod_settings
 
 local strace = stlib.strace
 local WARN = stlib.WARN
@@ -262,13 +262,6 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	else
 		stop.spillover = comb:get_spillover() or 0
 	end
-
-	-- Default networks (deprecated/hidden, should now be set at order level)
-	-- TODO: deprecate
-	local default_networks = {}
-	local network_signal = comb:get_network_signal()
-	if network_signal then default_networks[network_signal] = -1 end
-	stop.default_networks = default_networks
 
 	-- Depature controls
 	local inact_sec = comb:get_inactivity_timeout()

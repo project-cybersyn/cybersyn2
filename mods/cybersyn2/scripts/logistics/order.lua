@@ -282,8 +282,7 @@ function Order:read(workload)
 			-- Default to the network specified on the combinator
 			self.networks[network] = mod_settings.default_netmask
 		elseif stop.default_networks then
-			-- Default to the stop's default networks
-			-- XXX: deprecated, remove for Beta
+			-- Legacy fallback for very old saves. Should be safe to leave in.
 			assign(self.networks, stop.default_networks)
 		end
 	end
