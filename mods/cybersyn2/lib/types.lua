@@ -18,11 +18,6 @@ local lib = {}
 
 ---@alias Cybersyn.Manifest SignalCounts
 
----@class RingBufferLog
----@field public log_size uint Max size of the log
----@field public log_current uint Index of the current log entry
----@field public log_buffer any[] The full log ring buffer.
-
 ---Combinator game state.
 ---@class (partial) Cybersyn.Combinator
 ---@field public id int64 The unique Thing ID associated with this combinator.
@@ -95,7 +90,7 @@ lib.CarriageType = {
 ---@field public thread_id? int The id of the thread servicing this topology if any.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
----@class (partial) Cybersyn.Node: RingBufferLog
+---@class (partial) Cybersyn.Node
 ---@field public id Id Unique id of the node.
 ---@field public default_topology_id Id? Default topology id for this node.
 ---@field public topology_id Id? Id of the topology this node belongs to. If `nil`, `default_topology_id` is used.

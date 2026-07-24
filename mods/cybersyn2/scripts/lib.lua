@@ -148,15 +148,6 @@ function _G.cs2.lib.flying_text(player, message, play_sound, position)
 	if play_sound then player.play_sound({ path = "utility/cannot_build" }) end
 end
 
----@param log RingBufferLog
----@param value table
-function _G.cs2.ring_buffer_log_write(log, value)
-	value.tick = game.tick
-	log.log_buffer[log.log_current] = value
-	log.log_current = log.log_current + 1
-	if log.log_current > log.log_size then log.log_current = 1 end
-end
-
 ---Given a combinator, find the nearby rail or stop that may trigger an
 ---association.
 ---@param combinator_entity LuaEntity A *valid* combinator entity.
