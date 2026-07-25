@@ -111,7 +111,8 @@ lib.CarriageType = {
 ---@field public produce_single_item boolean? `true` if the node should only provide single items per delivery
 ---@field public polled_tick? uint Tick number when this node was last polled for its current state.
 ---@field public polled_delta_era? Core.EraCounter Cached exponential rolling average of the delta between the last two polled ticks.
----@field public poll_dirty? true `true` if this node's combinators need to be re-polled.
+---@field public current_revision int64 Revision number incremented every time the node is marked dirty.
+---@field public last_polled_revision int64 Revision number most recently completed by the poll loop.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class (partial) Cybersyn.TrainStop: Cybersyn.Node

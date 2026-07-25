@@ -3,5 +3,5 @@ for _, comb in pairs(storage.combinators) do
 end
 
 for _, node in pairs(storage.nodes) do
-	node.poll_dirty = true
+	node:mark_dirty()
 end

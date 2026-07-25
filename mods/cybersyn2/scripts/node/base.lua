@@ -35,7 +35,8 @@ function Node.new(type)
 	local node = setmetatable({
 		id = id,
 		type = type or "generic", -- default type
-		poll_dirty = true,
+		current_revision = 1,
+		last_polled_revision = 0,
 		combinator_set = {},
 		created_tick = game.tick,
 		deliveries = {},
@@ -93,17 +94,34 @@ cs2.get_node = get_node
 ---@return boolean
 function Node:is_valid() return false end
 
----Mark a node as dirty, requiring polling
-function Node:mark_dirty()
-	if self.poll_dirty or self.is_being_destroyed then return end
-	stlib.trace("marking node", self.id, "as dirty")
-	self.poll_dirty = true
+---@return boolean is_dirty
+---@return int64 current_revision
+---@return int64 last_polled_revision
+function Node:is_dirty()
+	local current_revision = self.current_revision or 0
+	local last_polled_revision = self.last_polled_revision or 0
+	return current_revision ~= last_polled_revision,
+		current_revision,
+		last_polled_revision
 end
 
-function Node:mark_clean()
-	if not self.poll_dirty then return end
-	stlib.trace("marking node", self.id, "as clean")
-	self.poll_dirty = nil
+function Node:mark_dirty()
+	if self.is_being_destroyed then return end
+	local old_revision = self.current_revision or 0
+	self.current_revision = old_revision + 1
+end
+
+---@param expected_revision int64? If provided, only marks clean when current revision matches.
+---@return boolean was_cleaned `true` if the node was marked clean.
+function Node:mark_clean(expected_revision)
+	local current_revision = self.current_revision or 0
+	local last_polled_revision = self.last_polled_revision or 0
+	if current_revision == last_polled_revision then return false end
+	if expected_revision ~= nil and current_revision ~= expected_revision then
+		return false
+	end
+	self.last_polled_revision = current_revision
+	return true
 end
 
 --------------------------------------------------------------------------------

@@ -168,7 +168,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	end
 
 	-- Elide if not dirty
-	if not stop.poll_dirty then return true end
+	if not self.node_is_dirty then return true end
 
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()
@@ -179,24 +179,6 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 		strace(WARN, "message", "Couldn't read station comb inputs", stop.entity)
 		return false
 	end
-
-	-- Mark clean
-	stop:mark_clean()
-	-- Update polling stats
-	local t = game.tick
-	local t0 = stop.polled_tick
-	if t0 then
-		local delta = t - t0
-		if delta > 0 then
-			local era = stop.polled_delta_era
-			if not era then
-				era = era_lib.create_era_counter(delta)
-				stop.polled_delta_era = era
-			end
-			update_era_counter(era, delta)
-		end
-	end
-	stop.polled_tick = t
 
 	-- Set defaults
 	stop.priority = inputs["cybersyn2-priority"] or 0
@@ -341,6 +323,7 @@ function LogisticsThread:poll_train_stop()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
 	local workload = self.workload_counter
 	add_workload(workload, 1)
+	self.node_is_dirty = nil
 	if not stop:is_valid() then return self:set_state("poll_nodes") end
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
@@ -352,7 +335,8 @@ function LogisticsThread:poll_train_stop()
 		event.raise("cs2.alert.vanilla_priority", stop_entity)
 		return self:set_state("poll_nodes")
 	end
-	local stop_is_dirty = stop.poll_dirty
+	local stop_is_dirty, current_revision = stop:is_dirty()
+	if stop_is_dirty then self.node_is_dirty = current_revision end
 	if not stop_is_dirty then
 		self.n_clean_nodes = (self.n_clean_nodes or 0) + 1
 	end
@@ -401,7 +385,31 @@ function LogisticsThread:enter_poll_nodes()
 		-- Just entered poll_nodes
 		self:top_of_poll_nodes()
 	else
-		-- Finished polling a node, moving to next.
+		-- Just finished polling a node. Make sure to set it clean.
+		local node = self.nodes[index]
+		local node_was_dirty = self.node_is_dirty
+		self.node_is_dirty = nil
+		if node then
+			if node_was_dirty then
+				-- Mark clean
+				node:mark_clean(node_was_dirty)
+
+				-- Update polling stats
+				local t = game.tick
+				local t0 = node.polled_tick
+				if t0 then
+					local delta = t - t0
+					if delta > 0 then
+						era_lib.create_or_update_era_counter(
+							node,
+							"polled_delta_era",
+							delta
+						)
+					end
+				end
+				node.polled_tick = t
+			end
+		end
 	end
 end
 
