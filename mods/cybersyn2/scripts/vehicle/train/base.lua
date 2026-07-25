@@ -8,7 +8,9 @@ local signal_lib = require("lib.signal")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
 local Vehicle = _G.cs2.Vehicle
-local Topology = _G.cs2.Topology
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local next = next
 local pairs = pairs
@@ -20,11 +22,6 @@ local fluid_name_to_key = signal_lib.fluid_name_to_key
 
 local NO_FUEL = defines.entity_status.no_fuel
 local FIRST_ENTRY = { schedule_index = 1 }
-
--- EmmyLua storage issue fix
----@diagnostic disable-next-line: missing-fields
----@type Cybersyn.Storage
-storage = {}
 
 --------------------------------------------------------------------------------
 -- Group tracking

@@ -26,7 +26,9 @@ local events = require("lib.core.event")
 ---@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events
 ---@field public dispatch_queue (string|int)[] Queue of delivery IDs to be dispatched. Used by the delivery dispatch thread.
 ---@field public _SHUTDOWN_DATA? Core.ResetData Data used to track shutdown state. Only present during shutdown.
-storage = {}
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 ---Per-player global state.
 ---@class (exact) Cybersyn.PlayerState
