@@ -32,8 +32,16 @@ local update_era_counter = era_lib.update_era_counter
 local LogisticsThread = cs2.LogisticsThread
 
 --------------------------------------------------------------------------------
--- Classify
+-- Poll Inventory
 --------------------------------------------------------------------------------
+
+function LogisticsThread:poll_train_stop_update_inventory()
+	local stop = self.node --[[@as Cybersyn.TrainStop]]
+	if not stop:is_valid() then return self:set_state("poll_nodes") end
+	stop:update_inventory(self.workload_counter, false)
+
+	self:set_state("poll_train_stop_classify_inventory")
+end
 
 function LogisticsThread:enter_poll_train_stop_classify_inventory()
 	-- Only run on first entry
@@ -99,7 +107,7 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 end
 
 --------------------------------------------------------------------------------
--- Poll
+-- Poll Station/DT
 --------------------------------------------------------------------------------
 
 ---@param workload Core.Thread.Workload
@@ -325,13 +333,9 @@ function LogisticsThread:poll_dt_combs(workload, stop)
 	stop.thresholds_in = thresholds_in
 end
 
-function LogisticsThread:poll_train_stop_update_inventory()
-	local stop = self.node --[[@as Cybersyn.TrainStop]]
-	if not stop:is_valid() then return self:set_state("poll_nodes") end
-	stop:update_inventory(self.workload_counter, false)
-
-	self:set_state("poll_train_stop_classify_inventory")
-end
+--------------------------------------------------------------------------------
+-- Top level node poll
+--------------------------------------------------------------------------------
 
 function LogisticsThread:poll_train_stop()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
@@ -362,7 +366,7 @@ function LogisticsThread:poll_train_stop()
 end
 
 --------------------------------------------------------------------------------
--- State handlers
+-- Node loop
 --------------------------------------------------------------------------------
 
 function LogisticsThread:top_of_poll_nodes()
@@ -392,8 +396,13 @@ function LogisticsThread:bottom_of_poll_nodes()
 end
 
 function LogisticsThread:enter_poll_nodes()
-	-- Only run on first entry
-	if not self.node_index then self:top_of_poll_nodes() end
+	local index = self.node_index
+	if not index then
+		-- Just entered poll_nodes
+		self:top_of_poll_nodes()
+	else
+		-- Finished polling a node, moving to next.
+	end
 end
 
 function LogisticsThread:poll_nodes()
