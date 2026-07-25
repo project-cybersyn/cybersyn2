@@ -6,7 +6,6 @@ local tlib = require("__cybersyn2__.lib.core.table")
 local siglib = require("__cybersyn2__.lib.signal")
 local events = require("__cybersyn2__.lib.core.event")
 local cs2_elements = require("__cybersyn2__.scripts.gui.elements")
-local solib = require("__cybersyn2__.lib.core.relm.smart-open")
 local mgr = _G.mgr
 
 local strace = strace_lib.strace
@@ -53,10 +52,7 @@ function _G.mgr.manager.open(player_index)
 			"Cybersyn.Manager",
 			{ player_index = player_index }
 		)
-		if elt then
-			elt.force_auto_center()
-			solib.smart_open(player, elt, true)
-		end
+		if elt then elt.force_auto_center() end
 	end
 end
 

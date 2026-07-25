@@ -1,9 +1,10 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.0
 Date: ????
+  Compatibility:
+    - Attempted Nullius compatibility. (This will only work when Nullius is updated for Factorio 2.1)
   Changes:
-    - Train GUI now shows the topology of the train.
-    - Node GUI now shows the topology of the node.
+    - Train and Node GUIs now show topology.
     - Increased limit for number of deliveries shown in GUIs.
     - Added preliminary manager UI. This is a work in progress. The separate `cybersyn2-manager` mod is now deprecated.
     - Added Threads information to the manager UI.
