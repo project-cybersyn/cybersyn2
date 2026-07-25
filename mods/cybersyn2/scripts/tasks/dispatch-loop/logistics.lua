@@ -755,7 +755,7 @@ function LogisticsThread:route_train()
 	)
 	add_workload(self.workload_counter, 10)
 	requester:set_status(OrderStatus.delivery)
-	self.n_deliveries = self.n_deliveries + 1
+	self.n_deliveries = (self.n_deliveries or 0) + 1
 	if mod_settings.debug then
 		trace(
 			"DELIVERY CREATED: Topology",
