@@ -35,6 +35,8 @@ storage = storage --[[@as Cybersyn.Storage]]
 ---@field public n_deliveries integer Number of deliveries made in last loop
 ---@field public deliveries_era Core.EraCounter Era of number of deliveries
 ---@field public deliveries_frame_era Core.EraCounter Era of number of deliveries per frame.
+---@field public n_clean_nodes integer Number of nodes that were clean and skipped during polling.
+---@field public skipped_clean_era Core.EraCounter Era of number of nodes not polled because they were clean.
 local LogisticsThread = class("LogisticsThread", cs2.StatefulTask)
 cs2.LogisticsThread = LogisticsThread
 
@@ -64,6 +66,7 @@ function LogisticsThread:new(topology)
 	thread.requesters_era = era_lib.create_era_counter(0)
 	thread.loop_length_era = era_lib.create_era_counter(0)
 	thread.poll_nodes_era = era_lib.create_era_counter(0)
+	thread.skipped_clean_era = era_lib.create_era_counter(0)
 	thread.logistics_era = era_lib.create_era_counter(0)
 	thread.deliveries_era = era_lib.create_era_counter(0)
 	thread.deliveries_frame_era = era_lib.create_era_counter(0, 0.1)

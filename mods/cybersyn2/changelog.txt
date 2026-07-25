@@ -1,13 +1,17 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.3.0
+Version: 0.3.1
 Date: ????
+  Changes:
+---------------------------------------------------------------------------------------------------
+Version: 0.3.0
+Date: 2026-07-24
   Compatibility:
     - Attempted Nullius compatibility patch. This is a work in progress and may not be complete.
   Changes:
     - Train and Node GUIs now show topology.
     - Increased limit for number of deliveries shown in GUIs.
-    - Added preliminary manager UI. This is a work in progress. The separate `cybersyn2-manager` mod is now deprecated.
-    - Added Threads information to the manager UI.
+    - Added preliminary manager UI. This is an incomplete work in progress. The separate `cybersyn2-manager` mod is now deprecated.
+    - Added Threads information and statistics to the manager UI.
     - Thread work caps can now be adjusted in the manager UI.
     - Empty manual allow lists no longer fall back on the auto allow list.
     - Removed legacy debug overlays.
