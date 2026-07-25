@@ -349,6 +349,7 @@ function LogisticsThread:poll_train_stop()
 		return self:set_state("poll_nodes")
 	end
 	local stop_is_dirty = stop.poll_dirty
+	if not stop_is_dirty then self.n_clean_nodes = self.n_clean_nodes + 1 end
 	-- Get station comb info
 	if not self:poll_train_stop_station_comb(workload, stop) then
 		return self:set_state("poll_nodes")
@@ -362,14 +363,35 @@ end
 -- State handlers
 --------------------------------------------------------------------------------
 
+function LogisticsThread:top_of_poll_nodes()
+	self.providers = {}
+	self.requesters = {}
+	self.node_index = 0
+	self.n_clean_nodes = 0
+	self.last_poll_nodes_tick = game.tick
+end
+
+function LogisticsThread:bottom_of_poll_nodes()
+	-- End of poll loop, move to logistics phase
+	self.node_index = nil
+	local t = game.tick
+	local t0 = self.last_poll_nodes_tick
+	if t0 then
+		era_lib.create_or_update_era_counter(self, "poll_nodes_era", t - t0)
+	end
+	era_lib.create_or_update_era_counter(self, "requesters_era", #self.requesters)
+	era_lib.create_or_update_era_counter(
+		self,
+		"skipped_clean_era",
+		self.n_clean_nodes
+	)
+	self.n_providers = #self.providers
+	return self:set_state("logistics")
+end
+
 function LogisticsThread:enter_poll_nodes()
 	-- Only run on first entry
-	if not self.node_index then
-		self.providers = {}
-		self.requesters = {}
-		self.node_index = 0
-		self.last_poll_nodes_tick = game.tick
-	end
+	if not self.node_index then self:top_of_poll_nodes() end
 end
 
 function LogisticsThread:poll_nodes()
@@ -377,22 +399,7 @@ function LogisticsThread:poll_nodes()
 	local index = self.node_index --[[@as int]]
 	local node = self.nodes[index]
 	self.node = node
-	if not node then
-		-- End of poll loop, move to logistics phase
-		self.node_index = nil
-		local t = game.tick
-		local t0 = self.last_poll_nodes_tick
-		if t0 then
-			era_lib.create_or_update_era_counter(self, "poll_nodes_era", t - t0)
-		end
-		era_lib.create_or_update_era_counter(
-			self,
-			"requesters_era",
-			#self.requesters
-		)
-		self.n_providers = #self.providers
-		return self:set_state("logistics")
-	end
+	if not node then return self:bottom_of_poll_nodes() end
 
 	if node.type == "stop" then self:set_state("poll_train_stop") end
 end

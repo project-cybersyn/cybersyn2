@@ -310,6 +310,7 @@ local DispatchLoop = relm.define(
 		local deliveries_era = (task.deliveries_era or EMPTY)[1] or 0
 		local deliveries_frame_era = (task.deliveries_frame_era or EMPTY)[1] or 0
 		local deliveries_per_min = deliveries_frame_era * 3600
+		local skipped_clean_era = (task.skipped_clean_era or EMPTY)[1] or 0
 
 		return Pr({
 			type = "frame",
@@ -354,6 +355,13 @@ local DispatchLoop = relm.define(
 							"",
 							"[font=default-bold]Nodes[/font] ",
 							n_nodes,
+						}),
+					}),
+					HF({ horizontally_stretchable = true }, {
+						ultros.RtLabel({
+							"",
+							"[font=default-bold]Skipped Clean[/font] ",
+							strformat("%.2f", skipped_clean_era),
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
