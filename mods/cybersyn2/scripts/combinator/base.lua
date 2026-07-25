@@ -370,7 +370,8 @@ function Combinator:wire_circuit_change_detector()
 		-- Create detector
 		local r_comb_in = combinator_entity.get_wire_connector(I_RED, true) --[[@as LuaWireConnector]]
 		local g_comb_in = combinator_entity.get_wire_connector(I_GREEN, true) --[[@as LuaWireConnector]]
-		local trigger_id = trigger_client.create_circuit_change_detector(
+		local trigger_id = trigger_client.create_custom_circuit_change_detector(
+			"cybersyn2-circuit-trigger",
 			self.id,
 			"",
 			r_comb_in,
@@ -395,9 +396,9 @@ end
 -- Circuit change detector event
 --------------------------------------------------------------------------------
 
+-- Legacy circuit detector
 events.bind(
 	"cybersyn2-combinator-on_trigger",
-
 	---@param event things.EventData.on_trigger
 	function(event)
 		local thing_id = event.thing_id
@@ -405,6 +406,24 @@ events.bind(
 		if not combinator then return end
 		-- Suppress trigger till cleaned
 		trigger_client.arm_trigger(event.trigger_id, false)
+		-- Mark dirty
+		combinator.inputs_dirty = true
+		local node = combinator:get_node()
+		if node then node:mark_dirty() end
+	end
+)
+
+events.bind(
+	"cybersyn2-circuit-trigger",
+	---@param event EventData.on_script_trigger_effect
+	function(event)
+		local triggered_thing_id, trigger_id =
+			trigger_client.handle_custom_trigger_event(event)
+		if not triggered_thing_id then return end
+		local combinator = get_combinator(triggered_thing_id, true)
+		if not combinator then return end
+		-- Suppress trigger till cleaned
+		trigger_client.arm_trigger(trigger_id, false)
 		-- Mark dirty
 		combinator.inputs_dirty = true
 		local node = combinator:get_node()
