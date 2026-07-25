@@ -23,6 +23,7 @@ local function stop_is_valid_station(stop_entity_or_name)
 			return false
 		end
 		if stop_entity_or_name.type ~= "train-stop" then return false end
+		---@diagnostic disable-next-line: assign-type-mismatch
 		stop_entity_or_name = stop_entity_or_name.name
 	end
 	return stop_entity_or_name == "train-stop"
@@ -76,8 +77,7 @@ end
 ---@param stop_entity LuaEntity A *valid* train stop entity.
 ---@return LuaEntity[]
 function _G.cs2.find_associable_combinator_entities(stop_entity)
-	local pos_x = stop_entity.position.x
-	local pos_y = stop_entity.position.y
+	local pos_x, pos_y = pos_get(stop_entity.position)
 	return cs2.lib.find_combinator_entities(stop_entity.surface, {
 		{ pos_x - 2, pos_y - 2 },
 		{ pos_x + 2, pos_y + 2 },
@@ -146,15 +146,6 @@ function _G.cs2.lib.flying_text(player, message, play_sound, position)
 		position = position,
 	})
 	if play_sound then player.play_sound({ path = "utility/cannot_build" }) end
-end
-
----@param log RingBufferLog
----@param value table
-function _G.cs2.ring_buffer_log_write(log, value)
-	value.tick = game.tick
-	log.log_buffer[log.log_current] = value
-	log.log_current = log.log_current + 1
-	if log.log_current > log.log_size then log.log_current = 1 end
 end
 
 ---Given a combinator, find the nearby rail or stop that may trigger an

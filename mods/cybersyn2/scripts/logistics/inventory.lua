@@ -11,6 +11,9 @@ local thread = require("lib.core.thread")
 local cs2 = _G.cs2
 local strace = require("lib.core.strace")
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 -- TODO: This code is called in high performance dispatch loops. Take some
 -- care to microoptimize here.
 
@@ -54,7 +57,7 @@ end
 ---@field public used_item_stack_capacity uint? Cached value of used item stack capacity.
 ---@field public used_fluid_capacity uint? Cached value of used fluid capacity.
 local Inventory = class("Inventory")
-_G.cs2.Inventory = Inventory
+cs2.Inventory = Inventory
 
 ---Create a new inventory.
 function Inventory:new()
@@ -77,10 +80,10 @@ end
 ---@param inventory_id Id?
 ---@return Cybersyn.Inventory?
 local function get_inventory(inventory_id)
-	return storage.inventories[inventory_id or ""]
+	if not inventory_id then return nil end
+	return storage.inventories[inventory_id]
 end
-Inventory.get = get_inventory
-_G.cs2.get_inventory = get_inventory
+cs2.get_inventory = get_inventory
 
 function Inventory:destroy() storage.inventories[self.id] = nil end
 
@@ -253,12 +256,14 @@ end
 ---@param controlling_stop Cybersyn.TrainStop
 ---@param slaves Cybersyn.TrainStop[]|nil
 local function stop_inventory_is_volatile(controlling_stop, slaves)
-	if controlling_stop.entity.get_stopped_train() then return true end
+	local cse = controlling_stop.entity
+	if cse and cse.get_stopped_train() then return true end
 
 	if slaves then
 		-- A master inventory is volatile if any of its slaves has a parked train
 		for _, slave in pairs(slaves) do
-			if slave.entity.get_stopped_train() then return true end
+			local sse = slave.entity
+			if sse and sse.get_stopped_train() then return true end
 		end
 	end
 

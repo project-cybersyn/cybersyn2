@@ -4,44 +4,39 @@
 -- Compute full set of nodes and associated combinators in the topology.
 --------------------------------------------------------------------------------
 
-local stlib = require("lib.core.strace")
+local strace = require("lib.core.strace")
 local tlib = require("lib.core.table")
 local cmt = require("lib.core.cmt")
 local thread_lib = require("lib.core.thread")
-local cs2 = _G.cs2
-local mod_settings = _G.cs2.mod_settings
 
-local Node = _G.cs2.Node
-local Combinator = _G.cs2.Combinator
-local strace = stlib.strace
-local DEBUG = stlib.DEBUG
-local TRACE = stlib.TRACE
-local empty = tlib.empty
 local add_workload = thread_lib.add_workload
-local table_size = _G.table_size
 
 ---@type Cybersyn.Storage
 storage = storage --[[@as Cybersyn.Storage]]
 
 ---@class (partial) Cybersyn.LogisticsThread
-local LogisticsThread = _G.cs2.LogisticsThread
+local LogisticsThread = cs2.LogisticsThread
 
 function LogisticsThread:enter_enum_nodes()
 	-- TODO: PROFILING HOTSPOT (.700ms in large base)
 
 	-- Find all nodes in the topology
 	local topology_id = self.topology_id
-	local nodes = tlib.t_map_a(storage.nodes, function(node)
-		if node:get_topology_id() == topology_id then return node end
-	end)
+	local nodes, n_nodes, n_total_nodes = tlib.t_map_an(
+		storage.nodes,
+		function(node)
+			if node:get_topology_id() == topology_id then return node end
+		end
+	)
 	self.nodes = nodes
-	local n_nodes = #nodes
-	add_workload(self.workload_counter, table_size(storage.nodes))
+	self.n_nodes = n_nodes
+	add_workload(self.workload_counter, n_total_nodes)
 
 	-- If no nodes, no work needs to be done, so sleep the thread and check
 	-- again later.
 	if n_nodes == 0 then
 		self:set_state("init")
+		self:clear_stats()
 		cmt.sleep(self, 10 * 60) -- 10 sec
 		cmt.yield(self)
 		return

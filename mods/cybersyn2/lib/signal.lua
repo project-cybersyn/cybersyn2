@@ -153,6 +153,8 @@ local function key_to_signal(key)
 	if name then
 		signal = { name = name, type = ty, quality = quality }
 		if ty == "item" or ty == "fluid" then
+			-- XXX: TYPES: Emmy narrowing bug?
+			---@diagnostic disable-next-line: assign-type-mismatch
 			key_to_sig[key] = signal
 			if not is_parameter_name(key) then key_v[key] = false end
 		elseif ty == "virtual" then
@@ -162,6 +164,8 @@ local function key_to_signal(key)
 			key_to_sig[key] = signal
 			key_q[key] = true
 		end
+		-- XXX: TYPES: Emmy narrowing bug?
+		---@diagnostic disable-next-line: return-type-mismatch
 		return signal
 	else
 		return nil

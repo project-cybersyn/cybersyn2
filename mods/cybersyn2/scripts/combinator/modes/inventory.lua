@@ -5,15 +5,13 @@
 local tlib = require("lib.core.table")
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
-local stlib = require("lib.core.strace")
+local strace = require("lib.core.strace")
 local cs2 = _G.cs2
-local gui = _G.cs2.gui
-local Inventory = _G.cs2.Inventory
+local gui = cs2.gui
 
 local Pr = relm.Primitive
 local VF = ultros.VFlow
 local HF = ultros.HFlow
-local strace = stlib.strace
 local strformat = string.format
 
 --------------------------------------------------------------------------------

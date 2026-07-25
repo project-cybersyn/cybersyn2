@@ -8,10 +8,8 @@ local counters = require("lib.core.counters")
 local CarriageType = require("lib.types").CarriageType
 local cs2 = _G.cs2
 
----@class (partial) Cybersyn.Train
-local Train = _G.cs2.Train
-
-local INF = math.huge
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local type_map = {
 	["locomotive"] = CarriageType.Locomotive,
@@ -26,8 +24,10 @@ local empty = {}
 ---@param train Cybersyn.Train A *valid* train.
 ---@return Id
 local function map_layout(train)
+	local lua_train = train.lua_train --[[@as LuaTrain]]
+
 	-- Compute layout stats
-	local carriages = train.lua_train.carriages
+	local carriages = lua_train.carriages
 	local names = {}
 	local types = {}
 	local n_cargo_wagons = 0
@@ -63,9 +63,7 @@ local function map_layout(train)
 		carriage_types = types,
 		n_cargo_wagons = n_cargo_wagons,
 		n_fluid_wagons = n_fluid_wagons,
-		bidirectional = (
-			#(train.lua_train.locomotives["back_movers"] or empty) > 0
-		),
+		bidirectional = (#(lua_train.locomotives["back_movers"] or empty) > 0),
 		recent = true,
 	}
 	storage.train_layouts[layout.id] = layout

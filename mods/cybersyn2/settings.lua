@@ -12,7 +12,7 @@ data:extend({
 		order = "ac",
 		setting_type = "runtime-global",
 		default_value = "NONE",
-		allowed_values = { "NONE", "INFO", "TRACE" },
+		allowed_values = { "NONE", "WARN", "INFO", "DEBUG", "TRACE" },
 	},
 	{
 		type = "double-setting",

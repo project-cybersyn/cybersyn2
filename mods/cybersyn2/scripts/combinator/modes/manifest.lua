@@ -116,7 +116,7 @@ cs2.register_combinator_mode({
 local function set_manifest_outputs(cstrain, stop)
 	-- Validate relevance of delivery
 	if not cstrain or not stop or not cstrain.delivery_id then return end
-	local delivery = Delivery.get(cstrain.delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+	local delivery = cs2.get_delivery(cstrain.delivery_id) --[[@as Cybersyn.TrainDelivery?]]
 	if not delivery then return end
 	if delivery.from_id ~= stop.id and delivery.to_id ~= stop.id then return end
 

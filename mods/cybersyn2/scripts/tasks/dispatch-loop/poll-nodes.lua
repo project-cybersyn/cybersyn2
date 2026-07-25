@@ -16,7 +16,7 @@ storage = storage --[[@as Cybersyn.Storage]]
 
 local cs2 = _G.cs2
 
-local mod_settings = _G.cs2.mod_settings
+local mod_settings = cs2.mod_settings
 
 local strace = stlib.strace
 local WARN = stlib.WARN
@@ -39,9 +39,7 @@ function LogisticsThread:enter_poll_train_stop_classify_inventory()
 	-- Only run on first entry
 	if not self.order_index then
 		local stop = self.node --[[@as Cybersyn.TrainStop]]
-		for _, view in pairs(storage.views) do
-			view:enter_node(self.workload_counter, stop)
-		end
+
 		if stop.shared_inventory_master then
 			-- Shared inventory slave; allow the master to classify inventory
 			return self:set_state("poll_nodes")
@@ -57,10 +55,6 @@ end
 function LogisticsThread:exit_poll_train_stop_classify_inventory()
 	self.order_index = nil
 	self.orders = nil
-	local stop = self.node --[[@as Cybersyn.TrainStop]]
-	for _, view in pairs(storage.views) do
-		view:exit_node(self.workload_counter, stop)
-	end
 end
 
 function LogisticsThread:poll_train_stop_classify_inventory()
@@ -86,9 +80,6 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 
 	add_workload(self.workload_counter, 1)
 
-	for _, view in pairs(storage.views) do
-		view:enter_order(self.workload_counter, order, stop)
-	end
 	if order_stop and order_stop.is_producer and order:is_provider() then
 		providers[#providers + 1] = order
 	end
@@ -105,9 +96,6 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	else
 		order:clear_needs()
 	end
-	for _, view in pairs(storage.views) do
-		view:exit_order(self.workload_counter, order, stop)
-	end
 end
 
 --------------------------------------------------------------------------------
@@ -117,7 +105,7 @@ end
 ---@param workload Core.Thread.Workload
 ---@param stop Cybersyn.TrainStop
 function LogisticsThread:poll_train_stop_station_comb(workload, stop)
-	add_workload(workload, 2)
+	add_workload(workload, 1)
 
 	-- Enumerate combinators
 	---@type Cybersyn.Combinator[]
@@ -171,6 +159,9 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 		return false
 	end
 
+	-- Elide if not dirty
+	if not stop.poll_dirty then return true end
+
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()
 	comb:read_inputs(nil, workload)
@@ -180,6 +171,24 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 		strace(WARN, "message", "Couldn't read station comb inputs", stop.entity)
 		return false
 	end
+
+	-- Mark clean
+	stop:mark_clean()
+	-- Update polling stats
+	local t = game.tick
+	local t0 = stop.polled_tick
+	if t0 then
+		local delta = t - t0
+		if delta > 0 then
+			local era = stop.polled_delta_era
+			if not era then
+				era = era_lib.create_era_counter(delta)
+				stop.polled_delta_era = era
+			end
+			update_era_counter(era, delta)
+		end
+	end
+	stop.polled_tick = t
 
 	-- Set defaults
 	stop.priority = inputs["cybersyn2-priority"] or 0
@@ -254,13 +263,6 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 		stop.spillover = comb:get_spillover() or 0
 	end
 
-	-- Default networks (deprecated/hidden, should now be set at order level)
-	-- TODO: deprecate
-	local default_networks = {}
-	local network_signal = comb:get_network_signal()
-	if network_signal then default_networks[network_signal] = -1 end
-	stop.default_networks = default_networks
-
 	-- Depature controls
 	local inact_sec = comb:get_inactivity_timeout()
 	if inact_sec then
@@ -328,22 +330,6 @@ function LogisticsThread:poll_train_stop_update_inventory()
 	if not stop:is_valid() then return self:set_state("poll_nodes") end
 	stop:update_inventory(self.workload_counter, false)
 
-	-- Update polling stats
-	local t = game.tick
-	local t0 = stop.polled_tick
-	if t0 then
-		local delta = t - t0
-		if delta > 0 then
-			local era = stop.polled_delta_era
-			if not era then
-				era = era_lib.create_era_counter(delta)
-				stop.polled_delta_era = era
-			end
-			update_era_counter(era, delta)
-		end
-	end
-	stop.polled_tick = t
-
 	self:set_state("poll_train_stop_classify_inventory")
 end
 
@@ -362,12 +348,13 @@ function LogisticsThread:poll_train_stop()
 		event.raise("cs2.alert.vanilla_priority", stop_entity)
 		return self:set_state("poll_nodes")
 	end
+	local stop_is_dirty = stop.poll_dirty
 	-- Get station comb info
 	if not self:poll_train_stop_station_comb(workload, stop) then
 		return self:set_state("poll_nodes")
 	end
 	-- Get delivery thresholds
-	self:poll_dt_combs(workload, stop)
+	if stop_is_dirty then self:poll_dt_combs(workload, stop) end
 	self:set_state("poll_train_stop_update_inventory")
 end
 
@@ -381,13 +368,7 @@ function LogisticsThread:enter_poll_nodes()
 		self.providers = {}
 		self.requesters = {}
 		self.node_index = 0
-
-		local topology = cs2.get_topology(self.topology_id)
-		if topology then
-			for _, view in pairs(storage.views) do
-				view:enter_nodes(self.workload_counter, topology)
-			end
-		end
+		self.last_poll_nodes_tick = game.tick
 	end
 end
 
@@ -397,13 +378,19 @@ function LogisticsThread:poll_nodes()
 	local node = self.nodes[index]
 	self.node = node
 	if not node then
+		-- End of poll loop, move to logistics phase
 		self.node_index = nil
-		local topology = cs2.get_topology(self.topology_id)
-		if topology then
-			for _, view in pairs(storage.views) do
-				view:exit_nodes(self.workload_counter, topology)
-			end
+		local t = game.tick
+		local t0 = self.last_poll_nodes_tick
+		if t0 then
+			era_lib.create_or_update_era_counter(self, "poll_nodes_era", t - t0)
 		end
+		era_lib.create_or_update_era_counter(
+			self,
+			"requesters_era",
+			#self.requesters
+		)
+		self.n_providers = #self.providers
 		return self:set_state("logistics")
 	end
 

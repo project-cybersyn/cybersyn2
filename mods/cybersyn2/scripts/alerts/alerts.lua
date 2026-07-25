@@ -10,6 +10,9 @@ local tlib = require("lib.core.table")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local next = next
 local pairs = pairs
 
@@ -21,7 +24,7 @@ local ALERT_RESHOW_TICKS = 478 -- Factorio's engine expires custom alerts every 
 ---@field public message? LocalisedString User-facing message for the alert.
 ---@field public expires? uint Tick when alert expires, if given
 local Alert = class("Alert")
-_G.cs2.Alert = Alert
+cs2.Alert = Alert
 
 function Alert:new()
 	---@type Cybersyn.Alert
@@ -46,16 +49,16 @@ function Alert:destroy() storage.alerts[self.id] = nil end
 ---@field public key? string If given, enforced uniquely per entity.
 ---@field public entity LuaEntity Entity this alert is attached to.
 ---@field public unit_number UnitNumber Unit number of entity this alert is attached to.
----@field public icon? SignalID Icon for the alert
+---@field public icon SignalID Icon for the alert
 ---@field public players LuaPlayer[] Players who should see the alert
 ---@field public reshow_task_id? uint If the alert is scheduled to be re-shown, the ID of the scheduled task.
 local GameAlert = class("GameAlert", Alert)
-_G.cs2.GameAlert = GameAlert
+cs2.GameAlert = GameAlert
 
 ---Create a new alert attached to an entity.
 ---@param entity LuaEntity? Entity to attach the alert to
 ---@param key string? Unique key for the alert. Only one alert with this key will be allowed per entity.
----@param icon SignalID? Icon for the alert.
+---@param icon SignalID Icon for the alert.
 ---@param message LocalisedString User-facing message for the alert.
 ---@param players (LuaPlayer[])? List of players who should see the alert. Defaults to all players on the entity's force.
 ---@return Cybersyn.Alert|nil alert The alert object, or nil if it can't be created.
@@ -159,12 +162,12 @@ end
 ---Get an alert by id
 ---@param id Id id of the alert to retrieve
 ---@return Cybersyn.Alert? alert The alert with the given id, or nil if it doesn't exist
-function _G.cs2.get_alert(id) return storage.alerts and storage.alerts[id] end
+function cs2.get_alert(id) return storage.alerts and storage.alerts[id] end
 
 ---Get all alerts targeting the given entity.
 ---@param entity LuaEntity The entity whose alerts should be retrieved.
 ---@return Cybersyn.Alert[] alerts List of alerts targeting the entity.
-function _G.cs2.get_alerts_for_entity(entity)
+function cs2.get_alerts_for_entity(entity)
 	local abe = storage.alerts_by_entity
 		and storage.alerts_by_entity[
 			entity.unit_number --[[@as UnitNumber]]

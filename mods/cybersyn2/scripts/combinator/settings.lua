@@ -8,6 +8,9 @@ local events = require("lib.core.event")
 local tlib = require("lib.core.table")
 local strace = require("lib.core.strace")
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local EMPTY_STRICT = tlib.EMPTY_STRICT
 local bit_extract = bit32.extract
 local bit_replace = bit32.replace

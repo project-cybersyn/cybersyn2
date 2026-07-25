@@ -10,8 +10,9 @@ local pos_lib = require("lib.core.math.pos")
 local stlib = require("lib.core.strace")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local Combinator = _G.cs2.Combinator
-local Node = _G.cs2.Node
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
@@ -33,11 +34,11 @@ local STOPPED_NO_CONNECTED_RAIL =
 local empty = {}
 
 ---@class (partial) Cybersyn.TrainStop
-local TrainStop = _G.cs2.TrainStop
+local TrainStop = cs2.TrainStop
 
 ---@class (partial) Cybersyn.TrainStopLayout
 local TrainStopLayout = class("TrainStopLayout")
-_G.cs2.TrainStopLayout = TrainStopLayout
+cs2.TrainStopLayout = TrainStopLayout
 
 function TrainStopLayout.new(node_id)
 	storage.stop_layouts[node_id] = setmetatable({
@@ -99,7 +100,7 @@ function TrainStopLayout:clear_layout()
 	self.fluid_loader_map = {}
 	self.carriage_loading_pattern = {}
 
-	local stop = Node.get(self.node_id, true)
+	local stop = cs2.get_node(self.node_id, true)
 	if stop then
 		---@cast stop Cybersyn.TrainStop
 		cs2.raise_train_stop_layout_changed(stop, self)
@@ -267,8 +268,16 @@ function TrainStop:compute_layout(ignored_entity_set)
 
 		if curve_left or curve_right then
 			mlib.bbox_extend_ortho(bbox, direction_from_stop, 3)
-			if curve_left then rail_set[curve_left.unit_number] = true end
-			if curve_right then rail_set[curve_right.unit_number] = true end
+			if curve_left then
+				rail_set[
+					curve_left.unit_number --[[@cast -?]]
+				] = true
+			end
+			if curve_right then
+				rail_set[
+					curve_right.unit_number --[[@cast -?]]
+				] = true
+			end
 		end
 	end
 
@@ -320,6 +329,7 @@ function TrainStop:compute_layout(ignored_entity_set)
 		end
 	end)
 	for comb_id in pairs(self.combinator_set) do
+		---@diagnostic disable-next-line: inject-field
 		reassociable_comb_id_set[comb_id] = true
 	end
 	stlib.trace(
@@ -376,9 +386,9 @@ events.bind("cs2.node_destroyed", function(node)
 	end
 end)
 
-local find_stop_from_rail = TrainStop.find_stop_from_rail
+local find_stop_from_rail = cs2.find_stop_from_rail
 local get_connected_stop = trains_lib.get_connected_stop
-local get_stop_from_unit_number = TrainStop.get_stop_from_unit_number
+local get_stop_from_unit_number = cs2.get_stop_from_unit_number
 local get_all_connected_rails = trains_lib.get_all_connected_rails
 
 -- When rails are built, we need to re-evaluate layouts of affected stops.

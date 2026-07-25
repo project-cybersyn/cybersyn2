@@ -3,19 +3,36 @@
 --------------------------------------------------------------------------------
 
 local class = require("lib.core.class").class
+local events = require("lib.core.event")
 local tlib = require("lib.core.table")
 local signal_lib = require("lib.signal")
 local mlib = require("lib.core.math.pos")
 local thread_lib = require("lib.core.thread")
-
+---@diagnostic disable-next-line: unresolved-require
+local things_client = require("__0-things__.client.client") --[[@as things.client]]
+local strace = require("lib.core.strace")
 local cs2 = _G.cs2
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local entity_is_combinator_or_ghost = _G.cs2.lib.entity_is_combinator_or_ghost
+local comb_client = things_client.combinators_v1
+local child_client = things_client.parent_child_v1
+local trigger_client = things_client.triggers_v1
 
 local signal_to_key = signal_lib.signal_to_key
 local key_to_signal = signal_lib.key_to_signal
 local signals_to_signal_counts = signal_lib.signals_to_signal_counts
 local distsq = mlib.pos_distsq
 local add_workload = thread_lib.add_workload
+
+local EMPTY = tlib.EMPTY
+local I_RED = defines.wire_connector_id.combinator_input_red
+local I_GREEN = defines.wire_connector_id.combinator_input_green
+local O_RED = defines.wire_connector_id.combinator_output_red
+local O_GREEN = defines.wire_connector_id.combinator_output_green
+local SCRIPT = defines.wire_origin.script
 
 --------------------------------------------------------------------------------
 -- Modes
@@ -52,7 +69,8 @@ function Combinator:new(thing)
 	if (not id) or storage.combinators[id] then
 		error("Bad or duplicate combinator creation.")
 	end
-	local obj = setmetatable({ id = id, last_read_tick = 0 }, self)
+	local obj =
+		setmetatable({ id = id, last_read_tick = 0, inputs_dirty = true }, self)
 	if thing.status == "real" then obj.real_entity = thing.entity end
 	storage.combinators[id] = obj
 	return obj
@@ -96,12 +114,11 @@ end
 ---@param check_type string?
 ---@return Cybersyn.Node?
 function Combinator:get_node(check_type)
-	local node = storage.nodes[self.node_id or ""]
+	local nid = self.node_id
+	if not nid then return nil end
+	local node = storage.nodes[nid]
 	if node and (not check_type or node.type == check_type) then return node end
 end
-
-local RED_INPUTS = defines.wire_connector_id.combinator_input_red
-local GREEN_INPUTS = defines.wire_connector_id.combinator_input_green
 
 ---If the combinator is in an input-supporting mode, read and cache its input
 ---signals.
@@ -118,17 +135,29 @@ function Combinator:read_inputs(which, workload)
 		self.inputs = nil
 		self.red_inputs = nil
 		self.green_inputs = nil
+		self.inputs_dirty = nil
 		return
 	end
+	-- Don't reread if clean
+	if not self.inputs_dirty then return end
 	-- Don't read inputs more than once per tick.
 	local now = game.tick
-	if now - (self.last_read_tick or 0) < 1 then return end
+	if now - (self.last_read_tick or 0) < 1 then
+		-- Keep the detector armed even when deferring the read to next tick.
+		if self.trigger_id then
+			trigger_client.arm_trigger(self.trigger_id, true)
+		end
+		return
+	end
 	self.last_read_tick = now
+	self.inputs_dirty = nil
+	-- Re-arm the circuit change detector if one is attached
+	if self.trigger_id then trigger_client.arm_trigger(self.trigger_id, true) end
 
 	if mdef.independent_input_wires then
 		-- Read red and green inputs separately
 		if which == "red" or which == nil then
-			local red_signals = entity.get_signals(RED_INPUTS)
+			local red_signals = entity.get_signals(I_RED)
 			if red_signals then
 				self.red_inputs = signals_to_signal_counts(red_signals)
 			else
@@ -137,7 +166,7 @@ function Combinator:read_inputs(which, workload)
 		end
 
 		if which == "green" or which == nil then
-			local green_signals = entity.get_signals(GREEN_INPUTS)
+			local green_signals = entity.get_signals(I_GREEN)
 			if green_signals then
 				self.green_inputs = signals_to_signal_counts(green_signals)
 			else
@@ -147,7 +176,7 @@ function Combinator:read_inputs(which, workload)
 
 		self.inputs = nil
 	else
-		local signals = entity.get_signals(RED_INPUTS, GREEN_INPUTS)
+		local signals = entity.get_signals(I_RED, I_GREEN)
 		if signals then
 			self.inputs = signals_to_signal_counts(signals)
 		else
@@ -157,7 +186,6 @@ function Combinator:read_inputs(which, workload)
 		self.green_inputs = nil
 	end
 
-	-- TODO: better workload estimate
 	add_workload(workload, 5)
 end
 
@@ -169,7 +197,11 @@ function Combinator:clear_outputs()
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
 	if not param then
-		param = { outputs = {}, conditions = cs2.COMBINATOR_DECIDER_CONDITIONS }
+		param = {
+			outputs = {},
+			conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
+			else_outputs = EMPTY,
+		}
 	else
 		param.outputs = {}
 	end
@@ -214,8 +246,11 @@ function Combinator:write_outputs(...)
 	local param = beh.parameters
 	local outputs = self:encode_outputs(...)
 	if not param then
-		param =
-			{ outputs = outputs, conditions = cs2.COMBINATOR_DECIDER_CONDITIONS }
+		param = {
+			outputs = outputs,
+			conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
+			else_outputs = EMPTY,
+		}
 	else
 		param.outputs = outputs
 	end
@@ -230,19 +265,16 @@ function Combinator:direct_write_outputs(outputs)
 	local beh = entity.get_or_create_control_behavior() --[[@as LuaDeciderCombinatorControlBehavior]]
 	local param = beh.parameters
 	if not param then
-		param =
-			{ outputs = outputs, conditions = cs2.COMBINATOR_DECIDER_CONDITIONS }
+		param = {
+			outputs = outputs,
+			conditions = cs2.COMBINATOR_DECIDER_CONDITIONS,
+			else_outputs = EMPTY,
+		}
 	else
 		param.outputs = outputs
 	end
 	beh.parameters = param
 end
-
-local I_RED = defines.wire_connector_id.combinator_input_red
-local I_GREEN = defines.wire_connector_id.combinator_input_green
-local O_RED = defines.wire_connector_id.combinator_output_red
-local O_GREEN = defines.wire_connector_id.combinator_output_green
-local SCRIPT = defines.wire_origin.script
 
 local function cross_wires(entity, state)
 	local i_red = entity.get_wire_connector(I_RED, true)
@@ -285,9 +317,6 @@ local WAGON_TYPES = { "locomotive", "cargo-wagon", "fluid-wagon" }
 ---is pointing at if any.
 ---@return LuaEntity? wagon The wagon the combinator is pointing at.
 function Combinator:find_connected_wagon()
-	-- TODO: this can be slightly optimized by looking at a 1x1 square
-	-- around the combinator (its bbox shifted 1 tile towards the rail)
-	-- instead of the whole rail.
 	local rail = self.connected_rail
 	if not rail then return nil end
 	local combinator_entity = self.real_entity
@@ -311,3 +340,74 @@ function Combinator:find_connected_wagon()
 	end
 	return wagon
 end
+
+---Create or destroy a circuit change detector for this combinator based on its current mode.
+function Combinator:wire_circuit_change_detector()
+	local combinator_entity = self.real_entity
+	if not combinator_entity or not combinator_entity.valid then return end
+
+	local mdef = cs2.combinator_modes[self.mode or ""]
+	if mdef and mdef.is_input then
+		-- Paranoid force reread on input mode
+		self.inputs_dirty = true
+
+		-- Check if detector already exists
+		local child = child_client.get_child(self.id, "_trigger")
+		if child then
+			strace.debug(
+				"Combinator",
+				self.id,
+				"already has a circuit change detector attached. Rearming it."
+			)
+			local trigger_id = child
+				.entity--[[@cast -?]]
+				.unit_number --[[@as UnitNumber]]
+			self.trigger_id = trigger_id
+			trigger_client.arm_trigger(trigger_id, true)
+			return
+		end
+
+		-- Create detector
+		local r_comb_in = combinator_entity.get_wire_connector(I_RED, true) --[[@as LuaWireConnector]]
+		local g_comb_in = combinator_entity.get_wire_connector(I_GREEN, true) --[[@as LuaWireConnector]]
+		local trigger_id = trigger_client.create_circuit_change_detector(
+			self.id,
+			"",
+			r_comb_in,
+			g_comb_in
+		)
+		self.trigger_id = trigger_id
+
+		strace.debug(
+			"Added circuit change detector for combinator",
+			self.id,
+			"with trigger id",
+			trigger_id
+		)
+	else
+		trigger_client.destroy_circuit_change_detector(self.id, "")
+		self.trigger_id = nil
+		strace.debug("Destroyed circuit change detector for combinator", self.id)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Circuit change detector event
+--------------------------------------------------------------------------------
+
+events.bind(
+	"cybersyn2-combinator-on_trigger",
+
+	---@param event things.EventData.on_trigger
+	function(event)
+		local thing_id = event.thing_id
+		local combinator = get_combinator(thing_id, true)
+		if not combinator then return end
+		-- Suppress trigger till cleaned
+		trigger_client.arm_trigger(event.trigger_id, false)
+		-- Mark dirty
+		combinator.inputs_dirty = true
+		local node = combinator:get_node()
+		if node then node:mark_dirty() end
+	end
+)

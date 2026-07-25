@@ -12,21 +12,20 @@ local events = require("lib.core.event")
 ---@field public topologies table<Id, Cybersyn.Topology> All Cybersyn topologies indexed by id
 ---@field public nodes {[Id]: Cybersyn.Node} All Cybersyn nodes indexed by id
 ---@field public inventories {[Id]: Cybersyn.Inventory} All Cybersyn inventories indexed by id
----@field public deliveries {[Id]: Cybersyn.Delivery} All Cybersyn deliveries indexed by id
+---@field public deliveries table<Id, Cybersyn.Delivery> All Cybersyn deliveries indexed by id
 ---@field public task_ids {[string]: Scheduler.TaskId} Ids of core tasks
----@field public train_groups {[string]: Cybersyn.Internal.TrainGroup} All Cybersyn-controlled train groups indexed by Factorio group name
+---@field public train_groups table<string, Cybersyn.Internal.TrainGroup> All Cybersyn-controlled train groups indexed by Factorio group name
 ---@field public luatrain_id_to_vehicle_id {[Id]: Id} Map of LuaTrain ids to Cybersyn vehicle ids
 ---@field public rail_id_to_node_id {[UnitNumber]: Id} Map of rail unit numbers to node ids of the associated train stop
 ---@field public stop_id_to_node_id {[UnitNumber]: Id} Map from UnitNumbers of `train-stop` entities to the corresponding node id
 ---@field public stop_layouts {[Id]: Cybersyn.TrainStopLayout} Layouts of train stops, indexed by node id
 ---@field public train_layouts {[Id]: Cybersyn.TrainLayout} Layouts of trains, indexed by layout id
----@field public debug_state Cybersyn.Internal.DebugState Debug state, should remain empty unless debug mode is enabled for the save
 ---@field public surface_index_to_train_topology {[uint]: Id} Map from planetary surfaces to associated train topologies
 ---@field public alerts {[Id]: Cybersyn.Alert} Currently displayed alerts
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
----@field public views {[Id]: Cybersyn.View} All views currently active, indexed by id
 ---@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events
 ---@field public dispatch_queue (string|int)[] Queue of delivery IDs to be dispatched. Used by the delivery dispatch thread.
+---@field public _SHUTDOWN_DATA? Core.ResetData Data used to track shutdown state. Only present during shutdown.
 storage = {}
 
 ---Per-player global state.
@@ -37,9 +36,10 @@ storage = {}
 ---@field public connection_render_objects? LuaRenderObject[] The render objects used to visualize connections in the player's UI.
 ---@field public connection_source? Id ID of the TrainStop from which the player is connecting a shared inventory.
 ---@field public hide_help? boolean Whether the player has hidden the help pane
----@field public train_gui_pos? [number, number] The position of the train GUI for this player, if any.
----@field public stop_gui_pos? [number, number] The position of the stop GUI for this player, if any.
----@field public combinator_gui_pos? [number, number] The position of the combinator GUI for this player, if any.
+---@field public train_gui_pos? [int, int] The position of the train GUI for this player, if any.
+---@field public stop_gui_pos? [int, int] The position of the stop GUI for this player, if any.
+---@field public combinator_gui_pos? [int, int] The position of the combinator GUI for this player, if any.
+---@field public manager_gui_pos? [int, int] The position of the manager GUI for this player, if any.
 
 ---Get the player state for a player, creating it if it doesn't exist.
 ---@param player_index PlayerIndex
@@ -93,14 +93,25 @@ local function clear_storage()
 	storage.stop_id_to_node_id = {}
 	storage.stop_layouts = {}
 	storage.train_layouts = {}
-	storage.debug_state = {}
 	storage.surface_index_to_train_topology = {}
 	storage.alerts = {}
 	storage.alerts_by_entity = {}
-	storage.views = {}
 	storage.entities_being_destroyed = {}
 	storage.dispatch_queue = {}
 end
-_G.__clear_storage = clear_storage
+__clear_storage = clear_storage
 
 events.bind("on_startup", clear_storage, true)
+
+-- Clean up destroyed players
+events.bind(
+	defines.events.on_player_left_game,
+	---@param ev EventData.on_player_left_game
+	function(ev)
+		local state = get_player_state(ev.player_index)
+		if state then
+			storage.players[ev.player_index] = nil
+			events.raise("cs2.player_state_destroyed", state)
+		end
+	end
+)

@@ -5,6 +5,9 @@ local events = require("lib.core.event")
 local tlib = require("lib.core.table")
 local strace = require("lib.core.strace")
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local EMPTY = tlib.EMPTY_STRICT
 local INF = math.huge
 local NINF = -math.huge

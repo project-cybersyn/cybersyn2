@@ -8,10 +8,13 @@ local cs2 = _G.cs2
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
 
-local Node = _G.cs2.Node
-local TrainStop = _G.cs2.TrainStop
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
+local Node = cs2.Node
+local TrainStop = cs2.TrainStop
 local empty = tlib.empty
+local next = next
 
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
@@ -31,7 +34,8 @@ events.bind("cs2.node_destroyed", function(node)
 		end
 
 		-- Remove from entity map
-		storage.stop_id_to_node_id[node.entity_id or ""] = nil
+		local entity_id = node.entity_id
+		if entity_id then storage.stop_id_to_node_id[entity_id] = nil end
 	end
 end, true)
 
@@ -94,10 +98,8 @@ function reassociate_recursive(combinators, depth)
 		local target_stop = nil
 		local is_proximate = nil
 		if target_stop_entity then
-			local stop = TrainStop.get_stop_from_unit_number(
-				target_stop_entity.unit_number,
-				true
-			)
+			local stop =
+				cs2.get_stop_from_unit_number(target_stop_entity.unit_number, true)
 			if stop then
 				target_stop = stop
 				is_proximate = true
@@ -164,8 +166,9 @@ function reassociate_recursive(combinators, depth)
 
 	-- Fire batch set-change events for all affected stops
 	for stop_id in pairs(affected_stop_set) do
-		local stop = Node.get(stop_id)
+		local stop = cs2.get_node(stop_id)
 		if stop then
+			stop:mark_dirty()
 			strace.trace(
 				"reassociate_recursive: raising set_changed for stop",
 				stop.id
@@ -178,6 +181,7 @@ function reassociate_recursive(combinators, depth)
 	-- the created stops.
 	if #new_stop_entities > 0 then
 		strace.trace("reassociate_recursive: creating new stops", new_stop_entities)
+		---@diagnostic disable-next-line: need-check-nil
 		create_recursive(new_stop_entities, depth + 1)
 	end
 
@@ -202,7 +206,7 @@ function create_recursive(stop_entities, depth)
 
 	for _, stop_entity in ipairs(stop_entities) do
 		local stop_id = stop_entity.unit_number --[[@as uint]]
-		local stop = TrainStop.get_stop_from_unit_number(stop_id, true)
+		local stop = cs2.get_stop_from_unit_number(stop_id, true)
 		if not stop then
 			-- Create the new stop state.
 			stop = TrainStop.new(stop_entity)
@@ -211,6 +215,7 @@ function create_recursive(stop_entities, depth)
 			if #combs > 0 then
 				local comb_states = tlib.map(combs, function(comb)
 					local _, id = remote.call("things", "get_thing_id", comb)
+					---@cast id int64?
 					return cs2.get_combinator(id, true)
 				end)
 				if #comb_states > 0 then
@@ -238,6 +243,7 @@ cs2.on_built_train_stop(function(stop_entity)
 	if #combs > 0 then
 		local comb_states = tlib.map(combs, function(comb)
 			local _, id = remote.call("things", "get_thing_id", comb)
+			---@cast id int64?
 			return cs2.get_combinator(id, true)
 		end)
 		cs2.lib.reassociate_combinators(comb_states)
@@ -246,21 +252,20 @@ end)
 
 -- When a stop is broken, destroy its node.
 cs2.on_broken_train_stop(function(stop_entity)
-	local stop =
-		TrainStop.get_stop_from_unit_number(stop_entity.unit_number, true)
+	local stop = cs2.get_stop_from_unit_number(stop_entity.unit_number, true)
 	if not stop then return end
 	strace.trace("on_broken_train_stop: destroying stop", stop.id)
 
-	-- XXX: prevent migration crash
-	if not storage.entities_being_destroyed then
-		storage.entities_being_destroyed = {}
+	local ebd = storage.entities_being_destroyed
+	if not ebd then
+		ebd = {}
+		storage.entities_being_destroyed = ebd
 	end
-
-	storage.entities_being_destroyed[
+	ebd[
 		stop_entity.unit_number --[[@as UnitNumber]]
-	] =
-		true
+	] = true
 	stop:destroy()
+
 	strace.trace("on_broken_train_stop: finished destroying stop", stop.id)
 end)
 

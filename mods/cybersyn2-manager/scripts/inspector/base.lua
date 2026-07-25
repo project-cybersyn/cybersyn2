@@ -5,7 +5,6 @@ local relm_helpers = require("__cybersyn2__.lib.core.relm.util")
 local ultros = require("__cybersyn2__.lib.core.relm.ultros")
 local tlib = require("__cybersyn2__.lib.core.table")
 local pos_lib = require("__cybersyn2__.lib.core.math.pos")
-local solib = require("__cybersyn2__.lib.core.relm.smart-open")
 local mgr = _G.mgr
 
 local strace = strace_lib.strace

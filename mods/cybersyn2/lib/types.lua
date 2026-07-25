@@ -16,13 +16,6 @@ local lib = {}
 
 ---@alias SignalSet {[SignalKey]: true} A collection of signals referenced by their `SignalKey`.
 
----@alias Cybersyn.Manifest SignalCounts
-
----@class RingBufferLog
----@field public log_size uint Max size of the log
----@field public log_current uint Index of the current log entry
----@field public log_buffer any[] The full log ring buffer.
-
 ---Combinator game state.
 ---@class (partial) Cybersyn.Combinator
 ---@field public id int64 The unique Thing ID associated with this combinator.
@@ -35,6 +28,8 @@ local lib = {}
 ---@field public green_inputs? SignalCounts As `inputs` but for only the green wire. Exists only for modes with `independent_input_wires` set.
 ---@field public last_read_tick uint The tick this combinator was last read.
 ---@field public connected_rail LuaEntity? If this combinator was built next to a rail, this is that rail.
+---@field public inputs_dirty? true `true` if the combinator's inputs have changed since the last time they were read.
+---@field public trigger_id? UnitNumber The unit number of the circuit change detector entity attached to this combinator, if any.
 
 ---A vehicle managed by Cybersyn.
 ---@class (partial) Cybersyn.Vehicle
@@ -93,7 +88,7 @@ lib.CarriageType = {
 ---@field public thread_id? int The id of the thread servicing this topology if any.
 
 ---A reference to a node (station/stop/destination for vehicles) managed by Cybersyn.
----@class (partial) Cybersyn.Node: RingBufferLog
+---@class (partial) Cybersyn.Node
 ---@field public id Id Unique id of the node.
 ---@field public default_topology_id Id? Default topology id for this node.
 ---@field public topology_id Id? Id of the topology this node belongs to. If `nil`, `default_topology_id` is used.
@@ -116,6 +111,7 @@ lib.CarriageType = {
 ---@field public produce_single_item boolean? `true` if the node should only provide single items per delivery
 ---@field public polled_tick? uint Tick number when this node was last polled for its current state.
 ---@field public polled_delta_era? Core.EraCounter Cached exponential rolling average of the delta between the last two polled ticks.
+---@field public poll_dirty? true `true` if this node's combinators need to be re-polled.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class (partial) Cybersyn.TrainStop: Cybersyn.Node
@@ -313,6 +309,7 @@ local PrimitiveType = {
 	"Nil",
 	"Cybersyn.Inventory",
 	"Cybersyn.Topology",
+	"Cybersyn.Delivery",
 	["boolean"] = 1,
 	["int"] = 2,
 	["number"] = 3,
@@ -334,6 +331,7 @@ local PrimitiveType = {
 	["Nil"] = 19,
 	["Cybersyn.Inventory"] = 20,
 	["Cybersyn.Topology"] = 21,
+	["Cybersyn.Delivery"] = 22,
 }
 lib.PrimitiveType = PrimitiveType
 

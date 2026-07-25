@@ -143,6 +143,7 @@ combinator_entity.sprites = make_4way_animation_from_spritesheet({
 	},
 })
 
+---@diagnostic disable-next-line: inject-field
 -- Cause entity to be ignored by Mouse-Over Construction mod
 -- TODO: watch issue https://codeberg.org/raiguard/MouseOverConstruction/issues/37
 combinator_entity.moc_ignore = true
@@ -199,6 +200,7 @@ local comb_registration = {
 		on_status = "cybersyn2-combinator-on_status",
 		on_edge_status = "cybersyn2-combinator-on_edge_status",
 		on_tags_changed = "cybersyn2-combinator-on_tags_changed",
+		on_trigger = "cybersyn2-combinator-on_trigger",
 	},
 }
 
@@ -218,4 +220,5 @@ data:extend({
 	{ type = "custom-event", name = "cybersyn2-combinator-on_edge_status" },
 	{ type = "custom-event", name = "cybersyn2-combinator-on_edge_changed" },
 	{ type = "custom-event", name = "cybersyn2-combinator-on_tags_changed" },
+	{ type = "custom-event", name = "cybersyn2-combinator-on_trigger" },
 })

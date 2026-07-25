@@ -8,8 +8,8 @@ local events = require("lib.core.event")
 local cs2 = _G.cs2
 local CarriageType = require("lib.types").CarriageType
 
----@class (partial) Cybersyn.TrainStop
-local TrainStop = _G.cs2.TrainStop
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local Locomotive = CarriageType.Locomotive
 local CargoWagon = CarriageType.CargoWagon
@@ -17,8 +17,6 @@ local FluidWagon = CarriageType.FluidWagon
 local strace = stlib.strace
 local WARN = stlib.WARN
 local TRACE = stlib.TRACE
-local INF = math.huge
-local NINF = -math.huge
 
 ---@param tl Cybersyn.TrainLayout?
 ---@return boolean
@@ -243,8 +241,7 @@ local function evaluate_stop(stop, changed_layout_id)
 		if manually_allowed_layouts and #manually_allowed_layouts > 0 then
 			make_manual_allow_list(stop, manually_allowed_layouts, changed_layout_id)
 		else
-			-- XXX: alpha migration compatibility. For beta, this should generate an empty allowlist.
-			make_default_allow_list(stop, station_comb, changed_layout_id)
+			make_empty_allow_list(stop)
 		end
 	end
 	strace(TRACE, "message", "Finished evaluating allow list for stop", stop.id)

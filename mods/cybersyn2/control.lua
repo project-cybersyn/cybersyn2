@@ -81,18 +81,14 @@ require("scripts.alerts.alerts")
 require("scripts.alerts.station")
 require("scripts.alerts.train")
 
-require("scripts.api.views.view")
-require("scripts.api.views.net-inventory")
+require("scripts.gui.manager.manager")
 
-require("scripts.debug.base")
 require("scripts.debug.overlay")
-require("scripts.debug.debugger")
 
 require("scripts.api.base")
 require("scripts.api.query")
 require("scripts.api.queries.meta")
 require("scripts.api.queries.objects")
-require("scripts.api.view")
 
 remote.add_interface("cybersyn2", _G.cs2.remote_api)
 

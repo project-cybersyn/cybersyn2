@@ -1,3 +1,5 @@
+---@diagnostic disable: inject-field, undefined-field
+
 local scheduler = require("lib.core.scheduler")
 
 -- Create new dispatch queue var

@@ -10,21 +10,23 @@ local signal = require("lib.signal")
 local scheduler = require("lib.core.scheduler")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local Inventory = _G.cs2.Inventory
-local mod_settings = _G.cs2.mod_settings
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local strace = stlib.strace
 local ERROR = stlib.ERROR
 local band = bit32.band
-local pairs = _G.pairs
+local pairs = pairs
+local next = next
 local key_is_fluid = signal.key_is_fluid
 local key_to_stacksize = signal.key_to_stacksize
-local Combinator = _G.cs2.Combinator
+local Combinator = cs2.Combinator
 local empty = tlib.empty
 
 ---@class (partial) Cybersyn.Node
 local Node = class("Node")
-_G.cs2.Node = Node
+cs2.Node = Node
 
 ---Create a new node state. No creation events are fired; that is delegated to
 ---the specific node type's lifecycle management.
@@ -33,6 +35,7 @@ function Node.new(type)
 	local node = setmetatable({
 		id = id,
 		type = type or "generic", -- default type
+		poll_dirty = true,
 		combinator_set = {},
 		created_tick = game.tick,
 		deliveries = {},
@@ -84,12 +87,24 @@ local function get_node(id, skip_validation)
 		return (node and node:is_valid()) and node or nil
 	end
 end
-_G.cs2.get_node = get_node
-Node.get = get_node
+cs2.get_node = get_node
 
 ---Determine if a node is valid.
 ---@return boolean
 function Node:is_valid() return false end
+
+---Mark a node as dirty, requiring polling
+function Node:mark_dirty()
+	if self.poll_dirty or self.is_being_destroyed then return end
+	stlib.trace("marking node", self.id, "as dirty")
+	self.poll_dirty = true
+end
+
+function Node:mark_clean()
+	if not self.poll_dirty then return end
+	stlib.trace("marking node", self.id, "as clean")
+	self.poll_dirty = nil
+end
 
 --------------------------------------------------------------------------------
 -- Combs
@@ -105,7 +120,7 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 	local old_node
 	if combinator.node_id and combinator.node_id ~= self.id then
 		-- Combinator is already associated with a different node.
-		old_node = Node.get(combinator.node_id, true)
+		old_node = cs2.get_node(combinator.node_id, true)
 		Node.disassociate_combinator(combinator, suppress_set_changed)
 	end
 
@@ -113,6 +128,7 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 		stlib.trace("associating comb", combinator.id, "to node", self.id)
 		self.combinator_set[combinator.id] = true
 		combinator.node_id = self.id
+		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_combinator_node_associated(combinator, self, nil)
 		events.raise("cs2.combinator_node_associated", combinator, self, nil)
 		if not suppress_set_changed then
@@ -131,7 +147,7 @@ end
 ---@return Cybersyn.Node? old_node If the combinator was disassociated, the node that it was disassociated from, otherwise `nil`.
 function Node.disassociate_combinator(combinator, suppress_set_changed)
 	if not combinator then return nil end
-	local node = Node.get(combinator.node_id, true)
+	local node = cs2.get_node(combinator.node_id, true)
 	combinator.node_id = nil
 	if not node then return nil end
 	if not node.combinator_set[combinator.id] then
@@ -144,6 +160,7 @@ function Node.disassociate_combinator(combinator, suppress_set_changed)
 	end
 	stlib.trace("disassociating comb", combinator.id, "from node", node.id)
 	node.combinator_set[combinator.id] = nil
+	---@diagnostic disable-next-line: param-type-mismatch
 	cs2.raise_combinator_node_associated(combinator, nil, node)
 	events.raise("cs2.combinator_node_associated", combinator, nil, node)
 	if not suppress_set_changed then
@@ -254,7 +271,7 @@ end
 
 ---Change the inventory of a node. If there are currently deliveries enroute
 ---they will be failed.
----@param id Id
+---@param id Id?
 ---@return boolean was_changed `true` if the inventory was changed, `false` if not.
 function Node:set_inventory(id)
 	if id == self.inventory_id then return false end
@@ -262,7 +279,7 @@ function Node:set_inventory(id)
 		self.inventory_id = nil
 		return true
 	end
-	local inv = Inventory.get(id)
+	local inv = cs2.get_inventory(id)
 	if not inv then
 		self.inventory_id = nil
 	else

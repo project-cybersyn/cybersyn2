@@ -25,6 +25,8 @@ storage = storage --[[@as Cybersyn.Storage]]
 ---@field train_ids Id[] Extant Cybersyn train vehicle IDs at beginning of sweep.
 ---@field last_tick int64 Last tick the monitor completed a sweep.
 ---@field loop_length_era Core.EraCounter Era of loop length.
+---@field n_luatrains int Number of luatrains enumerated in last loop
+---@field n_cstrains int Number of Cybersyn trains enumerated in last loop
 local TrainMonitor = class("TrainMonitor", cs2.StatefulTask)
 
 function TrainMonitor:new()
@@ -54,7 +56,9 @@ end
 function TrainMonitor:enter_enum_luatrains()
 	self.seen_groups = {}
 	local luatrains = game.train_manager.get_trains(ALL_TRAINS_FILTER)
-	add_workload(self.workload_counter, #luatrains)
+	local n_luatrains = #luatrains
+	self.n_luatrains = n_luatrains
+	add_workload(self.workload_counter, n_luatrains)
 	self:begin_async_loop(luatrains, 1)
 end
 
@@ -127,14 +131,15 @@ end
 
 function TrainMonitor:enter_enum_cstrains()
 	self.seen_layouts = {}
-	local cstrains = tlib.t_map_a(cs2.get_all_vehicles(), function(veh)
-		if veh.type == "train" then return veh.id end
-	end)
+	local cstrains, n_cstrains = tlib.t_map_an(
+		cs2.get_all_vehicles(),
+		function(veh)
+			if veh.type == "train" then return veh.id end
+		end
+	)
+	self.n_cstrains = n_cstrains
 	self:begin_async_loop(cstrains, 1)
-	for _, view in pairs(storage.views) do
-		view:enter_vehicles(self.workload_counter)
-	end
-	add_workload(self.workload_counter, 1)
+	add_workload(self.workload_counter, n_cstrains)
 end
 
 function TrainMonitor:enum_cstrain(vehicle_id)
@@ -174,12 +179,6 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 	else
 		strace.warn("enum_cstrain: train had no group", train, train.group)
 	end
-
-	-- View vehicle visitors
-	for _, view in pairs(storage.views) do
-		view:enter_vehicle(self.workload_counter, train)
-		view:exit_vehicle(self.workload_counter, train)
-	end
 end
 
 function TrainMonitor:enum_cstrains()
@@ -212,10 +211,6 @@ function TrainMonitor:exit_enum_cstrains()
 	end
 
 	if layouts_deleted then events.raise("cs2.train_layouts_destroyed") end
-
-	for _, view in pairs(storage.views) do
-		view:exit_vehicles(self.workload_counter)
-	end
 
 	-- Cleanup
 	self.seen_layouts = nil

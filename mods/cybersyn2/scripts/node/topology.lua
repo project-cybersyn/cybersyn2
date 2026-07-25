@@ -10,6 +10,11 @@ local tlib = require("lib.core.table")
 local strace = require("lib.core.strace")
 local cs2 = _G.cs2
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
+local rcall = remote.call --[[@as fun(iface: string, method: string, ...: Any): Any]]
+
 --------------------------------------------------------------------------------
 -- Topology plugin interface
 --------------------------------------------------------------------------------
@@ -31,7 +36,7 @@ function cs2.query_vehicle_topology_plugins(vehicle)
 	end
 	for i = 1, #v_topo_plugins do
 		local plugin = v_topo_plugins[i]
-		local result = remote.call(plugin[1], plugin[2], vehicle.id, lua_train) --[[@as Id? ]]
+		local result = rcall(plugin[1], plugin[2], vehicle.id, lua_train) --[[@as Id? ]]
 		if result then return result end
 	end
 end
@@ -47,7 +52,7 @@ function cs2.query_node_topology_plugins(node)
 	end
 	for i = 1, #n_topo_plugins do
 		local plugin = n_topo_plugins[i]
-		local result = remote.call(plugin[1], plugin[2], node.id, train_stop) --[[@as Id? ]]
+		local result = rcall(plugin[1], plugin[2], node.id, train_stop) --[[@as Id? ]]
 		if result then return result end
 	end
 end
