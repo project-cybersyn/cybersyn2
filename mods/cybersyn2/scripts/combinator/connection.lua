@@ -72,7 +72,8 @@ end
 ---@param player LuaPlayer
 local function render_connection(player)
 	local pstate = cs2.get_or_create_player_state(player.index)
-	local objects = pstate.connection_render_objects or EMPTY
+	-- DO NOT use `EMPTY` here, we need a new table every time.
+	local objects = pstate.connection_render_objects or {}
 
 	for i = #objects, 1, -1 do
 		---@diagnostic disable-next-line: need-check-nil
