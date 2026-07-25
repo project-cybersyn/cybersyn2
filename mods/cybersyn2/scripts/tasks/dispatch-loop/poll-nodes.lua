@@ -349,7 +349,9 @@ function LogisticsThread:poll_train_stop()
 		return self:set_state("poll_nodes")
 	end
 	local stop_is_dirty = stop.poll_dirty
-	if not stop_is_dirty then self.n_clean_nodes = self.n_clean_nodes + 1 end
+	if not stop_is_dirty then
+		self.n_clean_nodes = (self.n_clean_nodes or 0) + 1
+	end
 	-- Get station comb info
 	if not self:poll_train_stop_station_comb(workload, stop) then
 		return self:set_state("poll_nodes")
