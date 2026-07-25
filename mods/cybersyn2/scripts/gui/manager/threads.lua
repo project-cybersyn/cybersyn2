@@ -4,11 +4,13 @@ local ultros = require("lib.core.relm.ultros")
 local relm_util = require("lib.core.relm.util")
 local cmt_lib = require("lib.core.cmt")
 local tlib = require("lib.core.table")
+local nlib = require("lib.core.math.numeric")
 
 local Pr = relm.Primitive
 local HF = ultros.HFlow
 local VF = ultros.VFlow
 local table_size = table_size
+local clamp = nlib.clamp
 local EMPTY = tlib.EMPTY
 local strformat = string.format
 
@@ -69,7 +71,7 @@ local SchedulerEntry = relm.define("Manager.SchedulerEntry", function()
 					value = max_work_per_frame,
 					width = 60,
 					on_change = function(_, next_wpf)
-						cmt_lib.set_max_work_per_frame(next_wpf)
+						cmt_lib.set_max_work_per_frame(clamp(next_wpf, 0, 1000000, 100))
 					end,
 				}),
 			}),
@@ -179,7 +181,7 @@ local TrainMonitorEntry = relm.define("Manager.TrainMonitorEntry", function()
 					value = work_cap,
 					width = 60,
 					on_change = function(_, next_work_cap)
-						task._cmt_work_cap = next_work_cap
+						task._cmt_work_cap = clamp(next_work_cap, 0, 1000000, 100)
 					end,
 				}),
 			}),
@@ -190,7 +192,7 @@ local TrainMonitorEntry = relm.define("Manager.TrainMonitorEntry", function()
 					value = spike_cap,
 					width = 60,
 					on_change = function(_, next_spike_cap)
-						task._cmt_spike_cap = next_spike_cap
+						task._cmt_spike_cap = clamp(next_spike_cap, 0, 1000000, 0)
 					end,
 				}),
 			}),
@@ -272,7 +274,7 @@ local DeliveryMonitorEntry = relm.define(
 							value = work_cap,
 							width = 60,
 							on_change = function(_, next_work_cap)
-								task._cmt_work_cap = next_work_cap
+								task._cmt_work_cap = clamp(next_work_cap, 0, 1000000, 100)
 							end,
 						}),
 					}),
@@ -283,7 +285,7 @@ local DeliveryMonitorEntry = relm.define(
 							value = spike_cap,
 							width = 60,
 							on_change = function(_, next_spike_cap)
-								task._cmt_spike_cap = next_spike_cap
+								task._cmt_spike_cap = clamp(next_spike_cap, 0, 1000000, 0)
 							end,
 						}),
 					}),
@@ -407,7 +409,7 @@ local DispatchLoop = relm.define(
 							value = work_cap,
 							width = 60,
 							on_change = function(_, next_work_cap)
-								task._cmt_work_cap = next_work_cap
+								task._cmt_work_cap = clamp(next_work_cap, 0, 1000000, 100)
 							end,
 						}),
 					}),
@@ -418,7 +420,7 @@ local DispatchLoop = relm.define(
 							value = spike_cap,
 							width = 60,
 							on_change = function(_, next_spike_cap)
-								task._cmt_spike_cap = next_spike_cap
+								task._cmt_spike_cap = clamp(next_spike_cap, 0, 1000000, 0)
 							end,
 						}),
 					}),
