@@ -3,6 +3,8 @@ Version: 0.3.2
 Date: ????
   Bugfixes:
     - Fixed a false positive vanilla priority alert when train wasn't on a CS2 delivery.
+  Optimizations:
+    - Further increased efficiency when reading orders from clean stops.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
 Date: 2026-07-24
