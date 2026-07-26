@@ -124,6 +124,11 @@ function Node:mark_clean(expected_revision)
 	return true
 end
 
+---Get the entity best representative of this node, if any. This is used for GUI purposes, such as centering the camera on a node.
+---For nodes that are not associated with a single entity, this may return `nil`.
+---@return LuaEntity? entity The entity best representative of this node, if any.
+function Node:get_entity() return nil end
+
 --------------------------------------------------------------------------------
 -- Combs
 --------------------------------------------------------------------------------

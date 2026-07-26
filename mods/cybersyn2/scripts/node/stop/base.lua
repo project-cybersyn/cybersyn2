@@ -82,6 +82,8 @@ function TrainStop:is_valid()
 	end
 end
 
+function TrainStop:get_entity() return self.entity end
+
 ---Determine if a stop accepts the given layout ID.
 ---@param layout_id uint?
 function TrainStop:accepts_layout(layout_id)

@@ -234,6 +234,8 @@ function Train:is_valid()
 	end
 end
 
+function Train:get_entity() return self:get_stock() end
+
 function Train:compute_default_topology()
 	if Vehicle.compute_default_topology(self) then return true end
 
