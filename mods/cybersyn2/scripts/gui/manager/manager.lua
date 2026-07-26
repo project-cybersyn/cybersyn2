@@ -2,13 +2,16 @@ local events = require("lib.core.event")
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local relm_util = require("lib.core.relm.util")
+local tlib = require("lib.core.table")
 local InventoryTab = require("scripts.gui.manager.inventory").InventoryTab
 local CargoTab = require("scripts.gui.manager.cargo").CargoTab
+local DeliveriesTab = require("scripts.gui.manager.deliveries").DeliveriesTab
 local NodesTab = require("scripts.gui.manager.nodes").NodesTab
 local VehiclesTab = require("scripts.gui.manager.vehicles").VehiclesTab
 local ThreadsTab = require("scripts.gui.manager.threads").ThreadsTab
 
 local Pr = relm.Primitive
+local EMPTY = tlib.EMPTY
 
 local function noop() end
 
@@ -18,8 +21,11 @@ local function noop() end
 
 local Tabs = relm.define(
 	"Manager.Tabs",
-	---@param props {player_state: Cybersyn.PlayerState}
+	---@param props {player_state: Cybersyn.PlayerState, active_topology_id: integer?, set_active_topology_id: fun(id: integer?): void}
 	function(props)
+		local active_topology_id, set_active_topology_id =
+			props.active_topology_id, props.set_active_topology_id
+
 		return ultros.TabbedPane({
 			style = "relm_tabbed_pane",
 			horizontally_stretchable = true,
@@ -44,9 +50,20 @@ local Tabs = relm.define(
 					}),
 				},
 				{
+					caption = { "cybersyn2-manager.deliveries" },
+					content = ultros.HiddenTabRemover({
+						generate_content = function() return DeliveriesTab() end,
+					}),
+				},
+				{
 					caption = { "cybersyn2-manager.vehicles" },
 					content = ultros.HiddenTabRemover({
-						generate_content = function() return VehiclesTab() end,
+						generate_content = function()
+							return VehiclesTab({
+								active_topology_id = active_topology_id,
+								set_active_topology_id = set_active_topology_id,
+							})
+						end,
 					}),
 				},
 				{
@@ -62,7 +79,7 @@ local Tabs = relm.define(
 
 relm.define(
 	"Cybersyn.Manager",
-	---@param props {player_state: Cybersyn.PlayerState, root_id: integer, player_index: integer}
+	---@param props {player_state: Cybersyn.PlayerState, root_id: integer, player_index: integer, default_topology_id: integer?}
 	function(props)
 		local player_state = props.player_state
 
@@ -78,6 +95,10 @@ relm.define(
 		)
 		ultros.use_close_on_gui_closed(player_index, close_me, pinned)
 
+		-- Topo state
+		local active_topology_id, set_active_topology_id =
+			relm.use_state(props.default_topology_id)
+
 		-- Window frame
 		return ultros.WindowFrame({
 			caption = "Cybersyn 2 Manager",
@@ -92,7 +113,13 @@ relm.define(
 				type = "frame",
 				style = "inside_deep_frame",
 				direction = "vertical",
-			}, { Tabs({ player_state = player_state }) }),
+			}, {
+				Tabs({
+					player_state = player_state,
+					active_topology_id = active_topology_id,
+					set_active_topology_id = set_active_topology_id,
+				}),
+			}),
 		})
 	end
 )
@@ -110,11 +137,15 @@ function cs2.open_manager(player_index)
 	local screen = player.gui.screen
 	if screen["Cybersyn2Manager"] then return end
 
+	local tops = cs2.get_topologies_by_surface_index(player.surface_index)
+		or EMPTY
+	local top = tops[1]
+
 	relm.root_create(
 		screen,
 		"Cybersyn2Manager",
 		"Cybersyn.Manager",
-		{ player_state = player_state }
+		{ player_state = player_state, default_topology_id = top and top.id }
 	)
 end
 
