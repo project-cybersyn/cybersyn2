@@ -143,7 +143,6 @@ local VehicleLeftPane = relm.define(
 local Vehicle = relm.define("Manager.VehicleVehicle", function(props)
 	local veh = props.vehicle
 	local delivery = veh.delivery_id and storage.deliveries[veh.delivery_id]
-	local delivery_caption = delivery and ("Delivery " .. delivery.id) or "None"
 
 	local veh_entity = veh:get_entity()
 	local from_node = delivery and storage.nodes[delivery.from_id]
