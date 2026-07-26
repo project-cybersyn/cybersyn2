@@ -63,13 +63,32 @@ end
 
 ---@class (partial) Cybersyn.Topology
 local Topology = class("Topology")
-_G.cs2.Topology = Topology
+cs2.Topology = Topology
 
 ---Create a new topology.
-function Topology:new()
+---@param surface_indices? int[] Optional list of surface indices to associate with the topology.
+---@return Cybersyn.Topology The newly created topology.
+function Topology:new(surface_indices)
 	local id = counters.next("topology")
-	storage.topologies[id] = setmetatable({ id = id }, self)
+	local surface_set = {}
+	if surface_indices then
+		for _, surface_index in ipairs(surface_indices) do
+			surface_set[surface_index] = true
+		end
+	end
+
+	storage.topologies[id] =
+		setmetatable({ id = id, surface_set = surface_set }, self)
 	return storage.topologies[id]
+end
+
+---@param surface_indices int[] List of surface indices to associate with the topology.
+function Topology:set_surface_indices(surface_indices)
+	local surface_set = {}
+	for _, surface_index in ipairs(surface_indices) do
+		surface_set[surface_index] = true
+	end
+	self.surface_set = surface_set
 end
 
 function Topology:destroy()
@@ -86,7 +105,7 @@ local function get_topology(id)
 	return storage.topologies[id]
 end
 Topology.get = get_topology
-_G.cs2.get_topology = get_topology
+cs2.get_topology = get_topology
 
 ---@param name string
 ---@return Cybersyn.Topology?
@@ -96,20 +115,33 @@ local function get_topology_by_name(name)
 		if topology.name == name then return topology end
 	end
 end
-_G.cs2.get_topology_by_name = get_topology_by_name
+cs2.get_topology_by_name = get_topology_by_name
+
+local function get_topologies_by_surface_index(surface_index)
+	---@type Cybersyn.Topology[]
+	local topologies = {}
+	for _, topology in pairs(storage.topologies) do
+		if topology.surface_set[surface_index] then
+			table.insert(topologies, topology)
+		end
+	end
+	return topologies
+end
+cs2.get_topologies_by_surface_index = get_topologies_by_surface_index
 
 ---@param name string
+---@param surface_indices? int[] Optional list of surface indices to associate with the topology.
 ---@return Cybersyn.Topology
-local function get_or_create_topology_by_name(name)
+local function get_or_create_topology_by_name(name, surface_indices)
 	local topology = get_topology_by_name(name)
 	if not topology then
-		topology = Topology:new()
+		topology = Topology:new(surface_indices)
 		topology.name = name
 		events.raise("cs2.topology_created", topology)
 	end
 	return topology
 end
-_G.cs2.get_or_create_topology_by_name = get_or_create_topology_by_name
+cs2.get_or_create_topology_by_name = get_or_create_topology_by_name
 
 ---@param id Id? Topology id
 ---@return string? name The name of the topology, if it exists.
@@ -130,7 +162,7 @@ local function create_train_topology(surface_index)
 		return nil
 	end
 
-	local t = Topology:new()
+	local t = Topology:new({ surface_index })
 	t.name = surface.name
 	storage.surface_index_to_train_topology[surface_index] = t.id
 

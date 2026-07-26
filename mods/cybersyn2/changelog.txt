@@ -1,6 +1,9 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.2
 Date: ????
+  Changes:
+    - API: added `get_topology_id(name)`
+    - API: added `surface_indices` optional parameter to `get_or_create_topology`
   Bugfixes:
     - Fixed a false positive vanilla priority alert when train wasn't on a CS2 delivery.
   Optimizations:

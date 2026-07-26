@@ -83,7 +83,7 @@ lib.CarriageType = {
 ---An isolated group of `Node`s and `Vehicle`s that can only communicate with each other.
 ---@class (partial) Cybersyn.Topology
 ---@field public id Id Unique id of the topology.
----@field public surface_set? table<uint, boolean> A SET of surface indices associated with this topology, if any. This is used when multiple surfaces are logically connected.
+---@field public surface_set table<uint, boolean> A SET of surface indices associated with this topology, if any. This is used when multiple surfaces are logically connected.
 ---@field public name? string The name of the topology, if any.
 ---@field public thread_id? int The id of the thread servicing this topology if any.
 
