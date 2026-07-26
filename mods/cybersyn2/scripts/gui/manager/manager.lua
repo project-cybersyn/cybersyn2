@@ -21,10 +21,12 @@ local function noop() end
 
 local Tabs = relm.define(
 	"Manager.Tabs",
-	---@param props {player_state: Cybersyn.PlayerState, active_topology_id: integer?, set_active_topology_id: fun(id: integer?): void}
+	---@param props {player_state: Cybersyn.PlayerState, active_topology_id: integer?, set_active_topology_id: fun(id: integer?), cargo: SignalID?, set_cargo: fun(cargo: SignalID?), network: string?, set_network: fun(network: string?)}
 	function(props)
 		local active_topology_id, set_active_topology_id =
 			props.active_topology_id, props.set_active_topology_id
+		local cargo, set_cargo = props.cargo, props.set_cargo
+		local network, set_network = props.network, props.set_network
 
 		return ultros.TabbedPane({
 			style = "relm_tabbed_pane",
@@ -52,7 +54,16 @@ local Tabs = relm.define(
 				{
 					caption = { "cybersyn2-manager.deliveries" },
 					content = ultros.HiddenTabRemover({
-						generate_content = function() return DeliveriesTab() end,
+						generate_content = function()
+							return DeliveriesTab({
+								active_topology_id = active_topology_id,
+								set_active_topology_id = set_active_topology_id,
+								cargo = cargo,
+								set_cargo = set_cargo,
+								network = network,
+								set_network = set_network,
+							})
+						end,
 					}),
 				},
 				{
@@ -95,9 +106,11 @@ relm.define(
 		)
 		ultros.use_close_on_gui_closed(player_index, close_me, pinned)
 
-		-- Topo state
+		-- Shared states
 		local active_topology_id, set_active_topology_id =
 			relm.use_state(props.default_topology_id)
+		local cargo, set_cargo = relm.use_state(nil --[[@as SignalID?]])
+		local network, set_network = relm.use_state(nil --[[@as string?]])
 
 		-- Window frame
 		return ultros.WindowFrame({
@@ -118,6 +131,10 @@ relm.define(
 					player_state = player_state,
 					active_topology_id = active_topology_id,
 					set_active_topology_id = set_active_topology_id,
+					cargo = cargo,
+					set_cargo = set_cargo,
+					network = network,
+					set_network = set_network,
 				}),
 			}),
 		})

@@ -5,6 +5,9 @@ local relm_util = require("lib.core.relm.util")
 local fnlib = require("lib.core.function")
 local tlib = require("lib.core.table")
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 local Pr = relm.Primitive
 local VF = ultros.VFlow
 local HF = ultros.HFlow
@@ -23,12 +26,48 @@ lib.TopologySelector = relm.define(
 				return { caption = topo.name or ("Topology " .. topo.id), key = topo.id }
 			end
 		)
-		return HF({ vertical_align = "center" }, {
+		return HF({ vertically_stretchable = true, vertical_align = "center" }, {
 			ultros.BoldLabel({ "cybersyn2-manager.topology" }),
 			ultros.Dropdown({
 				value = props.topology_id,
 				on_change = function(me, new_value) set_topology_id(new_value) end,
 				options = options,
+			}),
+		})
+	end
+)
+
+lib.CargoSelector = relm.define(
+	"Manager.CargoSelector",
+	---@param props { cargo: SignalID?, set_cargo: fun(cargo: SignalID?) }
+	function(props)
+		local set_cargo = props.set_cargo or noop
+		return HF({ vertically_stretchable = true, vertical_align = "center" }, {
+			ultros.BoldLabel({ "cybersyn2-manager.cargo" }),
+			ultros.ChooseElemButton({
+				value = props.cargo,
+				on_change = function(me, new_value) set_cargo(new_value) end,
+			}),
+		})
+	end
+)
+
+lib.NetworkSelector = relm.define(
+	"Manager.NetworkSelector",
+	---@param props { network: string?, set_network: fun(network: string?) }
+	function(props)
+		local set_network = props.set_network or noop
+		return HF({ vertically_stretchable = true, vertical_align = "center" }, {
+			ultros.BoldLabel({ "cybersyn2-manager.network" }),
+			ultros.ChooseElemButton({
+				virtual_signal = props.network,
+				on_change = function(me, new_value)
+					if new_value and new_value.type == "virtual" then
+						set_network(new_value.name)
+					else
+						set_network(nil)
+					end
+				end,
 			}),
 		})
 	end

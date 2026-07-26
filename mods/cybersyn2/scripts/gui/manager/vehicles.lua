@@ -334,13 +334,15 @@ local VehicleDisplayPanes = relm.define(
 
 lib.VehiclesTab = relm.define(
 	"Manager.VehiclesTab",
-	---@param props {active_topology_id: integer?, set_active_topology_id: fun(id: integer?): void}
+	---@param props {active_topology_id: integer?, set_active_topology_id: fun(id: integer?)}
 	function(props)
 		return {
 			Pr({
 				type = "frame",
 				style = "inside_shallow_frame_with_padding",
 				horizontally_stretchable = true,
+				vertically_stretchable = false,
+				vertical_align = "center",
 			}, {
 				elts.TopologySelector({
 					topology_id = props.active_topology_id,
