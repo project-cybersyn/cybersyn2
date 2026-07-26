@@ -10,6 +10,7 @@ local siglib = require("lib.core.signal")
 local Pr = relm.Primitive
 local key_to_signal = siglib.key_to_signal
 local pairs = pairs
+local next = next
 
 local lib = {}
 
@@ -36,11 +37,13 @@ local Delivery = relm.define(
 		local state_label = delivery
 				and cs2.delivery_state_short_names[delivery.state]
 			or ""
+		local network = (delivery and delivery.networks) and next(delivery.networks)
 
 		return Pr({
 			type = "frame",
 			style = "relm_table_row_frame",
 		}, {
+			ultros.Label(delivery_id or "", { width = 72 }),
 			base_elts.MinimapButton({
 				entity = veh_entity,
 				width = 48,
@@ -57,6 +60,13 @@ local Delivery = relm.define(
 				height = 48,
 			}),
 			ultros.BoldLabel(state_label, { width = 96 }),
+			Pr({
+				type = "choose-elem-button",
+				elem_type = "signal",
+				style = "relm_slot_button_default",
+				elem_value = network and { type = "virtual", name = network },
+				enabled = false,
+			}),
 			base_elts.Manifest({
 				delivery = delivery,
 				column_count = 12,
@@ -159,6 +169,7 @@ lib.DeliveriesTab = relm.define(
 				direction = "horizontal",
 				horizontally_stretchable = true,
 			}, {
+				ultros.Label("ID", { style = "subheader_caption_label", width = 72 }),
 				ultros.Label("Veh", { style = "subheader_caption_label", width = 48 }),
 				ultros.Label("Prov", { style = "subheader_caption_label", width = 48 }),
 				ultros.Label("Req", { style = "subheader_caption_label", width = 48 }),
@@ -166,6 +177,7 @@ lib.DeliveriesTab = relm.define(
 					"Status",
 					{ style = "subheader_caption_label", width = 96 }
 				),
+				ultros.Label("Net", { style = "subheader_caption_label", width = 40 }),
 				ultros.Label("Manifest", { style = "subheader_caption_label" }),
 			}),
 			Pr({

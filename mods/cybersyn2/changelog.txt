@@ -2,7 +2,7 @@
 Version: 0.3.2
 Date: ????
   Changes:
-    - Added Vehicles tab to Manager.
+    - Implemented Vehicles and Deliveries tabs in Manager.
     - API: added `get_topology_id(name)`
     - API: added `surface_indices` optional parameter to `get_or_create_topology`
   Bugfixes:
