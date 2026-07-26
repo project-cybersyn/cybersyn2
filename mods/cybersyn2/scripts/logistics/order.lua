@@ -26,8 +26,8 @@ local min = math.min
 local max = math.max
 local ceil = math.ceil
 local floor = math.floor
-local network_match_and = siglib.network_match_and
-local network_match_or = siglib.network_match_or
+local network_match_and = cs2.network_match_and
+local network_match_or = cs2.network_match_or
 local trace = strace.trace
 
 ---@param item SignalKey
@@ -378,12 +378,14 @@ end
 ---matching mode.
 ---@param provider Cybersyn.Order
 ---@return boolean
+---@return string?
+---@return int?
 function Order:matches_networks(provider)
 	local rmode = self.network_matching_mode
 	local rnet = self.networks
 	local pnet = provider.networks
 	if rmode == "and" then
-		return network_match_and(rnet, pnet)
+		return network_match_and(rnet, pnet), "signal-each", -1
 	else
 		return network_match_or(rnet, pnet)
 	end

@@ -263,6 +263,7 @@ lib.OrderStatusDescription = OrderStatusDescription
 ---@field public topology_id Id The id of the topology this delivery is operating within.
 ---@field public from_charge SignalCounts? Amount charged against the source station's inventory.
 ---@field public to_charge SignalCounts? Amount charged towards the destination station's inventory.
+---@field public networks SignalCounts? The networks matched when this delivery was created.
 
 ---@class (partial) Cybersyn.TrainDelivery: Cybersyn.Delivery
 ---@field public spillover uint Spillover used when calculating this delivery

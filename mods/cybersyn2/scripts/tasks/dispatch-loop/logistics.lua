@@ -68,6 +68,7 @@ local LogisticsThread = cs2.LogisticsThread
 ---@field public needs Cybersyn.Internal.Needs
 ---@field public satisfaction Cybersyn.Internal.Satisfaction
 ---@field public skip boolean? If `true` this match couldn't fulfill a previous need and should be skipped.
+---@field public networks SignalCounts? The networks matched when this match was created.
 
 ---@class Cybersyn.Internal.Reservation
 ---@field public item string Reserved itemkey
@@ -200,7 +201,8 @@ function LogisticsThread:loop_providers()
 	if not requester_node then return end
 
 	-- Check for netmatch
-	if not requester:matches_networks(provider) then return end
+	local is_match, net_name, net_mask = requester:matches_networks(provider)
+	if not is_match then return end
 
 	-- Allow plugins to reject this provider for this requester
 	if
@@ -234,6 +236,11 @@ function LogisticsThread:loop_providers()
 			provider = provider,
 			needs = requester_needs,
 			satisfaction = satisfaction,
+			-- Network match. If signal-each, it was an AND match over all networks.
+			-- If not, it was an OR match on the first matching network.
+			networks = net_name == "signal-each" and provider.networks or {
+				[net_name] = net_mask,
+			},
 		}
 	else
 		-- Reserve starvation item if there is one.
@@ -751,7 +758,8 @@ function LogisticsThread:route_train()
 		spillover_manifest or manifest, -- source charge
 		spillover,
 		reserved_slots,
-		reserved_capacity
+		reserved_capacity,
+		match.networks
 	)
 	add_workload(self.workload_counter, 10)
 	requester:set_status(OrderStatus.delivery)

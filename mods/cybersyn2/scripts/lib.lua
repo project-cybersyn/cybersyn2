@@ -10,6 +10,8 @@ local EMPTY = tlib.EMPTY_STRICT
 local ipairs = ipairs
 local tinsert = table.insert
 local tconcat = table.concat
+local pairs = pairs
+local band = bit32.band
 
 local DIFFERENT_SURFACE_DISTANCE = 1000000000
 
@@ -224,4 +226,34 @@ function cs2.encode_item_names(items)
 		parts[n] = "]"
 	end
 	return tconcat(parts)
+end
+
+---Given collections of signal counts treated as network masks, determine
+---if they match. Uses OR for the outer operation.
+---@param networks1 SignalCounts?
+---@param networks2 SignalCounts?
+---@return boolean match True if the two network masks match, false otherwise.
+---@return string? matched_network_signal The signal name of the first matching network, if any.
+---@return integer? matched_bits The bitmask of the match
+function cs2.network_match_or(networks1, networks2)
+	-- Networks1 must intersect networks2
+	if (not networks1) or not networks2 then return false end
+	for name, mask in pairs(networks1) do
+		local anded = band(mask, networks2[name] or 0)
+		if anded ~= 0 then return true, name, anded end
+	end
+	return false
+end
+
+---Given collections of signal counts treated as network masks, determine
+---if they match. Uses AND for the outer operation.
+---@param networks1 SignalCounts?
+---@param networks2 SignalCounts?
+function cs2.network_match_and(networks1, networks2)
+	-- Networks1 must be a subset of networks2
+	if (not networks1) or not networks2 then return false end
+	for name, mask in pairs(networks1) do
+		if band(mask, networks2[name] or 0) ~= mask then return false end
+	end
+	return true
 end

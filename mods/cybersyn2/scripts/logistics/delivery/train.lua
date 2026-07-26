@@ -55,6 +55,7 @@ cs2.TrainDelivery = TrainDelivery
 ---@param spillover uint
 ---@param reserved_slots uint
 ---@param reserved_capacity uint
+---@param networks SignalCounts?
 function TrainDelivery.new(
 	train,
 	from,
@@ -65,7 +66,8 @@ function TrainDelivery.new(
 	from_charge,
 	spillover,
 	reserved_slots,
-	reserved_capacity
+	reserved_capacity,
+	networks
 )
 	local delivery = Delivery.new("train")
 	setmetatable(delivery, TrainDelivery)
@@ -79,6 +81,7 @@ function TrainDelivery.new(
 	delivery.spillover = spillover
 	delivery.reserved_slots = reserved_slots
 	delivery.reserved_fluid_capacity = reserved_capacity
+	delivery.networks = networks
 
 	delivery.to_charge = manifest
 	delivery.from_charge = from_charge
