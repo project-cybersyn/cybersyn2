@@ -42,46 +42,45 @@ lib.Pager = relm.define(
 		local set_page = props.set_page or noop
 		local n_pages = props.n_pages or 1
 
-		return Pr(
-			{
-				type = "frame",
-				style = "deep_frame_in_shallow_frame",
-				direction = "horizontal",
-				horizontally_stretchable = true,
-				vertical_align = "center",
-			},
-			{
-				ultros.Button({
-					width = 30,
-					caption = "<<",
-					on_click = function(me, event)
-						if page > 1 then set_page(1) end
-					end,
-				}),
-				ultros.Button({
-					width = 30,
-					caption = "<",
-					on_click = function(me, event)
-						if page > 1 then set_page(page - 1) end
-					end,
-				}),
-				ultros.Label(tostring(page) .. " / " .. tostring(n_pages)),
-				ultros.Button({
-					width = 30,
-					caption = ">",
-					on_click = function(me, event)
-						if page < n_pages then set_page(page + 1) end
-					end,
-				}),
-				ultros.Button({
-					width = 30,
-					caption = ">>",
-					on_click = function(me, event)
-						if page < n_pages then set_page(n_pages) end
-					end,
-				}),
-			}
-		)
+		return Pr({
+			type = "frame",
+			style = "deep_frame_in_shallow_frame",
+			direction = "horizontal",
+			horizontally_stretchable = true,
+			vertical_align = "center",
+			top_padding = 4,
+			bottom_padding = 4,
+		}, {
+			ultros.Button({
+				width = 35,
+				caption = "<<",
+				on_click = function(me, event)
+					if page > 1 then set_page(1) end
+				end,
+			}),
+			ultros.Button({
+				width = 35,
+				caption = "<",
+				on_click = function(me, event)
+					if page > 1 then set_page(page - 1) end
+				end,
+			}),
+			ultros.Label({ "", "Page ", page, " of ", n_pages }),
+			ultros.Button({
+				width = 35,
+				caption = ">",
+				on_click = function(me, event)
+					if page < n_pages then set_page(page + 1) end
+				end,
+			}),
+			ultros.Button({
+				width = 35,
+				caption = ">>",
+				on_click = function(me, event)
+					if page < n_pages then set_page(n_pages) end
+				end,
+			}),
+		})
 	end
 )
 

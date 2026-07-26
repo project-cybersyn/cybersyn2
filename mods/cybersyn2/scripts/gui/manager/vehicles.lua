@@ -3,6 +3,7 @@ local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local relm_util = require("lib.core.relm.util")
 local elts = require("scripts.gui.manager.elements")
+local base_elts = require("scripts.gui.elements")
 local tlib = require("lib.core.table")
 local fnlib = require("lib.core.function")
 
@@ -143,15 +144,42 @@ local Vehicle = relm.define("Manager.VehicleVehicle", function(props)
 	local veh = props.vehicle
 	local delivery = veh.delivery_id and storage.deliveries[veh.delivery_id]
 	local delivery_caption = delivery and ("Delivery " .. delivery.id) or "None"
-	local caption = veh.type == "train" and ("Train " .. veh.id)
-		or ("Vehicle " .. veh.id)
+
+	local veh_entity = veh:get_entity()
+	local from_node = delivery and storage.nodes[delivery.from_id]
+	local to_node = delivery and storage.nodes[delivery.to_id]
+	local from_entity = from_node and from_node:get_entity()
+	local to_entity = to_node and to_node:get_entity()
+	local state_label = delivery
+			and cs2.delivery_state_short_names[delivery.state]
+		or "[color=green]Avail[/color]"
 
 	return Pr({
 		type = "frame",
 		style = "relm_table_row_frame",
 	}, {
-		ultros.RtLabel(caption),
-		ultros.Label(delivery_caption),
+		base_elts.MinimapButton({
+			entity = veh_entity,
+			width = 48,
+			height = 48,
+		}),
+		base_elts.MinimapButton({
+			entity = from_entity,
+			width = 48,
+			height = 48,
+		}),
+		base_elts.MinimapButton({
+			entity = to_entity,
+			width = 48,
+			height = 48,
+		}),
+		ultros.BoldLabel(state_label, { width = 96 }),
+		base_elts.Manifest({
+			delivery = delivery,
+			column_count = 12,
+			limit = 12,
+			height = 40,
+		}),
 	})
 end)
 
@@ -194,7 +222,7 @@ local VehicleRightPane = relm.define(
 			repaint_if_layout
 		)
 
-		local limit = 50
+		local limit = 30
 		local n_vehicles = #vehicles
 		table.sort(vehicles, function(a, b)
 			if a.delivery_id and not b.delivery_id then return true end
@@ -211,7 +239,7 @@ local VehicleRightPane = relm.define(
 			style = "deep_frame_in_shallow_frame",
 			direction = "vertical",
 			vertically_stretchable = true,
-			horizontally_stretchable = true,
+			width = 720,
 		}, {
 			Pr({
 				type = "frame",
@@ -219,7 +247,14 @@ local VehicleRightPane = relm.define(
 				direction = "horizontal",
 				horizontally_stretchable = true,
 			}, {
-				ultros.Label("Trains", { style = "subheader_caption_label" }),
+				ultros.Label("Veh", { style = "subheader_caption_label", width = 48 }),
+				ultros.Label("Prov", { style = "subheader_caption_label", width = 48 }),
+				ultros.Label("Req", { style = "subheader_caption_label", width = 48 }),
+				ultros.Label(
+					"Status",
+					{ style = "subheader_caption_label", width = 96 }
+				),
+				ultros.Label("Manifest", { style = "subheader_caption_label" }),
 			}),
 			Pr({
 				type = "scroll-pane",

@@ -39,29 +39,7 @@ local function on_click_cancel_delivery(delivery_id)
 	end
 end
 
-local MinimapButton = relm.define(
-	"CS2.MinimapButton",
-	---@param props {entity: LuaEntity?, width?: number, height?: number}
-	function(props)
-		local entity = props.entity
-		local width = props.width or 100
-		local height = props.height or 100
-
-		return ultros.Button({
-			style = "locomotive_minimap_button",
-			width = width,
-			height = height,
-			on_click = on_click_focus_on(entity),
-		}, {
-			Pr({
-				type = "minimap",
-				width = width,
-				height = height,
-				entity = entity,
-			}),
-		})
-	end
-)
+local MinimapButton = gui_elements.MinimapButton
 
 local MinimapLabelButton = relm.define(
 	"CS2.MinimapLabelButton",
@@ -199,18 +177,7 @@ local TrainManifest = relm.define(
 	end
 )
 
-local delivery_state_friendly_names = {
-	wait_from = "Queued for provider",
-	to_from = "En route to provider",
-	at_from = "At provider",
-	interrupted_from = "Interrupted",
-	interrupted_to = "Interrupted",
-	wait_to = "Queued for requester",
-	to_to = "En route to requester",
-	at_to = "At requester",
-	completed = "[color=green]Completed[/color]",
-	failed = "[color=red]Failed[/color]",
-}
+local delivery_state_friendly_names = cs2.delivery_state_friendly_names
 
 local DeliveryHeader = relm.define(
 	"CS2.DeliveryHeader",
