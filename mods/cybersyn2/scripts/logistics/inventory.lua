@@ -214,6 +214,22 @@ function Inventory:qty(item, inflow_comp, outflow_comp)
 	return max((inv[item] or 0) - (outflow[item] or 0) + (inflow[item] or 0), 0)
 end
 
+---@param item SignalKey
+---@return int qty Quantity of the given item in the inventory net of outflows
+function Inventory:qty_less_outflow(item)
+	local inv = self.inventory or empty
+	local outflow = self.outflow or empty
+	return max((inv[item] or 0) - (outflow[item] or 0), 0)
+end
+
+---@param item SignalKey
+---@return int qty Quantity of the given item in the inventory net of inflows
+function Inventory:qty_plus_inflow(item)
+	local inv = self.inventory or empty
+	local inflow = self.inflow or empty
+	return max((inv[item] or 0) + (inflow[item] or 0), 0)
+end
+
 function Inventory:clear()
 	self.inventory = {}
 	self.inflow = {}

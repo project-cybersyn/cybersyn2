@@ -36,13 +36,16 @@ local Tabs = relm.define(
 				{
 					caption = { "cybersyn2-manager.inventory" },
 					content = ultros.HiddenTabRemover({
-						generate_content = function() return InventoryTab() end,
-					}),
-				},
-				{
-					caption = { "cybersyn2-manager.cargo" },
-					content = ultros.HiddenTabRemover({
-						generate_content = function() return CargoTab() end,
+						generate_content = function()
+							return InventoryTab({
+								active_topology_id = active_topology_id,
+								set_active_topology_id = set_active_topology_id,
+								cargo = cargo,
+								set_cargo = set_cargo,
+								network = network,
+								set_network = set_network,
+							})
+						end,
 					}),
 				},
 				{

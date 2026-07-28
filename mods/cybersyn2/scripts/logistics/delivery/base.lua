@@ -102,6 +102,9 @@ function Delivery:on_changed_state(new_state, old_state)
 	self.state_tick = game.tick
 	StateMachine.on_changed_state(self, new_state, old_state)
 	events.raise("cs2.delivery_state_changed", self, new_state, old_state)
+	if self:is_in_final_state() then
+		events.raise("cs2.delivery_finalized", self, new_state, old_state)
+	end
 end
 
 function Delivery:is_in_final_state()

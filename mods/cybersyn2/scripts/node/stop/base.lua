@@ -313,6 +313,7 @@ function TrainStop:rebuild_inventory()
 	else
 		-- Case: normal inventory, rebuild locally
 		inventory:rebuild_orders()
+		events.raise("cs2.node_inventory_rebuilt", self, inventory)
 	end
 end
 

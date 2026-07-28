@@ -12,6 +12,7 @@ local VF = ultros.VFlow
 local Pr = relm.Primitive
 local EMPTY = tlib.EMPTY
 local pairs = pairs
+local key_to_signal = siglib.key_to_signal
 
 local lib = {}
 
@@ -25,7 +26,7 @@ local SignalCountsTable = relm.define_element({
 
 		for k, count in pairs(signal_counts) do
 			buttons[#buttons + 1] = {
-				signal = siglib.key_to_signal(k),
+				signal = key_to_signal(k),
 				count = count,
 			}
 		end
@@ -108,7 +109,7 @@ local Manifest = relm.define(
 				button = {}
 				buttons_table[k] = button
 			end
-			button.signal = siglib.key_to_signal(k)
+			button.signal = key_to_signal(k)
 			button.count = v
 		end
 
@@ -128,7 +129,7 @@ local Manifest = relm.define(
 			else
 				button.button_style = "relm_slot_button_green"
 			end
-			button.signal = siglib.key_to_signal(k)
+			button.signal = key_to_signal(k)
 			button.count = button.count or 0
 			button.upper = v
 			::continue::

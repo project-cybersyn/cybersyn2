@@ -460,6 +460,21 @@ function Order:get_provided_qty(signal_key)
 	return min(inv_qty, provided_qty)
 end
 
+---Add all items provided by this order to the given vector.
+---@param vector SignalCounts
+function Order:add_provides(vector)
+	local inv = self.inventory
+	local has = inv.inventory or EMPTY
+	local outflow = inv.outflow or EMPTY
+	for signal_key, count in pairs(self.provides or EMPTY) do
+		local inv_qty = max((has[signal_key] or 0) - (outflow[signal_key] or 0), 0)
+		local actual_qty = min(inv_qty, count)
+		if actual_qty > 0 then
+			vector[signal_key] = (vector[signal_key] or 0) + actual_qty
+		end
+	end
+end
+
 ---Get requested quantities for the given item, both corrected and base.
 ---@param signal_key SignalKey
 ---@return uint requested_qty Base request for the given item.
@@ -475,6 +490,39 @@ function Order:get_requested_qty(signal_key)
 		requested_qty = self.requests[signal_key] or 0
 	end
 	return requested_qty, max(requested_qty - inv_qty, 0)
+end
+
+---Add raw requested quantities (not compensated by inventory/inflow) to the given vector.
+---@param vector SignalCounts
+function Order:add_requests(vector)
+	for signal_key, count in pairs(self.requests or EMPTY) do
+		vector[signal_key] = (vector[signal_key] or 0) + count
+	end
+	for signal_key, count in pairs(self.requested_fluids or EMPTY) do
+		vector[signal_key] = (vector[signal_key] or 0) + count
+	end
+end
+
+---Add requested quantities compensated by inventory/inflow to the given vector.
+---@param vector SignalCounts
+function Order:add_deficits(vector)
+	local inv = self.inventory
+	local has = inv.inventory or EMPTY
+	local inflow = inv.inflow or EMPTY
+	for signal_key, count in pairs(self.requests or EMPTY) do
+		local inv_qty = (has[signal_key] or 0) + (inflow[signal_key] or 0)
+		local deficit = max(count - inv_qty, 0)
+		if deficit > 0 then
+			vector[signal_key] = (vector[signal_key] or 0) + deficit
+		end
+	end
+	for signal_key, count in pairs(self.requested_fluids or EMPTY) do
+		local inv_qty = (has[signal_key] or 0) + (inflow[signal_key] or 0)
+		local deficit = max(count - inv_qty, 0)
+		if deficit > 0 then
+			vector[signal_key] = (vector[signal_key] or 0) + deficit
+		end
+	end
 end
 
 ---@class Cybersyn.Internal.Needs
