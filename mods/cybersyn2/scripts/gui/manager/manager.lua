@@ -51,7 +51,16 @@ local Tabs = relm.define(
 				{
 					caption = { "cybersyn2-manager.nodes" },
 					content = ultros.HiddenTabRemover({
-						generate_content = function() return NodesTab() end,
+						generate_content = function()
+							return NodesTab({
+								active_topology_id = active_topology_id,
+								set_active_topology_id = set_active_topology_id,
+								cargo = cargo,
+								set_cargo = set_cargo,
+								network = network,
+								set_network = set_network,
+							})
+						end,
 					}),
 				},
 				{
@@ -118,7 +127,7 @@ relm.define(
 		-- Window frame
 		return ultros.WindowFrame({
 			caption = "Cybersyn 2 Manager",
-			width = 1024,
+			width = 1008,
 			height = 768,
 			on_close = close_me,
 			decoration = function()

@@ -525,6 +525,33 @@ function Order:add_deficits(vector)
 	end
 end
 
+---Determine if this order either provides or request cargo with the given name.
+---@param cargo_name string?
+function Order:matches_cargo_name(cargo_name)
+	if not cargo_name then return false end
+	for signal_key in pairs(self.provides or EMPTY) do
+		local sig = key_to_signal(signal_key)
+		if sig and sig.name == cargo_name then return true end
+	end
+	for signal_key in pairs(self.requests or EMPTY) do
+		local sig = key_to_signal(signal_key)
+		if sig and sig.name == cargo_name then return true end
+	end
+	for signal_key in pairs(self.requested_fluids or EMPTY) do
+		local sig = key_to_signal(signal_key)
+		if sig and sig.name == cargo_name then return true end
+	end
+	return false
+end
+
+---@param network_name string?
+function Order:matches_network_name(network_name)
+	if not network_name then return false end
+	local networks = self.networks
+	if networks and networks[network_name] then return true end
+	return false
+end
+
 ---@class Cybersyn.Internal.Needs
 ---@field fluids SignalCounts? Explicit fluid needs.
 ---@field items SignalCounts? Explicit item needs.

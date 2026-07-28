@@ -408,6 +408,9 @@ function LogisticsThread:enter_poll_nodes()
 					end
 				end
 				node.polled_tick = t
+
+				-- Inform that node was polled
+				event.raise("cs2.node_polled", node)
 			end
 		end
 	end

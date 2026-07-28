@@ -38,18 +38,22 @@ local NodeOrder = relm.define("NodeGui.Order", function(props)
 	local thresh = order.thresh_in or EMPTY
 
 	local buttons = {}
-	buttons[#buttons + 1] = {
+	local n = 0
+	n = n + 1
+	buttons[n] = {
 		signal = siglib.key_to_signal("cybersyn2-priority"),
 		count = order.priority,
 	}
 	for k, v in pairs(order.networks or EMPTY) do
-		buttons[#buttons + 1] = {
+		n = n + 1
+		buttons[n] = {
 			signal = siglib.key_to_signal(k),
 			count = v,
 		}
 	end
 	for k, v in pairs(order.provides or EMPTY) do
-		buttons[#buttons + 1] = {
+		n = n + 1
+		buttons[n] = {
 			signal = siglib.key_to_signal(k),
 			count = v,
 			button_style = "relm_slot_button_green",
@@ -57,7 +61,8 @@ local NodeOrder = relm.define("NodeGui.Order", function(props)
 	end
 	for k, v in pairs(order.requests or EMPTY) do
 		local item_threshold = thresh[k]
-		buttons[#buttons + 1] = {
+		n = n + 1
+		buttons[n] = {
 			signal = siglib.key_to_signal(k),
 			count = v,
 			upper = item_threshold,
@@ -66,7 +71,8 @@ local NodeOrder = relm.define("NodeGui.Order", function(props)
 	end
 	for k, v in pairs(order.requested_fluids or EMPTY) do
 		local item_threshold = thresh[k]
-		buttons[#buttons + 1] = {
+		n = n + 1
+		buttons[n] = {
 			signal = siglib.key_to_signal(k),
 			count = v,
 			upper = item_threshold,
