@@ -10,7 +10,7 @@ local cs2 = _G.cs2
 ---@type Cybersyn.Storage
 storage = storage --[[@as Cybersyn.Storage]]
 
-local rcall = remote.call --[[@as fun(iface: string, method: string, ...: Any): Any ]]
+local rcall = remote.call --[[@as fun(iface: string, method: string, ...: Any?): Any ]]
 
 --------------------------------------------------------------------------------
 -- Busy_plugins

@@ -69,8 +69,8 @@ end
 ---An `ultros.SignalPicker` that reads/writes a `SignalID` to/from a
 ---combinator setting. Only allows virtual signals.
 ---@param setting string The name of the setting to read/write.
-function _G.cs2.gui.VirtualSignalPicker(combinator, setting, tooltip)
-	local setter = combinator["set_" .. setting]
+function cs2.gui.VirtualSignalPicker(combinator, setting, tooltip)
+	local setter = combinator["set_" .. setting] --[[@as fun(combinator: Cybersyn.Combinator, signal: SignalID?) ]]
 	return ultros.SignalPicker({
 		tooltip = tooltip,
 		value = combinator["get_" .. setting](combinator),
@@ -97,7 +97,7 @@ end
 ---combinator setting. Only allows valid network signals.
 ---@param setting string The name of the setting to read/write.
 function _G.cs2.gui.NetworkSignalPicker(combinator, setting, tooltip)
-	local setter = combinator["set_" .. setting]
+	local setter = combinator["set_" .. setting] --[[@as fun(combinator: Cybersyn.Combinator, signal: string?) ]]
 	return ultros.SignalPicker({
 		tooltip = tooltip,
 		virtual_signal = combinator["get_" .. setting](combinator),

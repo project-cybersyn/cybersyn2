@@ -109,7 +109,12 @@ function GameAlert:show(schedule_reshow)
 	self:unshow()
 	for _, player in pairs(players) do
 		if player.valid then
-			player.add_custom_alert(self.entity, self.icon, self.message, true)
+			player.add_custom_alert(
+				self.entity,
+				self.icon,
+				self.message --[[@cast -?]],
+				true
+			)
 		end
 	end
 	if schedule_reshow and not self.reshow_task_id then
