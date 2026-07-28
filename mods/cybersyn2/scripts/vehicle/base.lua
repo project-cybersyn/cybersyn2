@@ -113,6 +113,12 @@ function Vehicle:fail_delivery(id)
 	self:clear_delivery(id)
 end
 
+---@return Cybersyn.Delivery? delivery The delivery this vehicle is currently assigned to, if any.
+function Vehicle:get_delivery()
+	if not self.delivery_id then return nil end
+	return cs2.get_delivery(self.delivery_id)
+end
+
 --------------------------------------------------------------------------------
 -- Topology
 --------------------------------------------------------------------------------

@@ -5,6 +5,8 @@ Date: ????
     - Cybersyn 2 combinators are now unlocked by Automated Rail Transportation research.
   Bugfixes:
     - Nodes can no longer match with themselves.
+    - Switching a train to manual now correctly cancels its current delivery.
+    - Trains in manual mode will not be added to CS2 even if in a CS2 group.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.2
 Date: 2026-07-28

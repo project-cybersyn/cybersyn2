@@ -83,6 +83,8 @@ function TrainMonitor:enum_luatrain(luatrain)
 
 	-- Don't consider volatile vehicles further.
 	if vehicle and vehicle.volatile then return end
+	-- Don't consider trains in manual mode
+	if luatrain.manual_mode then return end
 
 	local group = cs2.get_train_group(group_name)
 	add_workload(self.workload_counter, 1)

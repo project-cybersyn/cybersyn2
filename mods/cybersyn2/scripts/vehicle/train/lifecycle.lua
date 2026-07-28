@@ -14,6 +14,8 @@ local cs2 = _G.cs2
 --------------------------------------------------------------------------------
 
 local WAIT_STATION = defines.train_state.wait_station
+local MANUAL_MODE = defines.train_state.manual_control
+local MANUAL_STOP = defines.train_state.manual_control_stop
 
 ---@param rail_end LuaRailEnd
 ---@return Cybersyn.TrainStop?
@@ -31,10 +33,29 @@ local function get_stop_from_luatrain(luatrain)
 	return get_stop_from_rail_end(luatrain.back_end)
 end
 
+---@param luatrain LuaTrain
+local function handle_manual_train(luatrain)
+	local cstrain = cs2.get_train_from_luatrain_id(luatrain.id)
+	if not cstrain then return end
+	local delivery = cstrain:get_delivery()
+	if not delivery then return end
+	delivery:fail("vehicle_manual")
+end
+
 cs2.on_luatrain_changed_state(function(event)
 	local luatrain = event.train
 	local luatrain_state = luatrain.state
 	local old_state = event.old_state
+
+	-- Handle trains switching to manual mode.
+	if
+		luatrain_state == MANUAL_MODE
+		or luatrain_state == MANUAL_STOP
+		or luatrain.manual_mode
+	then
+		return handle_manual_train(luatrain)
+	end
+
 	if luatrain_state ~= WAIT_STATION and old_state ~= WAIT_STATION then
 		-- Not entering or leaving a station, nothing to do
 		return
