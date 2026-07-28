@@ -200,6 +200,9 @@ function LogisticsThread:loop_providers()
 	local requester_node = cs2.get_node(requester.node_id, true)
 	if not requester_node then return end
 
+	-- Don't match node with itself
+	if provider_node.id == requester_node.id then return end
+
 	-- Check for netmatch
 	local is_match, net_name, net_mask = requester:matches_networks(provider)
 	if not is_match then return end

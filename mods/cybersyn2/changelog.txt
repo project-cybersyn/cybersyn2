@@ -3,6 +3,8 @@ Version: 0.3.3
 Date: ????
   Changes:
     - Cybersyn 2 combinators are now unlocked by Automated Rail Transportation research.
+  Bugfixes:
+    - Nodes can no longer match with themselves.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.2
 Date: 2026-07-28
