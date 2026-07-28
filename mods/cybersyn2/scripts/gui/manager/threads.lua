@@ -452,9 +452,7 @@ lib.ThreadsTab = relm.define(
 	function()
 		return Pr({
 			type = "scroll-pane",
-			direction = "vertical",
-			horizontally_stretchable = true,
-			vertically_stretchable = true,
+			style = "relm_table_scroll_pane",
 			horizontal_scroll_policy = "never",
 			vertical_scroll_policy = "always",
 		}, {

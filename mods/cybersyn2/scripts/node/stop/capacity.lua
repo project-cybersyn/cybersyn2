@@ -52,6 +52,7 @@ local function evaluate_capacity_for_stop(stop, cache)
 		stop.allowed_max_item_slot_capacity = cached.allowed_max_item_slot_capacity
 		stop.allowed_min_fluid_capacity = cached.allowed_min_fluid_capacity
 		stop.allowed_max_fluid_capacity = cached.allowed_max_fluid_capacity
+		stop:mark_dirty()
 		return
 	end
 
@@ -112,6 +113,7 @@ local function evaluate_capacity_for_stop(stop, cache)
 	stop.allowed_max_item_slot_capacity = max_item_slots
 	stop.allowed_min_fluid_capacity = min_fluids
 	stop.allowed_max_fluid_capacity = max_fluids
+	stop:mark_dirty()
 end
 
 ---@param cache Cybersyn.Internal.AllowListCapacityCache

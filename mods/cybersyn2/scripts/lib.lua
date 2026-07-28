@@ -7,6 +7,11 @@ local sqrt = math.sqrt
 local INF = math.huge
 local COMBINATOR_NAME = _G.cs2.COMBINATOR_NAME
 local EMPTY = tlib.EMPTY_STRICT
+local ipairs = ipairs
+local tinsert = table.insert
+local tconcat = table.concat
+local pairs = pairs
+local band = bit32.band
 
 local DIFFERENT_SURFACE_DISTANCE = 1000000000
 
@@ -204,4 +209,51 @@ end
 ---@param node Cybersyn.Node
 function _G.cs2.iterate_combinators(node)
 	return comb_iter, node.combinator_set or EMPTY, nil
+end
+
+---Encode an array of item prototype names into a richtext string. Most useful for displaying train layouts.
+---@param items string[]
+---@return string
+function cs2.encode_item_names(items)
+	local parts = {}
+	local n = 0
+	for _, item in ipairs(items) do
+		n = n + 1
+		parts[n] = "[item="
+		n = n + 1
+		parts[n] = item
+		n = n + 1
+		parts[n] = "]"
+	end
+	return tconcat(parts)
+end
+
+---Given collections of signal counts treated as network masks, determine
+---if they match. Uses OR for the outer operation.
+---@param networks1 SignalCounts?
+---@param networks2 SignalCounts?
+---@return boolean match True if the two network masks match, false otherwise.
+---@return string? matched_network_signal The signal name of the first matching network, if any.
+---@return integer? matched_bits The bitmask of the match
+function cs2.network_match_or(networks1, networks2)
+	-- Networks1 must intersect networks2
+	if (not networks1) or not networks2 then return false end
+	for name, mask in pairs(networks1) do
+		local anded = band(mask, networks2[name] or 0)
+		if anded ~= 0 then return true, name, anded end
+	end
+	return false
+end
+
+---Given collections of signal counts treated as network masks, determine
+---if they match. Uses AND for the outer operation.
+---@param networks1 SignalCounts?
+---@param networks2 SignalCounts?
+function cs2.network_match_and(networks1, networks2)
+	-- Networks1 must be a subset of networks2
+	if (not networks1) or not networks2 then return false end
+	for name, mask in pairs(networks1) do
+		if band(mask, networks2[name] or 0) ~= mask then return false end
+	end
+	return true
 end

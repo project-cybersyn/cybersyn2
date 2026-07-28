@@ -32,8 +32,16 @@ local update_era_counter = era_lib.update_era_counter
 local LogisticsThread = cs2.LogisticsThread
 
 --------------------------------------------------------------------------------
--- Classify
+-- Poll Inventory
 --------------------------------------------------------------------------------
+
+function LogisticsThread:poll_train_stop_update_inventory()
+	local stop = self.node --[[@as Cybersyn.TrainStop]]
+	if not stop:is_valid() then return self:set_state("poll_nodes") end
+	stop:update_inventory(self.workload_counter, false)
+
+	self:set_state("poll_train_stop_classify_inventory")
+end
 
 function LogisticsThread:enter_poll_train_stop_classify_inventory()
 	-- Only run on first entry
@@ -99,7 +107,7 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 end
 
 --------------------------------------------------------------------------------
--- Poll
+-- Poll Station/DT
 --------------------------------------------------------------------------------
 
 ---@param workload Core.Thread.Workload
@@ -160,7 +168,7 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 	end
 
 	-- Elide if not dirty
-	if not stop.poll_dirty then return true end
+	if not self.node_is_dirty then return true end
 
 	-- Read primary input wire
 	local primary_wire = comb:get_primary_wire()
@@ -171,24 +179,6 @@ function LogisticsThread:poll_train_stop_station_comb(workload, stop)
 		strace(WARN, "message", "Couldn't read station comb inputs", stop.entity)
 		return false
 	end
-
-	-- Mark clean
-	stop:mark_clean()
-	-- Update polling stats
-	local t = game.tick
-	local t0 = stop.polled_tick
-	if t0 then
-		local delta = t - t0
-		if delta > 0 then
-			local era = stop.polled_delta_era
-			if not era then
-				era = era_lib.create_era_counter(delta)
-				stop.polled_delta_era = era
-			end
-			update_era_counter(era, delta)
-		end
-	end
-	stop.polled_tick = t
 
 	-- Set defaults
 	stop.priority = inputs["cybersyn2-priority"] or 0
@@ -325,18 +315,15 @@ function LogisticsThread:poll_dt_combs(workload, stop)
 	stop.thresholds_in = thresholds_in
 end
 
-function LogisticsThread:poll_train_stop_update_inventory()
-	local stop = self.node --[[@as Cybersyn.TrainStop]]
-	if not stop:is_valid() then return self:set_state("poll_nodes") end
-	stop:update_inventory(self.workload_counter, false)
-
-	self:set_state("poll_train_stop_classify_inventory")
-end
+--------------------------------------------------------------------------------
+-- Top level node poll
+--------------------------------------------------------------------------------
 
 function LogisticsThread:poll_train_stop()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
 	local workload = self.workload_counter
 	add_workload(workload, 1)
+	self.node_is_dirty = nil
 	if not stop:is_valid() then return self:set_state("poll_nodes") end
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
@@ -348,7 +335,8 @@ function LogisticsThread:poll_train_stop()
 		event.raise("cs2.alert.vanilla_priority", stop_entity)
 		return self:set_state("poll_nodes")
 	end
-	local stop_is_dirty = stop.poll_dirty
+	local stop_is_dirty, current_revision = stop:is_dirty()
+	if stop_is_dirty then self.node_is_dirty = current_revision end
 	if not stop_is_dirty then
 		self.n_clean_nodes = (self.n_clean_nodes or 0) + 1
 	end
@@ -362,7 +350,7 @@ function LogisticsThread:poll_train_stop()
 end
 
 --------------------------------------------------------------------------------
--- State handlers
+-- Node loop
 --------------------------------------------------------------------------------
 
 function LogisticsThread:top_of_poll_nodes()
@@ -392,8 +380,40 @@ function LogisticsThread:bottom_of_poll_nodes()
 end
 
 function LogisticsThread:enter_poll_nodes()
-	-- Only run on first entry
-	if not self.node_index then self:top_of_poll_nodes() end
+	local index = self.node_index
+	if not index then
+		-- Just entered poll_nodes
+		self:top_of_poll_nodes()
+	else
+		-- Just finished polling a node. Make sure to set it clean.
+		local node = self.nodes[index]
+		local node_was_dirty = self.node_is_dirty
+		self.node_is_dirty = nil
+		if node then
+			if node_was_dirty then
+				-- Mark clean
+				node:mark_clean(node_was_dirty)
+
+				-- Update polling stats
+				local t = game.tick
+				local t0 = node.polled_tick
+				if t0 then
+					local delta = t - t0
+					if delta > 0 then
+						era_lib.create_or_update_era_counter(
+							node,
+							"polled_delta_era",
+							delta
+						)
+					end
+				end
+				node.polled_tick = t
+
+				-- Inform that node was polled
+				event.raise("cs2.node_polled", node)
+			end
+		end
+	end
 end
 
 function LogisticsThread:poll_nodes()

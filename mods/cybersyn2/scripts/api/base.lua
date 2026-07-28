@@ -63,10 +63,33 @@ end
 
 ---Create a new topology.
 ---@param name string Name of the topology to create.
+---@param surface_indices? int[] Optional list of surface indices to associate with the topology.
 ---@return Id? topology_id ID of the topology with the given name, either newly created or existing. `nil` if the topology could not be created.
-function cs2.remote_api.get_or_create_topology(name)
-	local topo = cs2.get_or_create_topology_by_name(name)
+function cs2.remote_api.get_or_create_topology(name, surface_indices)
+	local topo = cs2.get_or_create_topology_by_name(name, surface_indices)
 	return topo and topo.id
+end
+
+---Get topology ID by name.
+---@param name string Name of the topology to look up.
+---@return Id? topology_id ID of the topology with the given name, or `nil` if no such topology exists.
+function cs2.remote_api.get_topology_id(name)
+	local topo = cs2.get_topology_by_name(name)
+	return topo and topo.id
+end
+
+---Set the associated surface indices for an existing topology.
+---@param topology_id Id ID of the topology to modify.
+---@param surface_indices int[] List of surface indices to associate with the topology.
+---@return boolean success `true` if the topology was found and updated, `false` otherwise.
+function cs2.remote_api.set_topology_surface_indices(
+	topology_id,
+	surface_indices
+)
+	local topology = cs2.get_topology(topology_id)
+	if not topology then return false end
+	topology:set_surface_indices(surface_indices)
+	return true
 end
 
 ---Get queues and capacities for a node.

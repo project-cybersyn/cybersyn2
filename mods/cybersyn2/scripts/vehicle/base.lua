@@ -52,6 +52,11 @@ end
 ---@return boolean
 function Vehicle:is_valid() return false end
 
+---Get the entity best representative of this vehicle, if any. This is used for GUI purposes, such as centering the camera on a vehicle.
+---For vehicles that are not associated with a single entity, this may return `nil`.
+---@return LuaEntity? entity The entity best representative of this vehicle, if any.
+function Vehicle:get_entity() return nil end
+
 ---@param id Id?
 ---@param skip_validation? boolean If `true`, return contents of storage without validation.
 local function get_vehicle(id, skip_validation)

@@ -120,3 +120,31 @@ _G.cs2.COMBINATOR_DECIDER_CONDITIONS = {
 }
 
 cs2.BIG_INT32 = 2147483648
+
+---@type table<string, string>
+cs2.delivery_state_friendly_names = {
+	wait_from = "Queued for provider",
+	to_from = "En route to provider",
+	at_from = "At provider",
+	interrupted_from = "Interrupted",
+	interrupted_to = "Interrupted",
+	wait_to = "Queued for requester",
+	to_to = "En route to requester",
+	at_to = "At requester",
+	completed = "[color=green]Completed[/color]",
+	failed = "[color=red]Failed[/color]",
+}
+
+---@type table<string,string>
+cs2.delivery_state_short_names = {
+	wait_from = "Queued",
+	to_from = "To Prov",
+	at_from = "Loading...",
+	interrupted_from = "Interrupted",
+	interrupted_to = "Interrupted",
+	wait_to = "Queued",
+	to_to = "To Req",
+	at_to = "Unloading...",
+	completed = "[color=green]Complete[/color]",
+	failed = "[color=red]Failed[/color]",
+}

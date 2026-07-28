@@ -82,6 +82,8 @@ function TrainStop:is_valid()
 	end
 end
 
+function TrainStop:get_entity() return self.entity end
+
 ---Determine if a stop accepts the given layout ID.
 ---@param layout_id uint?
 function TrainStop:accepts_layout(layout_id)
@@ -311,6 +313,7 @@ function TrainStop:rebuild_inventory()
 	else
 		-- Case: normal inventory, rebuild locally
 		inventory:rebuild_orders()
+		events.raise("cs2.node_inventory_rebuilt", self, inventory)
 	end
 end
 

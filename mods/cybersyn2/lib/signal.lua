@@ -310,32 +310,6 @@ function lib.signal_is_cargo(signal_id)
 	return (ty == nil or ty == "item" or ty == "fluid")
 end
 
----Given collections of signal counts treated as network masks, determine
----if they match. Uses OR for the outer operation.
----@param networks1 SignalCounts?
----@param networks2 SignalCounts?
-function lib.network_match_or(networks1, networks2)
-	-- Networks1 must intersect networks2
-	if (not networks1) or not networks2 then return false end
-	for name, mask in pairs(networks1) do
-		if band(mask, networks2[name] or 0) ~= 0 then return true end
-	end
-	return false
-end
-
----Given collections of signal counts treated as network masks, determine
----if they match. Uses AND for the outer operation.
----@param networks1 SignalCounts?
----@param networks2 SignalCounts?
-function lib.network_match_and(networks1, networks2)
-	-- Networks1 must be a subset of networks2
-	if (not networks1) or not networks2 then return false end
-	for name, mask in pairs(networks1) do
-		if band(mask, networks2[name] or 0) ~= mask then return false end
-	end
-	return true
-end
-
 ---Given a signal key and an item filter, determine if the key passes the
 ---filter. The filter is interpreted as `OR` and quality is ignored.
 ---@param key SignalKey

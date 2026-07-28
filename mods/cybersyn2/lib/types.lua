@@ -83,7 +83,7 @@ lib.CarriageType = {
 ---An isolated group of `Node`s and `Vehicle`s that can only communicate with each other.
 ---@class (partial) Cybersyn.Topology
 ---@field public id Id Unique id of the topology.
----@field public surface_set? table<uint, boolean> A SET of surface indices associated with this topology, if any. This is used when multiple surfaces are logically connected.
+---@field public surface_set table<uint, boolean> A SET of surface indices associated with this topology, if any. This is used when multiple surfaces are logically connected.
 ---@field public name? string The name of the topology, if any.
 ---@field public thread_id? int The id of the thread servicing this topology if any.
 
@@ -111,7 +111,10 @@ lib.CarriageType = {
 ---@field public produce_single_item boolean? `true` if the node should only provide single items per delivery
 ---@field public polled_tick? uint Tick number when this node was last polled for its current state.
 ---@field public polled_delta_era? Core.EraCounter Cached exponential rolling average of the delta between the last two polled ticks.
----@field public poll_dirty? true `true` if this node's combinators need to be re-polled.
+---@field public current_revision int64 Revision number incremented every time the node is marked dirty.
+---@field public last_polled_revision int64 Revision number most recently completed by the poll loop.
+---@field public shared_inventory_master Id? The id of the shared inventory master station, if this station is a slave.
+---@field public is_master boolean? `true` if this station is (or was) the master of a shared inventory group.
 
 ---A reference to a train stop managed by Cybersyn.
 ---@class (partial) Cybersyn.TrainStop: Cybersyn.Node
@@ -132,8 +135,6 @@ lib.CarriageType = {
 ---@field public reserved_capacity uint? Reserved capacity per fluid wagon
 ---@field public spillover uint? Spillover per item per cargo wagon
 ---@field public per_wagon_mode boolean? `true` if the station is in per-wagon mode due to the presence of a wagon comb.
----@field public shared_inventory_master Id? The id of the shared inventory master station, if this station is a slave.
----@field public is_master boolean? `true` if this station is (or was) the master of a shared inventory group.
 ---@field public allowed_min_item_slot_capacity uint? Min item capacity for allowed trains at this stop. Zero means station can't handle items. `nil` means could not be evaluated.
 ---@field public allowed_max_item_slot_capacity uint? Max item capacity for allowed trains at this stop. Zero means station can't handle items. `nil` means could not be evaluated.
 ---@field public allowed_min_fluid_capacity uint? Min fluid capacity for allowed trains at this stop. Zero means station can't handle fluids. `nil` means could not be evaluated.
@@ -202,6 +203,19 @@ local OrderStatusDescription = {
 }
 lib.OrderStatusDescription = OrderStatusDescription
 
+local OrderShortStatusDescription = {
+	[OrderStatus.fulfilled] = "Fulfilled",
+	[OrderStatus.no_provider] = "Unfulfilled",
+	[OrderStatus.no_vehicle] = "No vehicle",
+	[OrderStatus.invalidation] = "Invalidation",
+	[OrderStatus.no_capacity] = "Capacity",
+	[OrderStatus.unknown] = "Unknown",
+	[OrderStatus.delivery] = "Fulfilled",
+	[OrderStatus.provider_queue_full] = "Queue full",
+	[OrderStatus.requester_max_deliveries] = "Queue full",
+}
+lib.OrderStatusShortDescription = OrderShortStatusDescription
+
 ---@class (partial) Cybersyn.Order
 ---@field public inventory Cybersyn.Inventory The inventory against which this order is placed.
 ---@field public node_id Id The id of the node this order will deliver to/from
@@ -262,6 +276,7 @@ lib.OrderStatusDescription = OrderStatusDescription
 ---@field public topology_id Id The id of the topology this delivery is operating within.
 ---@field public from_charge SignalCounts? Amount charged against the source station's inventory.
 ---@field public to_charge SignalCounts? Amount charged towards the destination station's inventory.
+---@field public networks SignalCounts? The networks matched when this delivery was created.
 
 ---@class (partial) Cybersyn.TrainDelivery: Cybersyn.Delivery
 ---@field public spillover uint Spillover used when calculating this delivery

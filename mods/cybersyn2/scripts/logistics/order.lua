@@ -26,8 +26,8 @@ local min = math.min
 local max = math.max
 local ceil = math.ceil
 local floor = math.floor
-local network_match_and = siglib.network_match_and
-local network_match_or = siglib.network_match_or
+local network_match_and = cs2.network_match_and
+local network_match_or = cs2.network_match_or
 local trace = strace.trace
 
 ---@param item SignalKey
@@ -105,24 +105,44 @@ function Order:set_status(status, info)
 	self.status_tick = game.tick
 end
 
+function Order:clear_prov_req()
+	if next(self.provides) then self.provides = {} end
+	if next(self.requests) then self.requests = {} end
+	if next(self.requested_fluids) then self.requested_fluids = {} end
+end
+
 ---Read the value of this order from its known combinator
 ---@param workload Core.Thread.Workload|nil If given, the workload of this operation will be added to the counter.
 ---@return boolean updated `true` if the order was updated
 function Order:read(workload)
 	add_workload(workload, 1)
 
-	-- Early clear provides/reqs
-	if next(self.provides) then self.provides = {} end
-	if next(self.requests) then self.requests = {} end
-	if next(self.requested_fluids) then self.requested_fluids = {} end
-
-	-- Sanity checks
+	-- Early order read: done even if stop is not dirty
 	local stop = cs2.get_stop(self.node_id, true)
-	if not stop then return false end
+	if not stop then
+		self:clear_prov_req()
+		return false
+	end
 	local comb = cs2.get_combinator(self.combinator_id, true)
-	if not comb then return false end
+	if not comb then
+		self:clear_prov_req()
+		return false
+	end
 	local inventory = self.inventory
-	if not inventory then return false end
+	if not inventory then
+		self:clear_prov_req()
+		return false
+	end
+	-- This can change in realtime so we get it before is_dirty check.
+	self.busy_value = stop:get_occupancy()
+	add_workload(workload, 1)
+
+	-- Elide order reading for clean stops
+	if not stop:is_dirty() then return false end
+
+	-- Early clear provides/reqs
+	self:clear_prov_req()
+
 	local inputs = self.combinator_input == "green" and comb.green_inputs
 		or comb.red_inputs
 	local arity = self.arity
@@ -169,7 +189,6 @@ function Order:read(workload)
 	self.stacked_requests = stacked_requests
 	self.no_starvation = no_starvation
 	self.round_to_stacks = round_to_stacks
-	self.busy_value = stop:get_occupancy()
 	self.priority = stop.priority or 0
 	self.thresh_depletion_fraction = stop.auto_threshold_fraction
 	self.thresh_fullness_fraction = stop.train_fullness_fraction
@@ -181,7 +200,7 @@ function Order:read(workload)
 	local thresh_fullness_fluid = (stop_amfc or 0) * fullness_fraction
 
 	-- Workload for accumulating settings
-	add_workload(workload, 10)
+	add_workload(workload, 8)
 
 	-- Provides
 	local provides = self.provides
@@ -192,7 +211,7 @@ function Order:read(workload)
 			and not stop.is_consumer
 			and not comb:get_provide_subset()
 		then
-			local auto_provides = self.inventory.inventory or EMPTY
+			local auto_provides = inventory.inventory or EMPTY
 			assign(provides, auto_provides)
 			if workload then add_workload(workload, table_size(auto_provides)) end
 		end
@@ -359,12 +378,14 @@ end
 ---matching mode.
 ---@param provider Cybersyn.Order
 ---@return boolean
+---@return string?
+---@return int?
 function Order:matches_networks(provider)
 	local rmode = self.network_matching_mode
 	local rnet = self.networks
 	local pnet = provider.networks
 	if rmode == "and" then
-		return network_match_and(rnet, pnet)
+		return network_match_and(rnet, pnet), "signal-each", -1
 	else
 		return network_match_or(rnet, pnet)
 	end
@@ -439,6 +460,21 @@ function Order:get_provided_qty(signal_key)
 	return min(inv_qty, provided_qty)
 end
 
+---Add all items provided by this order to the given vector.
+---@param vector SignalCounts
+function Order:add_provides(vector)
+	local inv = self.inventory
+	local has = inv.inventory or EMPTY
+	local outflow = inv.outflow or EMPTY
+	for signal_key, count in pairs(self.provides or EMPTY) do
+		local inv_qty = max((has[signal_key] or 0) - (outflow[signal_key] or 0), 0)
+		local actual_qty = min(inv_qty, count)
+		if actual_qty > 0 then
+			vector[signal_key] = (vector[signal_key] or 0) + actual_qty
+		end
+	end
+end
+
 ---Get requested quantities for the given item, both corrected and base.
 ---@param signal_key SignalKey
 ---@return uint requested_qty Base request for the given item.
@@ -454,6 +490,66 @@ function Order:get_requested_qty(signal_key)
 		requested_qty = self.requests[signal_key] or 0
 	end
 	return requested_qty, max(requested_qty - inv_qty, 0)
+end
+
+---Add raw requested quantities (not compensated by inventory/inflow) to the given vector.
+---@param vector SignalCounts
+function Order:add_requests(vector)
+	for signal_key, count in pairs(self.requests or EMPTY) do
+		vector[signal_key] = (vector[signal_key] or 0) + count
+	end
+	for signal_key, count in pairs(self.requested_fluids or EMPTY) do
+		vector[signal_key] = (vector[signal_key] or 0) + count
+	end
+end
+
+---Add requested quantities compensated by inventory/inflow to the given vector.
+---@param vector SignalCounts
+function Order:add_deficits(vector)
+	local inv = self.inventory
+	local has = inv.inventory or EMPTY
+	local inflow = inv.inflow or EMPTY
+	for signal_key, count in pairs(self.requests or EMPTY) do
+		local inv_qty = (has[signal_key] or 0) + (inflow[signal_key] or 0)
+		local deficit = max(count - inv_qty, 0)
+		if deficit > 0 then
+			vector[signal_key] = (vector[signal_key] or 0) + deficit
+		end
+	end
+	for signal_key, count in pairs(self.requested_fluids or EMPTY) do
+		local inv_qty = (has[signal_key] or 0) + (inflow[signal_key] or 0)
+		local deficit = max(count - inv_qty, 0)
+		if deficit > 0 then
+			vector[signal_key] = (vector[signal_key] or 0) + deficit
+		end
+	end
+end
+
+---Determine if this order either provides or request cargo with the given name.
+---@param cargo_name string?
+function Order:matches_cargo_name(cargo_name)
+	if not cargo_name then return false end
+	for signal_key in pairs(self.provides or EMPTY) do
+		local sig = key_to_signal(signal_key)
+		if sig and sig.name == cargo_name then return true end
+	end
+	for signal_key in pairs(self.requests or EMPTY) do
+		local sig = key_to_signal(signal_key)
+		if sig and sig.name == cargo_name then return true end
+	end
+	for signal_key in pairs(self.requested_fluids or EMPTY) do
+		local sig = key_to_signal(signal_key)
+		if sig and sig.name == cargo_name then return true end
+	end
+	return false
+end
+
+---@param network_name string?
+function Order:matches_network_name(network_name)
+	if not network_name then return false end
+	local networks = self.networks
+	if networks and networks[network_name] then return true end
+	return false
 end
 
 ---@class Cybersyn.Internal.Needs

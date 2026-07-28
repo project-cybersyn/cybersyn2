@@ -7,24 +7,21 @@ local train_lib = require("lib.trains")
 local signal_lib = require("lib.signal")
 local events = require("lib.core.event")
 local cs2 = _G.cs2
-local Vehicle = _G.cs2.Vehicle
-local Topology = _G.cs2.Topology
+local Vehicle = cs2.Vehicle
+
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
 
 local next = next
 local pairs = pairs
 local select = select
 local strsub = string.sub
-local mod_settings = _G.cs2.mod_settings
+local mod_settings = cs2.mod_settings
 local iwq_to_key = signal_lib.iwq_to_key
 local fluid_name_to_key = signal_lib.fluid_name_to_key
 
 local NO_FUEL = defines.entity_status.no_fuel
 local FIRST_ENTRY = { schedule_index = 1 }
-
--- EmmyLua storage issue fix
----@diagnostic disable-next-line: missing-fields
----@type Cybersyn.Storage
-storage = {}
 
 --------------------------------------------------------------------------------
 -- Group tracking
@@ -44,7 +41,7 @@ local function is_cybersyn_train_group_name(name)
 	local prefix = cs2.CYBERSYN_TRAIN_GROUP_NAME_PREFIX
 	return strsub(name or "", 1, #prefix) == prefix
 end
-_G.cs2.is_cybersyn_train_group_name = is_cybersyn_train_group_name
+cs2.is_cybersyn_train_group_name = is_cybersyn_train_group_name
 
 ---@param name string
 local function create_train_group(name)
@@ -55,7 +52,7 @@ local function create_train_group(name)
 	}
 	events.raise("cs2.group_created", name)
 end
-_G.cs2.create_train_group = create_train_group
+cs2.create_train_group = create_train_group
 
 ---@param name string
 local function destroy_train_group(name)
@@ -72,7 +69,7 @@ local function destroy_train_group(name)
 	storage.train_groups[name] = nil
 	events.raise("cs2.group_destroyed", name)
 end
-_G.cs2.destroy_train_group = destroy_train_group
+cs2.destroy_train_group = destroy_train_group
 
 ---@param vehicle Cybersyn.Train
 ---@param group_name string
@@ -85,7 +82,7 @@ local function add_train_to_group(vehicle, group_name)
 		events.raise("cs2.group_train_added", group, vehicle)
 	end
 end
-_G.cs2.add_train_to_group = add_train_to_group
+cs2.add_train_to_group = add_train_to_group
 
 local function remove_train_from_group(vehicle, group_name)
 	if (not vehicle) or not group_name then return end
@@ -101,18 +98,18 @@ local function remove_train_from_group(vehicle, group_name)
 		destroy_train_group(group_name)
 	end
 end
-_G.cs2.remove_train_from_group = remove_train_from_group
+cs2.remove_train_from_group = remove_train_from_group
 
 ---@param group_name string?
 ---@return Cybersyn.Internal.TrainGroup?
-function _G.cs2.get_train_group(group_name)
+function cs2.get_train_group(group_name)
 	return storage.train_groups[group_name or ""]
 end
 
 ---Set whether a train group is marked for decomissioning.
 ---@param group Cybersyn.Internal.TrainGroup
 ---@param decomissioned boolean|nil
-function _G.cs2.set_train_group_decomissioned(group, decomissioned)
+function cs2.set_train_group_decomissioned(group, decomissioned)
 	group.decomissioned = decomissioned
 	events.raise("cs2.group_settings_changed", group)
 end
@@ -139,8 +136,8 @@ end
 --------------------------------------------------------------------------------
 
 ---@class (partial) Cybersyn.Train
-local Train = class("Train", _G.cs2.Vehicle)
-_G.cs2.Train = Train
+local Train = class("Train", Vehicle)
+cs2.Train = Train
 
 ---Create a new `Train` abstraction from a `LuaTrain`.
 ---@param lua_train LuaTrain A *valid* `LuaTrain`
@@ -236,6 +233,8 @@ function Train:is_valid()
 		return false
 	end
 end
+
+function Train:get_entity() return self:get_stock() end
 
 function Train:compute_default_topology()
 	if Vehicle.compute_default_topology(self) then return true end

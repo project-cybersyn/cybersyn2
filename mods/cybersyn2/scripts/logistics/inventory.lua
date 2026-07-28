@@ -54,8 +54,6 @@ end
 ---@class (partial) Cybersyn.Inventory
 ---@field public inflow_rebate SignalCounts? Amount to be refunded to inflows during next base inventory update.
 ---@field public outflow_rebate SignalCounts? Amount to be refunded to outflows during next base inventory update.
----@field public used_item_stack_capacity uint? Cached value of used item stack capacity.
----@field public used_fluid_capacity uint? Cached value of used fluid capacity.
 local Inventory = class("Inventory")
 cs2.Inventory = Inventory
 
@@ -109,25 +107,29 @@ function Inventory:set_base(counts)
 		for k, count in pairs(counts) do
 			if key_is_cargo(k) then base[k] = count end
 		end
-		-- Clear cached
-		self.used_fluid_capacity = nil
-		self.used_item_stack_capacity = nil
 	else
 		if next(self.inventory) then
 			-- Clear base
 			self.inventory = {}
-			-- Clear cached
-			self.used_fluid_capacity = nil
-			self.used_item_stack_capacity = nil
 		end
 	end
+end
+
+---@param name string?
+function Inventory:base_has_name(name)
+	if not name then return false end
+	local inv = self.inventory
+	if inv[name] then return true end
+	for k in pairs(inv) do
+		local sig = key_to_signal(k)
+		if sig and sig.name == name then return true end
+	end
+	return false
 end
 
 ---@param counts SignalCounts
 ---@param sign int
 function Inventory:add_inflow(counts, sign)
-	self.used_fluid_capacity = nil
-	self.used_item_stack_capacity = nil
 	return table_add_positive(self.inflow, counts, sign)
 end
 
@@ -141,8 +143,6 @@ end
 ---@param item SignalKey
 ---@param qty int
 function Inventory:add_single_item_inflow(item, qty)
-	self.used_fluid_capacity = nil
-	self.used_item_stack_capacity = nil
 	local inflow = self.inflow
 	local new_inflow = (inflow[item] or 0) + qty
 	if new_inflow <= 0 then
@@ -212,6 +212,22 @@ function Inventory:qty(item, inflow_comp, outflow_comp)
 	local outflow = outflow_comp and (self.outflow or empty) or empty
 	local inflow = inflow_comp and (self.inflow or empty) or empty
 	return max((inv[item] or 0) - (outflow[item] or 0) + (inflow[item] or 0), 0)
+end
+
+---@param item SignalKey
+---@return int qty Quantity of the given item in the inventory net of outflows
+function Inventory:qty_less_outflow(item)
+	local inv = self.inventory or empty
+	local outflow = self.outflow or empty
+	return max((inv[item] or 0) - (outflow[item] or 0), 0)
+end
+
+---@param item SignalKey
+---@return int qty Quantity of the given item in the inventory net of inflows
+function Inventory:qty_plus_inflow(item)
+	local inv = self.inventory or empty
+	local inflow = self.inflow or empty
+	return max((inv[item] or 0) + (inflow[item] or 0), 0)
 end
 
 function Inventory:clear()
