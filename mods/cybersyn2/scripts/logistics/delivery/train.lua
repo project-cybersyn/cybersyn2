@@ -396,7 +396,6 @@ function TrainDelivery:complete()
 		end
 
 		if not train:is_empty() then
-			self.left_dirty = "Train was not fully unloaded at destination."
 			-- TODO: tainted train handling
 		end
 	end
