@@ -5,6 +5,7 @@ Date: ????
     - Implemented Inventory, Nodes, Deliveries, and Vehicles tabs in Manager.
     - API: added `get_topology_id(name)`
     - API: added `surface_indices` optional parameter to `get_or_create_topology`
+    - API: added `set_topology_surface_indices(topology_id, surface_indices)`
   Bugfixes:
     - Fixed a false positive vanilla priority alert when train wasn't on a CS2 delivery.
   Optimizations:
