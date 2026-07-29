@@ -333,6 +333,10 @@ function TrainDelivery:goto_to()
 	if self.state == "plugin_handoff" and train.volatile then return end
 	local to_entity = to.entity --[[@as LuaEntity]]
 
+	-- No nil check because validated above.
+	---@diagnostic disable-next-line: need-check-nil
+	if not to_entity.connected_rail then return self:fail() end
+
 	if self.state ~= "plugin_handoff" then
 		local result = query_route_plugins(
 			self.id,
