@@ -16,14 +16,14 @@ While each order has independent networks, provide, and request values, all orde
 
 This means that individual orders can cooperatively offer distinct subsets of the station's inventory to different networks at different times.
 
-Orders are each measured separately against the station's true inventory, such that net provides are governed by the minimum and net requests by the maximum across all the orders. NOT the sum, but the maximum/minimum.
+Orders are each measured separately against the station's true inventory, capped by the amount of the largest order, i.e. the upper limit for the total of all requests or provides is defined by the largest order, not the sum of all orders.
 
 :::info
 This is best illustrated with some examples:
 
 1) Two requesting orders for -1000 iron on network A and B will result in the station receiving -1000 iron from whichever the first network is that can provide it. (NOTE: *not* 2000 iron)
-2) A requesting order of -1000 iron on network A with priority 1 and -2000 iron on network B with priority 0 will result in the station first receiving 1000 iron from network A (assuming availability) and then 1000 from network B. (NOTE: A total of 2000 iron, not 3000)
-3) If a station has 5000 iron, is providing 5000 iron to network A with priority 0, and 3000 iron to network B with priority 1, it will send 3000 to a requester on network B before sending a further 2000 to a requester on network A. (NOTE: A total of 5000, not 8000)
+2) A requesting order of -1000 iron on network A with priority 1 and -2000 iron on network B with priority 0 will result in the station first receiving 1000 iron from network A (assuming availability) and then 1000 from network B. (NOTE: 2000 iron is the largest order, hence a total of 2000 iron will flow, not 3000)
+3) If a station has 5000 iron, is providing 5000 iron to network A with priority 0, and 3000 iron to network B with priority 1, it will send 3000 to a requester on network B before sending a further 2000 to a requester on network A. (NOTE: 5000 iron is the largest order, hence a total of 5000 iron will flow, not 8000)
 
 This system is incredibly powerful and can solve virtually any logistics problem, including byproduct handling, voiding, push/pull systems, and many more.
 
