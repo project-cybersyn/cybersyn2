@@ -2,7 +2,7 @@
 Version: 0.3.3
 Date: ????
   Changes:
-    - Cybersyn 2 combinators are now unlocked by Automated Rail Transportation research.
+    - Cybersyn 2 combinators are no longer automatically unlocked. They now require the Automated Rail Transportation research.
   Bugfixes:
     - Nodes can no longer match with themselves.
     - Switching a train to manual now correctly cancels its current delivery.

@@ -48,7 +48,6 @@ local function create_combinator(thing)
 	if thing.entity then clear_combinator_outputs(thing.entity) end
 	events.raise("cs2.combinator_created", comb)
 	events.raise("cs2.combinator_status_changed", comb)
-	cs2.raise_combinator_created(comb)
 	return comb
 end
 
