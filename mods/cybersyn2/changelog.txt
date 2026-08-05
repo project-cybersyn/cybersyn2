@@ -3,6 +3,7 @@ Version: 0.3.3
 Date: ????
   Changes:
     - Cybersyn 2 combinators are no longer automatically unlocked. They now require the Automated Rail Transportation research.
+    - Presence mode added for cs2 combinator. It detects the locomotive or wagon in front of it.
   Bugfixes:
     - Nodes can no longer match with themselves.
     - Switching a train to manual now correctly cancels its current delivery.
