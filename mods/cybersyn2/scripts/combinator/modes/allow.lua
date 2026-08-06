@@ -4,6 +4,7 @@
 
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
+local events = require("lib.core.event")
 local tlib = require("lib.core.table")
 local strace = require("lib.core.strace")
 local cs2 = _G.cs2
@@ -23,9 +24,14 @@ local HF = ultros.HFlow
 ---@field public get_allow_mode fun(): "auto" | "layout" | "group" | "all" LEGACY: old allowlist
 ---@field public get_allowed_layouts fun(): string[][] Manual allowlist entries
 ---@field public set_allowed_layouts fun(self: Cybersyn.Combinator, layouts: string[][]): void
+---@field public get_allow_group fun(): string Name of the group whose allow list is shared, `""` for a local allow list
+---@field public set_allow_group fun(self: Cybersyn.Combinator, name: string)
 
 cs2.register_raw_setting("allow_mode", "allow_mode", "auto")
 cs2.register_raw_setting("allowed_layouts", "layouts", {})
+
+-- The name of the group whose allow list this combinator shares.
+cs2.register_raw_setting("allow_group", "allow_group", "")
 
 --------------------------------------------------------------------------------
 -- Layout string utils
@@ -102,8 +108,176 @@ local function to_option_list(strings)
 	return options
 end
 
+--------------------------------------------------------------------------------
+-- Allow groups
+--
+-- Members of a group share its allow list. Name and list are Things tags, so a
+-- group travels through blueprints by itself.
+--------------------------------------------------------------------------------
+
+---@param A string[][]
+---@param B string[][]
+---@return boolean
+local function allow_lists_equal(A, B)
+	if #A ~= #B then return false end
+	for i = 1, #A do
+		if encode_layout_string(A[i]) ~= encode_layout_string(B[i]) then
+			return false
+		end
+	end
+	return true
+end
+
+---@return table<string, Cybersyn.AllowGroup> Absent in saves predating groups.
+local function get_allow_groups()
+	if not storage.allow_groups then storage.allow_groups = {} end
+	return storage.allow_groups
+end
+
+---@param name string
+---@return Cybersyn.AllowGroup?
+local function find_group_by_name(name) return get_allow_groups()[name] end
+
+---@param name string
+---@param layouts string[][]
+---@return Cybersyn.AllowGroup
+local function create_group(name, layouts)
+	local group = { name = name, layouts = tlib.deep_copy(layouts) }
+	get_allow_groups()[name] = group
+	return group
+end
+
+---@param combinator Cybersyn.Combinator
+---@param name string
+---@return boolean
+local function is_group_member(combinator, name)
+	return name ~= ""
+		and combinator.mode == "allow"
+		and combinator:get_allow_group() == name
+end
+
+---The allow list that a combinator applies: The one of its group if the save
+---knows that group, else the one that the combinator carries itself.
+---@param combinator Cybersyn.Combinator
+---@return string[][]
+function cs2.get_active_allow_list(combinator)
+	local group = find_group_by_name(combinator:get_allow_group())
+	return group and group.layouts or combinator:get_allowed_layouts()
+end
+
+---The group of a combinator, creating it from its own allow list if unknown.
+---@param combinator Cybersyn.Combinator
+---@return Cybersyn.AllowGroup?
+local function resolve_group(combinator)
+	if combinator.mode ~= "allow" then return nil end
+	local name = combinator:get_allow_group()
+	if name == "" then return nil end
+	return find_group_by_name(name)
+		or create_group(name, combinator:get_allowed_layouts())
+end
+
+---@return string[]
+local function get_group_names()
+	local names = {}
+	for _, group in pairs(get_allow_groups()) do
+		names[#names + 1] = group.name
+	end
+	table.sort(names)
+	return names
+end
+
+---@param combinator Cybersyn.Combinator
+---@param group Cybersyn.AllowGroup
+local function sync_group_member(combinator, group)
+	if not allow_lists_equal(combinator:get_allowed_layouts(), group.layouts) then
+		combinator:set_allowed_layouts(tlib.deep_copy(group.layouts))
+	end
+end
+
+---Set the layouts of a group and of all of its members.
+---@param group Cybersyn.AllowGroup
+---@param next_layouts string[][]
+---@param source Cybersyn.Combinator Already carries `next_layouts`.
+local function set_group_layouts(group, next_layouts, source)
+	group.layouts = tlib.deep_copy(next_layouts)
+	for _, combinator in pairs(storage.combinators) do
+		if combinator ~= source and is_group_member(combinator, group.name) then
+			combinator:set_allowed_layouts(tlib.deep_copy(next_layouts))
+		end
+	end
+end
+
+---@param combinator Cybersyn.Combinator
+---@param group Cybersyn.AllowGroup?
+---@param next_layouts string[][]
+local function set_allow_list(combinator, group, next_layouts)
+	combinator:set_allowed_layouts(next_layouts)
+	if group then set_group_layouts(group, next_layouts, combinator) end
+end
+
+---@param combinator Cybersyn.Combinator
+---@param group Cybersyn.AllowGroup
+local function join_group(combinator, group)
+	combinator:set_allow_group(group.name)
+	sync_group_member(combinator, group)
+end
+
+---Dissolves a group into another one.
+---@param group Cybersyn.AllowGroup
+---@param target Cybersyn.AllowGroup
+local function merge_group(group, target)
+	if group == target then return end
+	local name = group.name
+	for _, combinator in pairs(storage.combinators) do
+		if is_group_member(combinator, name) then
+			combinator:set_allow_group(target.name)
+			sync_group_member(combinator, target)
+		end
+	end
+	get_allow_groups()[name] = nil
+end
+
+---Renames a group, dissolving it into the group of that name if one exists.
+---@param group Cybersyn.AllowGroup
+---@param new_name string
+local function rename_group(group, new_name)
+	if group.name == new_name then return end
+	local target = find_group_by_name(new_name)
+	if target then
+		merge_group(group, target)
+		return
+	end
+	local name = group.name
+	get_allow_groups()[name] = nil
+	get_allow_groups()[new_name] = group
+	group.name = new_name
+	for _, combinator in pairs(storage.combinators) do
+		if is_group_member(combinator, name) then
+			combinator:set_allow_group(new_name)
+		end
+	end
+end
+
+-- A combinator built from a blueprint already has all of its settings by the
+-- time cs2 learns of it, so it never sees a setting change for it. Adopt its
+-- group here, with an already existing group of the same name keeping its own
+-- layouts over the ones the blueprint brought along.
+local function adopt_group(combinator)
+	local group = resolve_group(combinator)
+	if group then sync_group_member(combinator, group) end
+end
+
+events.bind("cs2.combinator_created", adopt_group)
+
+-- Imposing tags onto an existing combinator, such as when pasting settings,
+-- changes all of its settings at once without a setting change event.
+cs2.on_combinator_setting_changed(function(combinator, setting)
+	if setting == nil then adopt_group(combinator) end
+end)
+
 local function add_layout_if_not_exists(
 	combinator,
+	group,
 	allowed_layouts,
 	allowed_layout_strings,
 	layout_string
@@ -116,7 +290,7 @@ local function add_layout_if_not_exists(
 	local next_layouts = tlib.assign({}, allowed_layouts)
 	local next_layout = parse_layout_string(layout_string)
 	table.insert(next_layouts, next_layout)
-	combinator:set_allowed_layouts(next_layouts)
+	set_allow_list(combinator, group, next_layouts)
 end
 
 --------------------------------------------------------------------------------
@@ -125,6 +299,9 @@ end
 
 relm.define("CombinatorGui.Mode.Allow", function(props)
 	local combinator = props.combinator --[[@as Cybersyn.Combinator]]
+
+	local group_name = combinator:get_allow_group()
+	local group = find_group_by_name(group_name)
 	local allowed_layouts = combinator:get_allowed_layouts()
 	local allowed_layout_strings = tlib.map(
 		allowed_layouts,
@@ -134,10 +311,44 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 	local allowed_layout_options = to_option_list(allowed_layout_strings)
 	local has_allowed_layouts = #allowed_layout_options > 0
 
+	local group_options = {
+		{
+			key = "",
+			caption = { "cybersyn2-combinator-mode-allow.no-group-option" },
+		},
+	}
+	for _, name in ipairs(get_group_names()) do
+		table.insert(group_options, { key = name, caption = { "", name } })
+	end
+
+	local function on_select_group(_, name)
+		if not name or name == group_name then return end
+		if name == "" then
+			combinator:set_allow_group("")
+		else
+			local existing = find_group_by_name(name)
+			if existing then join_group(combinator, existing) end
+		end
+	end
+
+	local function on_group_name_confirm(_, name, _, gui_event)
+		if name == "" or name == group_name then return end
+		-- Ctrl + Enter renames instead of joining.
+		if group and gui_event.control then
+			rename_group(group, name)
+		else
+			join_group(
+				combinator,
+				find_group_by_name(name) or create_group(name, allowed_layouts)
+			)
+		end
+	end
+
 	local function add_existing_layout(_, index)
 		local layout_string = existing_layout_options[index].caption
 		add_layout_if_not_exists(
 			combinator,
+			group,
 			allowed_layouts,
 			allowed_layout_strings,
 			layout_string
@@ -158,7 +369,7 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 		if not allowed_layout_strings[selected_index] then return end
 		local next_layouts = tlib.assign({}, allowed_layouts)
 		table.remove(next_layouts, selected_index)
-		combinator:set_allowed_layouts(next_layouts)
+		set_allow_list(combinator, group, next_layouts)
 	end
 
 	---@param elt LuaGuiElement
@@ -175,6 +386,7 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 		end
 		add_layout_if_not_exists(
 			combinator,
+			group,
 			allowed_layouts,
 			allowed_layout_strings,
 			layout_string
@@ -183,6 +395,29 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 	end
 
 	return VF({
+		ultros.WellSection(
+			{ caption = { "cybersyn2-combinator-mode-allow.group-config-header" } },
+			{
+				ultros.BoldLabel({ "cybersyn2-combinator-mode-allow.select-group" }),
+				ultros.Dropdown({
+					horizontally_stretchable = true,
+					options = group_options,
+					value = group_name,
+					on_change = on_select_group,
+					tooltip = { "cybersyn2-combinator-mode-allow.select-group-tooltip" },
+				}),
+				ultros.BoldLabel({
+					"cybersyn2-combinator-mode-allow.group-name-label",
+				}),
+				ultros.Input({
+					numeric = false,
+					value = group_name,
+					width = 370,
+					on_confirm = on_group_name_confirm,
+					tooltip = { "cybersyn2-combinator-mode-allow.group-name-tooltip" },
+				}),
+			}
+		),
 		ultros.WellSection(
 			{ caption = { "cybersyn2-combinator-mode-allow.manual-allow-list" } },
 			{
@@ -247,6 +482,7 @@ relm.define_element({
 	render = function(props)
 		return VF({
 			ultros.RtMultilineLabel({ "cybersyn2-combinator-mode-allow.desc" }),
+			ultros.RtMultilineLabel({ "cybersyn2-combinator-mode-allow.groups-desc" }),
 		})
 	end,
 })
