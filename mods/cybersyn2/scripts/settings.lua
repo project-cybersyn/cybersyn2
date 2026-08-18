@@ -2,6 +2,7 @@ local cs2 = _G.cs2
 
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
+local cmt = require("lib.core.cmt")
 
 ---@class (exact) Cybersyn.ModSettings
 ---@field public enable_logistics boolean Enable or disable scheduling globally.
@@ -58,6 +59,8 @@ local function update_mod_settings()
 		settings.global["cybersyn2-setting-shared-inventory-prefer-parallel"].value --[[@as boolean]]
 	mod_settings.directional_routing =
 		settings.global["cybersyn2-setting-directional-routing"].value --[[@as boolean]]
+
+	cmt.set_work_factor(mod_settings.work_factor)
 end
 cs2.update_mod_settings = update_mod_settings
 
