@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.3
-Date: ????
+Date: 2026-08-17
   Changes:
     - Cybersyn 2 combinators are no longer automatically unlocked. They now require the Automated Rail Transportation research.
   Bugfixes:
