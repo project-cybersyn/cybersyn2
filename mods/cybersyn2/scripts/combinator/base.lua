@@ -122,9 +122,9 @@ end
 
 ---If the combinator is in an input-supporting mode, read and cache its input
 ---signals.
----@param which "red"|"green"|nil If given, and the combinator has independent input wires, read only the given wire. If `nil`, read both wires.
+---@param force boolean? If `true`, force a reread and trigger re-arm even if inputs are not marked dirty or the combinator was already read this tick.
 ---@param workload Core.Thread.Workload?
-function Combinator:read_inputs(which, workload)
+function Combinator:read_inputs(force, workload)
 	-- Sanity checks
 	-- Don't read invalid entities or ghosts
 	local entity = self.real_entity
@@ -139,10 +139,10 @@ function Combinator:read_inputs(which, workload)
 		return
 	end
 	-- Don't reread if clean
-	if not self.inputs_dirty then return end
+	if (not force) and not self.inputs_dirty then return end
 	-- Don't read inputs more than once per tick.
 	local now = game.tick
-	if now - (self.last_read_tick or 0) < 1 then
+	if (not force) and (now - (self.last_read_tick or 0) < 1) then
 		-- Keep the detector armed even when deferring the read to next tick.
 		if self.trigger_id then
 			trigger_client.arm_trigger(self.trigger_id, true)
@@ -156,22 +156,18 @@ function Combinator:read_inputs(which, workload)
 
 	if mdef.independent_input_wires then
 		-- Read red and green inputs separately
-		if which == "red" or which == nil then
-			local red_signals = entity.get_signals(I_RED)
-			if red_signals then
-				self.red_inputs = signals_to_signal_counts(red_signals)
-			else
-				self.red_inputs = {}
-			end
+		local red_signals = entity.get_signals(I_RED)
+		if red_signals then
+			self.red_inputs = signals_to_signal_counts(red_signals)
+		else
+			self.red_inputs = {}
 		end
 
-		if which == "green" or which == nil then
-			local green_signals = entity.get_signals(I_GREEN)
-			if green_signals then
-				self.green_inputs = signals_to_signal_counts(green_signals)
-			else
-				self.green_inputs = {}
-			end
+		local green_signals = entity.get_signals(I_GREEN)
+		if green_signals then
+			self.green_inputs = signals_to_signal_counts(green_signals)
+		else
+			self.green_inputs = {}
 		end
 
 		self.inputs = nil
