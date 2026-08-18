@@ -250,9 +250,10 @@ function Inventory:is_volatile(workload) return false end
 ---Attempt to update the inventory using best available data. Does nothing
 ---when inventory is volatile.
 ---@param workload Core.Thread.Workload?
----@param reread boolean `true` if the inventory's base data should be reread immediately from combinators. `false` if cached combinator reads should be used.
+---@param reread_combs boolean? `true` if the inventory's base data should be reread immediately from combinators.
+---@param reread_orders boolean? `true` if the inventory's orders should be reread regardless of dirty state.
 ---@return boolean #`true` if the inventory was updated.
-function Inventory:update(workload, reread) return false end
+function Inventory:update(workload, reread_combs, reread_orders) return false end
 
 --------------------------------------------------------------------------------
 -- StopInventory
@@ -292,7 +293,7 @@ function StopInventory:is_volatile(controlling_stop, slaves)
 	return stop_inventory_is_volatile(controlling_stop, slaves)
 end
 
-function StopInventory:update(workload, reread)
+function StopInventory:update(workload, reread_combs, reread_orders)
 	add_workload(workload, 1)
 	local stop = cs2.get_stop(self.created_for_node_id, true)
 	if not stop then return false end
@@ -311,7 +312,7 @@ function StopInventory:update(workload, reread)
 	if stop_inventory_is_volatile(stop, slaves) then return false end
 
 	-- Reread inv combs
-	if reread then
+	if reread_combs then
 		local master_station_comb = stop:read_inventory_combinator_inputs(workload)
 		-- Set base from station comb primary wire
 		if master_station_comb then
@@ -345,7 +346,7 @@ function StopInventory:update(workload, reread)
 
 	-- Reread orders
 	for _, order in pairs(self.orders) do
-		order:read(workload)
+		order:read(workload, reread_orders)
 	end
 
 	return true

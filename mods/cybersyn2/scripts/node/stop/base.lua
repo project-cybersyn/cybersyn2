@@ -364,7 +364,7 @@ function TrainStop:update_inventory(workload, is_opportunistic)
 		return
 	end
 
-	inventory:update(workload, true)
+	inventory:update(workload, true, is_opportunistic)
 end
 
 --------------------------------------------------------------------------------

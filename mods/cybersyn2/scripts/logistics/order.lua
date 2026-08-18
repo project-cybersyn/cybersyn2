@@ -113,8 +113,9 @@ end
 
 ---Read the value of this order from its known combinator
 ---@param workload Core.Thread.Workload|nil If given, the workload of this operation will be added to the counter.
+---@param force boolean? If true, the order will be read even if the stop is not dirty. If false or nil, the order will only be read if the stop is dirty.
 ---@return boolean updated `true` if the order was updated
-function Order:read(workload)
+function Order:read(workload, force)
 	add_workload(workload, 1)
 
 	-- Early order read: done even if stop is not dirty
@@ -138,7 +139,7 @@ function Order:read(workload)
 	add_workload(workload, 1)
 
 	-- Elide order reading for clean stops
-	if not stop:is_dirty() then return false end
+	if not force and not stop:is_dirty() then return false end
 
 	-- Early clear provides/reqs
 	self:clear_prov_req()
