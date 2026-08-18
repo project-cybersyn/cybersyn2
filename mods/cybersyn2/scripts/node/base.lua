@@ -151,6 +151,7 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 		stlib.trace("associating comb", combinator.id, "to node", self.id)
 		self.combinator_set[combinator.id] = true
 		combinator.node_id = self.id
+		self:mark_dirty()
 		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_combinator_node_associated(combinator, self, nil)
 		events.raise("cs2.combinator_node_associated", combinator, self, nil)
