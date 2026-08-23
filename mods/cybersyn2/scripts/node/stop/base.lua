@@ -227,6 +227,7 @@ function TrainStop:train_departed(train, luatrain)
 	-- update_inventory can clear them optimistcally.
 	if delivery then delivery:notify_departed(self, train, luatrain) end
 	-- Then try to opportunistically re-read the station's inventory.
+	self:mark_dirty()
 	self:update_inventory(nil, true)
 end
 
