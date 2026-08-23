@@ -1,4 +1,3 @@
----@diagnostic disable: need-check-nil
 --------------------------------------------------------------------------------
 -- Shared utility library for working with Factorio signals, including hashing
 -- signals to and from strings.
@@ -178,6 +177,7 @@ local function key_is_virtual(key)
 	local verdict = key_v[key]
 	if verdict ~= nil then return verdict end
 	local sig = key_to_signal(key)
+	if not sig then return false end
 	return sig.type == "virtual"
 end
 lib.key_is_virtual = key_is_virtual
@@ -188,6 +188,7 @@ local function key_is_cargo(key)
 	if verdict ~= nil then return not verdict end
 	if is_parameter_name(key) then return false end
 	local sig = key_to_signal(key)
+	if not sig then return false end
 	return sig.type == "item" or sig.type == "fluid"
 end
 lib.key_is_cargo = key_is_cargo
@@ -197,6 +198,7 @@ lib.key_is_cargo = key_is_cargo
 local function key_is_fluid(key)
 	local s = key_to_signal(key)
 	if s then return s.type == "fluid" end
+	return false
 end
 lib.key_is_fluid = key_is_fluid
 
@@ -205,6 +207,7 @@ local function key_is_quality(key)
 	local verdict = key_q[key]
 	if verdict ~= nil then return verdict end
 	local sig = key_to_signal(key)
+	if not sig then return false end
 	return sig.type == "quality"
 end
 lib.key_is_quality = key_is_quality
