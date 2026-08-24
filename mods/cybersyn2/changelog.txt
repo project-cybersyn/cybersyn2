@@ -2,6 +2,8 @@
 Version: 0.3.4
 Date: ????
   Changes:
+  Bugfixes:
+    - Fixed a crash involving keys of items from removed mods.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.3
 Date: 2026-08-17
