@@ -500,13 +500,21 @@ end)
 -- front and back from it, for other stops. If any are found, we need to
 -- recompute the layout of those stops.
 ---@param stop_entity LuaEntity
+---@param stop Cybersyn.TrainStop?
 ---@param is_being_destroyed boolean?
-local function recompute_nearby_stop_layouts(stop_entity, is_being_destroyed)
+local function recompute_nearby_stop_layouts(
+	stop_entity,
+	stop,
+	is_being_destroyed
+)
 	local r1 = stop_entity.connected_rail
 	if not r1 then return end
 	local ies = nil
 	if is_being_destroyed then ies = { [stop_entity.unit_number] = true } end
-	local s0 = get_stop_from_unit_number(stop_entity.unit_number, true)
+	local s0 = stop
+	if not s0 then
+		s0 = get_stop_from_unit_number(stop_entity.unit_number, true)
+	end
 	local r2, _, _, r3 = get_all_connected_rails(r1)
 	local s1, s2, s3 =
 		r1 and find_stop_from_rail(r1),
@@ -528,11 +536,12 @@ local function recompute_nearby_stop_layouts(stop_entity, is_being_destroyed)
 end
 
 cs2.on_built_train_stop(
-	function(stop) recompute_nearby_stop_layouts(stop, false) end
+	function(stop) recompute_nearby_stop_layouts(stop, nil, false) end
 )
 
-cs2.on_broken_train_stop(function(stop)
-	stlib.trace("on_broken_train_stop: recomputing nearby stop layouts")
-	recompute_nearby_stop_layouts(stop, true)
-	stlib.trace("on_broken_train_stop: finished recomputing nearby stop layouts")
-end)
+events.bind(
+	"cs2.broken_train_stop",
+	function(stop_entity, stop)
+		recompute_nearby_stop_layouts(stop_entity, stop, true)
+	end
+)

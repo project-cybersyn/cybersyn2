@@ -130,7 +130,8 @@ local function on_destroyed(event)
 	if not entity or not entity.valid then return end
 
 	if entity.type == "train-stop" then
-		cs2.raise_broken_train_stop(entity)
+		local stop = cs2.get_stop_from_unit_number(entity.unit_number, true)
+		events.raise("cs2.broken_train_stop", entity, stop)
 	elseif
 		entity.type == "straight-rail"
 		or entity.type == "curved-rail-a"

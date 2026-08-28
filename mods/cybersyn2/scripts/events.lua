@@ -16,9 +16,6 @@ local event = require("lib.core.events").create_event
 _G.cs2.on_built_train_stop, _G.cs2.raise_built_train_stop =
 	event("built_train_stop", "LuaEntity", "nil", "nil", "nil", "nil")
 
-_G.cs2.on_broken_train_stop, _G.cs2.raise_broken_train_stop =
-	event("broken_train_stop", "LuaEntity", "nil", "nil", "nil", "nil")
-
 _G.cs2.on_built_rail, _G.cs2.raise_built_rail =
 	event("built_rail", "LuaEntity", "nil", "nil", "nil", "nil")
 

@@ -4,6 +4,7 @@ Date: ????
   Changes:
   Bugfixes:
     - Fixed a crash involving keys of items from removed mods.
+    - Fixed a bug where a train stop that was killed and then revived from a ghost would not properly recreate the corresponding Cybersyn node.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.3
 Date: 2026-08-17

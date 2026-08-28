@@ -207,7 +207,7 @@ local function make_default_allow_list(
 			TRACE,
 			"message",
 			"Allow list evaluation: build order warning: stop has no station combinator yet",
-			stop
+			stop.id
 		)
 	elseif station_combinator:get_allow_all() then
 		make_all_allow_list(stop)

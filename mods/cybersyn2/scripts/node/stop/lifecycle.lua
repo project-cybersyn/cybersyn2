@@ -117,7 +117,7 @@ function reassociate_recursive(combinators, depth)
 			if combinator.node_id ~= target_stop.id then
 				-- Comb should be associated with the target
 				strace.trace(
-					"reassociate_recursive: associating comb",
+					"reassociate_recursive: valid target stop, associating comb",
 					combinator.id,
 					"to stop",
 					target_stop.id
@@ -144,7 +144,10 @@ function reassociate_recursive(combinators, depth)
 			end
 		else
 			-- No or invalid target, comb is now unassociated
-			strace.trace("reassociate_recursive: unassociating comb", combinator.id)
+			strace.trace(
+				"reassociate_recursive: INVALID target stop, unassociating comb",
+				combinator.id
+			)
 			local old_node = Node.disassociate_combinator(combinator, true)
 			if old_node then
 				strace.trace(
@@ -239,6 +242,10 @@ end
 
 -- When a stop is built, check for combinators nearby and associate them.
 cs2.on_built_train_stop(function(stop_entity)
+	strace.trace(
+		"on_built_train_stop: ----- beginning creation of train stop with unit number",
+		stop_entity.unit_number
+	)
 	local combs = cs2.find_associable_combinator_entities(stop_entity)
 	if #combs > 0 then
 		local comb_states = tlib.map(combs, function(comb)
@@ -248,26 +255,43 @@ cs2.on_built_train_stop(function(stop_entity)
 		end)
 		cs2.lib.reassociate_combinators(comb_states)
 	end
+	strace.trace(
+		"on_built_train_stop: -----finished creation of train stop with unit number",
+		stop_entity.unit_number
+	)
 end)
 
 -- When a stop is broken, destroy its node.
-cs2.on_broken_train_stop(function(stop_entity)
-	local stop = cs2.get_stop_from_unit_number(stop_entity.unit_number, true)
-	if not stop then return end
-	strace.trace("on_broken_train_stop: destroying stop", stop.id)
+events.bind(
+	"cs2.broken_train_stop",
+	---@param stop_entity ValidEntityWithUnitNumber
+	---@param stop Cybersyn.TrainStop?
+	function(stop_entity, stop)
+		if not stop then return end
+		local unit_number = stop_entity.unit_number
 
-	local ebd = storage.entities_being_destroyed
-	if not ebd then
-		ebd = {}
-		storage.entities_being_destroyed = ebd
+		strace.trace(
+			"on_broken_train_stop: ----- destroying stop with node id ",
+			stop.id
+		)
+
+		local ebd = storage.entities_being_destroyed
+		if not ebd then
+			ebd = {}
+			storage.entities_being_destroyed = ebd
+		end
+		ebd[unit_number] = true
+
+		stop:destroy()
+
+		ebd[unit_number] = nil
+
+		strace.trace(
+			"on_broken_train_stop: ----- finished destroying stop with node id ",
+			stop.id
+		)
 	end
-	ebd[
-		stop_entity.unit_number --[[@as UnitNumber]]
-	] = true
-	stop:destroy()
-
-	strace.trace("on_broken_train_stop: finished destroying stop", stop.id)
-end)
+)
 
 -- Try to bind real combinators to train stops.
 events.bind(

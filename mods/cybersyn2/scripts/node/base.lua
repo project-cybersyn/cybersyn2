@@ -148,7 +148,12 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 	end
 
 	if not self.combinator_set[combinator.id] then
-		stlib.trace("associating comb", combinator.id, "to node", self.id)
+		stlib.trace(
+			"Node:associate_combinator: associating comb",
+			combinator.id,
+			"to node",
+			self.id
+		)
 		self.combinator_set[combinator.id] = true
 		combinator.node_id = self.id
 		self:mark_dirty()
@@ -158,7 +163,12 @@ function Node:associate_combinator(combinator, suppress_set_changed)
 		if not suppress_set_changed then
 			events.raise("cs2.node_combinator_set_changed", self)
 		end
-		stlib.trace("associated comb", combinator.id, "to node", self.id)
+		stlib.trace(
+			"Node:associate_combinator: associated comb",
+			combinator.id,
+			"to node",
+			self.id
+		)
 		return true, old_node
 	end
 
