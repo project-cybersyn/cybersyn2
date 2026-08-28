@@ -5,12 +5,16 @@
 local tlib = require("lib.core.table")
 local cs2 = _G.cs2
 
+local type = type
+local pairs = pairs
+local floor = math.floor
+
 ---Get car index from tile index. Assumes hard-coded length of 6 tiles per car.
 ---@param tile_index integer
 ---@return integer car_index 1-based index of car; 0 in the event of a problem.
 local function get_car_index_from_tile_index(tile_index)
 	if tile_index % 7 == 0 then return 0 end -- gap between cars
-	local res = math.floor(tile_index / 7) + 1
+	local res = floor(tile_index / 7) + 1
 	-- Users needing degenerately-long trains should use custom allowlists.
 	if res < 1 or res > 32 then
 		return 0
@@ -30,27 +34,33 @@ cs2.on_train_stop_equipment_changed(function(stop, layout)
 
 	local max_car = 1
 	local layout_pattern = { 0 }
-	for _, tile_index in pairs(layout.cargo_loader_map) do
-		local car_index = get_car_index_from_tile_index(tile_index)
-		if car_index ~= 0 then
-			if car_index > max_car then max_car = car_index end
-			local previous_pattern = layout_pattern[car_index]
-			if (previous_pattern == 2) or (previous_pattern == 3) then
-				layout_pattern[car_index] = 3
-			else
-				layout_pattern[car_index] = 1
+
+	for _, tile_set in pairs(layout.cargo_loader_map) do
+		for tile_index in pairs(tile_set) do
+			local car_index = get_car_index_from_tile_index(tile_index)
+			if car_index ~= 0 then
+				if car_index > max_car then max_car = car_index end
+				local previous_pattern = layout_pattern[car_index]
+				if (previous_pattern == 2) or (previous_pattern == 3) then
+					layout_pattern[car_index] = 3
+				else
+					layout_pattern[car_index] = 1
+				end
 			end
 		end
 	end
-	for _, tile_index in pairs(layout.fluid_loader_map) do
-		local car_index = get_car_index_from_tile_index(tile_index)
-		if car_index ~= 0 then
-			if car_index > max_car then max_car = car_index end
-			local previous_pattern = layout_pattern[car_index]
-			if (previous_pattern == 1) or (previous_pattern == 3) then
-				layout_pattern[car_index] = 3
-			else
-				layout_pattern[car_index] = 2
+
+	for _, tile_set in pairs(layout.fluid_loader_map) do
+		for tile_index in pairs(tile_set) do
+			local car_index = get_car_index_from_tile_index(tile_index)
+			if car_index ~= 0 then
+				if car_index > max_car then max_car = car_index end
+				local previous_pattern = layout_pattern[car_index]
+				if (previous_pattern == 1) or (previous_pattern == 3) then
+					layout_pattern[car_index] = 3
+				else
+					layout_pattern[car_index] = 2
+				end
 			end
 		end
 	end

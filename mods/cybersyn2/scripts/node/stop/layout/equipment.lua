@@ -9,6 +9,7 @@ local pos_get = pos_lib.pos_get
 local cs2 = _G.cs2
 
 local EMPTY = tlib.EMPTY
+local next = next
 
 ---@class (partial) Cybersyn.TrainStop
 local TrainStop = cs2.TrainStop
@@ -110,6 +111,7 @@ function TrainStop:register_loading_equipment(entity, pos, is_cargo, is_fluid)
 	local layout = self:get_layout()
 	if not layout then return false end
 	local equipment_id = entity.unit_number --[[@as UnitNumber]]
+
 	-- Compute position relative to stop.
 	local tile_index = math.floor(
 		mlib.bbox_measure_ortho(
@@ -120,21 +122,31 @@ function TrainStop:register_loading_equipment(entity, pos, is_cargo, is_fluid)
 	)
 	-- Determine if there is an actual change.
 	local changed = false
-	local previous_cargo = layout.cargo_loader_map[equipment_id]
+	local previous_cargo = layout.cargo_loader_map[equipment_id] or {}
 	if is_cargo then
-		if previous_cargo ~= tile_index then changed = true end
-		layout.cargo_loader_map[equipment_id] = tile_index
+		if not previous_cargo[tile_index] then changed = true end
+		previous_cargo[tile_index] = true
 	else
-		if previous_cargo then changed = true end
+		if previous_cargo[tile_index] then changed = true end
+		previous_cargo[tile_index] = nil
+	end
+	if next(previous_cargo) then
+		layout.cargo_loader_map[equipment_id] = previous_cargo
+	else
 		layout.cargo_loader_map[equipment_id] = nil
 	end
 
-	local previous_fluid = layout.fluid_loader_map[equipment_id]
+	local previous_fluid = layout.fluid_loader_map[equipment_id] or {}
 	if is_fluid then
-		if previous_fluid ~= tile_index then changed = true end
-		layout.fluid_loader_map[equipment_id] = tile_index
+		if not previous_fluid[tile_index] then changed = true end
+		previous_fluid[tile_index] = true
 	else
-		if previous_fluid then changed = true end
+		if previous_fluid[tile_index] then changed = true end
+		previous_fluid[tile_index] = nil
+	end
+	if next(previous_fluid) then
+		layout.fluid_loader_map[equipment_id] = previous_fluid
+	else
 		layout.fluid_loader_map[equipment_id] = nil
 	end
 
