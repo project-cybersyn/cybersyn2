@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.4
-Date: ????
+Date: 2026-08-28
   Changes:
     - Added matched network signal readout to deliveries GUIs.
     - Added an option to `Train` combinators which will output the matched network signal for the current delivery.
