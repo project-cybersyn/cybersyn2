@@ -26,6 +26,8 @@ local key_to_signal = signal_lib.key_to_signal
 local signals_to_signal_counts = signal_lib.signals_to_signal_counts
 local distsq = mlib.pos_distsq
 local add_workload = thread_lib.add_workload
+local select = select
+local pairs = pairs
 
 local EMPTY = tlib.EMPTY
 local I_RED = defines.wire_connector_id.combinator_input_red
@@ -214,8 +216,8 @@ function Combinator:encode_outputs(...)
 
 	for i = 1, select("#", ...), 2 do
 		local signal_counts = select(i, ...) --[[@as SignalCounts]]
-		local sign = select(i + 1, ...) --[[@as number]]
-		if signal_counts then
+		local sign = select(i + 1, ...) --[[@as number?]]
+		if signal_counts and sign and sign ~= 0 then
 			for key, count in pairs(signal_counts) do
 				local signal = key_to_signal(key)
 				if signal then

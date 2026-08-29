@@ -23,12 +23,16 @@ local EMPTY = tlib.EMPTY
 ---@class (partial) Cybersyn.Combinator
 ---@field public get_dropoff_signal fun(): SignalID?
 ---@field public get_pickup_signal fun(): SignalID?
+---@field public get_network_signal fun(): boolean?
 
 -- Virtual signal supplied when a train is dropping off
 cs2.register_raw_setting("dropoff_signal", "dropoff_signal")
 
 -- Virtual signal supplied when a train is picking up
 cs2.register_raw_setting("pickup_signal", "pickup_signal")
+
+-- If true, add the order's network signal to the output signals.
+cs2.register_flag_setting("network_signal", "manifest_flags", 0)
 
 --------------------------------------------------------------------------------
 -- GUI
@@ -37,31 +41,35 @@ cs2.register_raw_setting("pickup_signal", "pickup_signal")
 relm.define_element({
 	name = "CombinatorGui.Mode.Manifest",
 	render = function(props)
-		return VF({
-			ultros.WellSection(
-				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
-				{
-					ultros.Labeled({
-						caption = { "cybersyn2-combinator-mode-manifest.signal-dropoff" },
-						top_margin = 6,
-					}, {
-						gui.VirtualSignalPicker(props.combinator, "dropoff_signal", {
-							"cybersyn2-combinator-mode-manifest.tooltip-dropoff",
-						}),
+		return ultros.WellSection(
+			{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
+			{
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-manifest.signal-dropoff" },
+					top_margin = 6,
+				}, {
+					gui.VirtualSignalPicker(props.combinator, "dropoff_signal", {
+						"cybersyn2-combinator-mode-manifest.tooltip-dropoff",
 					}),
-					ultros.Labeled({
-						caption = { "cybersyn2-combinator-mode-manifest.signal-pickup" },
-						top_margin = 6,
-					}, {
-						gui.VirtualSignalPicker(
-							props.combinator,
-							"pickup_signal",
-							{ "cybersyn2-combinator-mode-manifest.tooltip-pickup" }
-						),
-					}),
-				}
-			),
-		})
+				}),
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-manifest.signal-pickup" },
+					top_margin = 6,
+				}, {
+					gui.VirtualSignalPicker(
+						props.combinator,
+						"pickup_signal",
+						{ "cybersyn2-combinator-mode-manifest.tooltip-pickup" }
+					),
+				}),
+				gui.Checkbox(
+					{ "cybersyn2-combinator-mode-manifest.network-signal" },
+					{ "cybersyn2-combinator-mode-manifest.tooltip-network-signal" },
+					props.combinator,
+					"network_signal"
+				),
+			}
+		)
 	end,
 })
 
@@ -130,31 +138,29 @@ local function set_manifest_outputs(cstrain, stop)
 		-- Pickup
 		for _, comb in pairs(combs) do
 			local pickup_signal = comb:get_pickup_signal()
-			if pickup_signal then
-				comb:write_outputs(
-					delivery.manifest,
-					-1,
-					{ [pickup_signal.name] = 1 },
-					1
-				)
-			else
-				comb:write_outputs(delivery.manifest, -1)
-			end
+			local network_signal = comb:get_network_signal()
+			comb:write_outputs(
+				pickup_signal and { [pickup_signal.name] = 1 },
+				1,
+				network_signal and delivery.networks,
+				1,
+				delivery.manifest,
+				-1
+			)
 		end
 	elseif delivery.to_id == stop.id then
 		-- Dropoff
 		for _, comb in pairs(combs) do
 			local dropoff_signal = comb:get_dropoff_signal()
-			if dropoff_signal then
-				comb:write_outputs(
-					delivery.manifest,
-					1,
-					{ [dropoff_signal.name] = 1 },
-					1
-				)
-			else
-				comb:write_outputs(delivery.manifest, 1)
-			end
+			local network_signal = comb:get_network_signal()
+			comb:write_outputs(
+				dropoff_signal and { [dropoff_signal.name] = 1 },
+				1,
+				network_signal and delivery.networks,
+				1,
+				delivery.manifest,
+				1
+			)
 		end
 	end
 end

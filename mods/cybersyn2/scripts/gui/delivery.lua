@@ -21,6 +21,7 @@ local VF = ultros.VFlow
 local Pr = relm.Primitive
 local pairs = pairs
 local rcall = remote.call --[[@as fun(mod: string, fn: string, ...: any): any]]
+local EMPTY = tlib.EMPTY
 
 local lib = {}
 
@@ -126,7 +127,7 @@ local TrainManifest = relm.define(
 		)
 
 		local buttons_table = {}
-		for k, v in pairs(delivery.manifest or tlib.EMPTY) do
+		for k, v in pairs(delivery.networks or EMPTY) do
 			local button = buttons_table[k]
 			if not button then
 				button = {}
@@ -135,7 +136,16 @@ local TrainManifest = relm.define(
 			button.signal = siglib.key_to_signal(k)
 			button.count = v
 		end
-		for k, v in pairs(delivery.loaded or tlib.EMPTY) do
+		for k, v in pairs(delivery.manifest or EMPTY) do
+			local button = buttons_table[k]
+			if not button then
+				button = {}
+				buttons_table[k] = button
+			end
+			button.signal = siglib.key_to_signal(k)
+			button.count = v
+		end
+		for k, v in pairs(delivery.loaded or EMPTY) do
 			local button = buttons_table[k]
 			if not button then
 				button = {}

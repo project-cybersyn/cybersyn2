@@ -386,7 +386,7 @@ function Order:matches_networks(provider)
 	local rnet = self.networks
 	local pnet = provider.networks
 	if rmode == "and" then
-		return network_match_and(rnet, pnet), "signal-each", -1
+		return network_match_and(rnet, pnet)
 	else
 		return network_match_or(rnet, pnet)
 	end

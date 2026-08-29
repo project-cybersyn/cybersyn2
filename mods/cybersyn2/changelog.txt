@@ -2,6 +2,8 @@
 Version: 0.3.4
 Date: ????
   Changes:
+    - Added matched network signal readout to deliveries GUIs.
+    - Added an option to `Train` combinators which will output the matched network signal for the current delivery.
   Bugfixes:
     - Fixed a crash involving keys of items from removed mods.
     - Fixed a bug where a train stop that was killed and then revived from a ghost would not properly recreate the corresponding Cybersyn node.
