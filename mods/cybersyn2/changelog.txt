@@ -2,6 +2,9 @@
 Version: 0.3.5
 Date: ????
   Changes:
+  Bugfixes:
+    - Fixed an issue where positive values of the `All Items` signal on an order wire were wrongly interpreted as requests.
+    - Fixed an issue where depletion thresholds were not being correctly applied to "OR" or "All Items" orders.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.4
 Date: 2026-08-28

@@ -52,6 +52,10 @@ is requesting 100 iron plates whose quality must be either legendary or epic. Ir
 
 If the `All Items` virtual signal is given with a **negative** value `-N` on an order wire, and no negative `item` signals are present, it represents a request for **N stacks** of *any combination of items*. This can be used to make stations that will sink any item.
 
+Depletion thresholds apply to "All Items" orders as a percentage of the number `N` of requested stacks.
+
+Manually-set per-item thresholds DO NOT work with "All Items" orders.
+
 "All Items" orders support quality spread as well, so if `quality` signals are present alongside the `All Items` signal, the items must be among those qualities.
 
 ### OR orders
@@ -59,6 +63,10 @@ If the `All Items` virtual signal is given with a **negative** value `-N` on an 
 If the `All Items` virtual signal is given with a **negative** value `-N` along with a number of `item` signals with **negative** values, it represents a request for **N stacks** of *any combination* of the given items.
 
 The item signals are treated as a mask, so their values do not matter as long as they are negative.
+
+Depletion thresholds apply to "OR" orders as a percentage of the number `N` of requested stacks.
+
+Manually-set per-item thresholds DO NOT work with OR orders.
 
 OR orders support quality spread, so if `quality` signals are present, the items must be among those qualities.
 

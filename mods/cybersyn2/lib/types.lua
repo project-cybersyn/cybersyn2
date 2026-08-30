@@ -235,6 +235,8 @@ lib.OrderStatusShortDescription = OrderShortStatusDescription
 ---@field public thresh_fullness_fraction number Fraction used when computing fullness thresholds.
 ---@field public thresh_min_slots uint Min slots that must be filled to meet fullness. Computed using smallest vehicle size.
 ---@field public thresh_min_fluid uint Min fluid that must be filled to meet fullness. Computed using smallest vehicle size.
+---@field public max_item_slots uint Allowed maximum item slot capacity for this order. Computed using smallest vehicle size of associated stop.
+---@field public max_fluid_capacity uint Allowed maximum fluid capacity for this order. Computed using smallest vehicle size of associated stop.
 ---@field public networks SignalCounts The computed network masks of this order.
 ---@field public last_fulfilled_tick int64 Last tick on which this order received any delivery.
 ---@field public priority int The computed priority of this order.

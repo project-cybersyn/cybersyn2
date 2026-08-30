@@ -191,6 +191,8 @@ function Order:read(workload, force)
 	self.no_starvation = no_starvation
 	self.round_to_stacks = round_to_stacks
 	self.priority = stop.priority or 0
+	self.max_item_slots = stop_amisc or 0
+	self.max_fluid_capacity = stop_amfc or 0
 	self.thresh_depletion_fraction = stop.auto_threshold_fraction
 	self.thresh_fullness_fraction = stop.train_fullness_fraction
 	self.provide_single_item = stop.produce_single_item
@@ -811,7 +813,10 @@ function Order:compute_needs(workload)
 			if workload then add_workload(workload, table_size(inv_net)) end
 			or_mask = requests
 		end
-		local stack_threshold = requested_stacks * (depletion_fraction or 0)
+		local stack_threshold = min(
+			requested_stacks * (depletion_fraction or 0),
+			self.max_item_slots or 0
+		)
 		---@type int
 		local deficit_stacks = requested_stacks - net_stacks
 		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
@@ -819,7 +824,7 @@ function Order:compute_needs(workload)
 			local res = {
 				fluids = fluids,
 				-- thresh_explicit = thresh_explicit,
-				thresh_min_slots = thresh_min_slots,
+				thresh_min_slots = max(stack_threshold, thresh_min_slots) --[[@as uint]],
 				thresh_min_fluid = thresh_min_fluid,
 				or_stacks = deficit_stacks,
 				-- This is OK; don't waste cpu generating a new mask when we can
@@ -853,7 +858,10 @@ function Order:compute_needs(workload)
 			end)
 			if workload then add_workload(workload, table_size(inv_net)) end
 		end
-		local stack_threshold = requested_stacks * (depletion_fraction or 0)
+		local stack_threshold = min(
+			requested_stacks * (depletion_fraction or 0),
+			self.max_item_slots or 0
+		)
 		---@type int
 		local deficit_stacks = requested_stacks - net_stacks
 		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
@@ -861,7 +869,7 @@ function Order:compute_needs(workload)
 			local res = {
 				fluids = fluids,
 				-- thresh_explicit = thresh_explicit,
-				thresh_min_slots = thresh_min_slots,
+				thresh_min_slots = max(stack_threshold, thresh_min_slots) --[[@as uint]],
 				thresh_min_fluid = thresh_min_fluid,
 				all_stacks = deficit_stacks,
 				spread = spread,
