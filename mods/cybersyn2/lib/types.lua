@@ -152,6 +152,11 @@ lib.CarriageType = {
 ---@field public rail_set UnitNumberSet The set of rails associated to this stop.
 ---@field public direction defines.direction? Direction of the vector pointing from the stop entity towards the oncoming track, if known.
 
+---@class Cybersyn.AllowGroup
+---@field public id int
+---@field public name string
+---@field public layouts string[][]
+
 ---@enum Cybersyn.OrderStatus
 local OrderStatus = {
 	"fulfilled",
