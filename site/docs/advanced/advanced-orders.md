@@ -50,15 +50,15 @@ is requesting 100 iron plates whose quality must be either legendary or epic. Ir
 
 ### "All Items" orders
 
-If the `All Items` virtual signal is given with a negative value on an order wire, and no `item` signals are present, it represents a request for that many total **stacks** of *any combination of items*. This can be used to make stations that will sink any item.
+If the `All Items` virtual signal is given with a **negative** value `-N` on an order wire, and no negative `item` signals are present, it represents a request for **N stacks** of *any combination of items*. This can be used to make stations that will sink any item.
 
 "All Items" orders support quality spread as well, so if `quality` signals are present alongside the `All Items` signal, the items must be among those qualities.
 
 ### OR orders
 
-If the `All Items` virtual signal is given with a negative value along with a number of `item` signals with nonzero values, it represents a request for that many total **stacks** of *any combination* of the given items.
+If the `All Items` virtual signal is given with a **negative** value `-N` along with a number of `item` signals with **negative** values, it represents a request for **N stacks** of *any combination* of the given items.
 
-The item signals are treated as a mask, so their values do not matter as long as they are nonzero.
+The item signals are treated as a mask, so their values do not matter as long as they are negative.
 
 OR orders support quality spread, so if `quality` signals are present, the items must be among those qualities.
 

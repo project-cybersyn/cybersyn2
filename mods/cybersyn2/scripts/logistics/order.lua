@@ -277,7 +277,7 @@ function Order:read(workload, force)
 			if signal_key == "cybersyn2-priority" then
 				self.priority = count
 			elseif signal_key == "cybersyn2-all-items" then
-				all_items_value = abs(count)
+				all_items_value = count
 			elseif signal_key == "cybersyn2-all-fluids" then
 				-- Ignore all fluids signal
 			elseif is_each or signal_key == network then
@@ -309,13 +309,13 @@ function Order:read(workload, force)
 	add_workload(workload, 2)
 
 	-- Order types
-	if all_items_value then
+	if all_items_value and (all_items_value < 0) then
 		if next(requests) then
 			self.item_mode = "or"
-			self.request_stacks = all_items_value
+			self.request_stacks = abs(all_items_value)
 		else
 			self.item_mode = "all"
-			self.request_stacks = all_items_value
+			self.request_stacks = abs(all_items_value)
 		end
 	elseif next(requests) or next(requested_fluids) then
 		self.item_mode = "and"
