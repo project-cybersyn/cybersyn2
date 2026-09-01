@@ -18,10 +18,9 @@ local next = next
 
 cs2.on_node_created(function(node)
 	if node.type == "stop" then
-		storage.stop_id_to_node_id[
-			(node --[[@as Cybersyn.TrainStop]]).entity_id
-		] =
-			node.id
+		---@cast node Cybersyn.TrainStop
+		local entity_id = node.entity_id
+		if entity_id then storage.stop_id_to_node_id[entity_id] = node.id end
 	end
 end, true)
 

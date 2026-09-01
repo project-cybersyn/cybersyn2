@@ -178,7 +178,7 @@ function cs2.get_alerts_for_entity(entity)
 			entity.unit_number --[[@as UnitNumber]]
 		]
 	if not abe then return {} end
-	return tlib.t_map_a(abe, function(_, id)
+	return tlib.t_map_a(abe, function(id)
 		local alert = storage.alerts and storage.alerts[id]
 		return alert
 	end)

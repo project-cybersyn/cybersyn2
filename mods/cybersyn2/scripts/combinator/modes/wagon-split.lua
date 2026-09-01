@@ -288,7 +288,7 @@ local function create_carriage_signals(carriage)
 			local signals = {}
 			for i = 1, #inv do
 				local item = inv[i]
-				if item.valid_for_read then
+				if item and item.valid_for_read then
 					signals[#signals + 1] = {
 						signal = {
 							type = "item",
