@@ -5,6 +5,7 @@ Date: ????
   Bugfixes:
     - Fixed an issue where positive values of the `All Items` signal on an order wire were wrongly interpreted as requests.
     - Fixed an issue where depletion thresholds were not being correctly applied to "OR" or "All Items" orders.
+    - Fixed an issue where GUI windows would remain stuck open after a shutdown/restart cycle.
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.4
 Date: 2026-08-28
