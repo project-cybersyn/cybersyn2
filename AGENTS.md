@@ -49,13 +49,6 @@ Run relevant checks for changed areas before finishing:
 - Keep LuaLS compatibility in mind (avoid patterns that break static analysis
   or completion).
 
-Suggested commands from repo root (if tools are installed):
-
-```powershell
-stylua mods
-lua-language-server --check mods
-```
-
 ### Docs/site changes
 
 Run from `site/`:
