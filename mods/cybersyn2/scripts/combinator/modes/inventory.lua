@@ -25,14 +25,14 @@ local strformat = string.format
 ---@field public get_order_secondary_network_matching_mode fun(self: Cybersyn.Combinator): "and" | "or"
 ---@field public get_order_primary_network fun(self: Cybersyn.Combinator): string
 ---@field public get_order_secondary_network fun(self: Cybersyn.Combinator): string
----@field public get_order_primary_no_starvation fun(self: Cybersyn.Combinator): boolean
----@field public get_order_secondary_no_starvation fun(self: Cybersyn.Combinator): boolean
 ---@field public get_order_primary_round_to_stacks fun(self: Cybersyn.Combinator): boolean
 ---@field public get_order_secondary_round_to_stacks fun(self: Cybersyn.Combinator): boolean
 
 cs2.register_flag_setting("order_primary_stacked_requests", "order_flags", 0)
 cs2.register_flag_setting("order_secondary_stacked_requests", "order_flags", 1)
+-- Legacy
 cs2.register_flag_setting("order_primary_no_starvation", "order_flags", 2)
+-- Legacy
 cs2.register_flag_setting("order_secondary_no_starvation", "order_flags", 3)
 cs2.register_flag_setting("order_primary_round_to_stacks", "order_flags", 4)
 cs2.register_flag_setting("order_secondary_round_to_stacks", "order_flags", 5)

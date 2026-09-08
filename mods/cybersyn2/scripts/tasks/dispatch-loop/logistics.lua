@@ -245,25 +245,6 @@ function LogisticsThread:loop_providers()
 				[net_name] = net_mask,
 			},
 		}
-	else
-		-- Reserve starvation item if there is one.
-		local starvation_item = requester_needs.starvation_item
-		if starvation_item then
-			local avail = provider:get_provided_qty(starvation_item)
-			if avail > 0 then
-				self:reserve(provider.inventory, starvation_item, avail)
-				trace(
-					"STARVATION: Requester",
-					requester.node_id,
-					"reserved item",
-					starvation_item,
-					"qty",
-					avail,
-					"from provider",
-					provider.node_id
-				)
-			end
-		end
 	end
 end
 
@@ -301,7 +282,6 @@ function LogisticsThread:sort_matches()
 	if not requester then
 		error("Logic error: sort_matches called with no requester set")
 	end
-	local starvation_item = requester_needs.starvation_item
 	if requester_node:is_sharing_inventory() then
 		self.requester_is_sharing_inventory = true
 	else
@@ -315,14 +295,6 @@ function LogisticsThread:sort_matches()
 		local a_prio, b_prio = a.provider.priority, b.provider.priority
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
-
-		-- If starvation_item is set, prioritize who has more.
-		if starvation_item then
-			local a_qty = a.provider:get_provided_qty(starvation_item)
-			local b_qty = b.provider:get_provided_qty(starvation_item)
-			if a_qty > b_qty then return true end
-			if a_qty < b_qty then return false end
-		end
 
 		-- Scoring
 		local a_db = match_score(a, requester_stop_entity)
@@ -674,7 +646,6 @@ function LogisticsThread:route_train()
 	local reserved_slots = from.reserved_slots or 0
 	local reserved_capacity = from.reserved_capacity or 0
 	local spillover = from.spillover or 0
-	local starvation_item = match.needs.starvation_item
 
 	local manifest = {}
 	local spillover_manifest = nil
@@ -687,7 +658,6 @@ function LogisticsThread:route_train()
 	local total_spillover = n_cargo_wagons * spillover
 
 	-- Fluid allocation.
-	-- TODO: prefer starvation_item, else prefer most fluid
 	if remaining_fluid_capacity > 0 and satisfaction.fluids then
 		local fluid, qty = next(satisfaction.fluids)
 		if fluid and qty then
@@ -697,12 +667,9 @@ function LogisticsThread:route_train()
 	end
 
 	-- Item allocations
-	-- Prefer starvation_item first, then highest fulfillment qty.
 	local items = satisfaction.items or EMPTY
 	local item_keys, n_item_keys = tlib.keys_n(items)
 	tsort(item_keys, function(a, b)
-		if a == starvation_item then return true end
-		if b == starvation_item then return false end
 		local a_qty = items[a] or 0
 		local b_qty = items[b] or 0
 		return a_qty > b_qty

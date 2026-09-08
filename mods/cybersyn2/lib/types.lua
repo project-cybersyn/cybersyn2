@@ -244,7 +244,6 @@ lib.OrderStatusShortDescription = OrderShortStatusDescription
 ---@field public network_matching_mode "and"|"or" Network matching mode for this order.
 ---@field public stacked_requests boolean `true` if this order uses stacked requests.
 ---@field public needs Cybersyn.Internal.Needs? Cached needs.
----@field public no_starvation boolean? `true` if this order ignores starvation logic
 ---@field public provide_single_item boolean? `true` if this order provides only single items per delivery
 ---@field public fullness_when_providing boolean? `true` if this order enforces train fullness threshold when providing
 ---@field public round_to_stacks boolean? `true` if this order rounds deliveries down to full stacks.

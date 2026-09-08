@@ -279,16 +279,6 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 				is_provide_only
 			),
 			gui.Checkbox(
-				{ "cybersyn2-combinator-orders.mitigate-starvation" },
-				{ "cybersyn2-combinator-orders.mitigate-starvation-tooltip" },
-				combinator,
-				"order_" .. arity .. "_no_starvation",
-				true,
-				nil,
-				nil,
-				is_provide_only
-			),
-			gui.Checkbox(
 				{ "cybersyn2-combinator-orders.round-to-stacks" },
 				{ "cybersyn2-combinator-orders.round-to-stacks-tooltip" },
 				combinator,

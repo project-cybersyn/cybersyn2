@@ -91,7 +91,6 @@ function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 		busy_value = 0,
 		network_matching_mode = "or",
 		stacked_requests = false,
-		no_starvation = false,
 	}
 	setmetatable(obj, self)
 	return obj --[[@as Cybersyn.Order]]
@@ -166,21 +165,17 @@ function Order:read(workload, force)
 	---@type boolean
 	local stacked_requests
 	---@type boolean
-	local no_starvation
-	---@type boolean
 	local round_to_stacks
 
 	if arity == "primary" then
 		network_matching_mode = comb:get_order_primary_network_matching_mode()
 		network = comb:get_order_primary_network()
 		stacked_requests = comb:get_order_primary_stacked_requests()
-		no_starvation = comb:get_order_primary_no_starvation()
 		round_to_stacks = comb:get_order_primary_round_to_stacks()
 	else
 		network_matching_mode = comb:get_order_secondary_network_matching_mode()
 		network = comb:get_order_secondary_network()
 		stacked_requests = comb:get_order_secondary_stacked_requests()
-		no_starvation = comb:get_order_secondary_no_starvation()
 		round_to_stacks = comb:get_order_secondary_round_to_stacks()
 	end
 	local is_each = network == "signal-each"
@@ -188,7 +183,6 @@ function Order:read(workload, force)
 	-- Direct config options
 	self.network_matching_mode = network_matching_mode
 	self.stacked_requests = stacked_requests
-	self.no_starvation = no_starvation
 	self.round_to_stacks = round_to_stacks
 	self.priority = stop.priority or 0
 	self.max_item_slots = stop_amisc or 0
@@ -566,8 +560,6 @@ end
 ---@field thresh SignalCounts? Per-item request thresholds.
 ---@field thresh_min_slots uint Minimum item slots dictated by fullness fraction.
 ---@field thresh_min_fluid uint Minimum fluid quantity dictated by fullness fraction.
----@field starvation_tick uint The last tick at which this need was fulfilled.
----@field starvation_item SignalKey? The item which has been starved the longest.
 
 ---Determine if this order is requesting any items above relevant thresholds.
 ---If so generate a Needs object.
@@ -578,7 +570,6 @@ function Order:compute_needs(workload)
 
 	local req_inv = self.inventory.inventory or EMPTY
 	local req_inflow = self.inventory.inflow or EMPTY
-	local req_starv = self.inventory.last_consumed_tick or EMPTY
 	local thresh = self.thresh_in or EMPTY
 	local thresh_explicit = self.thresh_explicit or EMPTY
 	local spread = self.quality_spread
@@ -589,9 +580,6 @@ function Order:compute_needs(workload)
 	local thresh_min_slots = self.thresh_min_slots or 0
 	local thresh_min_fluid = self.thresh_min_fluid or 0
 	local thresh_was_preset = (thresh_min_slots > 0) or (thresh_min_fluid > 0)
-	local starvation_tick = self.last_fulfilled_tick or 0
-	local starvation_item = nil
-	local starvation_is_fluid = false
 	local game_tick = game.tick
 	add_workload(workload, 2)
 
@@ -611,18 +599,6 @@ function Order:compute_needs(workload)
 				if (not min_thresh) or (item_threshold < min_thresh) then
 					min_thresh = item_threshold
 				end
-				local tick = req_starv[key] or 0
-				if tick <= starvation_tick then
-					if
-						has <= 0
-						and not self.no_starvation
-						and ((game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS)
-					then
-						starvation_item = key
-						starvation_is_fluid = true
-					end
-					starvation_tick = tick
-				end
 			end
 			if deficit >= item_threshold then met_thresh = true end
 		end
@@ -634,12 +610,6 @@ function Order:compute_needs(workload)
 	else
 		if not thresh_was_preset and min_thresh then
 			thresh_min_fluid = min_thresh
-		end
-		if starvation_item then
-			-- When starving, don't let deliveries be cutoff because of train
-			-- fullness thresholds.
-			thresh_min_fluid =
-				min(thresh_min_fluid, requested_fluids[starvation_item])
 		end
 	end
 
@@ -659,18 +629,6 @@ function Order:compute_needs(workload)
 					if (not min_thresh) or (thresh_stacks < min_thresh) then
 						min_thresh = thresh_stacks
 					end
-					local tick = req_starv[key] or 0
-					if tick <= starvation_tick then
-						if
-							has <= 0
-							and not self.no_starvation
-							and ((game_tick - tick) >= cs2.LOGISTICS_STARVATION_TICKS)
-						then
-							starvation_item = key
-							starvation_is_fluid = false
-						end
-						starvation_tick = tick
-					end
 				end
 				if deficit >= item_threshold then met_thresh = true end
 			end
@@ -683,16 +641,6 @@ function Order:compute_needs(workload)
 			if not thresh_was_preset and min_thresh then
 				thresh_min_slots = min_thresh
 			end
-			if starvation_item and not starvation_is_fluid then
-				-- When starving, don't let deliveries be cutoff because of train
-				-- fullness thresholds.
-				thresh_min_slots = min(
-					thresh_min_slots,
-					ceil(
-						requests[starvation_item] / (key_to_stacksize(starvation_item) or 1)
-					)
-				)
-			end
 		end
 		if items or fluids then
 			---@type Cybersyn.Internal.Needs
@@ -702,8 +650,6 @@ function Order:compute_needs(workload)
 				thresh = thresh,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,
-				starvation_tick = starvation_tick,
-				starvation_item = starvation_item,
 			}
 			return res
 		else
@@ -772,8 +718,6 @@ function Order:compute_needs(workload)
 				thresh_min_fluid = thresh_min_fluid,
 				and_spread = and_spread,
 				spread = spread,
-				starvation_tick = starvation_tick,
-				starvation_item = starvation_item,
 			}
 			return res
 		end
@@ -832,8 +776,6 @@ function Order:compute_needs(workload)
 				---@diagnostic disable-next-line: assign-type-mismatch
 				or_mask = or_mask,
 				spread = spread,
-				starvation_tick = starvation_tick,
-				starvation_item = starvation_item,
 			}
 			return res
 		end
@@ -873,8 +815,6 @@ function Order:compute_needs(workload)
 				thresh_min_fluid = thresh_min_fluid,
 				all_stacks = deficit_stacks,
 				spread = spread,
-				starvation_tick = starvation_tick,
-				starvation_item = starvation_item,
 			}
 			return res
 		end
@@ -888,8 +828,6 @@ function Order:compute_needs(workload)
 			thresh = thresh,
 			thresh_min_slots = thresh_min_slots,
 			thresh_min_fluid = thresh_min_fluid,
-			starvation_tick = starvation_tick,
-			starvation_item = starvation_item,
 		}
 		return res
 	else
