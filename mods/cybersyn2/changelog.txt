@@ -2,6 +2,12 @@
 Version: 0.3.5
 Date: ????
   Changes:
+    - Removed previous starvation behavior.
+    - By default, unfulfilled requesting orders will now reserve matching provider stock.
+    - Added a per-order option to control reservation behavior from All, Scaled, Dump, and None.
+    - Legacy orders with the "mitigate starvation" setting disabled will have their reservation mode set to None.
+    - Requesting orders of equal priority are now processed in order of which was fulfilled least recently.
+    - Added "Reservation time scale" global setting, which determines how much product orders in the Scaled mode will reserve.
   Bugfixes:
     - Fixed an issue where positive values of the `All Items` signal on an order wire were wrongly interpreted as requests.
     - Fixed an issue where depletion thresholds were not being correctly applied to "OR" or "All Items" orders.

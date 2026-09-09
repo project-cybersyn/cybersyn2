@@ -145,23 +145,20 @@ This can be mitigated if necessary by changing Cybersyn's performance settings.
 
 :::
 
-## Starvation
+## Reservation
 
-**Starvation** occurs when an order is missing a particular item and has not received a delivery in some time. Specifically, Cybersyn considers a requesting order to be starved of an item when:
+Cybersyn processes requests in order of priority, and for requests of equal priority, in order of whichever was
+fulfilled least recently. If a requesting order cannot be fulfilled, it can
+reserve matching provider stock to prevent lower priority stations with lower
+thresholds from starving it of resources.
 
-- The station has zero of that item in its inventory and incoming deliveries.
-- The order has not received a delivery of that item for 5 minutes.
+The reservation type on each order controls this behavior:
 
-### Starvation Mitigation
+- **All** reserves all applicable provider stock. This is the default.
+- **Scaled** reserves a fraction of the applicable stock based on the time
+	since the order was last fulfilled. The fraction increases linearly from
+	zero to one over the global **Reservation scale time** setting.
+- **Dump** and **None** do not reserve provider stock.
 
-When the "Mitigate starvation" option for an order is enabled (checked by default), Cybersyn automatically applies special handling when it detects a starving item. Logistics behavior is changed as follows:
-
-1. **Prioritization by starvation time**: The longer an order is starving, the higher its priority. A station that has been waiting 10 minutes for an item will be served before one waiting 6     minutes.
-:::note
-This does not override ordinary station priority. Higher-priority stations will still be served first, even if a lower-priority station is starving.
-:::
-2. **Reserved stock**: All matching providers of the starving item will have all of their inventory of that item reserved until at least one of them is able to make a delivery that satisfies the starving order.
-3. **Fullness thresholds ignored**: Train fullness thresholds are ignored when transporting starved items, meaning stations that are ordinarily configured for full trains may make partial deliveries in cases of starvation
-:::note
-The depletion threshold for the requester, as well as any manually set thresholds, are still enforced.
-:::
+Reservation only applies to normal orders. Spread, OR, and ALL item orders do not reserve stock, regardless of reservation
+type.

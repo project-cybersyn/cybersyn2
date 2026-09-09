@@ -5,6 +5,7 @@ local strace = require("lib.core.strace")
 
 ---@class (exact) Cybersyn.ModSettings
 ---@field public enable_logistics boolean Enable or disable scheduling globally.
+---@field public reservation_scale_time integer Time in seconds for scaled reservations to reach full strength.
 ---@field public debug boolean Enable debug mode.
 ---@field public debug_level "NONE"|"WARN"|"INFO"|"DEBUG"|"TRACE"
 ---@field public work_factor number Multiplier applied to work done per cycle.
@@ -30,6 +31,8 @@ cs2.mod_settings = mod_settings
 local function update_mod_settings()
 	mod_settings.enable_logistics =
 		settings.global["cybersyn2-setting-enable-logistics"].value --[[@as boolean]]
+	mod_settings.reservation_scale_time =
+		settings.global["cybersyn2-setting-reservation-scale-time"].value --[[@as integer]]
 	local debug_level = settings.global["cybersyn2-setting-debug-level"].value --[[@as string]]
 	mod_settings.debug = debug_level ~= "NONE"
 	---@diagnostic disable-next-line: assign-type-mismatch

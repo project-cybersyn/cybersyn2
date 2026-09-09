@@ -24,6 +24,7 @@ local NINF = -INF
 local min = math.min
 local max = math.max
 local ceil = math.ceil
+local floor = math.floor
 local dist = _G.cs2.lib.dist
 local EMPTY = tlib.EMPTY_STRICT
 local key_to_stacksize = slib.key_to_stacksize
@@ -45,6 +46,7 @@ local rcall = remote.call --[[@as fun(iface:string, method:string, ...:Any):Any]
 ---@field public train_index int
 ---@field public requester Cybersyn.Order
 ---@field public reservations Cybersyn.Internal.Reservation[]
+---@field public requester_reservation_index int
 ---@field public matches Cybersyn.Internal.Match[]
 ---@field public match Cybersyn.Internal.Match
 ---@field public best_train Cybersyn.Train?
@@ -111,14 +113,69 @@ end
 -- Matching
 --------------------------------------------------------------------------------
 
----@param from_inv Cybersyn.Inventory
-function LogisticsThread:reserve(from_inv, item, qty)
-	from_inv:add_single_item_outflow(item, qty)
-	self.reservations[#self.reservations + 1] = {
+---@param provider Cybersyn.Order
+---@param item SignalKey
+---@param wanted uint
+function LogisticsThread:reserve(provider, item, wanted)
+	local inventory = provider.inventory
+	local contents = inventory.inventory or EMPTY
+	local outflow = inventory.outflow[item] or 0
+	local qty = min(
+		(contents[item] or 0) - outflow,
+		(provider.provides[item] or 0) - outflow,
+		wanted
+	)
+	if qty <= 0 then return end
+
+	inventory:add_single_item_outflow(item, qty)
+	local reservations = self.reservations
+	if not reservations then
+		reservations = {}
+		self.reservations = reservations
+	end
+	reservations[#reservations + 1] = {
 		item = item,
 		qty = qty,
-		from_inv = from_inv,
+		from_inv = inventory,
 	}
+end
+
+---@param first_index int
+function LogisticsThread:release_reservations(first_index)
+	local reservations = self.reservations
+	if not reservations then return end
+	for i = #reservations, first_index, -1 do
+		local res = reservations[i]
+		res.from_inv:add_single_item_outflow(res.item, -res.qty --[[@as int]])
+		reservations[i] = nil
+	end
+end
+
+---@param provider Cybersyn.Order
+---@param needs Cybersyn.Internal.Needs
+function LogisticsThread:reserve_provider_needs(provider, needs)
+	if needs.and_spread or needs.or_mask or needs.all_stacks then return end
+	local reservation_type = self.requester.reservation_type or "all"
+	if reservation_type == "dump" or reservation_type == "none" then return end
+
+	---@type number
+	local scale = 1
+	if reservation_type == "scaled" then
+		local elapsed = game.tick - (self.requester.last_fulfilled_tick or 0)
+		scale = min(max(elapsed / (mod_settings.reservation_scale_time * 60), 0), 1)
+	end
+
+	local n_fluids = 0
+	for item, qty in pairs(needs.fluids or EMPTY) do
+		self:reserve(provider, item, floor(qty * scale))
+		n_fluids = n_fluids + 1
+	end
+	local n_items = 0
+	for item, qty in pairs(needs.items or EMPTY) do
+		self:reserve(provider, item, floor(qty * scale))
+		n_items = n_items + 1
+	end
+	add_workload(self.workload_counter, 1.5 * n_fluids + 1.5 * n_items)
 end
 
 function LogisticsThread:loop_requesters()
@@ -147,6 +204,8 @@ function LogisticsThread:loop_requesters()
 
 		self.prov_index = 0
 		self.matches = {}
+		local reservations = self.reservations
+		self.requester_reservation_index = (reservations and #reservations or 0) + 1
 		self:set_state("loop_providers")
 	else
 		trace(
@@ -160,6 +219,10 @@ end
 function LogisticsThread:loop_providers()
 	local requester = self.requester
 	local requester_needs = requester.needs --[[@as Cybersyn.Internal.Needs]]
+	if not self.requester_reservation_index then
+		local reservations = self.reservations
+		self.requester_reservation_index = (reservations and #reservations or 0) + 1
+	end
 	self.prov_index = self.prov_index + 1
 	local index = self.prov_index --[[@as int]]
 	local provider = self.providers[index]
@@ -232,6 +295,9 @@ function LogisticsThread:loop_providers()
 
 	-- Register a match
 	if satisfaction then
+		if not next(self.matches) then
+			self:release_reservations(self.requester_reservation_index)
+		end
 		self.matches[#self.matches + 1] = {
 			requester_node = requester_node,
 			requester = requester,
@@ -245,25 +311,8 @@ function LogisticsThread:loop_providers()
 				[net_name] = net_mask,
 			},
 		}
-	else
-		-- Reserve starvation item if there is one.
-		local starvation_item = requester_needs.starvation_item
-		if starvation_item then
-			local avail = provider:get_provided_qty(starvation_item)
-			if avail > 0 then
-				self:reserve(provider.inventory, starvation_item, avail)
-				trace(
-					"STARVATION: Requester",
-					requester.node_id,
-					"reserved item",
-					starvation_item,
-					"qty",
-					avail,
-					"from provider",
-					provider.node_id
-				)
-			end
-		end
+	elseif not next(self.matches) then
+		self:reserve_provider_needs(provider, requester_needs)
 	end
 end
 
@@ -301,7 +350,6 @@ function LogisticsThread:sort_matches()
 	if not requester then
 		error("Logic error: sort_matches called with no requester set")
 	end
-	local starvation_item = requester_needs.starvation_item
 	if requester_node:is_sharing_inventory() then
 		self.requester_is_sharing_inventory = true
 	else
@@ -315,14 +363,6 @@ function LogisticsThread:sort_matches()
 		local a_prio, b_prio = a.provider.priority, b.provider.priority
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
-
-		-- If starvation_item is set, prioritize who has more.
-		if starvation_item then
-			local a_qty = a.provider:get_provided_qty(starvation_item)
-			local b_qty = b.provider:get_provided_qty(starvation_item)
-			if a_qty > b_qty then return true end
-			if a_qty < b_qty then return false end
-		end
 
 		-- Scoring
 		local a_db = match_score(a, requester_stop_entity)
@@ -674,7 +714,6 @@ function LogisticsThread:route_train()
 	local reserved_slots = from.reserved_slots or 0
 	local reserved_capacity = from.reserved_capacity or 0
 	local spillover = from.spillover or 0
-	local starvation_item = match.needs.starvation_item
 
 	local manifest = {}
 	local spillover_manifest = nil
@@ -687,7 +726,6 @@ function LogisticsThread:route_train()
 	local total_spillover = n_cargo_wagons * spillover
 
 	-- Fluid allocation.
-	-- TODO: prefer starvation_item, else prefer most fluid
 	if remaining_fluid_capacity > 0 and satisfaction.fluids then
 		local fluid, qty = next(satisfaction.fluids)
 		if fluid and qty then
@@ -697,12 +735,9 @@ function LogisticsThread:route_train()
 	end
 
 	-- Item allocations
-	-- Prefer starvation_item first, then highest fulfillment qty.
 	local items = satisfaction.items or EMPTY
 	local item_keys, n_item_keys = tlib.keys_n(items)
 	tsort(item_keys, function(a, b)
-		if a == starvation_item then return true end
-		if b == starvation_item then return false end
 		local a_qty = items[a] or 0
 		local b_qty = items[b] or 0
 		return a_qty > b_qty
@@ -811,12 +846,8 @@ function LogisticsThread:sort_requesters()
 		local a_prio, b_prio = a.priority, b.priority
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
-		local a_needs, b_needs = a.needs, b.needs
-		-- Nothing gets in the requesters array without having `needs` set.
-		---@diagnostic disable-next-line: need-check-nil
-		local a_last = a_needs.starvation_tick or 0
-		---@diagnostic disable-next-line: need-check-nil
-		local b_last = b_needs.starvation_tick or 0
+		local a_last = a.last_fulfilled_tick or 0
+		local b_last = b.last_fulfilled_tick or 0
 		if a_last < b_last then return true end
 		if a_last > b_last then return false end
 		return a.busy_value < b.busy_value
@@ -849,9 +880,7 @@ end
 --------------------------------------------------------------------------------
 
 function LogisticsThread:loop_complete()
-	for _, res in pairs(self.reservations) do
-		res.from_inv:add_single_item_outflow(res.item, -res.qty --[[@as int]])
-	end
+	self:release_reservations(1)
 	self.reservations = nil
 
 	local t = game.tick
