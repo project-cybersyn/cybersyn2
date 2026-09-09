@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.0
-Date: ????
+Date: 2026-09-08
   Changes:
     - Removed previous starvation behavior.
     - By default, all non-exotic requesting orders that cannot be fulfilled will reserve inventory from matching providers.
