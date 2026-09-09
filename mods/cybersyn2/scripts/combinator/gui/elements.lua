@@ -225,8 +225,14 @@ local reservation_type_dropdown_items = {
 		key = "scaled",
 		caption = { "cybersyn2-combinator-orders.reservation-scaled" },
 	},
-	{ key = "dump", caption = { "cybersyn2-combinator-orders.reservation-dump" } },
-	{ key = "none", caption = { "cybersyn2-combinator-orders.reservation-none" } },
+	{
+		key = "dump",
+		caption = { "cybersyn2-combinator-orders.reservation-dump" },
+	},
+	{
+		key = "none",
+		caption = { "cybersyn2-combinator-orders.reservation-none" },
+	},
 }
 
 _G.cs2.gui.OrderWireSettings = relm.define_element({
@@ -278,16 +284,6 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 					andor_dropdown_items
 				),
 			}),
-			gui.Checkbox(
-				{ "cybersyn2-combinator-orders.stacked-requests" },
-				{ "cybersyn2-combinator-orders.stacked-requests-tooltip" },
-				combinator,
-				"order_" .. arity .. "_stacked_requests",
-				nil,
-				nil,
-				nil,
-				is_provide_only
-			),
 			ultros.Labeled({
 				caption = { "cybersyn2-combinator-orders.reservation-type" },
 				tooltip = { "cybersyn2-combinator-orders.reservation-type-tooltip" },
@@ -304,6 +300,16 @@ _G.cs2.gui.OrderWireSettings = relm.define_element({
 					reservation_type_dropdown_items
 				),
 			}),
+			gui.Checkbox(
+				{ "cybersyn2-combinator-orders.stacked-requests" },
+				{ "cybersyn2-combinator-orders.stacked-requests-tooltip" },
+				combinator,
+				"order_" .. arity .. "_stacked_requests",
+				nil,
+				nil,
+				nil,
+				is_provide_only
+			),
 			gui.Checkbox(
 				{ "cybersyn2-combinator-orders.round-to-stacks" },
 				{ "cybersyn2-combinator-orders.round-to-stacks-tooltip" },
