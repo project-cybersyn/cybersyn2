@@ -127,7 +127,12 @@ function LogisticsThread:reserve(provider, item, wanted)
 	if qty <= 0 then return end
 
 	inventory:add_single_item_outflow(item, qty)
-	self.reservations[#self.reservations + 1] = {
+	local reservations = self.reservations
+	if not reservations then
+		reservations = {}
+		self.reservations = reservations
+	end
+	reservations[#reservations + 1] = {
 		item = item,
 		qty = qty,
 		from_inv = inventory,
@@ -188,7 +193,8 @@ function LogisticsThread:loop_requesters()
 
 		self.prov_index = 0
 		self.matches = {}
-		self.requester_reservation_index = #self.reservations + 1
+		local reservations = self.reservations
+		self.requester_reservation_index = (reservations and #reservations or 0) + 1
 		self:set_state("loop_providers")
 	else
 		trace(
@@ -202,6 +208,10 @@ end
 function LogisticsThread:loop_providers()
 	local requester = self.requester
 	local requester_needs = requester.needs --[[@as Cybersyn.Internal.Needs]]
+	if not self.requester_reservation_index then
+		local reservations = self.reservations
+		self.requester_reservation_index = (reservations and #reservations or 0) + 1
+	end
 	self.prov_index = self.prov_index + 1
 	local index = self.prov_index --[[@as int]]
 	local provider = self.providers[index]
@@ -825,8 +835,8 @@ function LogisticsThread:sort_requesters()
 		local a_prio, b_prio = a.priority, b.priority
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
-		local a_last = a.last_fulfilled_tick
-		local b_last = b.last_fulfilled_tick
+		local a_last = a.last_fulfilled_tick or 0
+		local b_last = b.last_fulfilled_tick or 0
 		if a_last < b_last then return true end
 		if a_last > b_last then return false end
 		return a.busy_value < b.busy_value

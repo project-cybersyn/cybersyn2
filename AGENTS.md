@@ -45,6 +45,7 @@ Run relevant checks for changed areas before finishing:
 ### Lua / mod changes
 
 - Format with `stylua` (repo has `stylua.toml`, tabs + 80 columns).
+- Do not run Selene; it is obsolete for this repository.
 - Typecheck with LuaLS (treat LuaLS diagnostics as the source of truth).
 - Keep LuaLS compatibility in mind (avoid patterns that break static analysis
   or completion).
