@@ -158,6 +158,7 @@ function LogisticsThread:reserve_provider_needs(provider, needs)
 	local reservation_type = self.requester.reservation_type or "all"
 	if reservation_type == "dump" or reservation_type == "none" then return end
 
+	---@type number
 	local scale = 1
 	if reservation_type == "scaled" then
 		local elapsed = game.tick - (self.requester.last_fulfilled_tick or 0)

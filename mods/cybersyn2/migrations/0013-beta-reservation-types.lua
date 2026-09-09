@@ -4,6 +4,7 @@ for _, combinator in pairs(storage.combinators) do
 	local _, thing = remote.call("things", "get", combinator.id)
 	if thing then
 		local tags = thing.tags or {}
+		---@type integer
 		local flags = tags.order_flags
 		if type(flags) ~= "number" then flags = flags and 1 or 0 end
 
