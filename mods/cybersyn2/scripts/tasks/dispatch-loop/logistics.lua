@@ -164,16 +164,17 @@ function LogisticsThread:reserve_provider_needs(provider, needs)
 		scale = min(max(elapsed / (mod_settings.reservation_scale_time * 60), 0), 1)
 	end
 
+	local n_fluids = 0
 	for item, qty in pairs(needs.fluids or EMPTY) do
 		self:reserve(provider, item, floor(qty * scale))
+		n_fluids = n_fluids + 1
 	end
+	local n_items = 0
 	for item, qty in pairs(needs.items or EMPTY) do
 		self:reserve(provider, item, floor(qty * scale))
+		n_items = n_items + 1
 	end
-	add_workload(
-		self.workload_counter,
-		table_size(needs.fluids or EMPTY) + table_size(needs.items or EMPTY)
-	)
+	add_workload(self.workload_counter, 1.5 * n_fluids + 1.5 * n_items)
 end
 
 function LogisticsThread:loop_requesters()
