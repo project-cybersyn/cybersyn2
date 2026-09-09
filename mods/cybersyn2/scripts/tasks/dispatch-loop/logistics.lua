@@ -724,6 +724,11 @@ function LogisticsThread:route_train()
 	local remaining_fluid_capacity =
 		max(total_fluid_capacity - (n_fluid_wagons * reserved_capacity), 0)
 	local total_spillover = n_cargo_wagons * spillover
+	local round_items_to_stacks = not (
+			match.needs.spread
+			or match.needs.or_mask
+			or match.needs.all_stacks
+		) and (match.requester.round_to_stacks or match.provider.round_to_stacks)
 
 	-- Fluid allocation.
 	if remaining_fluid_capacity > 0 and satisfaction.fluids then
@@ -750,7 +755,11 @@ function LogisticsThread:route_train()
 		local stack_size = key_to_stacksize(item) or 1
 		local item_capacity = (remaining_item_slots * stack_size) - total_spillover
 		local manifest_qty = min(qty, item_capacity)
-		local spillover_qty = min(qty + total_spillover, item_capacity)
+		if round_items_to_stacks then
+			manifest_qty = floor(manifest_qty / stack_size) * stack_size
+		end
+		if manifest_qty <= 0 then goto continue end
+		local spillover_qty = min(manifest_qty + total_spillover, item_capacity)
 		local slots_needed = ceil(spillover_qty / stack_size)
 		if slots_needed > remaining_item_slots then
 			error("Logic error in slot calculation")
@@ -761,6 +770,7 @@ function LogisticsThread:route_train()
 			if not spillover_manifest then spillover_manifest = {} end
 			spillover_manifest[item] = spillover_qty
 		end
+		::continue::
 	end
 	add_workload(self.workload_counter, 2 * n_item_keys)
 
@@ -829,7 +839,6 @@ function LogisticsThread:route_train()
 			"with manifest",
 			manifest
 		)
-		-- TODO: log delivery
 	end
 
 	self:set_state("loop_matches")

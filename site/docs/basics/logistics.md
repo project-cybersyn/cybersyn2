@@ -54,6 +54,11 @@ Requests are then given by providing circuit inputs to the Station combinator's 
 
 :::note
 Requests are interpreted in stacks by default. You may uncheck the *Stacked Requests* checkbox within the Station combinator to change this.
+
+The **Round deliveries to full stacks** order option rounds every item quantity
+in a proposed delivery down to the nearest full stack. Items with less than one
+stack remaining are omitted. The option applies when enabled on either the
+requesting or providing order, but does not affect fluids or exotic orders.
 :::
 
 ## Providing Specific Items

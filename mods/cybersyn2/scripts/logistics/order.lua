@@ -31,6 +31,14 @@ local network_match_or = cs2.network_match_or
 local trace = strace.trace
 
 ---@param item SignalKey
+---@param qty uint
+---@return uint
+local function round_item_to_stack(item, qty)
+	local stack_size = key_to_stacksize(item) or 1
+	return floor(qty / stack_size) * stack_size
+end
+
+---@param item SignalKey
 ---@param species "fluid"|"item"|nil
 ---@param stack_size uint?
 ---@param request_qty uint
@@ -625,6 +633,9 @@ function Order:compute_needs(workload)
 		for key, qty in pairs(requests) do
 			local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
 			local deficit = qty - has
+			if self.round_to_stacks then
+				deficit = round_item_to_stack(key, deficit)
+			end
 			if deficit > 0 then
 				local item_threshold = thresh[key] or 0
 				if deficit >= item_threshold then
@@ -949,6 +960,9 @@ function Order:satisfy_needs(workload, needs)
 			local outflow = prov_outflow[key] or 0
 			local available =
 				min((prov_inv[key] or 0) - outflow, (provides[key] or 0) - outflow, qty)
+			if self.round_to_stacks then
+				available = round_item_to_stack(key, available)
+			end
 			if available > 0 and available >= (thresh[key] or 0) then
 				items[key] = available
 			end

@@ -2,6 +2,8 @@
 Version: 0.4.1
 Date: ????
   Changes:
+  Bugfixes:
+    - Fixed the "Round deliveries to full stacks" order option not affecting delivery quantities.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.0
 Date: 2026-09-08
