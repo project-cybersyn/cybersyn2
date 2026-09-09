@@ -45,6 +45,7 @@ local rcall = remote.call --[[@as fun(iface:string, method:string, ...:Any):Any]
 ---@field public train_index int
 ---@field public requester Cybersyn.Order
 ---@field public reservations Cybersyn.Internal.Reservation[]
+---@field public requester_reservation_index int
 ---@field public matches Cybersyn.Internal.Match[]
 ---@field public match Cybersyn.Internal.Match
 ---@field public best_train Cybersyn.Train?
@@ -111,14 +112,54 @@ end
 -- Matching
 --------------------------------------------------------------------------------
 
----@param from_inv Cybersyn.Inventory
-function LogisticsThread:reserve(from_inv, item, qty)
-	from_inv:add_single_item_outflow(item, qty)
+---@param provider Cybersyn.Order
+---@param item SignalKey
+---@param wanted uint
+function LogisticsThread:reserve(provider, item, wanted)
+	local inventory = provider.inventory
+	local contents = inventory.inventory or EMPTY
+	local outflow = inventory.outflow[item] or 0
+	local qty = min(
+		(contents[item] or 0) - outflow,
+		(provider.provides[item] or 0) - outflow,
+		wanted
+	)
+	if qty <= 0 then return end
+
+	inventory:add_single_item_outflow(item, qty)
 	self.reservations[#self.reservations + 1] = {
 		item = item,
 		qty = qty,
-		from_inv = from_inv,
+		from_inv = inventory,
 	}
+end
+
+---@param first_index int
+function LogisticsThread:release_reservations(first_index)
+	local reservations = self.reservations
+	if not reservations then return end
+	for i = #reservations, first_index, -1 do
+		local res = reservations[i]
+		res.from_inv:add_single_item_outflow(res.item, -res.qty --[[@as int]])
+		reservations[i] = nil
+	end
+end
+
+---@param provider Cybersyn.Order
+---@param needs Cybersyn.Internal.Needs
+function LogisticsThread:reserve_provider_needs(provider, needs)
+	if needs.and_spread or needs.or_mask or needs.all_stacks then return end
+
+	for item, qty in pairs(needs.fluids or EMPTY) do
+		self:reserve(provider, item, qty)
+	end
+	for item, qty in pairs(needs.items or EMPTY) do
+		self:reserve(provider, item, qty)
+	end
+	add_workload(
+		self.workload_counter,
+		table_size(needs.fluids or EMPTY) + table_size(needs.items or EMPTY)
+	)
 end
 
 function LogisticsThread:loop_requesters()
@@ -147,6 +188,7 @@ function LogisticsThread:loop_requesters()
 
 		self.prov_index = 0
 		self.matches = {}
+		self.requester_reservation_index = #self.reservations + 1
 		self:set_state("loop_providers")
 	else
 		trace(
@@ -232,6 +274,9 @@ function LogisticsThread:loop_providers()
 
 	-- Register a match
 	if satisfaction then
+		if not next(self.matches) then
+			self:release_reservations(self.requester_reservation_index)
+		end
 		self.matches[#self.matches + 1] = {
 			requester_node = requester_node,
 			requester = requester,
@@ -245,6 +290,8 @@ function LogisticsThread:loop_providers()
 				[net_name] = net_mask,
 			},
 		}
+	elseif not next(self.matches) then
+		self:reserve_provider_needs(provider, requester_needs)
 	end
 end
 
@@ -778,12 +825,8 @@ function LogisticsThread:sort_requesters()
 		local a_prio, b_prio = a.priority, b.priority
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
-		local a_needs, b_needs = a.needs, b.needs
-		-- Nothing gets in the requesters array without having `needs` set.
-		---@diagnostic disable-next-line: need-check-nil
-		local a_last = a_needs.starvation_tick or 0
-		---@diagnostic disable-next-line: need-check-nil
-		local b_last = b_needs.starvation_tick or 0
+		local a_last = a.last_fulfilled_tick
+		local b_last = b.last_fulfilled_tick
 		if a_last < b_last then return true end
 		if a_last > b_last then return false end
 		return a.busy_value < b.busy_value
@@ -816,9 +859,7 @@ end
 --------------------------------------------------------------------------------
 
 function LogisticsThread:loop_complete()
-	for _, res in pairs(self.reservations) do
-		res.from_inv:add_single_item_outflow(res.item, -res.qty --[[@as int]])
-	end
+	self:release_reservations(1)
 	self.reservations = nil
 
 	local t = game.tick
