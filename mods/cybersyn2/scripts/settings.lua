@@ -8,7 +8,6 @@ local strace = require("lib.core.strace")
 ---@field public reservation_scale_time integer Time in seconds for scaled reservations to reach full strength.
 ---@field public debug boolean Enable debug mode.
 ---@field public debug_level "NONE"|"WARN"|"INFO"|"DEBUG"|"TRACE"
----@field public work_factor number Multiplier applied to work done per cycle.
 ---@field public warmup_time number Warmup time in seconds.
 ---@field public vehicle_warmup_time number Warmup time in seconds for vehicles.
 ---@field public train_stuck_timeout number Number of seconds of inactivity before a train is considered stuck.
@@ -37,8 +36,6 @@ local function update_mod_settings()
 	mod_settings.debug = debug_level ~= "NONE"
 	---@diagnostic disable-next-line: assign-type-mismatch
 	mod_settings.debug_level = debug_level
-	mod_settings.work_factor =
-		settings.global["cybersyn2-setting-work-factor"].value --[[@as number]]
 	mod_settings.warmup_time =
 		settings.global["cybersyn2-setting-warmup-time"].value --[[@as number]]
 	mod_settings.vehicle_warmup_time =

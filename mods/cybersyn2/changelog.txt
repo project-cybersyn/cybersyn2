@@ -2,6 +2,7 @@
 Version: 0.4.1
 Date: ????
   Changes:
+    - Removed "Work factor" setting. (Changing the work factor is now handled through the Threads tab of the Manager.)
   Bugfixes:
     - Fixed the "Round deliveries to full stacks" order option not affecting delivery quantities.
 ---------------------------------------------------------------------------------------------------

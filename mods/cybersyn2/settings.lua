@@ -25,15 +25,6 @@ data:extend({
 	},
 	{
 		type = "double-setting",
-		name = "cybersyn2-setting-work-factor",
-		order = "bb",
-		setting_type = "runtime-global",
-		default_value = 1.0,
-		minimum_value = 0.01,
-		maximum_value = 100.0,
-	},
-	{
-		type = "double-setting",
 		name = "cybersyn2-setting-warmup-time",
 		order = "ca",
 		setting_type = "runtime-global",
