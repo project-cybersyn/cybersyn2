@@ -166,17 +166,21 @@ function Order:read(workload, force)
 	local stacked_requests
 	---@type boolean
 	local round_to_stacks
+	---@type nil|"all"|"scaled"|"dump"|"none"
+	local reservation_type
 
 	if arity == "primary" then
 		network_matching_mode = comb:get_order_primary_network_matching_mode()
 		network = comb:get_order_primary_network()
 		stacked_requests = comb:get_order_primary_stacked_requests()
 		round_to_stacks = comb:get_order_primary_round_to_stacks()
+		reservation_type = comb:get_order_primary_reservation_type()
 	else
 		network_matching_mode = comb:get_order_secondary_network_matching_mode()
 		network = comb:get_order_secondary_network()
 		stacked_requests = comb:get_order_secondary_stacked_requests()
 		round_to_stacks = comb:get_order_secondary_round_to_stacks()
+		reservation_type = comb:get_order_secondary_reservation_type()
 	end
 	local is_each = network == "signal-each"
 
@@ -184,6 +188,7 @@ function Order:read(workload, force)
 	self.network_matching_mode = network_matching_mode
 	self.stacked_requests = stacked_requests
 	self.round_to_stacks = round_to_stacks
+	self.reservation_type = reservation_type
 	self.priority = stop.priority or 0
 	self.max_item_slots = stop_amisc or 0
 	self.max_fluid_capacity = stop_amfc or 0

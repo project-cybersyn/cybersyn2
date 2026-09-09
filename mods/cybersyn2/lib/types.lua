@@ -242,6 +242,7 @@ lib.OrderStatusShortDescription = OrderShortStatusDescription
 ---@field public priority int The computed priority of this order.
 ---@field public busy_value number Cached value computed at poll time regarding how busy the associated node is.
 ---@field public network_matching_mode "and"|"or" Network matching mode for this order.
+---@field public reservation_type nil|"all"|"scaled"|"dump"|"none" Reservation behavior when this request cannot be fulfilled.
 ---@field public stacked_requests boolean `true` if this order uses stacked requests.
 ---@field public needs Cybersyn.Internal.Needs? Cached needs.
 ---@field public provide_single_item boolean? `true` if this order provides only single items per delivery

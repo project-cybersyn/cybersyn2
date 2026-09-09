@@ -7,6 +7,15 @@ data:extend({
 		default_value = true,
 	},
 	{
+		type = "int-setting",
+		name = "cybersyn2-setting-reservation-scale-time",
+		order = "ab",
+		setting_type = "runtime-global",
+		default_value = 300,
+		minimum_value = 1,
+		maximum_value = 2147483647,
+	},
+	{
 		type = "string-setting",
 		name = "cybersyn2-setting-debug-level",
 		order = "ac",

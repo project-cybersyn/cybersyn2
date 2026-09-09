@@ -24,6 +24,7 @@ local NINF = -INF
 local min = math.min
 local max = math.max
 local ceil = math.ceil
+local floor = math.floor
 local dist = _G.cs2.lib.dist
 local EMPTY = tlib.EMPTY_STRICT
 local key_to_stacksize = slib.key_to_stacksize
@@ -154,12 +155,20 @@ end
 ---@param needs Cybersyn.Internal.Needs
 function LogisticsThread:reserve_provider_needs(provider, needs)
 	if needs.and_spread or needs.or_mask or needs.all_stacks then return end
+	local reservation_type = self.requester.reservation_type or "all"
+	if reservation_type == "dump" or reservation_type == "none" then return end
+
+	local scale = 1
+	if reservation_type == "scaled" then
+		local elapsed = game.tick - (self.requester.last_fulfilled_tick or 0)
+		scale = min(max(elapsed / (mod_settings.reservation_scale_time * 60), 0), 1)
+	end
 
 	for item, qty in pairs(needs.fluids or EMPTY) do
-		self:reserve(provider, item, qty)
+		self:reserve(provider, item, floor(qty * scale))
 	end
 	for item, qty in pairs(needs.items or EMPTY) do
-		self:reserve(provider, item, qty)
+		self:reserve(provider, item, floor(qty * scale))
 	end
 	add_workload(
 		self.workload_counter,
