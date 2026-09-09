@@ -46,8 +46,13 @@ Run relevant checks for changed areas before finishing:
 
 - Format with `stylua` (repo has `stylua.toml`, tabs + 80 columns).
 - Do not run Selene; it is obsolete for this repository.
-- Typecheck with LuaLS (treat LuaLS diagnostics as the source of truth).
-- Keep LuaLS compatibility in mind (avoid patterns that break static analysis
+- Do not run LuaLS; this repository uses EmmyLua for Lua analysis.
+- Check affected files through VS Code Problems diagnostics, which include
+  diagnostics published by the EmmyLua language server.
+- Run `emmylua_check . --severity error` from the repository root. Omitting
+  `--config` makes the checker load both `.emmyrc.json` and `.luarc.json`.
+- Do not modify either EmmyLua configuration file as part of validation.
+- Keep EmmyLua compatibility in mind (avoid patterns that break static analysis
   or completion).
 
 ### Docs/site changes

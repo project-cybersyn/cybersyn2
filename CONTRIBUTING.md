@@ -21,16 +21,7 @@ We love contributions, and anyone is welcome. Documentation updates, bugfixes, a
 
 ### Linting and Formatting
 
-Submitted code must lint cleanly via the LuaLS lint/warning system and be free of type errors.
+Submitted code must lint cleanly via EmmyLua and be free of type errors.
 
 Auto-formatting is done by `stylua`. Submitted code must be auto-formatted. VSCode users can use the `stylua` plugin and Format-on-Save.
 
-### Lua Coding Rules
-
-Due to some quirks in the way LuaLS and FMTK work, there are a few coding rules to follow so that all our editors work nicely.
-
-#### Use of Globals
-
-- Each mod has a unique global table, `_G.cs2` for CS2, `_G.mgr` for the manager. All global data must go in those tables, never in `_G`.
-
-- When writing to these global tables, always do so in a fully-qualified fashion, i.e. `_G.cs2.x.y = ...`. Assigning via indirection from a local confuses LuaLS/FMTK and your global function won't have appropriate code completion.
