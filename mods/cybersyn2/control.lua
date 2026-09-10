@@ -65,6 +65,7 @@ require("scripts.combinator.modes.deliveries")
 require("scripts.combinator.modes.surface")
 require("scripts.combinator.modes.wagon-contents")
 require("scripts.combinator.modes.wagon-split")
+require("scripts.combinator.modes.presence")
 
 -- Threads
 require("scripts.tasks.base")
