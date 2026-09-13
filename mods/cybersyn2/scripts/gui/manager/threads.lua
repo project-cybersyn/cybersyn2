@@ -134,7 +134,6 @@ local TrainMonitorEntry = relm.define("Manager.TrainMonitorEntry", function()
 	local n_cstrains = task.n_cstrains or 0
 	local wpi = (task._cmt_work_per_iter or EMPTY)[1] or 0
 	local work_cap = task._cmt_work_cap or 0
-	local spike_cap = task._cmt_spike_cap or 0
 
 	return Pr({
 		type = "frame",
@@ -185,17 +184,6 @@ local TrainMonitorEntry = relm.define("Manager.TrainMonitorEntry", function()
 					end,
 				}),
 			}),
-			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel("[font=default-bold]Spike Cap[/font]"),
-				ultros.UncontrolledInput({
-					numeric = true,
-					value = spike_cap,
-					width = 60,
-					on_change = function(_, next_spike_cap)
-						task._cmt_spike_cap = clamp(next_spike_cap, 0, 1000000, 0)
-					end,
-				}),
-			}),
 		}),
 	})
 end)
@@ -214,7 +202,6 @@ local DeliveryMonitorEntry = relm.define(
 		---@cast task Cybersyn.Internal.DeliveryMonitor
 		local wpi = (task._cmt_work_per_iter or EMPTY)[1] or 0
 		local work_cap = task._cmt_work_cap or 0
-		local spike_cap = task._cmt_spike_cap or 0
 		local n_deliveries = task.n_deliveries or 0
 		local n_active = task.n_active or 0
 		local n_finalized = task.n_finalized or 0
@@ -278,17 +265,6 @@ local DeliveryMonitorEntry = relm.define(
 							end,
 						}),
 					}),
-					HF({ horizontally_stretchable = true }, {
-						ultros.RtLabel("[font=default-bold]Spike Cap[/font]"),
-						ultros.UncontrolledInput({
-							numeric = true,
-							value = spike_cap,
-							width = 60,
-							on_change = function(_, next_spike_cap)
-								task._cmt_spike_cap = clamp(next_spike_cap, 0, 1000000, 0)
-							end,
-						}),
-					}),
 				}
 			),
 		})
@@ -302,7 +278,6 @@ local DispatchLoop = relm.define(
 		local task = props.task
 		local wpi = (task._cmt_work_per_iter or EMPTY)[1] or 0
 		local work_cap = task._cmt_work_cap or 0
-		local spike_cap = task._cmt_spike_cap or 0
 		local n_nodes = task.n_nodes or 0
 		local n_providers = task.n_providers or 0
 		local requesters_era = (task.requesters_era or EMPTY)[1] or 0
@@ -410,17 +385,6 @@ local DispatchLoop = relm.define(
 							width = 60,
 							on_change = function(_, next_work_cap)
 								task._cmt_work_cap = clamp(next_work_cap, 0, 1000000, 100)
-							end,
-						}),
-					}),
-					HF({ horizontally_stretchable = true }, {
-						ultros.RtLabel("[font=default-bold]Spike Cap[/font]"),
-						ultros.UncontrolledInput({
-							numeric = true,
-							value = spike_cap,
-							width = 60,
-							on_change = function(_, next_spike_cap)
-								task._cmt_spike_cap = clamp(next_spike_cap, 0, 1000000, 0)
 							end,
 						}),
 					}),
