@@ -142,7 +142,7 @@ function lib.get_workload(workload) return workload and workload.workload or 0 e
 events.bind("cs2.threads_kill_all", function()
 	local threads = cmt.get_tasks()
 	for _, thread in pairs(threads) do
-		strace.warn("Killing CS2 thread: " .. (thread._cmt_name or thread._cmt_id))
+		strace.warn("Killing CS2 thread: ", (thread._cmt_name or thread._cmt_id))
 		cmt.kill(thread)
 	end
 end)

@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 -- enum_nodes
 --
--- Compute full set of nodes and associated combinators in the topology.
+-- Compute full set of nodes in the topology.
 --------------------------------------------------------------------------------
 
 local strace = require("lib.core.strace")
@@ -17,8 +17,12 @@ storage = storage --[[@as Cybersyn.Storage]]
 ---@class (partial) Cybersyn.LogisticsThread
 local LogisticsThread = cs2.LogisticsThread
 
-function LogisticsThread:enter_enum_nodes()
+function LogisticsThread:enum_nodes()
 	-- TODO: PROFILING HOTSPOT (.700ms in large base)
+
+	-- Use last count of nodes as workload estimate
+	local last_n = self.n_total_nodes or 0
+	if cmt.spike_yield(self, last_n) then return end
 
 	-- Find all nodes in the topology
 	local topology_id = self.topology_id
@@ -30,6 +34,7 @@ function LogisticsThread:enter_enum_nodes()
 	)
 	self.nodes = nodes
 	self.n_nodes = n_nodes
+	self.n_total_nodes = n_total_nodes
 	add_workload(self.workload_counter, n_total_nodes)
 
 	-- If no nodes, no work needs to be done, so sleep the thread and check
@@ -41,6 +46,6 @@ function LogisticsThread:enter_enum_nodes()
 		cmt.yield(self)
 		return
 	end
-end
 
-function LogisticsThread:enum_nodes() self:set_state("poll_nodes") end
+	self:set_state("poll_nodes")
+end

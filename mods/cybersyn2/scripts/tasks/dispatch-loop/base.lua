@@ -24,6 +24,7 @@ storage = storage --[[@as Cybersyn.Storage]]
 ---@field public trains Cybersyn.Train[] Available trains
 ---@field public avail_trains boolean[] Availability of each train in `trains`
 ---@field public n_nodes integer Number of nodes in topology
+---@field public n_total_nodes integer Total number of nodes scanned.
 ---@field public requesters_era Core.EraCounter Era of number of unsatisfied requesters
 ---@field public n_providers integer Initial number of providers.
 ---@field public last_loop_tick? int64 Last loop completion tick
@@ -61,6 +62,7 @@ function LogisticsThread:new(topology)
 	thread.topology_id = topology.id
 	thread._cmt_work_cap = 100
 	thread.n_nodes = 0
+	thread.n_total_nodes = 0
 	thread.n_avail_trains = 0
 	thread.n_providers = 0
 	thread.requesters_era = era_lib.create_era_counter(0)
