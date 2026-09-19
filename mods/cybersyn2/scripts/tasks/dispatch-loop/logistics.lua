@@ -10,6 +10,7 @@ local train_lib = require("lib.trains")
 local OrderStatus = require("lib.types").OrderStatus
 local cmt = require("lib.core.cmt")
 local era_lib = require("lib.core.math.era-counter")
+local num_lib = require("lib.core.math.numeric")
 local cs2 = _G.cs2
 
 ---@type Cybersyn.Storage
@@ -37,6 +38,7 @@ local tsort = table.sort
 local log = math.log
 local tremove = table.remove
 local ipairs = ipairs
+local clamped_log = num_lib.clamped_log
 
 local rcall = remote.call --[[@as fun(iface:string, method:string, ...:Any):Any]]
 
@@ -141,14 +143,19 @@ function LogisticsThread:reserve(provider, item, wanted)
 end
 
 ---@param first_index int
-function LogisticsThread:release_reservations(first_index)
+---@param n uint? Total number of reservations, if precomputed
+function LogisticsThread:release_reservations(first_index, n)
 	local reservations = self.reservations
 	if not reservations then return end
-	for i = #reservations, first_index, -1 do
-		local res = reservations[i]
+	if not n then n = #reservations end
+	local workload = max(n - first_index + 1, 0)
+
+	for i = n, first_index, -1 do
+		local res = reservations[i] --[[@as -nil]]
 		res.from_inv:add_single_item_outflow(res.item, -res.qty --[[@as int]])
 		reservations[i] = nil
 	end
+	add_workload(self.workload_counter, workload)
 end
 
 ---@param provider Cybersyn.Order
@@ -344,19 +351,24 @@ end
 
 function LogisticsThread:sort_matches()
 	local requester = self.requester
-	local requester_needs = requester.needs --[[@as Cybersyn.Internal.Needs]]
-	local requester_node = cs2.get_node(requester.node_id, true) --[[@as Cybersyn.TrainStop]]
-	local requester_stop_entity = requester_node and requester_node.entity
 	if not requester then
 		error("Logic error: sort_matches called with no requester set")
 	end
+
+	local requester_needs = requester.needs --[[@as Cybersyn.Internal.Needs]]
+	local requester_node = cs2.get_node(requester.node_id, true) --[[@as Cybersyn.TrainStop]]
+	local requester_stop_entity = requester_node and requester_node.entity
+
+	local n_matches = #self.matches
+	local four_n = 4 * n_matches
+	local workload = four_n * clamped_log(four_n)
+	if cmt.spike_yield(self, workload) then return end
+
 	if requester_node:is_sharing_inventory() then
 		self.requester_is_sharing_inventory = true
 	else
 		self.requester_is_sharing_inventory = nil
 	end
-
-	local n_matches = #self.matches
 
 	tsort(self.matches, function(a, b)
 		-- Check provider priority
@@ -369,9 +381,7 @@ function LogisticsThread:sort_matches()
 		local b_db = match_score(b, requester_stop_entity)
 		return a_db > b_db
 	end)
-	-- This is an expensive sort.
-	local n = 4 * n_matches
-	add_workload(self.workload_counter, n * log(n))
+	add_workload(self.workload_counter, workload)
 
 	self:start_match_loop()
 end
@@ -849,9 +859,18 @@ end
 --------------------------------------------------------------------------------
 
 function LogisticsThread:sort_requesters()
-	local n = #self.requesters
+	local requesters = self.requesters
+	if not requesters then
+		error("Logic error: sort_requesters called with no requesters set")
+	end
+
+	local n = #requesters
+	local scaled_n = 2 * n
+	local workload = scaled_n * clamped_log(scaled_n)
+	if cmt.spike_yield(self, workload) then return end
+
 	-- Requester sort
-	tsort(self.requesters, function(a, b)
+	tsort(requesters, function(a, b)
 		local a_prio, b_prio = a.priority, b.priority
 		if a_prio > b_prio then return true end
 		if a_prio < b_prio then return false end
@@ -861,11 +880,15 @@ function LogisticsThread:sort_requesters()
 		if a_last > b_last then return false end
 		return a.busy_value < b.busy_value
 	end)
-	add_workload(self.workload_counter, n * log(n))
+	add_workload(self.workload_counter, workload)
+
 	self:set_state("enum_trains")
 end
 
 function LogisticsThread:enum_trains()
+	local previous_workload = self.n_total_veh or 0
+	if cmt.spike_yield(self, previous_workload) then return end
+
 	local trains = {}
 	local avail_trains = {}
 	local topology_id = self.topology_id
@@ -878,6 +901,7 @@ function LogisticsThread:enum_trains()
 			avail_trains[m] = true
 		end
 	end
+	self.n_total_veh = n
 	self.trains = trains
 	self.avail_trains = avail_trains
 	add_workload(self.workload_counter, n)
@@ -889,7 +913,10 @@ end
 --------------------------------------------------------------------------------
 
 function LogisticsThread:loop_complete()
-	self:release_reservations(1)
+	-- Free all reserved cargo
+	local n_reservations = self.reservations and #self.reservations or 0
+	if cmt.spike_yield(self, n_reservations) then return end
+	self:release_reservations(1, n_reservations)
 	self.reservations = nil
 
 	local t = game.tick

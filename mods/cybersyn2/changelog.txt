@@ -2,12 +2,13 @@
 Version: 0.4.1
 Date: ????
   Changes:
-    - Removed "Work factor" setting. (Changing the work factor is now handled through the Threads tab of the Manager.)
+    - Removed "Work factor" setting. (Changing the workload targets is now handled through the Threads tab of the Manager.)
     - Removed the "Spike cap" setting from threads.
   Bugfixes:
     - Fixed the "Round deliveries to full stacks" order option not affecting delivery quantities.
   Optimizations:
-    - Smoothed out certain areas of the dispatch loop that could cause CPU spikes.
+    - Introduced alternative mechanism for handling CPU spikes in the dispatch loop.
+    - Improved workload accounting in some areas.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.0
 Date: 2026-09-08
