@@ -5,7 +5,7 @@ Date: ????
     - Removed "Work factor" setting. (Changing the workload targets is now handled through the Threads tab of the Manager.)
     - Removed the "Spike cap" setting from threads.
   Bugfixes:
-    - Fixed the "Round deliveries to full stacks" order option not affecting delivery quantities.
+    - Fixed the "Round deliveries to full stacks" order option not working properly.
   Optimizations:
     - Introduced alternative mechanism for handling CPU spikes in the dispatch loop.
     - Improved workload accounting in some areas.
