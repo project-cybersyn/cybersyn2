@@ -277,6 +277,9 @@ function LogisticsThread:loop_providers()
 	local is_match, net_name, net_mask = requester:matches_networks(provider)
 	if not is_match then return end
 
+	local singleton_key = requester_needs.singleton_key
+	if singleton_key and not provider.provides[singleton_key] then return end
+
 	-- Allow plugins to reject this provider for this requester
 	if
 		query_node_match_veto_plugins(
@@ -484,6 +487,8 @@ function LogisticsThread:loop_matches()
 
 		-- Recompute satisfaction for this provider
 		local provider = match.provider
+		local singleton_key = needs.singleton_key
+		if singleton_key and not provider.provides[singleton_key] then return end
 		local satisfaction = provider:satisfy_needs(self.workload_counter, needs)
 		if satisfaction then
 			match.satisfaction = satisfaction
