@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.1
-Date: ????
+Date: 2026-09-25
   Changes:
     - Removed "Work factor" setting. (Changing the workload targets is now handled through the Threads tab of the Manager.)
     - Removed the "Spike cap" setting from threads.
