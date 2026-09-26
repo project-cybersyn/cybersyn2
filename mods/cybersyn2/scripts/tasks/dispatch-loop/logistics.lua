@@ -112,33 +112,6 @@ local function query_node_match_veto_plugins(provider, requester, workload)
 	return false
 end
 
----@param provider Cybersyn.Order
----@param needs Cybersyn.Internal.Needs
----@param workload Core.Thread.Workload
----@return boolean
-local function provides_any_needed_cargo(provider, needs, workload)
-	if needs.and_spread or needs.or_mask or needs.all_stacks then return true end
-
-	local provides = provider.provides
-	local probes = 0
-	for key in pairs(needs.items or EMPTY) do
-		probes = probes + 1
-		if provides[key] then
-			add_workload(workload, probes)
-			return true
-		end
-	end
-	for key in pairs(needs.fluids or EMPTY) do
-		probes = probes + 1
-		if provides[key] then
-			add_workload(workload, probes)
-			return true
-		end
-	end
-	add_workload(workload, probes)
-	return false
-end
-
 ---@param thread Cybersyn.LogisticsThread
 ---@param needs Cybersyn.Internal.Needs
 ---@return boolean marking_required
@@ -148,6 +121,7 @@ local function begin_mark_provider_candidates(thread, needs)
 	if
 		not providers_by_cargo
 		or not candidate_marks
+		or needs.singleton_key
 		or needs.and_spread
 		or needs.or_mask
 		or needs.all_stacks
@@ -349,6 +323,9 @@ function LogisticsThread:loop_providers()
 		end
 	end
 
+	local singleton_key = requester_needs.singleton_key
+	if singleton_key and not provider.provides[singleton_key] then return end
+
 	local candidate_generation = self.current_provider_candidate_generation
 	if
 		candidate_generation
@@ -380,22 +357,6 @@ function LogisticsThread:loop_providers()
 
 	-- Don't match node with itself
 	if provider_node.id == requester_node.id then return end
-
-	-- Old in-progress saves have no index until their next polling phase.
-	if not candidate_generation then
-		local singleton_key = requester_needs.singleton_key
-		if singleton_key then
-			if not provider.provides[singleton_key] then return end
-		elseif
-			not provides_any_needed_cargo(
-				provider,
-				requester_needs,
-				self.workload_counter
-			)
-		then
-			return
-		end
-	end
 
 	-- Check for netmatch
 	local is_match, net_name, net_mask = requester:matches_networks(provider)
