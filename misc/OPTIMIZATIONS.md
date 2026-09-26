@@ -30,21 +30,6 @@ Resolve and validate it once in `loop_requesters`, then retain it for the provid
 
 The requester’s queue/delivery state still needs revalidation where asynchronous behavior requires it.
 
-3. **Precompute match scores once**
-
-The sort comparator repeatedly calls `match_score` in [logistics.lua](mods/cybersyn2/scripts/tasks/dispatch-loop/logistics.lua#L421). Sorting $M$ matches invokes it approximately $O(M\log M)$ times, twice per comparison.
-
-`match_score` performs:
-
-- Entity validity checks.
-- Distance calculation.
-- Capacity normalization.
-- Several field reads.
-
-Compute and store the score when each match is created, or once in a linear pre-sort pass. The comparator then compares priority and scalar score only.
-
-This is a low-risk, likely meaningful win whenever requesters have many matches.
-
 4. **Lazy match ordering instead of sorting everything**
 
 The algorithm often routes through only a small prefix of the sorted matches. A binary heap can:

@@ -71,6 +71,7 @@ local LogisticsThread = cs2.LogisticsThread
 ---@field public provider Cybersyn.Order
 ---@field public needs Cybersyn.Internal.Needs
 ---@field public satisfaction Cybersyn.Internal.Satisfaction
+---@field public score number
 ---@field public skip boolean? If `true` this match couldn't fulfill a previous need and should be skipped.
 ---@field public networks SignalCounts? The networks matched when this match was created.
 
@@ -396,19 +397,23 @@ function LogisticsThread:sort_matches()
 		error("Logic error: sort_matches called with no requester set")
 	end
 
-	local requester_needs = requester.needs --[[@as Cybersyn.Internal.Needs]]
 	local requester_node = cs2.get_node(requester.node_id, true) --[[@as Cybersyn.TrainStop]]
 	local requester_stop_entity = requester_node and requester_node.entity
 
 	local n_matches = #self.matches
-	local four_n = 4 * n_matches
-	local workload = four_n * clamped_log(four_n)
+	local scaled_n = 2 * n_matches
+	local workload = n_matches + scaled_n * clamped_log(scaled_n)
 	if cmt.spike_yield(self, workload) then return end
 
 	if requester_node:is_sharing_inventory() then
 		self.requester_is_sharing_inventory = true
 	else
 		self.requester_is_sharing_inventory = nil
+	end
+
+	for i = 1, n_matches do
+		local match = self.matches[i] --[[@as -nil]]
+		match.score = match_score(match, requester_stop_entity)
 	end
 
 	tsort(self.matches, function(a, b)
@@ -418,9 +423,7 @@ function LogisticsThread:sort_matches()
 		if a_prio < b_prio then return false end
 
 		-- Scoring
-		local a_db = match_score(a, requester_stop_entity)
-		local b_db = match_score(b, requester_stop_entity)
-		return a_db > b_db
+		return a.score > b.score
 	end)
 	add_workload(self.workload_counter, workload)
 
