@@ -2,8 +2,7 @@
 Version: 0.4.2
 Date: ????
   Optimizations:
-    - Improved early order rejection in the logistics phase.
-    - Improved early train rejection in the logistics phase.
+    - Implemented significant internal optimizations to the logistics loop. The effects are most noticeable for large bases.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.1
 Date: 2026-09-25
