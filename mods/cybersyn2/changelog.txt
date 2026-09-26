@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.2
-Date: ????
+Date: 2026-09-26
   Optimizations:
     - Implemented internal optimizations to the logistics loop for bases with large numbers (thousands) of nodes.
 ---------------------------------------------------------------------------------------------------
