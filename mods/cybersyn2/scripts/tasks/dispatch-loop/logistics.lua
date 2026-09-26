@@ -602,6 +602,16 @@ function LogisticsThread:loop_trains()
 		)
 	end
 
+	-- Simple capacity rejection; cut obviously invalid trains early
+	local satisfaction = self.match.satisfaction
+	if
+		(satisfaction.total_stacks == 0 or train.item_slot_capacity == 0)
+		and (satisfaction.total_fluid == 0 or train.fluid_capacity == 0)
+	then
+		self.capacity_rejections = self.capacity_rejections + 1
+		return
+	end
+
 	-- Busy rejection
 	add_workload(self.workload_counter, 6) -- `is_available` is expensive
 	if not train:is_available() then
@@ -634,10 +644,8 @@ function LogisticsThread:loop_trains()
 		return
 	end
 
-	-- TODO: retrieve amount moved from train_score algorithm. If it's literal
-	-- zero, early-reject the train here with a capacity_rejection.
 	add_workload(self.workload_counter, 4)
-	local score = train_score(train, from, to, self.match.satisfaction)
+	local score = train_score(train, from, to, satisfaction)
 	if score and score > self.best_train_score then
 		self.best_train = train
 		self.best_train_index = index

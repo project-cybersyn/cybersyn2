@@ -138,19 +138,6 @@ Precompute them beside `self.trains`. `train_score` then avoids repeated normali
 
 Do not cache positive availability indefinitely: the thread yields and trains can become unavailable asynchronously. The existing permanent negative marking after observed unavailability is safer.
 
-11. **Capacity rejection before reachability plugins**
-
-The code currently has a TODO for literal zero-movement rejection after plugin checks (`logistics.lua:637`).
-
-A cheap exact test:
-
-```text
-satisfaction has items and train item capacity > 0
-or satisfaction has fluid and train fluid capacity > 0
-```
-
-can reject incapable trains before remote reachability callbacks and distance scoring. This is especially useful in mixed cargo/fluid fleets.
-
 **Polling And State**
 
 12. **Maintain topology node membership incrementally**
