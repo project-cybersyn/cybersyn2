@@ -570,9 +570,29 @@ end
 ---@field or_stacks uint? If set, the number of stacks requested for "or" mode.
 ---@field or_mask SignalSet? If set, the set of items requested for "or" mode. Should be considered spread over qualities if spread is set.
 ---@field all_stacks uint? If set, the number of stacks requested for "all" mode. `spread` applies if set.
+---@field singleton_key SignalKey? The sole cargo needed by a non-exotic order.
 ---@field thresh SignalCounts? Per-item request thresholds.
 ---@field thresh_min_slots uint Minimum item slots dictated by fullness fraction.
 ---@field thresh_min_fluid uint Minimum fluid quantity dictated by fullness fraction.
+
+---@param items SignalCounts?
+---@param fluids SignalCounts?
+---@return SignalKey?
+local function get_singleton_need_key(items, fluids)
+	local item_key = items and next(items)
+	if item_key then
+		---@cast items SignalCounts
+		if next(items, item_key) or (fluids and next(fluids)) then return nil end
+		return item_key
+	end
+
+	local fluid_key = fluids and next(fluids)
+	if fluid_key then
+		---@cast fluids SignalCounts
+		if next(fluids, fluid_key) then return nil end
+	end
+	return fluid_key
+end
 
 ---Determine if this order is requesting any items above relevant thresholds.
 ---If so generate a Needs object.
@@ -663,6 +683,7 @@ function Order:compute_needs(workload)
 			local res = {
 				items = items,
 				fluids = fluids,
+				singleton_key = get_singleton_need_key(items, fluids),
 				thresh = thresh,
 				thresh_min_slots = thresh_min_slots,
 				thresh_min_fluid = thresh_min_fluid,

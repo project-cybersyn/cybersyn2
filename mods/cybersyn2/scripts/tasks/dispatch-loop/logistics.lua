@@ -71,6 +71,7 @@ local LogisticsThread = cs2.LogisticsThread
 ---@field public provider Cybersyn.Order
 ---@field public needs Cybersyn.Internal.Needs
 ---@field public satisfaction Cybersyn.Internal.Satisfaction
+---@field public score number
 ---@field public skip boolean? If `true` this match couldn't fulfill a previous need and should be skipped.
 ---@field public networks SignalCounts? The networks matched when this match was created.
 
@@ -109,6 +110,49 @@ local function query_node_match_veto_plugins(provider, requester, workload)
 		if result then return true end
 	end
 	return false
+end
+
+---@param thread Cybersyn.LogisticsThread
+---@param needs Cybersyn.Internal.Needs
+---@return boolean marking_required
+local function begin_mark_provider_candidates(thread, needs)
+	local providers_by_cargo = thread.providers_by_cargo
+	local candidate_marks = thread.provider_candidate_marks
+	if
+		not providers_by_cargo
+		or not candidate_marks
+		or needs.singleton_key
+		or needs.and_spread
+		or needs.or_mask
+		or needs.all_stacks
+	then
+		thread.current_provider_candidate_generation = nil
+		return false
+	end
+
+	local generation = (thread.provider_candidate_generation or 0) + 1
+	thread.provider_candidate_generation = generation
+	thread.current_provider_candidate_generation = generation
+
+	local postings = {}
+	local n_keys = 0
+	for cargo in pairs(needs.items or EMPTY) do
+		local providers = providers_by_cargo[cargo]
+		if providers then postings[#postings + 1] = providers end
+		n_keys = n_keys + 1
+	end
+	for cargo in pairs(needs.fluids or EMPTY) do
+		local providers = providers_by_cargo[cargo]
+		if providers then postings[#postings + 1] = providers end
+		n_keys = n_keys + 1
+	end
+	add_workload(thread.workload_counter, 2 * n_keys + 2)
+
+	if #postings == 0 then return false end
+	thread.provider_candidate_postings = postings
+	thread.provider_candidate_posting_index = 1
+	thread.provider_candidate_index = 1
+	return true
 end
 
 --------------------------------------------------------------------------------
@@ -213,13 +257,42 @@ function LogisticsThread:loop_requesters()
 		self.matches = {}
 		local reservations = self.reservations
 		self.requester_reservation_index = (reservations and #reservations or 0) + 1
-		self:set_state("loop_providers")
+		if begin_mark_provider_candidates(self, needs) then
+			self:set_state("mark_provider_candidates")
+		else
+			self:set_state("loop_providers")
+		end
 	else
 		trace(
 			"Requester",
 			requester.node_id,
 			"was culled due to dispatch loop activity eliminating its needs."
 		)
+	end
+end
+
+function LogisticsThread:mark_provider_candidates()
+	local posting_index = self.provider_candidate_posting_index --[[@as int]]
+	local postings = self.provider_candidate_postings --[[@as table<int, Cybersyn.Order[]>]]
+	local providers = postings[posting_index]
+	if not providers then
+		self.provider_candidate_postings = nil
+		self.provider_candidate_posting_index = nil
+		self.provider_candidate_index = nil
+		return self:set_state("loop_providers")
+	end
+
+	local provider_index = self.provider_candidate_index --[[@as int]]
+	local provider = providers[provider_index]
+	if provider then
+		local candidate_marks = self.provider_candidate_marks --[[@as table<Cybersyn.Order, uint>]]
+		local generation = self.current_provider_candidate_generation --[[@as uint]]
+		candidate_marks[provider] = generation
+		self.provider_candidate_index = provider_index + 1
+		add_workload(self.workload_counter, 2)
+	else
+		self.provider_candidate_posting_index = posting_index + 1
+		self.provider_candidate_index = 1
 	end
 end
 
@@ -248,6 +321,19 @@ function LogisticsThread:loop_providers()
 			requester:set_status(OrderStatus.no_provider)
 			return self:set_state("loop_requesters")
 		end
+	end
+
+	local singleton_key = requester_needs.singleton_key
+	if singleton_key and not provider.provides[singleton_key] then return end
+
+	local candidate_generation = self.current_provider_candidate_generation
+	if candidate_generation then add_workload(self.workload_counter, 1) end
+	if
+		candidate_generation
+		and self.provider_candidate_marks
+		and self.provider_candidate_marks[provider] ~= candidate_generation
+	then
+		return
 	end
 
 	local provider_node = cs2.get_node(provider.node_id, true) --[[@as Cybersyn.TrainStop]]
@@ -312,6 +398,7 @@ function LogisticsThread:loop_providers()
 			provider = provider,
 			needs = requester_needs,
 			satisfaction = satisfaction,
+			score = 0,
 			-- Network match. If signal-each, it was an AND match over all networks.
 			-- If not, it was an OR match on the first matching network.
 			networks = net_name == "signal-each" and provider.networks or {
@@ -355,19 +442,23 @@ function LogisticsThread:sort_matches()
 		error("Logic error: sort_matches called with no requester set")
 	end
 
-	local requester_needs = requester.needs --[[@as Cybersyn.Internal.Needs]]
 	local requester_node = cs2.get_node(requester.node_id, true) --[[@as Cybersyn.TrainStop]]
 	local requester_stop_entity = requester_node and requester_node.entity
 
 	local n_matches = #self.matches
-	local four_n = 4 * n_matches
-	local workload = four_n * clamped_log(four_n)
+	local scaled_n = 2 * n_matches
+	local workload = 4 * n_matches + scaled_n * clamped_log(scaled_n)
 	if cmt.spike_yield(self, workload) then return end
 
 	if requester_node:is_sharing_inventory() then
 		self.requester_is_sharing_inventory = true
 	else
 		self.requester_is_sharing_inventory = nil
+	end
+
+	for i = 1, n_matches do
+		local match = self.matches[i] --[[@as -nil]]
+		match.score = match_score(match, requester_stop_entity)
 	end
 
 	tsort(self.matches, function(a, b)
@@ -377,9 +468,7 @@ function LogisticsThread:sort_matches()
 		if a_prio < b_prio then return false end
 
 		-- Scoring
-		local a_db = match_score(a, requester_stop_entity)
-		local b_db = match_score(b, requester_stop_entity)
-		return a_db > b_db
+		return a.score > b.score
 	end)
 	add_workload(self.workload_counter, workload)
 
@@ -484,6 +573,8 @@ function LogisticsThread:loop_matches()
 
 		-- Recompute satisfaction for this provider
 		local provider = match.provider
+		local singleton_key = needs.singleton_key
+		if singleton_key and not provider.provides[singleton_key] then return end
 		local satisfaction = provider:satisfy_needs(self.workload_counter, needs)
 		if satisfaction then
 			match.satisfaction = satisfaction
@@ -559,6 +650,17 @@ function LogisticsThread:loop_trains()
 		)
 	end
 
+	-- Simple capacity rejection; cut obviously invalid trains early
+	local satisfaction = self.match.satisfaction
+	add_workload(self.workload_counter, 1)
+	if
+		(satisfaction.total_stacks == 0 or train.item_slot_capacity == 0)
+		and (satisfaction.total_fluid == 0 or train.fluid_capacity == 0)
+	then
+		self.capacity_rejections = self.capacity_rejections + 1
+		return
+	end
+
 	-- Busy rejection
 	add_workload(self.workload_counter, 6) -- `is_available` is expensive
 	if not train:is_available() then
@@ -591,10 +693,8 @@ function LogisticsThread:loop_trains()
 		return
 	end
 
-	-- TODO: retrieve amount moved from train_score algorithm. If it's literal
-	-- zero, early-reject the train here with a capacity_rejection.
 	add_workload(self.workload_counter, 4)
-	local score = train_score(train, from, to, self.match.satisfaction)
+	local score = train_score(train, from, to, satisfaction)
 	if score and score > self.best_train_score then
 		self.best_train = train
 		self.best_train_index = index

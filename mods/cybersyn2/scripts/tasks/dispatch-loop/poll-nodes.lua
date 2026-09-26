@@ -90,6 +90,22 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 
 	if order_stop and order_stop.is_producer and order:is_provider() then
 		providers[#providers + 1] = order
+		local providers_by_cargo = self.providers_by_cargo
+		if providers_by_cargo then
+			local n_provides = 0
+			local n_new_postings = 0
+			for cargo in pairs(order.provides) do
+				local cargo_providers = providers_by_cargo[cargo]
+				if not cargo_providers then
+					cargo_providers = {}
+					providers_by_cargo[cargo] = cargo_providers
+					n_new_postings = n_new_postings + 1
+				end
+				cargo_providers[#cargo_providers + 1] = order
+				n_provides = n_provides + 1
+			end
+			add_workload(self.workload_counter, 2 * n_provides + n_new_postings)
+		end
 	end
 	if order_stop and order_stop.is_consumer and order:is_requester() then
 		if not order_stop:has_max_deliveries() then
@@ -355,6 +371,10 @@ end
 
 function LogisticsThread:top_of_poll_nodes()
 	self.providers = {}
+	self.providers_by_cargo = {}
+	self.provider_candidate_marks = {}
+	self.provider_candidate_generation = 0
+	self.current_provider_candidate_generation = nil
 	self.requesters = {}
 	self.node_index = 0
 	self.n_clean_nodes = 0
