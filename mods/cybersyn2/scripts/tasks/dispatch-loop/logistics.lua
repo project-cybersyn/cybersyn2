@@ -139,6 +139,48 @@ local function provides_any_needed_cargo(provider, needs, workload)
 	return false
 end
 
+---@param thread Cybersyn.LogisticsThread
+---@param needs Cybersyn.Internal.Needs
+---@return boolean marking_required
+local function begin_mark_provider_candidates(thread, needs)
+	local providers_by_cargo = thread.providers_by_cargo
+	local candidate_marks = thread.provider_candidate_marks
+	if
+		not providers_by_cargo
+		or not candidate_marks
+		or needs.and_spread
+		or needs.or_mask
+		or needs.all_stacks
+	then
+		thread.current_provider_candidate_generation = nil
+		return false
+	end
+
+	local generation = (thread.provider_candidate_generation or 0) + 1
+	thread.provider_candidate_generation = generation
+	thread.current_provider_candidate_generation = generation
+
+	local postings = {}
+	local n_keys = 0
+	for cargo in pairs(needs.items or EMPTY) do
+		local providers = providers_by_cargo[cargo]
+		if providers then postings[#postings + 1] = providers end
+		n_keys = n_keys + 1
+	end
+	for cargo in pairs(needs.fluids or EMPTY) do
+		local providers = providers_by_cargo[cargo]
+		if providers then postings[#postings + 1] = providers end
+		n_keys = n_keys + 1
+	end
+	add_workload(thread.workload_counter, n_keys)
+
+	if #postings == 0 then return false end
+	thread.provider_candidate_postings = postings
+	thread.provider_candidate_posting_index = 1
+	thread.provider_candidate_index = 1
+	return true
+end
+
 --------------------------------------------------------------------------------
 -- Matching
 --------------------------------------------------------------------------------
@@ -241,13 +283,42 @@ function LogisticsThread:loop_requesters()
 		self.matches = {}
 		local reservations = self.reservations
 		self.requester_reservation_index = (reservations and #reservations or 0) + 1
-		self:set_state("loop_providers")
+		if begin_mark_provider_candidates(self, needs) then
+			self:set_state("mark_provider_candidates")
+		else
+			self:set_state("loop_providers")
+		end
 	else
 		trace(
 			"Requester",
 			requester.node_id,
 			"was culled due to dispatch loop activity eliminating its needs."
 		)
+	end
+end
+
+function LogisticsThread:mark_provider_candidates()
+	local posting_index = self.provider_candidate_posting_index --[[@as int]]
+	local postings = self.provider_candidate_postings --[[@as table<int, Cybersyn.Order[]>]]
+	local providers = postings[posting_index]
+	if not providers then
+		self.provider_candidate_postings = nil
+		self.provider_candidate_posting_index = nil
+		self.provider_candidate_index = nil
+		return self:set_state("loop_providers")
+	end
+
+	local provider_index = self.provider_candidate_index --[[@as int]]
+	local provider = providers[provider_index]
+	if provider then
+		local candidate_marks = self.provider_candidate_marks --[[@as table<Cybersyn.Order, uint>]]
+		local generation = self.current_provider_candidate_generation --[[@as uint]]
+		candidate_marks[provider] = generation
+		self.provider_candidate_index = provider_index + 1
+		add_workload(self.workload_counter, 1)
+	else
+		self.provider_candidate_posting_index = posting_index + 1
+		self.provider_candidate_index = 1
 	end
 end
 
@@ -278,6 +349,15 @@ function LogisticsThread:loop_providers()
 		end
 	end
 
+	local candidate_generation = self.current_provider_candidate_generation
+	if
+		candidate_generation
+		and self.provider_candidate_marks
+		and self.provider_candidate_marks[provider] ~= candidate_generation
+	then
+		return
+	end
+
 	local provider_node = cs2.get_node(provider.node_id, true) --[[@as Cybersyn.TrainStop]]
 	if not provider_node then return end
 
@@ -301,18 +381,20 @@ function LogisticsThread:loop_providers()
 	-- Don't match node with itself
 	if provider_node.id == requester_node.id then return end
 
-	-- Check for superficial cargo match
-	local singleton_key = requester_needs.singleton_key
-	if singleton_key then
-		if not provider.provides[singleton_key] then return end
-	elseif
-		not provides_any_needed_cargo(
-			provider,
-			requester_needs,
-			self.workload_counter
-		)
-	then
-		return
+	-- Old in-progress saves have no index until their next polling phase.
+	if not candidate_generation then
+		local singleton_key = requester_needs.singleton_key
+		if singleton_key then
+			if not provider.provides[singleton_key] then return end
+		elseif
+			not provides_any_needed_cargo(
+				provider,
+				requester_needs,
+				self.workload_counter
+			)
+		then
+			return
+		end
 	end
 
 	-- Check for netmatch
@@ -354,6 +436,7 @@ function LogisticsThread:loop_providers()
 			provider = provider,
 			needs = requester_needs,
 			satisfaction = satisfaction,
+			score = 0,
 			-- Network match. If signal-each, it was an AND match over all networks.
 			-- If not, it was an OR match on the first matching network.
 			networks = net_name == "signal-each" and provider.networks or {

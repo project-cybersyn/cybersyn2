@@ -20,6 +20,13 @@ storage = storage --[[@as Cybersyn.Storage]]
 ---@field public topology_id Id Id of topology being serviced by this thread.
 ---@field public nodes Cybersyn.Node[] Nodes found within topology.
 ---@field public providers Cybersyn.Order[] Orders providing something
+---@field public providers_by_cargo table<SignalKey, Cybersyn.Order[]>? Provider posting lists by offered cargo.
+---@field public provider_candidate_marks table<Cybersyn.Order, uint>? Candidate generation marked for each provider.
+---@field public provider_candidate_generation uint? Latest allocated candidate generation.
+---@field public current_provider_candidate_generation uint? Candidate generation for the current requester.
+---@field public provider_candidate_postings Cybersyn.Order[][]? Posting lists being marked for the current requester.
+---@field public provider_candidate_posting_index int? Current posting list being marked.
+---@field public provider_candidate_index int? Current provider within the posting list being marked.
 ---@field public requesters Cybersyn.Order[] Orders requesting something
 ---@field public trains Cybersyn.Train[] Available trains
 ---@field public avail_trains boolean[] Availability of each train in `trains`

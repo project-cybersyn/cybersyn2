@@ -2,26 +2,6 @@ Yes. Several structural changes look promising without changing matching semanti
 
 **Highest Value**
 
-1. **Exact cargo inverted index**
-
-Build `providers_by_cargo[key]` during polling and enumerate only the union of posting lists for ordinary requester needs.
-
-This changes candidate generation from:
-
-$$
-O(P \cdot R)
-$$
-
-to approximately:
-
-$$
-O\left(\sum_{key\in R}|\text{providers\_by\_cargo}[key]|\right)
-$$
-
-It also avoids node lookups, queue checks, network matching, plugin calls, and satisfaction work for disjoint providers. This remains the strongest option for broad providers and requesters.
-
-Use generation marks to deduplicate providers appearing under several requested keys. Keep exotic orders on the current full scan.
-
 2. **Hoist requester state out of the provider loop**
 
 The same requester node is currently fetched for every provider in `logistics.lua:290`.
