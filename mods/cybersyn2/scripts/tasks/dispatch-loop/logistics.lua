@@ -146,7 +146,7 @@ local function begin_mark_provider_candidates(thread, needs)
 		if providers then postings[#postings + 1] = providers end
 		n_keys = n_keys + 1
 	end
-	add_workload(thread.workload_counter, n_keys)
+	add_workload(thread.workload_counter, 2 * n_keys + 2)
 
 	if #postings == 0 then return false end
 	thread.provider_candidate_postings = postings
@@ -289,7 +289,7 @@ function LogisticsThread:mark_provider_candidates()
 		local generation = self.current_provider_candidate_generation --[[@as uint]]
 		candidate_marks[provider] = generation
 		self.provider_candidate_index = provider_index + 1
-		add_workload(self.workload_counter, 1)
+		add_workload(self.workload_counter, 2)
 	else
 		self.provider_candidate_posting_index = posting_index + 1
 		self.provider_candidate_index = 1
@@ -327,6 +327,7 @@ function LogisticsThread:loop_providers()
 	if singleton_key and not provider.provides[singleton_key] then return end
 
 	local candidate_generation = self.current_provider_candidate_generation
+	if candidate_generation then add_workload(self.workload_counter, 1) end
 	if
 		candidate_generation
 		and self.provider_candidate_marks
@@ -446,7 +447,7 @@ function LogisticsThread:sort_matches()
 
 	local n_matches = #self.matches
 	local scaled_n = 2 * n_matches
-	local workload = n_matches + scaled_n * clamped_log(scaled_n)
+	local workload = 4 * n_matches + scaled_n * clamped_log(scaled_n)
 	if cmt.spike_yield(self, workload) then return end
 
 	if requester_node:is_sharing_inventory() then
@@ -651,6 +652,7 @@ function LogisticsThread:loop_trains()
 
 	-- Simple capacity rejection; cut obviously invalid trains early
 	local satisfaction = self.match.satisfaction
+	add_workload(self.workload_counter, 1)
 	if
 		(satisfaction.total_stacks == 0 or train.item_slot_capacity == 0)
 		and (satisfaction.total_fluid == 0 or train.fluid_capacity == 0)

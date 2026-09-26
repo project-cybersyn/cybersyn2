@@ -93,16 +93,18 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 		local providers_by_cargo = self.providers_by_cargo
 		if providers_by_cargo then
 			local n_provides = 0
+			local n_new_postings = 0
 			for cargo in pairs(order.provides) do
 				local cargo_providers = providers_by_cargo[cargo]
 				if not cargo_providers then
 					cargo_providers = {}
 					providers_by_cargo[cargo] = cargo_providers
+					n_new_postings = n_new_postings + 1
 				end
 				cargo_providers[#cargo_providers + 1] = order
 				n_provides = n_provides + 1
 			end
-			add_workload(self.workload_counter, n_provides)
+			add_workload(self.workload_counter, 2 * n_provides + n_new_postings)
 		end
 	end
 	if order_stop and order_stop.is_consumer and order:is_requester() then
