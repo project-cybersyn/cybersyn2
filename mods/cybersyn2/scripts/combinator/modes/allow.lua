@@ -15,6 +15,8 @@ storage = storage --[[@as Cybersyn.Storage]]
 local Pr = relm.Primitive
 local VF = ultros.VFlow
 local HF = ultros.HFlow
+local tinsert = table.insert
+local ipairs = ipairs
 
 --------------------------------------------------------------------------------
 -- Settings
@@ -47,7 +49,7 @@ local function parse_layout_string(layout_string)
 	for item in layout_string:gmatch("%[item=([^%]]+)%]") do
 		-- Remove quality suffix if present (e.g., "iron-plate,normal" -> "iron-plate")
 		local prototype_name = item:match("^([^,]+)")
-		table.insert(items, prototype_name)
+		tinsert(items, prototype_name)
 	end
 	return items
 end
@@ -63,7 +65,7 @@ local function filter_carriage_prototypes(items)
 	for _, item in ipairs(items) do
 		local prototype = prototypes.entity[item]
 		if prototype and valid_types[prototype.type] then
-			table.insert(filtered, item)
+			tinsert(filtered, item)
 		end
 	end
 	return filtered
@@ -76,7 +78,7 @@ end
 local function encode_layout_string(items)
 	local parts = {}
 	for _, item in ipairs(items) do
-		table.insert(parts, "[item=" .. item .. "]")
+		tinsert(parts, "[item=" .. item .. "]")
 	end
 	return table.concat(parts)
 end
@@ -94,7 +96,7 @@ end
 local function get_existing_layout_strings()
 	local layout_strings = {}
 	for _, layout in pairs(storage.train_layouts) do
-		table.insert(layout_strings, encode_layout_string(layout.carriage_names))
+		tinsert(layout_strings, encode_layout_string(layout.carriage_names))
 	end
 	return layout_strings
 end
@@ -103,7 +105,7 @@ end
 local function to_option_list(strings)
 	local options = {}
 	for i = 1, #strings do
-		table.insert(options, { key = i, caption = strings[i] })
+		tinsert(options, { key = i, caption = strings[i] })
 	end
 	return options
 end
@@ -114,19 +116,6 @@ end
 -- Members of a group share its allow list. Name and list are Things tags, so a
 -- group travels through blueprints by itself.
 --------------------------------------------------------------------------------
-
----@param A string[][]
----@param B string[][]
----@return boolean
-local function allow_lists_equal(A, B)
-	if #A ~= #B then return false end
-	for i = 1, #A do
-		if encode_layout_string(A[i]) ~= encode_layout_string(B[i]) then
-			return false
-		end
-	end
-	return true
-end
 
 ---@return table<string, Cybersyn.AllowGroup> Absent in saves predating groups.
 local function get_allow_groups()
@@ -160,7 +149,7 @@ end
 ---knows that group, else the one that the combinator carries itself.
 ---@param combinator Cybersyn.Combinator
 ---@return string[][]
-function cs2.get_active_allow_list(combinator)
+function cs2.get_manual_allow_list(combinator)
 	local group = find_group_by_name(combinator:get_allow_group())
 	return group and group.layouts or combinator:get_allowed_layouts()
 end
@@ -189,9 +178,7 @@ end
 ---@param combinator Cybersyn.Combinator
 ---@param group Cybersyn.AllowGroup
 local function sync_group_member(combinator, group)
-	if not allow_lists_equal(combinator:get_allowed_layouts(), group.layouts) then
-		combinator:set_allowed_layouts(tlib.deep_copy(group.layouts))
-	end
+	combinator:set_allowed_layouts(tlib.deep_copy(group.layouts))
 end
 
 ---Set the layouts of a group and of all of its members.
@@ -269,10 +256,11 @@ end
 
 events.bind("cs2.combinator_created", adopt_group)
 
--- Imposing tags onto an existing combinator, such as when pasting settings,
--- changes all of its settings at once without a setting change event.
 cs2.on_combinator_setting_changed(function(combinator, setting)
-	if setting == nil then adopt_group(combinator) end
+	-- Detect imposition of tags on to existing allow combinator and re-adopt group if needed
+	if combinator.mode == "allow" and setting == nil then
+		adopt_group(combinator)
+	end
 end)
 
 local function add_layout_if_not_exists(
@@ -289,7 +277,7 @@ local function add_layout_if_not_exists(
 	end
 	local next_layouts = tlib.assign({}, allowed_layouts)
 	local next_layout = parse_layout_string(layout_string)
-	table.insert(next_layouts, next_layout)
+	tinsert(next_layouts, next_layout)
 	set_allow_list(combinator, group, next_layouts)
 end
 
@@ -318,7 +306,7 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 		},
 	}
 	for _, name in ipairs(get_group_names()) do
-		table.insert(group_options, { key = name, caption = { "", name } })
+		tinsert(group_options, { key = name, caption = { "", name } })
 	end
 
 	local function on_select_group(_, name)
@@ -396,29 +384,6 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 
 	return VF({
 		ultros.WellSection(
-			{ caption = { "cybersyn2-combinator-mode-allow.group-config-header" } },
-			{
-				ultros.BoldLabel({ "cybersyn2-combinator-mode-allow.select-group" }),
-				ultros.Dropdown({
-					horizontally_stretchable = true,
-					options = group_options,
-					value = group_name,
-					on_change = on_select_group,
-					tooltip = { "cybersyn2-combinator-mode-allow.select-group-tooltip" },
-				}),
-				ultros.BoldLabel({
-					"cybersyn2-combinator-mode-allow.group-name-label",
-				}),
-				ultros.Input({
-					numeric = false,
-					value = group_name,
-					width = 370,
-					on_confirm = on_group_name_confirm,
-					tooltip = { "cybersyn2-combinator-mode-allow.group-name-tooltip" },
-				}),
-			}
-		),
-		ultros.WellSection(
 			{ caption = { "cybersyn2-combinator-mode-allow.manual-allow-list" } },
 			{
 				-- Listbox
@@ -471,6 +436,29 @@ relm.define("CombinatorGui.Mode.Allow", function(props)
 					on_confirm = add_custom_layout,
 					ref = set_textbox_ref,
 					tooltip = { "cybersyn2-combinator-mode-allow.custom-layout-tooltip" },
+				}),
+			}
+		),
+		ultros.WellSection(
+			{ caption = { "cybersyn2-combinator-mode-allow.group-config-header" } },
+			{
+				ultros.BoldLabel({ "cybersyn2-combinator-mode-allow.select-group" }),
+				ultros.Dropdown({
+					horizontally_stretchable = true,
+					options = group_options,
+					value = group_name,
+					on_change = on_select_group,
+					tooltip = { "cybersyn2-combinator-mode-allow.select-group-tooltip" },
+				}),
+				ultros.BoldLabel({
+					"cybersyn2-combinator-mode-allow.group-name-label",
+				}),
+				ultros.Input({
+					numeric = false,
+					value = group_name,
+					width = 370,
+					on_confirm = on_group_name_confirm,
+					tooltip = { "cybersyn2-combinator-mode-allow.group-name-tooltip" },
 				}),
 			}
 		),
