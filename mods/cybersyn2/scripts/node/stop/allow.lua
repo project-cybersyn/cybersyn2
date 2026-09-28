@@ -17,6 +17,9 @@ local FluidWagon = CarriageType.FluidWagon
 local strace = stlib.strace
 local WARN = stlib.WARN
 local TRACE = stlib.TRACE
+local pairs = pairs
+local ipairs = ipairs
+local max = math.max
 
 ---@param tl Cybersyn.TrainLayout?
 ---@return boolean
@@ -50,10 +53,8 @@ end
 ---@param is_bidi boolean
 local function stop_accepts_train(stop_layout, train_layout, is_strict, is_bidi)
 	if is_bidi and not train_layout.bidirectional then return false end
-	local n = math.max(
-		#train_layout.carriage_types,
-		#stop_layout.carriage_loading_pattern
-	)
+	local n =
+		max(#train_layout.carriage_types, #stop_layout.carriage_loading_pattern)
 	for i = 1, n do
 		if
 			not carriage_type_matches_pattern(
@@ -235,9 +236,9 @@ local function evaluate_stop(stop, changed_layout_id)
 	elseif #allowlist_combs == 0 then
 		make_default_allow_list(stop, station_comb, changed_layout_id)
 	else
-		-- Can't be nil because of prechecks
-		---@diagnostic disable-next-line: need-check-nil
-		local manually_allowed_layouts = allowlist_combs[1]:get_allowed_layouts()
+		local comb = allowlist_combs[1] --[[@as Cybersyn.Combinator]]
+		local manually_allowed_layouts = cs2.get_manual_allow_list(comb)
+
 		if manually_allowed_layouts and #manually_allowed_layouts > 0 then
 			make_manual_allow_list(stop, manually_allowed_layouts, changed_layout_id)
 		else
@@ -248,37 +249,43 @@ local function evaluate_stop(stop, changed_layout_id)
 end
 
 ---@param stop Cybersyn.TrainStop
-local function cull_stop_layouts(stop)
-	if not stop.allowed_layouts then return end
-	local culled_layout = false
-	for layout_id in pairs(stop.allowed_layouts) do
-		local layout = storage.train_layouts[layout_id]
-		if (not layout) or layout.no_trains then
-			stop.allowed_layouts[layout_id] = nil
-			culled_layout = true
+local function deferred_evaluate_stop(stop)
+	local defers = storage._deferred_evaluate_stop
+	if not defers then
+		defers = {}
+		storage._deferred_evaluate_stop = defers
+		events.dynamic_subtick_trigger("deferred_evaluate_stop", "")
+	end
+	defers[stop] = true
+end
+
+events.register_dynamic_handler("deferred_evaluate_stop", function()
+	local defers = storage._deferred_evaluate_stop --[[@as table<Cybersyn.TrainStop, boolean>?]]
+	if defers then
+		for stop in pairs(defers) do
+			evaluate_stop(stop)
 		end
 	end
-	if culled_layout then
-		cs2.raise_node_data_changed(stop)
-		events.raise("cs2.stop_allow_list_changed", stop)
-	end
-end
+	storage._deferred_evaluate_stop = nil
+end)
 
 --------------------------------------------------------------------------------
 -- Events triggering allow list updates
 --------------------------------------------------------------------------------
 
 -- Update on stop layout change
-cs2.on_train_stop_pattern_changed(function(stop) evaluate_stop(stop) end)
+cs2.on_train_stop_pattern_changed(
+	function(stop) deferred_evaluate_stop(stop) end
+)
 
 -- When an allowlist combinator is associated with a stop, update its stop.
 cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
 	if combinator.mode == "allow" or combinator.mode == "station" then
 		if old_node and old_node.type == "stop" then
-			evaluate_stop(old_node --[[@as Cybersyn.TrainStop]])
+			deferred_evaluate_stop(old_node --[[@as Cybersyn.TrainStop]])
 		end
 		if new_node and new_node.type == "stop" then
-			evaluate_stop(new_node --[[@as Cybersyn.TrainStop]])
+			deferred_evaluate_stop(new_node --[[@as Cybersyn.TrainStop]])
 		end
 	end
 end)
@@ -295,12 +302,13 @@ cs2.on_combinator_setting_changed(
 			or (combinator.mode == "station" and setting == nil)
 			or (combinator.mode == "allow" and setting == nil)
 			or setting == "allowed_layouts"
+			or setting == "allow_group"
 			or setting == "allow_strict"
 			or setting == "allow_bidi"
 			or setting == "allow_all"
 		then
 			local node = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
-			if node then evaluate_stop(node) end
+			if node then deferred_evaluate_stop(node) end
 		end
 	end
 )

@@ -11,6 +11,7 @@ storage = storage --[[@as Cybersyn.Storage]]
 local EMPTY = tlib.EMPTY_STRICT
 local INF = math.huge
 local NINF = -math.huge
+local pairs = pairs
 
 -- Find a train shaped like the given parameters, but distinct from the given id.
 local function find_similar_train(

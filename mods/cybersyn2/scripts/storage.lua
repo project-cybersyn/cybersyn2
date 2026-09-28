@@ -25,6 +25,7 @@ local events = require("lib.core.event")
 ---@field public alerts_by_entity {[UnitNumber]: {[string]: Id}} Currently displayed alerts, indexed by unit number of the entity they are attached to
 ---@field public entities_being_destroyed UnitNumberSet Set of unit numbers of entities that are currently being destroyed. Cached value only valid during destroy events
 ---@field public dispatch_queue (string|int)[] Queue of delivery IDs to be dispatched. Used by the delivery dispatch thread.
+---@field public allow_groups table<string, Cybersyn.AllowGroup> Allow lists shared by combinators, indexed by group name
 ---@field public _SHUTDOWN_DATA? Core.ResetData Data used to track shutdown state. Only present during shutdown.
 
 ---@type Cybersyn.Storage
@@ -100,6 +101,7 @@ local function clear_storage()
 	storage.alerts_by_entity = {}
 	storage.entities_being_destroyed = {}
 	storage.dispatch_queue = {}
+	storage.allow_groups = {}
 end
 __clear_storage = clear_storage
 
