@@ -2,9 +2,9 @@ import BlueprintButton from '@site/src/components/BlueprintButton';
 
 # Sliplane Depots
 
-In Cybersyn 2, trains need to be routable at any time, even when parked at depot. This means that depot designs need to have "escape lanes" that allow trains to get out when needed.
+In Cybersyn 2, trains need to be routable at any time, even when parked at depot. This means that depot designs need to have "escape lanes" that allow trains to get out when needed. Sliplane depots are a kind of depot design that enables this while still allowing relatively high train density.
 
-Sliplane depots are a kind of depot design that enables this while still allowing relatively high train density.
+The provided designs are for 1-1 trains, but it can be adapted to hold larger trains by lengthening the waiting bays in the modules and end caps.
 
 ## Blueprint Book
 
@@ -15,19 +15,23 @@ Sliplane depots are a kind of depot design that enables this while still allowin
 
 ## The Design
 
+### Depot
+
 A sliplane depot consists of a 3-lane train stacker where the middle lane is kept empty using circuit-controlled train signals.
 
 ![A sliplane depot for 6 1-1 trains](sliplane-6.png)
 
-The depot is formed by stacking individual modules, each of which holds two trains. A single depotholds `2N + 4` trains, where `N` is the number of stacked modules. 3 trains can wait at the back, and a further train can wait at the stop itself.
+### Module
+
+The depot is formed by stacking individual modules, each of which holds two trains. A single depot holds `2N + 4` trains, where `N` is the number of stacked modules. 3 trains can wait at the back, and a further train can wait at the stop itself.
 
 ![A sliplane module](sliplane-module.png)
+
+### Stacking Depots
 
 The depots themselves can then be further stacked vertically. Here is a fully stacked 24x1-1 depot:
 
 ![A stacked sliplane depot for 24 1-1 trains](sliplane-24.png)
-
-The provided designs are for 1-1 trains, but it can be adapted to hold larger trains by lengthening the waiting bays in the modules and end caps.
 
 ## Credits
 
