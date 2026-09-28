@@ -33,6 +33,7 @@ We also have a very helpful community on our [official Discord](https://discord.
 - **Mami** for the original **Project Cybersyn** mod without which this mod would not exist.
 - **Tetlanesh** and **Tekbox** for innumerable intellectual contributions to the mod's design, as well as tirelessly helping people in the Discord.
 - **jagoly** for the idea (and graphics) for the modular combinators, and various technical contributions to logistics algorithms.
+- **Nivayu** for code contributions including presence mode and allow list groups.
 
 And to the following indirect contributors:
 
