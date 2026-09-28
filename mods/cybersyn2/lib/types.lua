@@ -152,6 +152,11 @@ lib.CarriageType = {
 ---@field public rail_set UnitNumberSet The set of rails associated to this stop.
 ---@field public direction defines.direction? Direction of the vector pointing from the stop entity towards the oncoming track, if known.
 
+---A named allow list, shared by the combinators that carry its name.
+---@class Cybersyn.AllowGroup
+---@field public name string Name that combinators use to reference this group.
+---@field public layouts string[][] The train layouts that this group allows.
+
 ---@enum Cybersyn.OrderStatus
 local OrderStatus = {
 	"fulfilled",

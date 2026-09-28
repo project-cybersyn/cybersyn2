@@ -237,7 +237,8 @@ local function evaluate_stop(stop, changed_layout_id)
 	else
 		-- Can't be nil because of prechecks
 		---@diagnostic disable-next-line: need-check-nil
-		local manually_allowed_layouts = allowlist_combs[1]:get_allowed_layouts()
+		local manually_allowed_layouts =
+			cs2.get_active_allow_list(allowlist_combs[1])
 		if manually_allowed_layouts and #manually_allowed_layouts > 0 then
 			make_manual_allow_list(stop, manually_allowed_layouts, changed_layout_id)
 		else
@@ -295,6 +296,7 @@ cs2.on_combinator_setting_changed(
 			or (combinator.mode == "station" and setting == nil)
 			or (combinator.mode == "allow" and setting == nil)
 			or setting == "allowed_layouts"
+			or setting == "allow_group"
 			or setting == "allow_strict"
 			or setting == "allow_bidi"
 			or setting == "allow_all"
