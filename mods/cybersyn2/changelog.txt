@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.4.3
+Version: 0.5.0
 Date: ????
   Changes:
     - Added `Presence` mode to CS2 combinators. It detects the type of the adjacent parked wagon.
