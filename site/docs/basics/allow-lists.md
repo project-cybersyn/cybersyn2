@@ -66,7 +66,7 @@ If a layout containing both forward and reverse locomotives is added to the allo
 
 :::
 
-### Share allow lists with allow groups
+### Share manual allow lists with allow groups
 
 Several `Allow List` combinators can share one allow list by joining the same named **allow group**. The layouts belong to the group rather than to the combinators, so editing the allow list of one combinator of a group edits it for all of them.
 
@@ -77,6 +77,4 @@ Several `Allow List` combinators can share one allow list by joining the same na
 
 Combinators that are not in a group have a local allow list that only applies to them.
 
-Allow groups belong to your save and are referenced by name. Each combinator of a group also carries a copy of the layouts of the group, which is what makes them blueprintable: a blueprint of a combinator contains the layouts of its group. Building it creates the group in the save it is built in if that save has no group of that name yet, and keeps the layouts of the existing group otherwise. A group that no combinator uses anymore is kept, so it can be joined again.
-
-
+Allow list groups can be transferred through blueprints. Building a blueprinted combinator with an allow list group creates the group in the save it is built in if that save has no group of that name yet, and keeps the layouts of the existing group otherwise.
