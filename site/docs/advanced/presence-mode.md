@@ -1,6 +1,6 @@
 # Presence Mode
 
-The **Presence** combinator mode detects the locomotive or wagon parked in front of the combinator when a train arrives at the station. Use it when your circuit logic needs to treat locomotives, cargo wagons, and fluid wagons differently, or when it needs to know where within the train a given wagon is parked.
+The **Presence** combinator mode detects the locomotive or wagon parked in front of the combinator. Use it when your circuit logic needs to treat locomotives, cargo wagons, and fluid wagons differently, or when it needs to know where within the train a given wagon is parked.
 
 ## Deploying
 
@@ -26,11 +26,11 @@ Factorio decides which end of a train that runs in both directions is the front,
 
 ### Locomotive, cargo wagon, and fluid wagon signals
 
-Select a virtual signal to emit for each type of rolling stock. Only the signal that matches the detected entity is emitted.
+Select a signal to emit for each type of rolling stock. Only the signal that matches the detected entity is emitted.
 
 ### Nothing detected
 
-Select a virtual signal to emit when no rolling stock is parked in front of the combinator.
+Select a signal to emit when no rolling stock is parked in front of the combinator. (Note that this will only be output when a train is actually parked at the station.)
 
 ## Notes
 
