@@ -1,9 +1,10 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.4.3
+Version: 0.5.0
 Date: ????
   Changes:
     - Added allow groups, which allowlist combinators can join by name to share a single allow list.
     - Allow groups are copied along in blueprints. A combinator copied into a save that already has a group of the same name joins that group and adopts its allow list.
+    - Added `Presence` mode to CS2 combinators. It detects the type of the adjacent parked wagon.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.2
 Date: 2026-09-26

@@ -14,6 +14,7 @@ storage = storage --[[@as Cybersyn.Storage]]
 local EMPTY_STRICT = tlib.EMPTY_STRICT
 local bit_extract = bit32.extract
 local bit_replace = bit32.replace
+local type = type
 
 ---@class (partial) Cybersyn.Combinator
 ---@field public tag_cache? Tags The cached tags for this combinator.
