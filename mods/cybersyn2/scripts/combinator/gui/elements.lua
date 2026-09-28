@@ -5,6 +5,9 @@
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local tlib = require("lib.core.table")
+local siglib = require("lib.signal")
+local signal_to_key = siglib.signal_to_key
+local key_to_signal = siglib.key_to_signal
 local cs2 = _G.cs2
 local Pr = relm.Primitive
 local HF = ultros.HFlow
@@ -62,6 +65,23 @@ function _G.cs2.gui.AnySignalPicker(combinator, setting, tooltip)
 		on_change = function(_, signal)
 			if signal and signal.type == nil then signal.type = "item" end
 			setter(combinator, signal)
+		end,
+	})
+end
+
+---An `ultros.SignalPicker` that reads/writes a `SignalKey` to/from a
+---combinator setting.
+---@param setting string The name of the setting to read/write.
+function cs2.gui.AnySignalKeyPicker(combinator, setting, tooltip)
+	local setter = combinator["set_" .. setting]
+	local setting_value = combinator["get_" .. setting](combinator)
+	local signal_value = setting_value and key_to_signal(setting_value)
+	return ultros.SignalPicker({
+		tooltip = tooltip,
+		value = signal_value,
+		on_change = function(_, signal)
+			if signal and signal.type == nil then signal.type = "item" end
+			setter(combinator, signal and signal_to_key(signal))
 		end,
 	})
 end
