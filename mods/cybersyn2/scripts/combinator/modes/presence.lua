@@ -13,6 +13,7 @@ local VF = ultros.VFlow
 local ipairs = ipairs
 local signal_to_key = siglib.signal_to_key
 local exploded_signal_to_key = siglib.exploded_signal_to_key
+local key_to_richtext = siglib.key_to_richtext
 
 --------------------------------------------------------------------------------
 -- Presence combinator settings.
@@ -98,17 +99,17 @@ cs2.on_train_arrived(function(train, cstrain, stop)
 				local wagon_type = wagon.type
 				if wagon_type == "cargo-wagon" then
 					local cargo_signal = comb:get_presence_cargo_signal()
-					if cargo_signal then outputs[cargo_signal.name] = output_value end
+					if cargo_signal then outputs[cargo_signal] = output_value end
 				elseif wagon_type == "fluid-wagon" then
 					local fluid_signal = comb:get_presence_fluid_signal()
-					if fluid_signal then outputs[fluid_signal.name] = output_value end
+					if fluid_signal then outputs[fluid_signal] = output_value end
 				elseif wagon_type == "locomotive" then
 					local loco_signal = comb:get_presence_locomotive_signal()
-					if loco_signal then outputs[loco_signal.name] = output_value end
+					if loco_signal then outputs[loco_signal] = output_value end
 				end
 			else
 				local empty_signal = comb:get_presence_empty_signal()
-				if empty_signal then outputs[empty_signal.name] = 1 end
+				if empty_signal then outputs[empty_signal] = 1 end
 			end
 
 			comb:write_outputs(outputs, 1)
@@ -144,7 +145,7 @@ relm.define(
 						},
 						top_margin = 6,
 					}, {
-						gui.VirtualSignalPicker(
+						gui.AnySignalKeyPicker(
 							props.combinator,
 							"presence_locomotive_signal",
 							{
@@ -158,13 +159,9 @@ relm.define(
 						},
 						top_margin = 6,
 					}, {
-						gui.VirtualSignalPicker(
-							props.combinator,
-							"presence_cargo_signal",
-							{
-								"cybersyn2-combinator-mode-presence.tooltip-cargo-wagon",
-							}
-						),
+						gui.AnySignalKeyPicker(props.combinator, "presence_cargo_signal", {
+							"cybersyn2-combinator-mode-presence.tooltip-cargo-wagon",
+						}),
 					}),
 					ultros.Labeled({
 						caption = {
@@ -172,13 +169,9 @@ relm.define(
 						},
 						top_margin = 6,
 					}, {
-						gui.VirtualSignalPicker(
-							props.combinator,
-							"presence_fluid_signal",
-							{
-								"cybersyn2-combinator-mode-presence.tooltip-fluid-wagon",
-							}
-						),
+						gui.AnySignalKeyPicker(props.combinator, "presence_fluid_signal", {
+							"cybersyn2-combinator-mode-presence.tooltip-fluid-wagon",
+						}),
 					}),
 					ultros.Labeled({
 						caption = {
@@ -186,7 +179,7 @@ relm.define(
 						},
 						top_margin = 6,
 					}, {
-						gui.VirtualSignalPicker(
+						gui.AnySignalKeyPicker(
 							props.combinator,
 							"presence_empty_signal",
 							{ "cybersyn2-combinator-mode-presence.tooltip-empty" }
@@ -197,13 +190,6 @@ relm.define(
 		})
 	end
 )
-
----@param signal SignalID?
----@return string?
-local function virtual_signal_sprite(signal)
-	if not signal then return nil end
-	return "[virtual-signal=" .. signal.name .. "]"
-end
 
 relm.define("CombinatorGui.Mode.Presence.Help", function(props)
 	local combinator = props.combinator
@@ -226,19 +212,19 @@ relm.define("CombinatorGui.Mode.Presence.Help", function(props)
 		)
 	end
 	output_row(
-		virtual_signal_sprite(combinator:get_presence_locomotive_signal()),
+		key_to_richtext(combinator:get_presence_locomotive_signal()),
 		{ "cybersyn2-combinator-mode-presence.value-locomotive" }
 	)
 	output_row(
-		virtual_signal_sprite(combinator:get_presence_cargo_signal()),
+		key_to_richtext(combinator:get_presence_cargo_signal()),
 		{ "cybersyn2-combinator-mode-presence.value-cargo-wagon" }
 	)
 	output_row(
-		virtual_signal_sprite(combinator:get_presence_fluid_signal()),
+		key_to_richtext(combinator:get_presence_fluid_signal()),
 		{ "cybersyn2-combinator-mode-presence.value-fluid-wagon" }
 	)
 	output_row(
-		virtual_signal_sprite(combinator:get_presence_empty_signal()),
+		key_to_richtext(combinator:get_presence_empty_signal()),
 		{ "cybersyn2-combinator-mode-presence.value-empty" }
 	)
 
