@@ -75,7 +75,7 @@ end
 function cs2.gui.AnySignalKeyPicker(combinator, setting, tooltip)
 	local setter = combinator["set_" .. setting]
 	local setting_value = combinator["get_" .. setting](combinator)
-	local signal_value = key_to_signal(setting_value)
+	local signal_value = setting_value and key_to_signal(setting_value)
 	return ultros.SignalPicker({
 		tooltip = tooltip,
 		value = signal_value,

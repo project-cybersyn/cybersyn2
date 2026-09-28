@@ -191,6 +191,11 @@ relm.define(
 	end
 )
 
+local function to_richtext(signal_key)
+	if not signal_key then return nil end
+	return key_to_richtext(signal_key)
+end
+
 relm.define("CombinatorGui.Mode.Presence.Help", function(props)
 	local combinator = props.combinator
 
@@ -212,19 +217,19 @@ relm.define("CombinatorGui.Mode.Presence.Help", function(props)
 		)
 	end
 	output_row(
-		key_to_richtext(combinator:get_presence_locomotive_signal()),
+		to_richtext(combinator:get_presence_locomotive_signal()),
 		{ "cybersyn2-combinator-mode-presence.value-locomotive" }
 	)
 	output_row(
-		key_to_richtext(combinator:get_presence_cargo_signal()),
+		to_richtext(combinator:get_presence_cargo_signal()),
 		{ "cybersyn2-combinator-mode-presence.value-cargo-wagon" }
 	)
 	output_row(
-		key_to_richtext(combinator:get_presence_fluid_signal()),
+		to_richtext(combinator:get_presence_fluid_signal()),
 		{ "cybersyn2-combinator-mode-presence.value-fluid-wagon" }
 	)
 	output_row(
-		key_to_richtext(combinator:get_presence_empty_signal()),
+		to_richtext(combinator:get_presence_empty_signal()),
 		{ "cybersyn2-combinator-mode-presence.value-empty" }
 	)
 
