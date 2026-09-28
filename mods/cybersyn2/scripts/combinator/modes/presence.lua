@@ -2,14 +2,17 @@ local tlib = require("lib.core.table")
 local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local stlib = require("lib.core.strace")
-local events = require("lib.core.event")
-local cs2 = _G.cs2
-local gui = _G.cs2.gui
+local siglib = require("lib.signal")
+local cs2 = cs2
+local gui = cs2.gui
 
 local strace = stlib.strace
 local empty = tlib.empty
 local Pr = relm.Primitive
 local VF = ultros.VFlow
+local ipairs = ipairs
+local signal_to_key = siglib.signal_to_key
+local exploded_signal_to_key = siglib.exploded_signal_to_key
 
 --------------------------------------------------------------------------------
 -- Presence combinator settings.
@@ -65,7 +68,6 @@ end
 -- Events
 --------------------------------------------------------------------------------
 
--- On train departure, clear all wagon combs.
 cs2.on_train_departed(function(train, cstrain, stop)
 	if not cstrain or not stop then return end
 	for _, comb in cs2.iterate_combinators(stop) do
@@ -76,6 +78,7 @@ end)
 cs2.on_train_arrived(function(train, cstrain, stop)
 	if not cstrain or not stop then return end
 	for _, comb in cs2.iterate_combinators(stop) do
+		---@cast comb Cybersyn.Combinator
 		if comb.mode == "presence" then
 			local wagon = comb:find_connected_wagon()
 			local outputs = {}
@@ -88,7 +91,8 @@ cs2.on_train_arrived(function(train, cstrain, stop)
 				end
 
 				if comb:get_presence_item_signal() then
-					outputs[wagon.name] = output_value
+					outputs[exploded_signal_to_key(wagon.name, "item", wagon.quality)] =
+						output_value
 				end
 
 				local wagon_type = wagon.type
