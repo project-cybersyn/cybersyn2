@@ -184,6 +184,10 @@ function Combinator:read_inputs(force, workload)
 		self.green_inputs = nil
 	end
 
+	-- A completed reread means the cached inputs may have changed.
+	local node = self:get_node()
+	if node and not node:is_dirty() then node:mark_dirty() end
+
 	add_workload(workload, 5)
 end
 
