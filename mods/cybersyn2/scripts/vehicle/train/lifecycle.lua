@@ -53,7 +53,8 @@ cs2.on_luatrain_changed_state(function(event)
 		or luatrain_state == MANUAL_STOP
 		or luatrain.manual_mode
 	then
-		return handle_manual_train(luatrain)
+		handle_manual_train(luatrain)
+		if old_state ~= WAIT_STATION then return end
 	end
 
 	if luatrain_state ~= WAIT_STATION and old_state ~= WAIT_STATION then
@@ -107,6 +108,7 @@ cs2.on_luatrain_changed_state(function(event)
 			end
 			cstrain.stopped_at = nil
 		end
+		if not stop then stop = get_stop_from_luatrain(luatrain) end
 		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_train_departed(luatrain, cstrain, stop)
 	end

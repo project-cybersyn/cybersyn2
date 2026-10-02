@@ -213,19 +213,20 @@ function TrainStop:train_arrived(train, luatrain)
 	delivery:notify_arrived(self, train, luatrain)
 end
 
----@param train Cybersyn.Train
+---@param train Cybersyn.Train?
 ---@param luatrain LuaTrain
 function TrainStop:train_departed(train, luatrain)
-	local delivery_id = train.delivery_id
-	if not delivery_id or not self.deliveries[delivery_id] then return end
-	-- When a train makes a delivery...
-	local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
-	-- Clear the delivery. This will also defer queue processing.
-	self:remove_delivery(delivery_id)
-	-- TODO: consider using the event bus here.
-	-- NOTE: notify_departed adds inventory charge rebates so that hopefully
-	-- update_inventory can clear them optimistcally.
-	if delivery then delivery:notify_departed(self, train, luatrain) end
+	local delivery_id = train and train.delivery_id
+	if delivery_id and self.deliveries[delivery_id] then
+		-- When a train makes a delivery...
+		local delivery = cs2.get_delivery(delivery_id) --[[@as Cybersyn.TrainDelivery?]]
+		-- Clear the delivery. This will also defer queue processing.
+		self:remove_delivery(delivery_id)
+		-- TODO: consider using the event bus here.
+		-- NOTE: notify_departed adds inventory charge rebates so that hopefully
+		-- update_inventory can clear them optimistcally.
+		if delivery then delivery:notify_departed(self, train, luatrain) end
+	end
 	-- Then try to opportunistically re-read the station's inventory.
 	self:mark_dirty()
 	self:update_inventory(nil, true)
@@ -503,7 +504,7 @@ end)
 
 -- Forward train_departed events to stops
 cs2.on_train_departed(function(train, cstrain, stop)
-	if cstrain and stop then stop:train_departed(cstrain, train) end
+	if stop then stop:train_departed(cstrain, train) end
 end)
 
 --------------------------------------------------------------------------------
