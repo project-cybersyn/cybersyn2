@@ -64,15 +64,6 @@ _G.cs2.on_luatrain_created, _G.cs2.raise_luatrain_created = event(
 	"nil"
 )
 
-_G.cs2.on_luatrain_changed_state, _G.cs2.raise_luatrain_changed_state = event(
-	"luatrain_changed_state",
-	"EventData.on_train_changed_state",
-	"nil",
-	"nil",
-	"nil",
-	"nil"
-)
-
 ---Event raised when a relevant entity is "selected" as defined by
 ---Factorio.
 _G.cs2.on_selected, _G.cs2.raise_selected =

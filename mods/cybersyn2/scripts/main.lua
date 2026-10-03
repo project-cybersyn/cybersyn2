@@ -15,10 +15,6 @@ if _G.__RECOVERY_MODE__ then return end
 --------------------------------------------------------------------------------
 
 events.bind(defines.events.on_train_created, cs2.raise_luatrain_created)
-events.bind(
-	defines.events.on_train_changed_state,
-	cs2.raise_luatrain_changed_state
-)
 
 --------------------------------------------------------------------------------
 -- Entity construction
