@@ -107,8 +107,10 @@ cs2.on_luatrain_changed_state(function(event)
 				stop = cs2.get_stop_from_unit_number(cstrain.stopped_at.unit_number)
 			end
 			cstrain.stopped_at = nil
+		else
+			-- Use rail analysis to find departing stop for non-CS2 trains.
+			stop = get_stop_from_luatrain(luatrain)
 		end
-		if not stop then stop = get_stop_from_luatrain(luatrain) end
 		---@diagnostic disable-next-line: param-type-mismatch
 		cs2.raise_train_departed(luatrain, cstrain, stop)
 	end
