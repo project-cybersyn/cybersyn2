@@ -1,3 +1,5 @@
+local data_lib = require("lib.core.data-util")
+
 if not mods["nullius"] then return end
 
 -- Item
@@ -14,3 +16,9 @@ recipe.ingredients = {
 recipe.categories = { "tiny-crafting" }
 recipe.always_show_made_in = true
 recipe.energy_required = 3
+
+-- Tech unlock
+data_lib.unlock_recipe_with_technology(
+	"cybersyn2-combinator",
+	"nullius-traffic-control"
+)
