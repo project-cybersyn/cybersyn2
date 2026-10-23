@@ -248,7 +248,7 @@ function Order:read(workload, force)
 			if count > 0 then
 				-- Provide
 				provides[signal_key] = count
-			elseif count < 0 then
+			elseif count < 0 and stop.is_consumer then
 				-- Request
 				---@type uint
 				local requested_amt = abs(count)
@@ -318,7 +318,7 @@ function Order:read(workload, force)
 	add_workload(workload, 2)
 
 	-- Order types
-	if all_items_value and (all_items_value < 0) then
+	if stop.is_consumer and all_items_value and (all_items_value < 0) then
 		if next(requests) then
 			self.item_mode = "or"
 			self.request_stacks = abs(all_items_value)

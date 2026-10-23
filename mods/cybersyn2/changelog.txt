@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.5.1
 Date: ????
+  Changes:
+    - When a stop is set to outbound-only, negative (requesting) signals on all order wires will be ignored.
   Bugfixes:
     - Stop inventory will now be correctly updated when a non-CS2 train leaves the stop.
     - Fixed a potential case where a stop would not be flagged dirty on combinator input change.

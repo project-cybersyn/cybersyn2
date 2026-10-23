@@ -52,6 +52,8 @@ A station may also request items to be brought there. To do so, you must set the
 
 Requests are then given by providing circuit inputs to the Station combinator's order wire. You must provide a *negative signal* on the order wire for each item you would like to request, indicating how much of that item you would like. The value of the signal must be negative and is interpreted as the number of *stacks* of the given item to be requested. You may request multiple distinct items by providing multiple negative signals.
 
+When **Cargo** is set to *Outbound only*, negative cargo inputs and the negative *All items* request signal are ignored when processing orders.
+
 :::note
 Requests are interpreted in stacks by default. You may uncheck the *Stacked Requests* checkbox within the Station combinator to change this.
 
