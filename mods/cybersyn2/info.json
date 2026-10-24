@@ -4,7 +4,7 @@
   "title": "Cybersyn 2",
   "author": "The LORD thy GOD",
   "factorio_version": "2.1",
-  "dependencies": ["base >= 2.1.12", "0-things >= 0.6.1", "! OverloadedTrains"],
+  "dependencies": ["base >= 2.1.12", "0-things >= 0.6.1", "! OverloadedTrains", "(?) nullius"],
   "description": "Creates a feature-rich train logistics system controlled by cybernetic combinators and the circuit network.",
   "package": {
     "git_publish_branch": "main",
