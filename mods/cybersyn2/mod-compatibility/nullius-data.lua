@@ -5,6 +5,7 @@ if not mods["nullius"] then return end
 -- Item
 local item = data.raw["item"]["cybersyn2-combinator"]
 item.order = "nullius-eca"
+item.localised_name = {"item-name.cybersyn2-combinator"}
 
 -- Recipe
 local recipe = data.raw["recipe"]["cybersyn2-combinator"]
