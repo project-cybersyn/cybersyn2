@@ -9,5 +9,3 @@ require("prototypes.recipe")
 require("prototypes.custom-event")
 require("prototypes.tool")
 require("prototypes.misc")
-
-require("mod-compatibility.nullius-data")
