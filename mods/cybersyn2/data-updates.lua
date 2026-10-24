@@ -1,1 +1,1 @@
-require("mod-compatibility.nullius-updates")
+require("mod-compatibility.nullius-data-updates")
