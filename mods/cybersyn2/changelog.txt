@@ -1,6 +1,8 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.5.3
 Date: ????
+  Bugfixes:
+    - Inventory manager pane will now update when Network is changed.
   Compatibility:
     - Nullius: attempted to fix subgroup position of the Cybersyn 2 combinator recipe.
 ---------------------------------------------------------------------------------------------------

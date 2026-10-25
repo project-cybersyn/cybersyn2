@@ -235,7 +235,7 @@ lib.InventoryTab = relm.define(
 		)
 
 		local orders_result = relm.use_memo(
-			{ active_topology_id, revision },
+			{ active_topology_id, revision, network },
 			function()
 				---@type Cybersyn.Order[]
 				local orders = {}
