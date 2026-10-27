@@ -247,7 +247,7 @@ local function dropoff_entry(stop)
 	return add
 end
 
-local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn2.RoutePlugin} ]]
+local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn.RoutePlugin} ]]
 
 local route_callbacks = tlib.t_map_a(
 	route_plugins or {},
@@ -409,7 +409,7 @@ end
 ---Train stop invokes this to notify a train on this delivery left
 ---that stop
 ---@param stop Cybersyn.TrainStop
----@param train Cybersyn.Train
+---@param train Cybersyn.Train?
 ---@param luatrain LuaTrain
 function TrainDelivery:notify_departed(stop, train, luatrain)
 	if self.state == "at_from" and stop.id == self.from_id then
@@ -418,7 +418,7 @@ function TrainDelivery:notify_departed(stop, train, luatrain)
 
 		-- Compute actual loaded contents
 		local delivery_train = cs2.get_train(self.vehicle_id)
-		if (not delivery_train) or (delivery_train.id ~= train.id) then
+		if (not delivery_train) or (train and (delivery_train.id ~= train.id)) then
 			error("LOGIC ERROR: delivery train mismatch on departure notification")
 			return self:fail()
 		end
@@ -458,7 +458,7 @@ function TrainDelivery:notify_departed(stop, train, luatrain)
 		-- Departure from requester, delivery complete
 		local entity = stop.entity --[[@as LuaEntity ]]
 		local delivery_train = cs2.get_train(self.vehicle_id)
-		if (not delivery_train) or (delivery_train.id ~= train.id) then
+		if (not delivery_train) or (train and (delivery_train.id ~= train.id)) then
 			error("LOGIC ERROR: delivery train mismatch on departure notification")
 			return self:fail()
 		end

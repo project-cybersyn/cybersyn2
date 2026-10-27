@@ -12,6 +12,9 @@ local key_to_signal = siglib.key_to_signal
 local pairs = pairs
 local next = next
 
+---@type Cybersyn.Storage
+local storage = storage --[[@as Cybersyn.Storage]]
+
 local lib = {}
 
 local Delivery = relm.define(

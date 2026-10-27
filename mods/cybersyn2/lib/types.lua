@@ -296,7 +296,7 @@ lib.OrderStatusShortDescription = OrderShortStatusDescription
 -- Plugin and API types.
 --------------------------------------------------------------------------------
 
----@class Cybersyn2.RoutePlugin
+---@class Cybersyn.RoutePlugin
 ---@field public train_topology_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for train topology information.
 ---@field reachable_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for reachability information.
 ---@field route_callback? Core.RemoteCallbackSpec Callback to invoke to query this plugin for routing decisions.

@@ -250,9 +250,11 @@ end
 
 ---@param stop Cybersyn.TrainStop
 local function deferred_evaluate_stop(stop)
+	---@diagnostic disable-next-line: undefined-field
 	local defers = storage._deferred_evaluate_stop
 	if not defers then
 		defers = {}
+		---@diagnostic disable-next-line: inject-field
 		storage._deferred_evaluate_stop = defers
 		events.dynamic_subtick_trigger("deferred_evaluate_stop", "")
 	end
@@ -260,12 +262,14 @@ local function deferred_evaluate_stop(stop)
 end
 
 events.register_dynamic_handler("deferred_evaluate_stop", function()
+	---@diagnostic disable-next-line: undefined-field
 	local defers = storage._deferred_evaluate_stop --[[@as table<Cybersyn.TrainStop, boolean>?]]
 	if defers then
 		for stop in pairs(defers) do
 			evaluate_stop(stop)
 		end
 	end
+	---@diagnostic disable-next-line: inject-field
 	storage._deferred_evaluate_stop = nil
 end)
 

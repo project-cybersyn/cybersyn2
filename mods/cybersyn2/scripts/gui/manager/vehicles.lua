@@ -11,6 +11,9 @@ local Pr = relm.Primitive
 local VF = ultros.VFlow
 local HF = ultros.HFlow
 
+---@type Cybersyn.Storage
+local storage = storage --[[@as Cybersyn.Storage]]
+
 local lib = {}
 
 --------------------------------------------------------------------------------

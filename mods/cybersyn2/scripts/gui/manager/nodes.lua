@@ -25,6 +25,9 @@ local OrderStatusColor = types.OrderStatusColor
 local OrderStatus = types.OrderStatus
 local UnknownDescription = OrderStatusShortDescription[OrderStatus.unknown]
 
+---@type Cybersyn.Storage
+local storage = storage --[[@as Cybersyn.Storage]]
+
 local lib = {}
 
 local Order = relm.define(

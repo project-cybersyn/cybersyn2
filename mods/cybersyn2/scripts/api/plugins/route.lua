@@ -8,7 +8,7 @@ local cs2 = _G.cs2
 
 local rcall = remote.call --[[@as fun(iface: string, method: string, ...: Any?): Any]]
 
-local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn2.RoutePlugin} ]]
+local route_plugins = prototypes.mod_data["cybersyn2"].data.route_plugins --[[@as {[string]: Cybersyn.RoutePlugin} ]]
 
 local reachable_callbacks = tlib.t_map_a(
 	route_plugins or {},
