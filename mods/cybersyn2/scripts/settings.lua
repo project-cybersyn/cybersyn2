@@ -3,6 +3,9 @@ local cs2 = _G.cs2
 local events = require("lib.core.event")
 local strace = require("lib.core.strace")
 
+---@type Cybersyn.Storage
+storage = storage --[[@as Cybersyn.Storage]]
+
 ---@class (exact) Cybersyn.ModSettings
 ---@field public enable_logistics boolean Enable or disable scheduling globally.
 ---@field public reservation_scale_time integer Time in seconds for scaled reservations to reach full strength.
@@ -75,6 +78,20 @@ events.bind(defines.events.on_runtime_mod_setting_changed, function(event)
 	update_mod_settings()
 	events.raise("cs2.mod_settings_changed", event.setting)
 end)
+
+-- Startup settings change
+events.bind("on_configuration_changed", function()
+	local experimental =
+		settings.startup["cybersyn2-setting-enable-experimental"].value --[[@as boolean]]
+	if storage.is_experimental and not experimental then
+		error(
+			"Cybersyn 2: This save was made with experimental features enabled and cannot be loaded with the setting disabled."
+		)
+	end
+	storage.is_experimental = experimental
+end)
+cs2.is_experimental =
+	settings.startup["cybersyn2-setting-enable-experimental"].value --[[@as boolean]]
 
 -- Update debug log level when settings change
 events.bind("cs2.mod_settings_changed", function(setting_name)

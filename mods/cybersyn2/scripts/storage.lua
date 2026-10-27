@@ -27,6 +27,7 @@ local events = require("lib.core.event")
 ---@field public dispatch_queue (string|int)[] Queue of delivery IDs to be dispatched. Used by the delivery dispatch thread.
 ---@field public allow_groups table<string, Cybersyn.AllowGroup> Allow lists shared by combinators, indexed by group name
 ---@field public _SHUTDOWN_DATA? Core.ResetData Data used to track shutdown state. Only present during shutdown.
+---@field public is_experimental? boolean Whether experimental features are enabled for this save. Cannot be disabled once enabled.
 
 ---@type Cybersyn.Storage
 storage = storage --[[@as Cybersyn.Storage]]

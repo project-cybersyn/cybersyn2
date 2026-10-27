@@ -118,4 +118,11 @@ data:extend({
 		setting_type = "runtime-global",
 		default_value = true,
 	},
+	{
+		type = "bool-setting",
+		name = "cybersyn2-setting-enable-experimental",
+		order = "aa",
+		setting_type = "startup",
+		default_value = false,
+	},
 })
