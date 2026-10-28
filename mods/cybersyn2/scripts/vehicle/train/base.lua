@@ -287,7 +287,10 @@ end
 ---@return LuaEntity? #The main rolling stock of the train, or `nil` if not available.
 function Train:get_stock()
 	if self.volatile then return nil end
-	if self.stock then return self.stock end
+
+	local cached_stock = self.stock
+	if cached_stock and cached_stock.valid then return cached_stock end
+
 	local lua_train = self.lua_train
 	local stock = lua_train
 		and lua_train.valid

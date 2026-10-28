@@ -5,6 +5,7 @@ Date: ????
     - Added an Experimental Mode startup setting for opting into new or unstable features.
   Bugfixes:
     - Inventory manager pane will now update when Network is changed.
+    - Fixed a crash involving silent external invalidation of train stock entities.
   Compatibility:
     - Nullius: attempted to fix subgroup position of the Cybersyn 2 combinator recipe.
 ---------------------------------------------------------------------------------------------------
