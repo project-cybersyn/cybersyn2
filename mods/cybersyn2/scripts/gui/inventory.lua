@@ -101,7 +101,7 @@ local NodeOrder = relm.define("NodeGui.Order", function(props)
 		}),
 		ultros.CallIf(is_requester, function()
 			---@diagnostic disable-next-line: undefined-field
-			local label = OrderStatusDescription[order.status or ""] or "No status" --[[@as LocalisedString]]
+			local label = OrderStatusDescription[order.status or ""] or { "cybersyn2-gui.order-status-none" } --[[@as LocalisedString]]
 
 			-- Special case for no_Vehicle status: extended description
 			if order.status == OrderStatus.no_vehicle then
@@ -111,21 +111,12 @@ local NodeOrder = relm.define("NodeGui.Order", function(props)
 				local capacity = info.capacity or 0
 				local allowlist = info.allowlist or 0
 				label = {
-					"",
+					"cybersyn2-gui.order-status-no-vehicle-details",
 					label,
-					" ",
 					busy,
-					"/",
 					n,
-					" busy, ",
 					capacity,
-					"/",
-					n,
-					" capacity, ",
 					allowlist,
-					"/",
-					n,
-					" not allowed",
 				}
 			end
 
@@ -203,18 +194,15 @@ local NodeInvUpdated = relm.define("NodeGui.InvUpdated", function(props)
 	local dt = tick - (node.polled_tick or 0)
 	local era = (node.polled_delta_era or {})[1] or 0
 
-	local dt_str = "a long time"
+	local dt_str = { "cybersyn2-gui.a-long-time" } --[[@as LocalisedString]]
 	if dt <= 54000 then dt_str = nlib.format_ticks(dt) end
 
 	relm_util.use_timer_handler(60, function(me) relm.paint(me) end)
 
 	return ultros.RtLabel({
-		"",
-		"[font=default-bold]Updated:[/font] ",
+		"cybersyn2-gui.inventory-updated",
 		dt_str,
-		" ago (avg ",
 		nlib.format_ticks(era),
-		")",
 	})
 end)
 
@@ -235,22 +223,22 @@ local NodeInventory = relm.define("NodeGui.Inventory", function(props)
 
 	local inventory = node:get_inventory()
 	if not inventory then
-		return Pr({ type = "label", caption = "No inventory" })
+		return Pr({ type = "label", caption = { "cybersyn2-gui.no-inventory" } })
 	end
 
 	return {
-		ultros.WellSection({ caption = "Inventory" }, {
+		ultros.WellSection({ caption = { "cybersyn2-gui.inventory" } }, {
 			NodeInvUpdated({ node = node }),
 			NodeInv({ node = node, inventory = inventory.inventory }),
 		}),
 		ultros.WellSection(
-			{ caption = "Orders" },
+			{ caption = { "cybersyn2-gui.orders" } },
 			tlib.map(
 				inventory.orders,
 				function(order) return NodeOrder({ node = node, order = order }) end
 			)
 		),
-		ultros.WellSection({ caption = "Flows" }, {
+		ultros.WellSection({ caption = { "cybersyn2-gui.flows" } }, {
 			NodeFlows({
 				node = node,
 				inflow = inventory.inflow,

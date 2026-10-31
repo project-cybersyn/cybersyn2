@@ -23,7 +23,10 @@ lib.TopologySelector = relm.define(
 		local options = tlib.t_map_a(
 			storage.topologies,
 			function(topo)
-				return { caption = topo.name or ("Topology " .. topo.id), key = topo.id }
+				return {
+					caption = topo.name or { "cybersyn2-manager.topology-n", topo.id },
+					key = topo.id,
+				}
 			end
 		)
 		return HF({ vertically_stretchable = true, vertical_align = "center" }, {
@@ -104,7 +107,7 @@ lib.Pager = relm.define(
 					if page > 1 then set_page(page - 1) end
 				end,
 			}),
-			ultros.Label({ "", "Page ", page, " of ", n_pages }),
+			ultros.Label({ "cybersyn2-manager.page-of", page, n_pages }),
 			ultros.Button({
 				width = 35,
 				caption = ">",

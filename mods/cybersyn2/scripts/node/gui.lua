@@ -50,7 +50,7 @@ local TrainDeliveryQueue = relm.define(
 		)
 
 		return {
-			ultros.WellSection({ caption = "Future Deliveries" }, {
+			ultros.WellSection({ caption = { "cybersyn2-gui.future-deliveries" } }, {
 				delivery_gui.DeliveryList({
 					base_list = deliveries,
 					filter = function(delivery) return true end,
@@ -66,7 +66,7 @@ local DeliveryHistory = relm.define("NodeGui.DeliveryHistory", function(props)
 	local node_id = node.id
 
 	return {
-		ultros.WellSection({ caption = "Delivery History" }, {
+		ultros.WellSection({ caption = { "cybersyn2-gui.delivery-history" } }, {
 			delivery_gui.DeliveryList({
 				filter = function(delivery)
 					local am_prov = delivery.from_id == node_id
@@ -185,12 +185,12 @@ local StopAllowList = relm.define("NodeGui.StopAllowList", function(props)
 		end
 	else
 		elts[#elts + 1] =
-			ultros.RtLgLabel("[virtual-signal=signal-everything] All trains allowed.")
+			ultros.RtLgLabel({ "cybersyn2-gui.all-trains-allowed" })
 	end
 
 	if #elts == 0 then
 		elts[#elts + 1] =
-			ultros.RtLgLabel("[virtual-signal=signal-alert] No trains allowed!")
+			ultros.RtLgLabel({ "cybersyn2-gui.no-trains-allowed" })
 	end
 
 	relm_util.use_event_handler(
@@ -201,7 +201,9 @@ local StopAllowList = relm.define("NodeGui.StopAllowList", function(props)
 	)
 
 	return {
-		ultros.WellSection({ caption = "Allow List" }, elts),
+		ultros.WellSection({
+			caption = { "cybersyn2-combinator-mode-station.allow-list" },
+		}, elts),
 	}
 end)
 
@@ -221,22 +223,24 @@ local NodeInfo = relm.define("NodeGui.NodeInfo", function(props)
 
 	local tid = node:get_topology_id()
 	local dtid = node.default_topology_id
-	local tname = cs2.get_topology_name(tid) or "<unknown>"
-	if siglib.key_is_virtual(tname) then
+	local tname = cs2.get_topology_name(tid)
+	if tname and siglib.key_is_virtual(tname) then
 		tname = "[virtual-signal=" .. tname .. "]"
 	end
-	local dtname = cs2.get_topology_name(dtid) or "<unknown>"
-	if siglib.key_is_virtual(dtname) then
+	local dtname = cs2.get_topology_name(dtid)
+	if dtname and siglib.key_is_virtual(dtname) then
 		dtname = "[virtual-signal=" .. dtname .. "]"
 	end
+	tname = tname or { "cybersyn2-gui.unknown-topology" }
+	dtname = dtname or { "cybersyn2-gui.unknown-topology" }
 	local topology_text = (tid == dtid) and tname
-		or tname .. " (default: " .. dtname .. ")"
+		or { "cybersyn2-gui.topology-with-default", tname, dtname }
 
-	local text = { "", "[font=default-bold]Topology:[/font] ", topology_text }
+	local text = { "cybersyn2-gui.topology-info", topology_text }
 
 	return {
 		ultros.WellSection(
-			{ caption = "Node Info" },
+			{ caption = { "cybersyn2-gui.node-info" } },
 			{ ultros.RtMultilineLabel(text) }
 		),
 	}
@@ -303,7 +307,7 @@ relm.define("NodeGui", function(props)
 	)
 
 	return ultros.WindowFrame({
-		caption = { "", "[virtual-signal=cybersyn2] Node ", node and node.id or "" },
+		caption = { "cybersyn2-gui.node-window-title", node and node.id or "" },
 		on_close = close_me,
 		decoration = function()
 			return ultros.PinButton({ pinned = pinned, set_pinned = set_pinned })

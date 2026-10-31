@@ -31,29 +31,27 @@ local TrainInfo = relm.define("TrainGui.TrainInfo", function(props)
 
 	local tid = cstrain:get_topology_id()
 	local dtid = cstrain.default_topology_id
-	local tname = cs2.get_topology_name(tid) or "<unknown>"
-	if siglib.key_is_virtual(tname) then
+	local tname = cs2.get_topology_name(tid)
+	if tname and siglib.key_is_virtual(tname) then
 		tname = "[virtual-signal=" .. tname .. "]"
 	end
-	local dtname = cs2.get_topology_name(dtid) or "<unknown>"
-	if siglib.key_is_virtual(dtname) then
+	local dtname = cs2.get_topology_name(dtid)
+	if dtname and siglib.key_is_virtual(dtname) then
 		dtname = "[virtual-signal=" .. dtname .. "]"
 	end
+	tname = tname or { "cybersyn2-gui.unknown-topology" }
+	dtname = dtname or { "cybersyn2-gui.unknown-topology" }
 	local topology_text = (tid == dtid) and tname
-		or tname .. " (default: " .. dtname .. ")"
+		or { "cybersyn2-gui.topology-with-default", tname, dtname }
 
 	local text = {
-		"",
-		"[font=default-bold]Topology:[/font] ",
+		"cybersyn2-gui.train-info",
 		topology_text,
-		"\n[font=default-bold]Capacity:[/font] ",
 		cstrain.item_slot_capacity,
-		" item slots, ",
 		cstrain.fluid_capacity,
-		" fluids",
 	}
 
-	return ultros.WellSection({ caption = "Train Info" }, {
+	return ultros.WellSection({ caption = { "cybersyn2-gui.train-info-title" } }, {
 		ultros.RtMultilineLabel(text),
 	})
 end)
@@ -65,22 +63,22 @@ local Group = relm.define_element({
 		relm_util.use_event("cs2.group_train_added")
 		relm_util.use_event("cs2.group_settings_changed")
 		local group = state.group --[[@as Cybersyn.Internal.TrainGroup]]
-		local gname = (group and group.name) or "No group"
+		local gname = (group and group.name) or { "cybersyn2-gui.no-group" }
 
 		return ultros.If(
 			group,
-			ultros.WellSection({ caption = { "", "Group: " .. gname } }, {
+			ultros.WellSection({ caption = { "cybersyn2-gui.group", gname } }, {
 				ultros.Checkbox({
-					caption = "Enable logistics for group",
-					tooltip = "If checked, trains in this group are eligible for dispatch by Cybersyn. If unchecked, Cybersyn will not dispatch trains in this group. (Deliveries that have already been dispatched will still be completed.)",
+					caption = { "cybersyn2-gui.group-logistics" },
+					tooltip = { "cybersyn2-gui.group-logistics-tooltip" },
 					value = not group.decomissioned,
 					on_change = function(_, st)
 						cs2.set_train_group_decomissioned(group, not st)
 					end,
 				}),
-				ultros.Labeled({ caption = "Topology" }, {
+				ultros.Labeled({ caption = { "cybersyn2-gui.topology" } }, {
 					ultros.SignalPicker({
-						tooltip = "The topology assigned to trains in this group. If no topology is selected, the default topology will be used.",
+						tooltip = { "cybersyn2-gui.group-topology-tooltip" },
 						virtual_signal = group.topology,
 						on_change = function(_, signal, elem)
 							if not signal then
@@ -140,7 +138,7 @@ local Delivery = relm.define_element({
 		relm_util.use_event("cs2.vehicle_delivery_cleared")
 
 		return delivery
-			and ultros.WellSection({ caption = "Current Delivery" }, {
+			and ultros.WellSection({ caption = { "cybersyn2-gui.current-delivery" } }, {
 				delivery_gui.TrainDeliveryFrame({
 					show_header = true,
 					delivery = delivery,
@@ -164,7 +162,7 @@ local Delivery = relm.define_element({
 local DeliveryHistory = relm.define("TrainGui.DeliveryHistory", function(props)
 	local id = props.cstrain.id
 
-	return ultros.WellSection({ caption = "Delivery History" }, {
+	return ultros.WellSection({ caption = { "cybersyn2-gui.delivery-history" } }, {
 		delivery_gui.DeliveryList({
 			filter = function(delivery)
 				return (delivery.vehicle_id == id) and delivery:is_in_final_state()
@@ -264,8 +262,7 @@ relm.define("TrainGui", function(props)
 
 	return ultros.WindowFrame({
 		caption = {
-			"",
-			"[virtual-signal=cybersyn2] Train ",
+			"cybersyn2-gui.train-window-title",
 			cstrain and cstrain.id or "",
 		},
 		on_close = close_me,
@@ -297,7 +294,7 @@ relm.define("TrainGui", function(props)
 				ultros.If(
 					not cstrain,
 					ultros.RtMultilineLabel(
-						"This train is not managed by Cybersyn 2. Add it to a group beginning with [virtual-signal=cybersyn2]. (There must also be a Cybersyn 2 station within the surface or topology where the train is located.)"
+						{ "cybersyn2-gui.train-not-managed" }
 					)
 				),
 			}),

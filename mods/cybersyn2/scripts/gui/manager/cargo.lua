@@ -9,7 +9,7 @@ local lib = {}
 
 lib.CargoTab = relm.define(
 	"Manager.CargoTab",
-	function() return ultros.Label("Cargo") end
+	function() return ultros.Label({ "cybersyn2-manager.cargo" }) end
 )
 
 return lib

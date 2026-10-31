@@ -121,30 +121,30 @@ _G.cs2.COMBINATOR_DECIDER_CONDITIONS = {
 
 cs2.BIG_INT32 = 2147483648
 
----@type table<string, string>
+---@type table<string, LocalisedString>
 cs2.delivery_state_friendly_names = {
-	wait_from = "Queued for provider",
-	to_from = "En route to provider",
-	at_from = "At provider",
-	interrupted_from = "Interrupted",
-	interrupted_to = "Interrupted",
-	wait_to = "Queued for requester",
-	to_to = "En route to requester",
-	at_to = "At requester",
-	completed = "[color=green]Completed[/color]",
-	failed = "[color=red]Failed[/color]",
+	wait_from = { "cybersyn2-gui.delivery-state-wait-from" },
+	to_from = { "cybersyn2-gui.delivery-state-to-from" },
+	at_from = { "cybersyn2-gui.delivery-state-at-from" },
+	interrupted_from = { "cybersyn2-gui.delivery-state-interrupted" },
+	interrupted_to = { "cybersyn2-gui.delivery-state-interrupted" },
+	wait_to = { "cybersyn2-gui.delivery-state-wait-to" },
+	to_to = { "cybersyn2-gui.delivery-state-to-to" },
+	at_to = { "cybersyn2-gui.delivery-state-at-to" },
+	completed = { "cybersyn2-gui.delivery-state-completed" },
+	failed = { "cybersyn2-gui.delivery-state-failed" },
 }
 
----@type table<string,string>
+---@type table<string, LocalisedString>
 cs2.delivery_state_short_names = {
-	wait_from = "Queued",
-	to_from = "To Prov",
-	at_from = "Loading...",
-	interrupted_from = "Interrupted",
-	interrupted_to = "Interrupted",
-	wait_to = "Queued",
-	to_to = "To Req",
-	at_to = "Unloading...",
-	completed = "[color=green]Complete[/color]",
-	failed = "[color=red]Failed[/color]",
+	wait_from = { "cybersyn2-gui.delivery-state-short-queued" },
+	to_from = { "cybersyn2-gui.delivery-state-short-to-from" },
+	at_from = { "cybersyn2-gui.delivery-state-short-at-from" },
+	interrupted_from = { "cybersyn2-gui.delivery-state-interrupted" },
+	interrupted_to = { "cybersyn2-gui.delivery-state-interrupted" },
+	wait_to = { "cybersyn2-gui.delivery-state-short-queued" },
+	to_to = { "cybersyn2-gui.delivery-state-short-to-to" },
+	at_to = { "cybersyn2-gui.delivery-state-short-at-to" },
+	completed = { "cybersyn2-gui.delivery-state-short-completed" },
+	failed = { "cybersyn2-gui.delivery-state-failed" },
 }

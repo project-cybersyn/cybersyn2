@@ -178,7 +178,7 @@ events.bind(
 			if not delivery:is_in_final_state() and state.veto_shutdown then
 				table.insert(
 					state.veto_shutdown,
-					"Shutdown not recommended while deliveries are in progress. Disable logistics in game settings and wait for all vehicles to be idle."
+					{ "cybersyn2-commands.shutdown-veto-deliveries" }
 				)
 				return
 			end

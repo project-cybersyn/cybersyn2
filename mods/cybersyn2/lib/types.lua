@@ -196,28 +196,39 @@ lib.OrderStatusColor = OrderStatusColor
 ---Human readable descriptions of order statuses for GUI display.
 ---@type table<Cybersyn.OrderStatus, LocalisedString>
 local OrderStatusDescription = {
-	[OrderStatus.fulfilled] = "Fulfilled",
-	[OrderStatus.no_provider] = "No matching provider",
-	[OrderStatus.no_vehicle] = "No vehicle",
-	[OrderStatus.invalidation] = "Late invalidation",
-	[OrderStatus.no_capacity] = "Requester capacity mismatch (check allowlist)",
-	[OrderStatus.unknown] = "Unknown",
-	[OrderStatus.delivery] = "Being fulfilled",
-	[OrderStatus.provider_queue_full] = "Provider queue became full",
-	[OrderStatus.requester_max_deliveries] = "Requester reached max deliveries",
+	[OrderStatus.fulfilled] = { "cybersyn2-gui.order-status-fulfilled" },
+	[OrderStatus.no_provider] = { "cybersyn2-gui.order-status-no-provider" },
+	[OrderStatus.no_vehicle] = { "cybersyn2-gui.order-status-no-vehicle" },
+	[OrderStatus.invalidation] = { "cybersyn2-gui.order-status-invalidation" },
+	[OrderStatus.no_capacity] = { "cybersyn2-gui.order-status-no-capacity" },
+	[OrderStatus.unknown] = { "cybersyn2-gui.order-status-unknown" },
+	[OrderStatus.delivery] = { "cybersyn2-gui.order-status-delivery" },
+	[OrderStatus.provider_queue_full] = {
+		"cybersyn2-gui.order-status-provider-queue-full",
+	},
+	[OrderStatus.requester_max_deliveries] = {
+		"cybersyn2-gui.order-status-requester-max-deliveries",
+	},
 }
 lib.OrderStatusDescription = OrderStatusDescription
 
+---@type table<Cybersyn.OrderStatus, LocalisedString>
 local OrderShortStatusDescription = {
-	[OrderStatus.fulfilled] = "Fulfilled",
-	[OrderStatus.no_provider] = "Unfulfilled",
-	[OrderStatus.no_vehicle] = "No vehicle",
-	[OrderStatus.invalidation] = "Invalidation",
-	[OrderStatus.no_capacity] = "Capacity",
-	[OrderStatus.unknown] = "Unknown",
-	[OrderStatus.delivery] = "Fulfilled",
-	[OrderStatus.provider_queue_full] = "Queue full",
-	[OrderStatus.requester_max_deliveries] = "Queue full",
+	[OrderStatus.fulfilled] = { "cybersyn2-gui.order-status-short-fulfilled" },
+	[OrderStatus.no_provider] = { "cybersyn2-gui.order-status-short-unfulfilled" },
+	[OrderStatus.no_vehicle] = { "cybersyn2-gui.order-status-short-no-vehicle" },
+	[OrderStatus.invalidation] = {
+		"cybersyn2-gui.order-status-short-invalidation",
+	},
+	[OrderStatus.no_capacity] = { "cybersyn2-gui.order-status-short-capacity" },
+	[OrderStatus.unknown] = { "cybersyn2-gui.order-status-short-unknown" },
+	[OrderStatus.delivery] = { "cybersyn2-gui.order-status-short-fulfilled" },
+	[OrderStatus.provider_queue_full] = {
+		"cybersyn2-gui.order-status-short-queue-full",
+	},
+	[OrderStatus.requester_max_deliveries] = {
+		"cybersyn2-gui.order-status-short-queue-full",
+	},
 }
 lib.OrderStatusShortDescription = OrderShortStatusDescription
 

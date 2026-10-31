@@ -42,7 +42,7 @@ relm.define_element({
 				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
 				{
 					gui.InnerHeading({
-						caption = "Flags",
+						caption = { "cybersyn2-combinator-modes-labels.flags" },
 					}),
 					gui.Checkbox(
 						{ "cybersyn2-combinator-mode-deliveries.include-inbound" },

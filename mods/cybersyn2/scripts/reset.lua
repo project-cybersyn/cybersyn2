@@ -26,18 +26,11 @@ function cs2.shutdown(force)
 		table.insert(veto_shutdown, 1, "")
 		-- XXX: TYPES: FMTK type union bug (LocalisedString)
 		---@diagnostic disable-next-line: param-type-mismatch
-		game.print({
-			"",
-			"/cs2-shutdown failed. Reasons:\n",
-			veto_shutdown,
-			"\nResolve these issues and then reset again.\nUse `/cs2-shutdown force` to shut down anyway.",
-		})
+		game.print({ "cybersyn2-commands.shutdown-vetoed", veto_shutdown })
 		return
 	end
 	if not force and storage._SHUTDOWN_DATA then
-		game.print(
-			"Cybersyn 2 shutdown failed: must restart with `/cs2-restart` before shutting down again. Use `/cs2-shutdown force` to shut down anyway."
-		)
+		game.print({ "cybersyn2-commands.shutdown-already-shut-down" })
 		return
 	end
 
@@ -58,15 +51,13 @@ function cs2.shutdown(force)
 		o.destroy()
 	end
 
-	game.print("Cybersyn 2 shutdown complete.")
+	game.print({ "cybersyn2-commands.shutdown-complete" })
 end
 
 ---Restarts Cybersyn 2 after a shutdown.
 function cs2.restart()
 	if not storage._SHUTDOWN_DATA then
-		game.print(
-			"Cybersyn 2 restart failed: must shut down with `/cs2-shutdown` first."
-		)
+		game.print({ "cybersyn2-commands.restart-not-shut-down" })
 		return
 	end
 	local shutdown_data = storage._SHUTDOWN_DATA
@@ -76,5 +67,5 @@ function cs2.restart()
 	shutdown_data.init = false
 	shutdown_data.handoff = true
 	events.raise("on_startup", shutdown_data)
-	game.print("Cybersyn 2 restart complete.")
+	game.print({ "cybersyn2-commands.restart-complete" })
 end

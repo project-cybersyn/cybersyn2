@@ -173,15 +173,30 @@ lib.DeliveriesTab = relm.define(
 				horizontally_stretchable = true,
 			}, {
 				ultros.Label("ID", { style = "subheader_caption_label", width = 72 }),
-				ultros.Label("Veh", { style = "subheader_caption_label", width = 48 }),
-				ultros.Label("Prov", { style = "subheader_caption_label", width = 48 }),
-				ultros.Label("Req", { style = "subheader_caption_label", width = 48 }),
 				ultros.Label(
-					"Status",
+					{ "cybersyn2-manager.column-vehicle" },
+					{ style = "subheader_caption_label", width = 48 }
+				),
+				ultros.Label(
+					{ "cybersyn2-manager.column-provider" },
+					{ style = "subheader_caption_label", width = 48 }
+				),
+				ultros.Label(
+					{ "cybersyn2-manager.column-requester" },
+					{ style = "subheader_caption_label", width = 48 }
+				),
+				ultros.Label(
+					{ "cybersyn2-manager.column-status" },
 					{ style = "subheader_caption_label", width = 96 }
 				),
-				ultros.Label("Net", { style = "subheader_caption_label", width = 40 }),
-				ultros.Label("Manifest", { style = "subheader_caption_label" }),
+				ultros.Label(
+					{ "cybersyn2-manager.column-network" },
+					{ style = "subheader_caption_label", width = 40 }
+				),
+				ultros.Label(
+					{ "cybersyn2-manager.column-manifest" },
+					{ style = "subheader_caption_label" }
+				),
 			}),
 			Pr({
 				type = "scroll-pane",
