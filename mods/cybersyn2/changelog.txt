@@ -2,6 +2,7 @@
 Version: 0.5.4
 Date: ????
   Changes:
+    - Added i18n support for many previously hard-coded strings.
 ---------------------------------------------------------------------------------------------------
 Version: 0.5.3
 Date: 2026-11-02
