@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.5.3
-Date: ????
+Date: 2026-11-02
   Changes:
     - Added an Experimental Mode startup setting for opting into new or unstable features.
   Bugfixes:
