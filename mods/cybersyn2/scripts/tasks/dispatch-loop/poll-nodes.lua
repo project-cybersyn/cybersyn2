@@ -38,7 +38,9 @@ local LogisticsThread = cs2.LogisticsThread
 function LogisticsThread:poll_train_stop_update_inventory()
 	local stop = self.node --[[@as Cybersyn.TrainStop]]
 	if not stop:is_valid() then return self:set_state("poll_nodes") end
-	stop:update_inventory(self.workload_counter, false)
+	if not stop:update_inventory(self.workload_counter, false) then
+		self.node_inventory_read_failed = true
+	end
 
 	self:set_state("poll_train_stop_classify_inventory")
 end
@@ -340,6 +342,7 @@ function LogisticsThread:poll_train_stop()
 	local workload = self.workload_counter
 	add_workload(workload, 1)
 	self.node_is_dirty = nil
+	self.node_inventory_read_failed = nil
 	if not stop:is_valid() then return self:set_state("poll_nodes") end
 	-- Check warming-up state. Skip stops that are warming up.
 	if stop.created_tick + (60 * mod_settings.warmup_time) > game.tick then
@@ -408,11 +411,12 @@ function LogisticsThread:enter_poll_nodes()
 		-- Just finished polling a node. Make sure to set it clean.
 		local node = self.nodes[index]
 		local node_was_dirty = self.node_is_dirty
+		local inventory_read_failed = self.node_inventory_read_failed
 		self.node_is_dirty = nil
+		self.node_inventory_read_failed = nil
 		if node then
 			if node_was_dirty then
-				-- Mark clean
-				node:mark_clean(node_was_dirty)
+				if not inventory_read_failed then node:mark_clean(node_was_dirty) end
 
 				-- Update polling stats
 				local t = game.tick

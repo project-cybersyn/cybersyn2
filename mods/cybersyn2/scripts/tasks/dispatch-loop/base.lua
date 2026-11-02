@@ -46,6 +46,7 @@ storage = storage --[[@as Cybersyn.Storage]]
 ---@field public n_clean_nodes integer Number of nodes that were clean and skipped during polling.
 ---@field public skipped_clean_era Core.EraCounter Era of number of nodes not polled because they were clean.
 ---@field public node_is_dirty? int64 Revision number of the node currently being polled, used to detect async modifications.
+---@field public node_inventory_read_failed? boolean Latched read failure for the current node poll.
 local LogisticsThread = class("LogisticsThread", cs2.StatefulTask)
 cs2.LogisticsThread = LogisticsThread
 

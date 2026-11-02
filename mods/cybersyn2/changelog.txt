@@ -4,6 +4,7 @@ Date: ????
   Changes:
     - Added an Experimental Mode startup setting for opting into new or unstable features.
   Bugfixes:
+    - Fixed an issue that could cause a stop to falsely be marked clean during inventory scans.
     - Inventory manager pane will now update when Network is changed.
     - Fixed a crash involving silent external invalidation of train stock entities.
     - Fixed a false positive case in an error log message about referential integrity.
