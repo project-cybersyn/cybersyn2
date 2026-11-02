@@ -101,7 +101,7 @@ function cs2.gui.VirtualSignalPicker(combinator, setting, tooltip)
 			else
 				game
 					.get_player(elem.player_index) --[[@as LuaPlayer]]
-					.print("Invalid signal type. Please select a virtual signal.", {
+					.print({ "cybersyn2-gui.invalid-signal-type" }, {
 						color = { 255, 128, 0 },
 						skip = defines.print_skip.never,
 						sound = defines.print_sound.always,

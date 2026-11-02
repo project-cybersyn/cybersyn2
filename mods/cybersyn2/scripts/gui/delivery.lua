@@ -103,7 +103,7 @@ local TrainDeliveryCancelButton = relm.define(
 		return ultros.If(
 			delivery:is_cancellable(),
 			ultros.Button({
-				caption = "Cancel Delivery",
+				caption = { "cybersyn2-gui.cancel-delivery" },
 				width = 336,
 				on_click = on_click_cancel_delivery(delivery.id),
 			})
@@ -197,7 +197,7 @@ local DeliveryHeader = relm.define(
 		local delivery_id = delivery.id
 		local state_tick = delivery.state_tick or 0
 		local state_name = delivery_state_friendly_names[delivery.state]
-			or "Unknown"
+			or { "cybersyn2-gui.unknown" }
 		relm_util.use_event_handler(
 			"cs2.delivery_state_changed",
 			function(me, _, changed_delivery)

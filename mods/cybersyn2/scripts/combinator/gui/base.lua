@@ -137,7 +137,7 @@ local Status = relm.define_element({
 				}),
 				Pr({
 					type = "label",
-					caption = "Working",
+					caption = { "cybersyn2-gui.working" },
 				}),
 			}),
 		})
@@ -204,7 +204,7 @@ local LeftCol = relm.define_element({
 				extra_bottom_padding_when_activated = 0,
 			}, {
 				ultros.WellSection(
-					{ caption = "Mode" },
+					{ caption = { "cybersyn2-gui.mode" } },
 					{ ModePicker({ combinator = props.combinator }) }
 				),
 				ModeSettings({ combinator = props.combinator }),
@@ -315,7 +315,7 @@ events.bind(
 		local comb = cs2.get_combinator(id)
 		if not comb then
 			player.print(
-				"Cybersyn 2: Attempted to open a combinator without an associated state. Run a full reset (or complete an in-progress reset procedure) before proceeding.",
+				{ "cybersyn2-errors.combinator-without-state" },
 				{
 					color = { r = 1, g = 0, b = 0 },
 					skip = defines.print_skip.never,

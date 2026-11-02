@@ -45,7 +45,7 @@ local Layout = relm.define(
 			repaint_if_layout
 		)
 
-		local layout_label = "(Unknown layout)"
+		local layout_label = { "cybersyn2-manager.unknown-layout" } --[[@as LocalisedString]]
 		if layout then
 			layout_label = cs2.encode_item_names(layout.carriage_names)
 		end
@@ -121,7 +121,10 @@ local VehicleLeftPane = relm.define(
 				direction = "horizontal",
 				horizontally_stretchable = true,
 			}, {
-				ultros.Label("Layout", { style = "subheader_caption_label" }),
+				ultros.Label(
+					{ "cybersyn2-manager.column-layout" },
+					{ style = "subheader_caption_label" }
+				),
 			}),
 			Pr({
 				type = "scroll-pane",
@@ -154,7 +157,7 @@ local Vehicle = relm.define("Manager.VehicleVehicle", function(props)
 	local to_entity = to_node and to_node:get_entity()
 	local state_label = delivery
 			and cs2.delivery_state_short_names[delivery.state]
-		or "[color=green]Avail[/color]"
+		or { "cybersyn2-manager.vehicle-available" }
 
 	return Pr({
 		type = "frame",
@@ -249,14 +252,26 @@ local VehicleRightPane = relm.define(
 				direction = "horizontal",
 				horizontally_stretchable = true,
 			}, {
-				ultros.Label("Veh", { style = "subheader_caption_label", width = 48 }),
-				ultros.Label("Prov", { style = "subheader_caption_label", width = 48 }),
-				ultros.Label("Req", { style = "subheader_caption_label", width = 48 }),
 				ultros.Label(
-					"Status",
+					{ "cybersyn2-manager.column-vehicle" },
+					{ style = "subheader_caption_label", width = 48 }
+				),
+				ultros.Label(
+					{ "cybersyn2-manager.column-provider" },
+					{ style = "subheader_caption_label", width = 48 }
+				),
+				ultros.Label(
+					{ "cybersyn2-manager.column-requester" },
+					{ style = "subheader_caption_label", width = 48 }
+				),
+				ultros.Label(
+					{ "cybersyn2-manager.column-status" },
 					{ style = "subheader_caption_label", width = 96 }
 				),
-				ultros.Label("Manifest", { style = "subheader_caption_label" }),
+				ultros.Label(
+					{ "cybersyn2-manager.column-manifest" },
+					{ style = "subheader_caption_label" }
+				),
 			}),
 			Pr({
 				type = "scroll-pane",

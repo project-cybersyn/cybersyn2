@@ -126,7 +126,7 @@ relm.define(
 
 		-- Window frame
 		return ultros.WindowFrame({
-			caption = "Cybersyn 2 Manager",
+			caption = { "cybersyn2-manager.title" },
 			width = 1008,
 			height = 768,
 			on_close = close_me,

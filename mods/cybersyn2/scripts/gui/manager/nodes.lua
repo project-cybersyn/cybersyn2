@@ -39,7 +39,7 @@ local Order = relm.define(
 		local is_requester = order:is_requester()
 		local status_label = is_requester
 				and (OrderStatusShortDescription[order.status or OrderStatus.unknown] or UnknownDescription)
-			or "Providing"
+			or { "cybersyn2-manager.providing" }
 		local status_color = is_requester
 				and (OrderStatusColor[order.status or OrderStatus.unknown] or "black")
 			or "green"
@@ -190,7 +190,7 @@ local Node = relm.define(
 					height = 48,
 				}),
 			}),
-			ultros.If(is_slave, ultros.BoldLabel("Slave")),
+			ultros.If(is_slave, ultros.BoldLabel({ "cybersyn2-manager.slave" })),
 			ultros.If(
 				node and not is_slave,
 				Orders({ node = node, set_cargo = set_cargo })
@@ -291,8 +291,14 @@ lib.NodesTab = relm.define(
 				horizontally_stretchable = true,
 			}, {
 				ultros.Label("ID", { style = "subheader_caption_label", width = 72 }),
-				ultros.Label("Node", { style = "subheader_caption_label", width = 48 }),
-				ultros.Label("Orders", { style = "subheader_caption_label" }),
+				ultros.Label(
+					{ "cybersyn2-manager.column-node" },
+					{ style = "subheader_caption_label", width = 48 }
+				),
+				ultros.Label(
+					{ "cybersyn2-manager.column-orders" },
+					{ style = "subheader_caption_label" }
+				),
 			}),
 			Pr({
 				type = "scroll-pane",

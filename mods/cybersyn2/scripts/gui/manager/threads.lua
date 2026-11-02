@@ -37,35 +37,23 @@ local SchedulerEntry = relm.define("Manager.SchedulerEntry", function()
 		style = "shallow_frame",
 		horizontally_stretchable = true,
 	}, {
-		ultros.RtLabel("[font=default-bold]Scheduler[/font]"),
+		ultros.RtLabel({ "cybersyn2-manager.threads-scheduler" }),
 		Pr({ type = "line" }),
 		Pr({ type = "table", column_count = 5, horizontally_stretchable = true }, {
 			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel({ "", "[font=default-bold]Threads[/font] ", n_tasks }),
+				ultros.RtLabel({ "cybersyn2-manager.threads-threads", n_tasks }),
 			}),
 			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel({
-					"",
-					"[font=default-bold]Sleeping[/font] ",
-					n_sleeping,
-				}),
+				ultros.RtLabel({ "cybersyn2-manager.threads-sleeping", n_sleeping }),
 			}),
 			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel({
-					"",
-					"[font=default-bold]Running[/font] ",
-					n_running,
-				}),
+				ultros.RtLabel({ "cybersyn2-manager.threads-running", n_running }),
 			}),
 			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel({
-					"",
-					"[font=default-bold]Realtime[/font] ",
-					n_realtime,
-				}),
+				ultros.RtLabel({ "cybersyn2-manager.threads-realtime", n_realtime }),
 			}),
 			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel("[font=default-bold]Global Work Cap[/font]"),
+				ultros.RtLabel({ "cybersyn2-manager.threads-global-work-cap" }),
 				ultros.UncontrolledInput({
 					numeric = true,
 					value = max_work_per_frame,
@@ -98,20 +86,15 @@ local DispatcherEntry = relm.define("Manager.DispatcherEntry", function()
 		style = "shallow_frame",
 		horizontally_stretchable = true,
 	}, {
-		ultros.RtLabel("[font=default-bold]Delivery Dispatch[/font]"),
+		ultros.RtLabel({ "cybersyn2-manager.threads-delivery-dispatch" }),
 		Pr({ type = "line" }),
 		Pr({ type = "table", column_count = 5, horizontally_stretchable = true }, {
 			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel({
-					"",
-					"[font=default-bold]Dispatches[/font] ",
-					n_dispatches,
-				}),
+				ultros.RtLabel({ "cybersyn2-manager.threads-dispatches", n_dispatches }),
 			}),
 			HF({ horizontally_stretchable = true }, {
 				ultros.RtLabel({
-					"",
-					"[font=default-bold]Frames per Dispatch[/font] ",
+					"cybersyn2-manager.threads-frames-per-dispatch",
 					strformat("%.2f", fpd),
 				}),
 			}),
@@ -141,40 +124,29 @@ local TrainMonitorEntry = relm.define("Manager.TrainMonitorEntry", function()
 		style = "shallow_frame",
 		horizontally_stretchable = true,
 	}, {
-		ultros.RtLabel("[font=default-bold]Train Monitor[/font]"),
+		ultros.RtLabel({ "cybersyn2-manager.threads-train-monitor" }),
 		Pr({ type = "line" }),
 		Pr({ type = "table", column_count = 5, horizontally_stretchable = true }, {
 			HF({ horizontally_stretchable = true }, {
 				ultros.RtLabel({
-					"",
-					"[font=default-bold]Work per Iteration[/font] ",
+					"cybersyn2-manager.threads-work-per-iteration",
 					strformat("%.2f", wpi),
 				}),
 			}),
 			HF({ horizontally_stretchable = true }, {
 				ultros.RtLabel({
-					"",
-					"[font=default-bold]Loop length[/font] ",
+					"cybersyn2-manager.threads-loop-length",
 					strformat("%.2f", loop_length_era),
-					" frames",
 				}),
 			}),
 			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel({
-					"",
-					"[font=default-bold]LuaTrains[/font] ",
-					n_luatrains,
-				}),
+				ultros.RtLabel({ "cybersyn2-manager.threads-luatrains", n_luatrains }),
 			}),
 			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel({
-					"",
-					"[font=default-bold]CS Trains[/font] ",
-					n_cstrains,
-				}),
+				ultros.RtLabel({ "cybersyn2-manager.threads-cstrains", n_cstrains }),
 			}),
 			HF({ horizontally_stretchable = true }, {
-				ultros.RtLabel("[font=default-bold]Work Cap[/font]"),
+				ultros.RtLabel({ "cybersyn2-manager.threads-work-cap" }),
 				ultros.UncontrolledInput({
 					numeric = true,
 					value = work_cap,
@@ -213,49 +185,40 @@ local DeliveryMonitorEntry = relm.define(
 			style = "shallow_frame",
 			horizontally_stretchable = true,
 		}, {
-			ultros.RtLabel("[font=default-bold]Delivery Monitor[/font]"),
+			ultros.RtLabel({ "cybersyn2-manager.threads-delivery-monitor" }),
 			Pr({ type = "line" }),
 			Pr(
 				{ type = "table", column_count = 5, horizontally_stretchable = true },
 				{
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Work per Iteration[/font] ",
+							"cybersyn2-manager.threads-work-per-iteration",
 							strformat("%.2f", wpi),
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Loop length[/font] ",
+							"cybersyn2-manager.threads-loop-length",
 							strformat("%.2f", loop_length_era),
-							" frames",
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Deliveries[/font] ",
+							"cybersyn2-manager.threads-deliveries",
 							n_deliveries,
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
-						ultros.RtLabel({
-							"",
-							"[font=default-bold]Active[/font] ",
-							n_active,
-						}),
+						ultros.RtLabel({ "cybersyn2-manager.threads-active", n_active }),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Finalized[/font] ",
+							"cybersyn2-manager.threads-finalized",
 							n_finalized,
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
-						ultros.RtLabel("[font=default-bold]Work Cap[/font]"),
+						ultros.RtLabel({ "cybersyn2-manager.threads-work-cap" }),
 						ultros.UncontrolledInput({
 							numeric = true,
 							value = work_cap,
@@ -296,8 +259,7 @@ local DispatchLoop = relm.define(
 			horizontally_stretchable = true,
 		}, {
 			ultros.RtLabel({
-				"",
-				"[font=default-bold]Logistics:[/font] ",
+				"cybersyn2-manager.threads-logistics-title",
 				task._cmt_name or "",
 			}),
 			Pr({ type = "line" }),
@@ -306,79 +268,63 @@ local DispatchLoop = relm.define(
 				{
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Work per Iteration[/font] ",
+							"cybersyn2-manager.threads-work-per-iteration",
 							strformat("%.2f", wpi),
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Loop Length[/font] ",
+							"cybersyn2-manager.threads-loop-length-title-case",
 							strformat("%.2f", loop_length_era),
-							" frames",
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Poll Nodes[/font] ",
+							"cybersyn2-manager.threads-poll-nodes",
 							strformat("%.2f", poll_nodes_era),
-							" frames",
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
-						ultros.RtLabel({
-							"",
-							"[font=default-bold]Nodes[/font] ",
-							n_nodes,
-						}),
+						ultros.RtLabel({ "cybersyn2-manager.threads-nodes", n_nodes }),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Skipped Clean[/font] ",
+							"cybersyn2-manager.threads-skipped-clean",
 							strformat("%.2f", skipped_clean_era),
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Logistics[/font] ",
+							"cybersyn2-manager.threads-logistics",
 							strformat("%.2f", logistics_era),
-							" frames",
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Unfulfilled Req/Loop[/font] ",
+							"cybersyn2-manager.threads-unfulfilled-per-loop",
 							strformat("%.2f", requesters_era),
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Providers[/font] ",
+							"cybersyn2-manager.threads-providers",
 							n_providers,
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Deliveries/Loop[/font] ",
+							"cybersyn2-manager.threads-deliveries-per-loop",
 							strformat("%.2f", deliveries_era),
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
 						ultros.RtLabel({
-							"",
-							"[font=default-bold]Deliveries/Min[/font] ",
+							"cybersyn2-manager.threads-deliveries-per-min",
 							strformat("%.2f", deliveries_per_min),
 						}),
 					}),
 					HF({ horizontally_stretchable = true }, {
-						ultros.RtLabel("[font=default-bold]Work Cap[/font]"),
+						ultros.RtLabel({ "cybersyn2-manager.threads-work-cap" }),
 						ultros.UncontrolledInput({
 							numeric = true,
 							value = work_cap,

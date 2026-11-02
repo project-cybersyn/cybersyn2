@@ -117,11 +117,18 @@ cs2.register_flag_setting("allow_all", "allow_flags", 2)
 -- GUI
 --------------------------------------------------------------------------------
 
-local STATUS_SHARED_NONE = { color = "red", caption = "No shared inventory" }
-local STATUS_SHARED_MASTER =
-	{ color = "green", caption = "Sharing my inventory" }
-local STATUS_SHARED_SLAVE =
-	{ color = "green", caption = "Receiving shared inventory" }
+local STATUS_SHARED_NONE = {
+	color = "red",
+	caption = { "cybersyn2-combinator-mode-station.status-shared-none" },
+}
+local STATUS_SHARED_MASTER = {
+	color = "green",
+	caption = { "cybersyn2-combinator-mode-station.status-shared-master" },
+}
+local STATUS_SHARED_SLAVE = {
+	color = "green",
+	caption = { "cybersyn2-combinator-mode-station.status-shared-slave" },
+}
 
 local function get_status_props(is_master, is_slave)
 	if is_master then
@@ -172,12 +179,15 @@ relm.define_element({
 			ultros.WellSection(
 				{ caption = { "cybersyn2-combinator-modes-labels.settings" } },
 				{
-					ultros.Labeled({ caption = "Cargo", top_margin = 6 }, {
+					ultros.Labeled({
+						caption = { "cybersyn2-combinator-mode-station.cargo" },
+						top_margin = 6,
+					}, {
 						gui.Switch(
-							"Determines whether deliveries can pick up, drop off, or both.",
+							{ "cybersyn2-combinator-mode-station.cargo-switch-tooltip" },
 							true,
-							"Outbound only",
-							"Inbound only",
+							{ "cybersyn2-combinator-mode-station.cargo-outbound-only" },
+							{ "cybersyn2-combinator-mode-station.cargo-inbound-only" },
 							props.combinator,
 							"pr"
 						),
@@ -206,7 +216,7 @@ relm.define_element({
 						),
 					}),
 					gui.InnerHeading({
-						caption = "Flags",
+						caption = { "cybersyn2-combinator-modes-labels.flags" },
 					}),
 					gui.Checkbox(
 						{ "cybersyn2-combinator-mode-station.provide-all" },
@@ -226,12 +236,19 @@ relm.define_element({
 				is_request_only = is_request_only,
 				is_provide_only = is_provide_only,
 			}),
-			ultros.WellSection({ caption = "Thresholds" }, {
+			ultros.WellSection({
+				caption = { "cybersyn2-combinator-mode-station.thresholds" },
+			}, {
 				ultros.If(
 					is_requester,
-					ultros.Labeled({ caption = "Depletion threshold", top_margin = 6 }, {
+					ultros.Labeled({
+						caption = { "cybersyn2-combinator-mode-station.depletion-threshold" },
+						top_margin = 6,
+					}, {
 						gui.Input({
-							tooltip = "Percentage of any requested item that must be missing before a delivery is triggered.\n\nNOTE: All thresholds are hints to the system and may not be strictly enforced.",
+							tooltip = {
+								"cybersyn2-combinator-mode-station.depletion-threshold-tooltip",
+							},
 							combinator = combinator,
 							setting = "auto_threshold_percent",
 							displayed_default_value = math.floor(
@@ -245,10 +262,15 @@ relm.define_element({
 					})
 				),
 				ultros.Labeled(
-					{ caption = "Train fullness threshold", top_margin = 6 },
+					{
+						caption = { "cybersyn2-combinator-mode-station.fullness-threshold" },
+						top_margin = 6,
+					},
 					{
 						gui.Input({
-							tooltip = "Percentage of total train cargo capacity that should be filled before a delivery will be made.\n\nNOTE: All thresholds are hints to the system and may not be strictly enforced.",
+							tooltip = {
+								"cybersyn2-combinator-mode-station.fullness-threshold-tooltip",
+							},
 							combinator = combinator,
 							setting = "train_fullness_percent",
 							displayed_default_value = math.floor(
@@ -264,17 +286,21 @@ relm.define_element({
 				ultros.If(
 					is_provider,
 					gui.Checkbox(
-						"Enforce train fullness threshold when providing",
-						"If checked, this station will only provide deliveries that meet the train fullness threshold set at this station. This means that even if a request threshold is met, a train will not depart unless it is sufficiently full.\n\nIf unchecked, only request thresholds apply as usual.",
+						{ "cybersyn2-combinator-mode-station.fullness-when-providing" },
+						{
+							"cybersyn2-combinator-mode-station.fullness-when-providing-tooltip",
+						},
 						props.combinator,
 						"fullness_when_providing"
 					)
 				),
 			}),
-			ultros.WellSection({ caption = "Allow List" }, {
+			ultros.WellSection({
+				caption = { "cybersyn2-combinator-mode-station.allow-list" },
+			}, {
 				gui.Checkbox(
-					"Strict allow list",
-					"Requires all equipment at the train stop to engage with a wagon.",
+					{ "cybersyn2-combinator-mode-station.allow-strict" },
+					{ "cybersyn2-combinator-mode-station.allow-strict-tooltip" },
 					props.combinator,
 					"allow_strict",
 					false,
@@ -282,8 +308,8 @@ relm.define_element({
 					false
 				),
 				gui.Checkbox(
-					"Bidirectional trains only",
-					"Requires trains that can travel in both directions; both directions must also be compatible with the stop equipment",
+					{ "cybersyn2-combinator-mode-station.allow-bidi" },
+					{ "cybersyn2-combinator-mode-station.allow-bidi-tooltip" },
 					props.combinator,
 					"allow_bidi",
 					false,
@@ -291,45 +317,57 @@ relm.define_element({
 					false
 				),
 				gui.Checkbox(
-					"Allow all trains",
-					"If checked, this station will allow any train to use it regardless of station layout. In order to further control which trains come to this station, you must use networks.",
+					{ "cybersyn2-combinator-mode-station.allow-all" },
+					{ "cybersyn2-combinator-mode-station.allow-all-tooltip" },
 					props.combinator,
 					"allow_all"
 				),
 			}),
-			ultros.WellSection({ caption = "Departure Conditions" }, {
-				ultros.Labeled(
-					{ caption = "Signal: Allow departure", top_margin = 6 },
-					{
-						gui.AnySignalPicker(
-							props.combinator,
-							"allow_departure_signal",
-							"Trains will only depart if this signal is present at the train stop.\n\nNOTE: The train stop must be set to send signals to the train."
-						),
-					}
-				),
-				ultros.Labeled(
-					{ caption = "Signal: Force departure", top_margin = 6 },
-					{
-						gui.AnySignalPicker(
-							props.combinator,
-							"force_departure_signal",
-							"If this signal is present at the train stop, the train will be forced to leave, regardless of other conditions.\n\nNOTE: The train stop must be set to send signals to the train."
-						),
-					}
-				),
-				ultros.Labeled({ caption = "Inactivity mode", top_margin = 6 }, {
+			ultros.WellSection({
+				caption = { "cybersyn2-combinator-mode-station.departure-conditions" },
+			}, {
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-station.allow-departure-signal" },
+					top_margin = 6,
+				}, {
+					gui.AnySignalPicker(
+						props.combinator,
+						"allow_departure_signal",
+						{
+							"cybersyn2-combinator-mode-station.allow-departure-signal-tooltip",
+						}
+					),
+				}),
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-station.force-departure-signal" },
+					top_margin = 6,
+				}, {
+					gui.AnySignalPicker(
+						props.combinator,
+						"force_departure_signal",
+						{
+							"cybersyn2-combinator-mode-station.force-departure-signal-tooltip",
+						}
+					),
+				}),
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-station.inactivity-mode" },
+					top_margin = 6,
+				}, {
 					gui.Switch(
-						"Determines how the inactivity timer will apply. After delivery means the train will wait the appropriate number of seconds after emptying its cargo. Force out means the train will be forced out after the appropriate number of seconds, regardless of whether it has emptied its cargo. The center position disables inactivity timeouts.",
+						{ "cybersyn2-combinator-mode-station.inactivity-mode-tooltip" },
 						true,
-						"After delivery",
-						"Force out",
+						{ "cybersyn2-combinator-mode-station.inactivity-mode-after-delivery" },
+						{ "cybersyn2-combinator-mode-station.inactivity-mode-force-out" },
 						props.combinator,
 						"inactivity_mode"
 					),
 				}),
 				ultros.Labeled(
-					{ caption = "Inactivity timeout (sec)", top_margin = 6 },
+					{
+						caption = { "cybersyn2-combinator-mode-station.inactivity-timeout" },
+						top_margin = 6,
+					},
 					{
 						gui.Input({
 							combinator = props.combinator,
@@ -342,23 +380,26 @@ relm.define_element({
 					}
 				),
 				gui.InnerHeading({
-					caption = "Flags",
+					caption = { "cybersyn2-combinator-modes-labels.flags" },
 				}),
 				gui.Checkbox(
-					"Enable cargo condition",
-					"If checked, trains will receive a wait condition requiring them to pick up or drop off their cargo. If unchecked, you must manually control the train's departure using custom logic.",
+					{ "cybersyn2-combinator-mode-station.cargo-condition" },
+					{ "cybersyn2-combinator-mode-station.cargo-condition-tooltip" },
 					props.combinator,
 					"disable_cargo_condition",
 					true
 				),
 			}),
 			ultros.WellSection({
-				caption = "Outbound Item Handling",
+				caption = { "cybersyn2-combinator-mode-station.outbound-item-handling" },
 				visible = is_provider,
 			}, {
-				ultros.Labeled({ caption = "Spillover", top_margin = 6 }, {
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-station.spillover" },
+					top_margin = 6,
+				}, {
 					gui.Input({
-						tooltip = "A number of extra items (measured in units, not stacks) that may be loaded into each cargo wagon of an outgoing train as a result of imprecise processes such as extra inserter swings. This value is applied per-item against the capacity of the each wagon and the net inventory of the station.",
+						tooltip = { "cybersyn2-combinator-mode-station.spillover-tooltip" },
 						combinator = props.combinator,
 						setting = "spillover",
 						width = 75,
@@ -368,10 +409,15 @@ relm.define_element({
 					}),
 				}),
 				ultros.Labeled(
-					{ caption = "Reserved slots per cargo wagon", top_margin = 6 },
+					{
+						caption = { "cybersyn2-combinator-mode-station.reserved-slots" },
+						top_margin = 6,
+					},
 					{
 						gui.Input({
-							tooltip = "The number of slots that will be deducted for each cargo wagon when calculating the capacity of an outgoing train. Unlike spillover, reserve slots do not count against the net inventory of the station.",
+							tooltip = {
+								"cybersyn2-combinator-mode-station.reserved-slots-tooltip",
+							},
 							combinator = props.combinator,
 							setting = "reserved_slots",
 							width = 75,
@@ -382,10 +428,15 @@ relm.define_element({
 					}
 				),
 				ultros.Labeled(
-					{ caption = "Reserved capacity per fluid wagon", top_margin = 6 },
+					{
+						caption = { "cybersyn2-combinator-mode-station.reserved-capacity" },
+						top_margin = 6,
+					},
 					{
 						gui.Input({
-							tooltip = "A reserved amount of capacity to be deducted per fluid wagon. This can be used to allow pumps to clear their fluid boxes before a train departs.",
+							tooltip = {
+								"cybersyn2-combinator-mode-station.reserved-capacity-tooltip",
+							},
 							combinator = props.combinator,
 							setting = "reserved_capacity",
 							width = 75,
@@ -396,34 +447,36 @@ relm.define_element({
 					}
 				),
 				gui.InnerHeading({
-					caption = "Flags",
+					caption = { "cybersyn2-combinator-modes-labels.flags" },
 				}),
 				gui.Checkbox(
-					"Single item per outgoing train",
-					"If checked, this station will never load multiple items onto an outgoing train, instead loading only the first matching item.",
+					{ "cybersyn2-combinator-mode-station.single-item" },
+					{ "cybersyn2-combinator-mode-station.single-item-tooltip" },
 					props.combinator,
 					"produce_single_item"
 				),
 			}),
-			ultros.WellSection({ caption = "Shared Inventory" }, {
+			ultros.WellSection({
+				caption = { "cybersyn2-combinator-mode-station.shared-inventory" },
+			}, {
 				gui.Status(get_status_props(is_master, is_slave)),
 				ultros.If(
 					is_shared,
 					ultros.Button({
-						caption = "Stop sharing inventory",
+						caption = { "cybersyn2-combinator-mode-station.stop-sharing" },
 						on_click = "stop_sharing",
 					})
 				),
 				ultros.If(
 					(not is_shared) or is_master,
 					ultros.Button({
-						caption = "Share this inventory with another station",
+						caption = { "cybersyn2-combinator-mode-station.start-sharing" },
 						on_click = "start_sharing",
 					})
 				),
 				gui.Checkbox(
-					"Clone orders",
-					"If checked, this station will ignore its own orders and clone identical orders from the master station.",
+					{ "cybersyn2-combinator-mode-station.clone-orders" },
+					{ "cybersyn2-combinator-mode-station.clone-orders-tooltip" },
 					props.combinator,
 					"shared_inventory_independent_orders",
 					true,
@@ -431,56 +484,56 @@ relm.define_element({
 				),
 			}),
 			ultros.WellSection({
-				caption = "Configuration via Circuit",
+				caption = { "cybersyn2-combinator-mode-station.circuit-configuration" },
 			}, {
-				ultros.Labeled(
-					{ caption = "Input signal: Depletion percentage", top_margin = 6 },
-					{
-						gui.VirtualSignalPicker(
-							props.combinator,
-							"signal_depletion_percentage",
-							"The value of this signal on the primary input wire will be used as the depletion percentage for deliveries rather than the setting in the combinator."
-						),
-					}
-				),
 				ultros.Labeled({
-					caption = "Input signal: Train fullness percentage",
+					caption = { "cybersyn2-combinator-mode-station.signal-depletion" },
+					top_margin = 6,
+				}, {
+					gui.VirtualSignalPicker(
+						props.combinator,
+						"signal_depletion_percentage",
+						{ "cybersyn2-combinator-mode-station.signal-depletion-tooltip" }
+					),
+				}),
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-station.signal-fullness" },
 					top_margin = 6,
 				}, {
 					gui.VirtualSignalPicker(
 						props.combinator,
 						"signal_fullness_percentage",
-						"The value of this signal on the primary input wire will be used as the train fullness percentage for deliveries rather than the setting in the combinator."
+						{ "cybersyn2-combinator-mode-station.signal-fullness-tooltip" }
 					),
 				}),
 				ultros.Labeled({
-					caption = "Input signal: Reserved slots per cargo wagon",
+					caption = { "cybersyn2-combinator-mode-station.signal-reserved-slots" },
 					top_margin = 6,
 				}, {
 					gui.VirtualSignalPicker(
 						props.combinator,
 						"signal_reserved_slots",
-						"The value of this signal on the primary input wire will be used as the number of reserved slots per cargo wagon rather than the setting in the combinator."
+						{ "cybersyn2-combinator-mode-station.signal-reserved-slots-tooltip" }
 					),
 				}),
 				ultros.Labeled({
-					caption = "Input signal: Reserved capacity per fluid wagon",
+					caption = { "cybersyn2-combinator-mode-station.signal-reserved-fluid" },
 					top_margin = 6,
 				}, {
 					gui.VirtualSignalPicker(
 						props.combinator,
 						"signal_reserved_fluid",
-						"The value of this signal on the primary input wire will be used as the reserved capacity per fluid wagon rather than the setting in the combinator."
+						{ "cybersyn2-combinator-mode-station.signal-reserved-fluid-tooltip" }
 					),
 				}),
 				ultros.Labeled({
-					caption = "Input signal: Spillover",
+					caption = { "cybersyn2-combinator-mode-station.signal-spillover" },
 					top_margin = 6,
 				}, {
 					gui.VirtualSignalPicker(
 						props.combinator,
 						"signal_spillover",
-						"The value of this signal on the primary input wire will be used as the spillover rather than the setting in the combinator."
+						{ "cybersyn2-combinator-mode-station.signal-spillover-tooltip" }
 					),
 				}),
 			}),
