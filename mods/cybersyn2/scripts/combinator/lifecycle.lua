@@ -69,20 +69,30 @@ events.bind(
 	"cybersyn2-combinator-on_status",
 	---@param ev things.EventData.on_status
 	function(ev)
+		local old_status = ev.old_status
+		local new_status = ev.new_status
 		local comb = cs2.get_combinator(ev.thing.id, true)
 		if not comb then
-			if ev.old_status == "void" and ev.new_status ~= "destroyed" then
+			if old_status == "void" and new_status ~= "destroyed" then
 				comb = create_combinator(ev.thing)
-			else
+			elseif new_status ~= "destroyed" then
 				stlib.error(
-					"Referential integrity failure: no matching Combinator for Thing",
-					ev.thing.id
+					"cybersyn2-combinator-on_status: referential integrity failure: no matching Combinator for Thing",
+					ev.thing.id,
+					"(old_status",
+					old_status,
+					"new_status",
+					new_status,
+					")"
 				)
+				return
+			else
+				-- Thing is destroyed, so it's ok if we don't have a matching Combinator
 				return
 			end
 		end
 
-		if ev.new_status == "real" then
+		if new_status == "real" then
 			comb.real_entity = ev.thing.entity
 		else
 			comb.real_entity = nil
@@ -90,7 +100,7 @@ events.bind(
 
 		events.raise("cs2.combinator_status_changed", comb)
 
-		if ev.new_status == "void" or ev.new_status == "destroyed" then
+		if new_status == "void" or new_status == "destroyed" then
 			destroy_combinator(comb)
 		end
 	end
