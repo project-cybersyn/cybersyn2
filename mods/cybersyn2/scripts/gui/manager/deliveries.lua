@@ -13,7 +13,7 @@ local pairs = pairs
 local next = next
 
 ---@type Cybersyn.Storage
-local storage = storage --[[@as Cybersyn.Storage]]
+storage = storage --[[@as Cybersyn.Storage]]
 
 local lib = {}
 

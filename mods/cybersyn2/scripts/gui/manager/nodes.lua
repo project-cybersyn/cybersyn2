@@ -26,7 +26,7 @@ local OrderStatus = types.OrderStatus
 local UnknownDescription = OrderStatusShortDescription[OrderStatus.unknown]
 
 ---@type Cybersyn.Storage
-local storage = storage --[[@as Cybersyn.Storage]]
+storage = storage --[[@as Cybersyn.Storage]]
 
 local lib = {}
 

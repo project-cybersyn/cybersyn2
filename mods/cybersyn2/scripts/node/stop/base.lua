@@ -322,51 +322,57 @@ end
 ---Reread this stop's inventory combinators.
 ---@param workload Core.Thread.Workload?
 ---@return Cybersyn.Combinator? station_combinator The station combinator, if any.
+---@return boolean inputs_read Whether all inventory combinator inputs are current.
 function TrainStop:read_inventory_combinator_inputs(workload)
 	local station_combinator = nil
+	local inputs_read = true
 	for combinator_id in pairs(self.combinator_set) do
 		local combinator = cs2.get_combinator(combinator_id)
 		if combinator then
 			local mode = combinator.mode
-			if mode == "inventory" then
+			local is_station = mode == "station"
+			if mode == "inventory" or is_station then
+				if is_station then station_combinator = combinator end
 				combinator:read_inputs(nil, workload)
-			elseif mode == "station" then
-				station_combinator = combinator
-				combinator:read_inputs(nil, workload)
+				if combinator.inputs_dirty then inputs_read = false end
 			end
 		end
 	end
-	return station_combinator
+	return station_combinator, inputs_read
 end
 
 ---Update this stop's inventory
 ---@param workload Core.Thread.Workload?
 ---@param is_opportunistic boolean? If `true`, this is an opportunistic update outside the main loop, e.g. when a train leaves a stop.
+---@return boolean read_complete Whether the inventory's inputs were successfully read, using the master's latest result for shared slaves.
 function TrainStop:update_inventory(workload, is_opportunistic)
+	local inventory = self:get_inventory()
+	if not inventory then
+		error("LOGIC ERROR: Train stop has no inventory" .. self.id)
+	end
+	---@cast inventory Cybersyn.StopInventory
+
 	-- If shared inventory, forward to master when relevant.
 	if self.shared_inventory_master then
 		-- Sanity check to prevent recursion
 		if self.shared_inventory_master == self.id then
 			stlib.error("ERROR: Stop", self.id, " is its own shared inventory master")
-			return
+			return false
 		end
 
 		-- Opportunistic reread at a slave station should forward to master.
 		if is_opportunistic then
 			local master = cs2.get_stop(self.shared_inventory_master)
 			if master then return master:update_inventory(workload, true) end
+			stlib.error("ERROR: Stop", self.id, " has no shared inventory master")
+			return false
 		end
-		-- Otherwise, no need to read inventory at a slave station.
-		return
+		-- Shared slaves use the result of the master's read without rereading.
+		return inventory.last_read_complete == true
 	end
 
-	local inventory = self:get_inventory()
-	if not inventory then
-		error("LOGIC ERROR: Train stop has no inventory" .. self.id)
-		return
-	end
-
-	inventory:update(workload, true, is_opportunistic)
+	local updated = inventory:update(workload, true, is_opportunistic)
+	return updated and inventory.last_read_complete == true
 end
 
 --------------------------------------------------------------------------------

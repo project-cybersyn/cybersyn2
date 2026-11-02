@@ -261,6 +261,7 @@ function Inventory:update(workload, reread_combs, reread_orders) return false en
 
 ---Inventory associated with a train stop.
 ---@class Cybersyn.StopInventory: Cybersyn.Inventory
+---@field public last_read_complete? boolean Whether the latest inventory read completed without volatility or deferred inputs. Nil until the first read.
 local StopInventory = class("StopInventory", Inventory)
 _G.cs2.StopInventory = StopInventory
 
@@ -296,11 +297,15 @@ end
 function StopInventory:update(workload, reread_combs, reread_orders)
 	add_workload(workload, 1)
 	local stop = cs2.get_stop(self.created_for_node_id, true)
-	if not stop then return false end
+	if not stop then
+		self.last_read_complete = false
+		return false
+	end
 	if stop.shared_inventory_master then
 		strace.warn(
 			"Attempted to update a shared inventory slave's inventory directly. This should only be done from the master stop."
 		)
+		self.last_read_complete = false
 		return false
 	end
 	local slaves = nil
@@ -309,11 +314,17 @@ function StopInventory:update(workload, reread_combs, reread_orders)
 		slaves = stop:get_slaves()
 	end
 
-	if stop_inventory_is_volatile(stop, slaves) then return false end
+	if stop_inventory_is_volatile(stop, slaves) then
+		self.last_read_complete = false
+		return false
+	end
 
 	-- Reread inv combs
+	local inputs_read = false
 	if reread_combs then
-		local master_station_comb = stop:read_inventory_combinator_inputs(workload)
+		local master_station_comb, master_inputs_read =
+			stop:read_inventory_combinator_inputs(workload)
+		inputs_read = master_station_comb ~= nil and master_inputs_read
 		-- Set base from station comb primary wire
 		if master_station_comb then
 			local primary_wire = master_station_comb:get_primary_wire()
@@ -339,7 +350,9 @@ function StopInventory:update(workload, reread_combs, reread_orders)
 		-- Reread slave combs
 		if slaves then
 			for _, slave in pairs(slaves) do
-				slave:read_inventory_combinator_inputs(workload)
+				local _, slave_inputs_read =
+					slave:read_inventory_combinator_inputs(workload)
+				if not slave_inputs_read then inputs_read = false end
 			end
 		end
 	end
@@ -349,6 +362,7 @@ function StopInventory:update(workload, reread_combs, reread_orders)
 		order:read(workload, reread_orders)
 	end
 
+	if reread_combs then self.last_read_complete = inputs_read end
 	return true
 end
 
