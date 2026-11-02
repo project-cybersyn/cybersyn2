@@ -6,7 +6,8 @@ Date: ????
   Bugfixes:
     - Inventory manager pane will now update when Network is changed.
     - Fixed a crash involving silent external invalidation of train stock entities.
-    - Fixed a false positive error message about referential integrity that could sometimes appear in the Factorio log.
+    - Fixed a false positive case in an error log message about referential integrity.
+    - Fixed a storage initialization order bug that could sometimes cause `/cs2-restart` to crash.
   Compatibility:
     - Nullius: attempted to fix subgroup position of the Cybersyn 2 combinator recipe.
 ---------------------------------------------------------------------------------------------------

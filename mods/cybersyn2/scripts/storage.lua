@@ -77,12 +77,8 @@ function _G.cs2.update_player_state(player_index, key, value)
 	events.raise("cs2.player_state_updated", state)
 end
 
----Clear CS2's storage completely. Used for shutdown and reset.
-local function clear_storage()
-	-- This is necessary to fool LuaLS into not overriding storage typedefs.
-	---@diagnostic disable-next-line: missing-fields
-	_G["storage"] = {}
-
+---(Re)initialize all of CS2's own storage fields.
+local function init_storage()
 	storage.players = {}
 	storage.vehicles = {}
 	storage.combinators = {}
@@ -104,9 +100,19 @@ local function clear_storage()
 	storage.dispatch_queue = {}
 	storage.allow_groups = {}
 end
+
+---Clear storage completely, including core library state. Used for shutdown.
+local function clear_storage()
+	-- This is necessary to fool LuaLS into not overriding storage typedefs.
+	---@diagnostic disable-next-line: missing-fields
+	_G["storage"] = {}
+	init_storage()
+end
 __clear_storage = clear_storage
 
-events.bind("on_startup", clear_storage, true)
+-- Must not replace the storage table: core libraries have already
+-- initialized their state during `on_core_startup`.
+events.bind("on_core_startup", init_storage)
 
 -- Clean up destroyed players
 events.bind(
