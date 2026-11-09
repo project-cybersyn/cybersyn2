@@ -57,6 +57,7 @@ local lib = {}
 ---@field public layout_id uint The layout ID of the train.
 ---@field public stopped_at LuaEntity? Cache of last known train stop. This value should be treated as volatile.
 ---@field public is_filtered boolean? `true` if wagon filters were set on this train upon arrival at a stop. Causes filters to be cleared when train leaves.
+---@field public is_tainted true? `true` if the train is tainted, meaning it completed or failed a delivery with cargo still inside.
 
 ---Numeric encoding of prototype types of carriages
 ---@enum Cybersyn.CarriageType

@@ -29,6 +29,17 @@ local TrainInfo = relm.define("TrainGui.TrainInfo", function(props)
 		end
 	)
 
+	relm_util.use_event_handler(
+		"cs2.train_taint_changed",
+		function(me, _, vehicle)
+			if vehicle.id == cstrain.id then relm.paint(me) end
+		end
+	)
+
+	local function untaint_train()
+		if cstrain then cstrain:set_tainted(false) end
+	end
+
 	local tid = cstrain:get_topology_id()
 	local dtid = cstrain.default_topology_id
 	local tname = cs2.get_topology_name(tid)
@@ -51,9 +62,23 @@ local TrainInfo = relm.define("TrainGui.TrainInfo", function(props)
 		cstrain.fluid_capacity,
 	}
 
-	return ultros.WellSection({ caption = { "cybersyn2-gui.train-info-title" } }, {
-		ultros.RtMultilineLabel(text),
-	})
+	return ultros.WellSection(
+		{ caption = { "cybersyn2-gui.train-info-title" } },
+		{
+			ultros.RtMultilineLabel(text),
+			ultros.CallIf(
+				cstrain.is_tainted,
+				function()
+					return ultros.Button({
+						caption = {
+							"cybersyn2-gui.untaint_train",
+						},
+						on_click = untaint_train,
+					})
+				end
+			),
+		}
+	)
 end)
 
 local Group = relm.define_element({
@@ -138,12 +163,15 @@ local Delivery = relm.define_element({
 		relm_util.use_event("cs2.vehicle_delivery_cleared")
 
 		return delivery
-			and ultros.WellSection({ caption = { "cybersyn2-gui.current-delivery" } }, {
-				delivery_gui.TrainDeliveryFrame({
-					show_header = true,
-					delivery = delivery,
-				}),
-			})
+			and ultros.WellSection(
+				{ caption = { "cybersyn2-gui.current-delivery" } },
+				{
+					delivery_gui.TrainDeliveryFrame({
+						show_header = true,
+						delivery = delivery,
+					}),
+				}
+			)
 	end,
 	state = function(props) return {} end,
 	message = function(me, payload, props, state)
@@ -162,15 +190,18 @@ local Delivery = relm.define_element({
 local DeliveryHistory = relm.define("TrainGui.DeliveryHistory", function(props)
 	local id = props.cstrain.id
 
-	return ultros.WellSection({ caption = { "cybersyn2-gui.delivery-history" } }, {
-		delivery_gui.DeliveryList({
-			filter = function(delivery)
-				return (delivery.vehicle_id == id) and delivery:is_in_final_state()
-			end,
-			show_header = true,
-			show_train = false,
-		}),
-	})
+	return ultros.WellSection(
+		{ caption = { "cybersyn2-gui.delivery-history" } },
+		{
+			delivery_gui.DeliveryList({
+				filter = function(delivery)
+					return (delivery.vehicle_id == id) and delivery:is_in_final_state()
+				end,
+				show_header = true,
+				show_train = false,
+			}),
+		}
+	)
 end)
 
 local CsTrain = relm.define(
@@ -293,9 +324,7 @@ relm.define("TrainGui", function(props)
 				ultros.If(cstrain, CsTrain({ cstrain = cstrain, luatrain = luatrain })),
 				ultros.If(
 					not cstrain,
-					ultros.RtMultilineLabel(
-						{ "cybersyn2-gui.train-not-managed" }
-					)
+					ultros.RtMultilineLabel({ "cybersyn2-gui.train-not-managed" })
 				),
 			}),
 		}),
