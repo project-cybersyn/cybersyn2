@@ -90,6 +90,7 @@ events.bind(
 					and cs2.get_stop_from_unit_number(stop_entity.unit_number)
 				or nil
 			if cstrain then cstrain.stopped_at = stop_entity end
+			if stop then stop.stopped_train = luatrain end
 
 			-- Coordinate stop (no stop_entity)
 			if cstrain and not stop_entity then
@@ -114,6 +115,7 @@ events.bind(
 				-- Use rail analysis to find departing stop for non-CS2 trains.
 				stop = get_stop_from_luatrain(luatrain)
 			end
+			if stop then stop.stopped_train = nil end
 			---@diagnostic disable-next-line: param-type-mismatch
 			cs2.raise_train_departed(luatrain, cstrain, stop)
 		end
@@ -131,5 +133,8 @@ events.bind("cs2.vehicle_destroyed", function(vehicle)
 	local stop_entity = vehicle.stopped_at
 	if (not stop_entity) or not stop_entity.valid then return end
 	local stop = cs2.get_stop_from_unit_number(stop_entity.unit_number)
-	if stop then events.raise("cs2.vehicle_destroyed_at_stop", vehicle, stop) end
+	if stop then
+		stop.stopped_train = nil
+		events.raise("cs2.vehicle_destroyed_at_stop", vehicle, stop)
+	end
 end)

@@ -140,6 +140,7 @@ lib.CarriageType = {
 ---@field public allowed_max_item_slot_capacity uint? Max item capacity for allowed trains at this stop. Zero means station can't handle items. `nil` means could not be evaluated.
 ---@field public allowed_min_fluid_capacity uint? Min fluid capacity for allowed trains at this stop. Zero means station can't handle fluids. `nil` means could not be evaluated.
 ---@field public allowed_max_fluid_capacity uint? Max fluid capacity for allowed trains at this stop. Zero means station can't handle fluids. `nil` means could not be evaluated.
+---@field public stopped_train LuaTrain? The train that is currently stopped at this stop, if any.
 
 ---Information about the physical shape of a train stop and its associated
 ---rails and equipment.
