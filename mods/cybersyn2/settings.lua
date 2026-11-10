@@ -125,4 +125,11 @@ data:extend({
 		setting_type = "startup",
 		default_value = false,
 	},
+	{
+		type = "bool-setting",
+		name = "cybersyn2-setting-auto-clear-tainted",
+		order = "ab",
+		setting_type = "runtime-global",
+		default_value = true,
+	},
 })
