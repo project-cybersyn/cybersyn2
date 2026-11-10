@@ -71,7 +71,7 @@ local TrainInfo = relm.define("TrainGui.TrainInfo", function(props)
 				function()
 					return ultros.Button({
 						caption = {
-							"cybersyn2-gui.untaint_train",
+							"cybersyn2-gui.untaint-train",
 						},
 						on_click = untaint_train,
 					})

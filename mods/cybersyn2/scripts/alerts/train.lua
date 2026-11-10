@@ -145,5 +145,5 @@ function TaintedTrain:should_persist()
 end
 
 event.bind("cs2.train_taint_changed", function(vehicle, is_tainted)
-	if is_tainted then TaintedTrain:new(vehicle.id) end
+	if is_tainted then TaintedTrain:new(vehicle) end
 end)
