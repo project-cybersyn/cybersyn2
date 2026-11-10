@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.0
-Date: ????
+Date: 2026-11-09
   Changes:
     - Trains that complete or fail a delivery with cargo still inside will be marked as tainted.
     - Tainted trains will not be assigned further deliveries by CS2 until untainted.
