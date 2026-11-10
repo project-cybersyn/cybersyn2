@@ -16,6 +16,7 @@ local key_to_signal = signal_lib.key_to_signal
 local Pr = relm.Primitive
 local VF = ultros.VFlow
 local EMPTY = tlib.EMPTY
+local pairs = pairs
 
 --------------------------------------------------------------------------------
 -- Settings
@@ -173,6 +174,17 @@ local function clear_manifest_outputs(stop)
 	end
 end
 
+---@param stop Cybersyn.TrainStop
+local function update_manifest_outputs(stop)
+	local stopped_luatrain = stop.stopped_train
+	if (not stopped_luatrain) or not stopped_luatrain.valid then
+		clear_manifest_outputs(stop)
+		return
+	end
+	local cstrain = cs2.get_train_from_luatrain_id(stopped_luatrain.id)
+	if cstrain then set_manifest_outputs(cstrain, stop) end
+end
+
 cs2.on_train_arrived(function(train, cstrain, stop)
 	if not cstrain or not stop then return end
 	return set_manifest_outputs(cstrain, stop)
@@ -187,4 +199,32 @@ end)
 events.bind(
 	"cs2.vehicle_destroyed_at_stop",
 	function(vehicle, stop) clear_manifest_outputs(stop) end
+)
+
+events.bind(
+	"cs2.combinator_node_associated",
+	---@param combinator Cybersyn.Combinator
+	---@param from Cybersyn.Node?
+	---@param to Cybersyn.Node?
+	function(combinator, from, to)
+		if combinator.mode ~= "manifest" then return end
+		if from then combinator:direct_write_outputs(EMPTY) end
+		if to and to.type == "stop" then update_manifest_outputs(to) end
+	end
+)
+
+events.bind(
+	"cs2.combinator_settings_changed",
+	function(combinator, setting, next_value, prev_value)
+		if
+			combinator.mode == "manifest"
+			or (
+				setting == "mode"
+				and (next_value == "manifest" or prev_value == "manifest")
+			)
+		then
+			local node = combinator:get_node()
+			if node and node.type == "stop" then update_manifest_outputs(node) end
+		end
+	end
 )

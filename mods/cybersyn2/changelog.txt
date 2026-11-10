@@ -2,6 +2,7 @@
 Version: 0.6.1
 Date: ????
   Changes:
+    - Train combinator mode now updates its outputs on association and settings changes.
     - Deprecated Wagon mode has been removed.
   Bugfixes:
     - Combinators outputting information about a parked train will now clear their outputs if that train is destroyed while at the stop.
