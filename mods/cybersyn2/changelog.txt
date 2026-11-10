@@ -4,6 +4,7 @@ Date: ????
   Changes:
     - Trains that complete or fail a delivery with cargo still inside will be marked as tainted.
     - Tainted trains will not be assigned further deliveries by CS2 until untainted.
+    - Tainted trains will trigger a new "Tainted train" alert.
     - Train GUI has a new button, Detaint, which allows manually clearing the tainted status of a train.
     - Added i18n support for many previously hard-coded strings.
 ---------------------------------------------------------------------------------------------------

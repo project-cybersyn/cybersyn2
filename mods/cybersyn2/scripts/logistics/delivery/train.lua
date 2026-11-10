@@ -399,11 +399,16 @@ function TrainDelivery:complete()
 			end
 		end
 
-		if not train:is_empty() then
-			-- TODO: tainted train handling
-		end
+		if not train:is_empty() then train:set_tainted(true) end
 	end
 	self:set_state("completed")
+end
+
+function TrainDelivery:fail(reason)
+	if self.state == "completed" or self.state == "failed" then return end
+	Delivery.fail(self, reason)
+	local train = cs2.get_train(self.vehicle_id)
+	if train and not train:is_empty() then train:set_tainted(true) end
 end
 
 ---Train stop invokes this to notify a train on this delivery left

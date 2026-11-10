@@ -109,3 +109,41 @@ event.bind(
 		StuckTrain:new(delivery_id, stock, stuck_pos, stuck_state)
 	end
 )
+
+--------------------------------------------------------------------------------
+-- Tainted train
+--------------------------------------------------------------------------------
+
+---@class Cybersyn.Alert.TaintedTrain : Cybersyn.GameAlert
+---@field public vehicle_id Id The ID of the tainted train.
+local TaintedTrain = class("Alert.TaintedTrain", cs2.GameAlert)
+
+local TAINTED_TRAIN_MSG = { "cybersyn2-alerts.tainted-train" }
+
+---@param train Cybersyn.Train
+function TaintedTrain:new(train)
+	local alert = cs2.GameAlert.new(
+		self,
+		train:get_stock(),
+		"tainted_train",
+		TAINTED_TRAIN_MSG,
+		cs2.CS2_ICON_SIGNAL_ID
+	) --[[@as Cybersyn.Alert.TaintedTrain]]
+	if alert then
+		alert.vehicle_id = train.id
+		alert:show(true)
+		return alert
+	end
+end
+
+-- Tainted train alerts persist until the train is no longer tainted.
+function TaintedTrain:should_persist()
+	local train = cs2.get_train(self.vehicle_id)
+	if not train then return false end
+	if not train.is_tainted then return false end
+	return true
+end
+
+event.bind("cs2.train_taint_changed", function(vehicle, is_tainted)
+	if is_tainted then TaintedTrain:new(vehicle.id) end
+end)
