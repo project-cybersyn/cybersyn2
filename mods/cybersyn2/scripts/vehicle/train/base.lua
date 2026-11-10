@@ -419,6 +419,10 @@ function Train:is_available()
 	if self.delivery_id or self.volatile or not self:is_valid() then
 		return false
 	end
+
+	-- Tainted trains are not available
+	if self.is_tainted then return false end
+
 	-- Honor vehicle warmup time
 	if
 		game.tick - (self.created_tick or 0)
@@ -426,6 +430,7 @@ function Train:is_available()
 	then
 		return false
 	end
+
 	-- Validity already checked above
 	local lua_train = self.lua_train --[[@as LuaTrain]]
 
@@ -542,4 +547,16 @@ function Train:get_contents()
 		contents[fluid_name_to_key(name)] = count
 	end
 	return contents
+end
+
+---Mark the train as tainted or not.
+---@param is_tainted boolean? `true` if the train should be put in tainted state, `nil` or `false` otherwise.
+function Train:set_tainted(is_tainted)
+	if is_tainted and not self.is_tainted then
+		self.is_tainted = true
+		events.raise("cs2.train_taint_changed", self, true)
+	elseif (not is_tainted) and self.is_tainted then
+		self.is_tainted = nil
+		events.raise("cs2.train_taint_changed", self, false)
+	end
 end

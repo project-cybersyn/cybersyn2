@@ -22,6 +22,7 @@ storage = storage --[[@as Cybersyn.Storage]]
 ---@field public default_netmask int32 Default netmask.
 ---@field public shared_inventory_prefer_parallel boolean Whether to limit deliveries to shared inventory stations to one per cycle, to encourage parallelization across stations rather than queueing at a single station.
 ---@field public directional_routing boolean Whether to set a direction when making coordinate stops to force them to arrive in the same direction as the train stop.
+---@field public auto_clear_tainted boolean Whether to automatically clear the taint from empty trains.
 
 ---@type Cybersyn.ModSettings
 ---@diagnostic disable-next-line: missing-fields
@@ -61,6 +62,8 @@ local function update_mod_settings()
 		settings.global["cybersyn2-setting-shared-inventory-prefer-parallel"].value --[[@as boolean]]
 	mod_settings.directional_routing =
 		settings.global["cybersyn2-setting-directional-routing"].value --[[@as boolean]]
+	mod_settings.auto_clear_tainted =
+		settings.global["cybersyn2-setting-auto-clear-tainted"].value --[[@as boolean]]
 end
 cs2.update_mod_settings = update_mod_settings
 

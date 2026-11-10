@@ -8,6 +8,7 @@ local era_lib = require("lib.core.math.era-counter")
 
 local add_workload = tasks.add_workload
 local pairs = pairs
+local mod_settings = cs2.mod_settings
 local ALL_TRAINS_FILTER = {}
 
 ---@type Cybersyn.Storage
@@ -180,6 +181,11 @@ function TrainMonitor:enum_cstrain(vehicle_id)
 		train:set_topology(group.topology_id)
 	else
 		strace.warn("enum_cstrain: train had no group", train, train.group)
+	end
+
+	-- Detaint if empty
+	if train.is_tainted and mod_settings.auto_clear_tainted then
+		if train:is_empty() then train:set_tainted(false) end
 	end
 end
 
