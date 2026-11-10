@@ -3,6 +3,7 @@ local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local stlib = require("lib.core.strace")
 local siglib = require("lib.signal")
+local events = require("lib.core.event")
 local cs2 = cs2
 local gui = cs2.gui
 
@@ -65,16 +66,26 @@ local function get_carriage_index(train, wagon)
 	return -1
 end
 
+---@param stop Cybersyn.TrainStop
+local function clear_presence_outputs(stop)
+	for _, comb in cs2.iterate_combinators(stop) do
+		if comb.mode == "presence" then comb:direct_write_outputs(empty) end
+	end
+end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
 
 cs2.on_train_departed(function(train, cstrain, stop)
 	if not cstrain or not stop then return end
-	for _, comb in cs2.iterate_combinators(stop) do
-		if comb.mode == "presence" then comb:direct_write_outputs(empty) end
-	end
+	return clear_presence_outputs(stop)
 end)
+
+events.bind(
+	"cs2.vehicle_destroyed_at_stop",
+	function(vehicle, stop) clear_presence_outputs(stop) end
+)
 
 cs2.on_train_arrived(function(train, cstrain, stop)
 	if not cstrain or not stop then return end

@@ -397,6 +397,12 @@ local function set_requester_wagon_combs(cstrain, stop, delivery)
 	end
 end
 
+local function clear_wagon_split_combs(stop)
+	for _, comb in cs2.iterate_combinators(stop) do
+		if comb.mode == "wagon_split" then comb:direct_write_outputs(empty) end
+	end
+end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
@@ -427,9 +433,7 @@ events.bind(
 cs2.on_train_departed(function(train, cstrain, stop)
 	if not cstrain or not stop then return end
 	-- Clear output of wagon split combinators
-	for _, comb in cs2.iterate_combinators(stop) do
-		if comb.mode == "wagon_split" then comb:direct_write_outputs(empty) end
-	end
+	clear_wagon_split_combs(stop)
 	-- Clear wagon inventory filters
 	if cstrain.is_filtered then
 		cstrain.is_filtered = nil
@@ -443,6 +447,11 @@ cs2.on_train_departed(function(train, cstrain, stop)
 		end
 	end
 end)
+
+events.bind(
+	"cs2.vehicle_destroyed_at_stop",
+	function(vehicle, stop) clear_wagon_split_combs(stop) end
+)
 
 events.bind("cs2.train_pre_arrived", function(train, cstrain, stop)
 	if

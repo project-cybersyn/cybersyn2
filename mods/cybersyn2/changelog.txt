@@ -2,6 +2,9 @@
 Version: 0.6.1
 Date: ????
   Changes:
+    - Deprecated Wagon mode has been removed.
+  Bugfixes:
+    - Combinators outputting information about a parked train will now clear their outputs if that train is destroyed while at the stop.
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.0
 Date: 2026-11-09

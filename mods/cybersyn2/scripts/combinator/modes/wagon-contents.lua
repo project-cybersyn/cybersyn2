@@ -129,6 +129,12 @@ local function set_proxy_chest_inventory(comb, wagon)
 	end
 end
 
+local function clear_combinators(stop)
+	for _, comb in cs2.iterate_combinators(stop) do
+		if comb.mode == "wagon_contents" then clear_combinator(comb) end
+	end
+end
+
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
@@ -160,10 +166,13 @@ events.bind(
 -- On train departure, clear all wagon combs.
 cs2.on_train_departed(function(train, cstrain, stop)
 	if not cstrain or not stop then return end
-	for _, comb in cs2.iterate_combinators(stop) do
-		if comb.mode == "wagon_contents" then clear_combinator(comb) end
-	end
+	clear_combinators(stop)
 end)
+
+events.bind(
+	"cs2.vehicle_destroyed_at_stop",
+	function(vehicle, stop) clear_combinators(stop) end
+)
 
 cs2.on_train_arrived(function(train, cstrain, stop)
 	if not cstrain or not stop then return end

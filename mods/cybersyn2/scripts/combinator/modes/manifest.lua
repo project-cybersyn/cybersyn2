@@ -6,6 +6,7 @@ local relm = require("lib.core.relm.relm")
 local ultros = require("lib.core.relm.ultros")
 local signal_lib = require("lib.signal")
 local tlib = require("lib.core.table")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local gui = _G.cs2.gui
 
@@ -182,3 +183,8 @@ cs2.on_train_departed(function(train, cstrain, stop)
 	-- On train departure, clear all manifest combs.
 	return clear_manifest_outputs(stop)
 end)
+
+events.bind(
+	"cs2.vehicle_destroyed_at_stop",
+	function(vehicle, stop) clear_manifest_outputs(stop) end
+)

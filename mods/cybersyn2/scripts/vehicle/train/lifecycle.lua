@@ -123,3 +123,13 @@ events.bind(
 -- TODO: if a train arrives at a stop, and it's a stop given by a non
 -- temp schedule entry, assume it is the depot and wake the interrupted
 -- delivery. (Actually dont do this because of SE/space elevators)
+
+-- Raise a subevent when a vehicle is destroyed while parked at a stop.
+events.bind("cs2.vehicle_destroyed", function(vehicle)
+	if vehicle.type ~= "train" then return end
+	---@cast vehicle Cybersyn.Train
+	local stop_entity = vehicle.stopped_at
+	if (not stop_entity) or not stop_entity.valid then return end
+	local stop = cs2.get_stop_from_unit_number(stop_entity.unit_number)
+	if stop then events.raise("cs2.vehicle_destroyed_at_stop", vehicle, stop) end
+end)
