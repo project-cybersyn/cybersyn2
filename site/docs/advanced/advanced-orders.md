@@ -72,20 +72,20 @@ OR orders support quality spread, so if `quality` signals are present, the items
 
 ## Push Orders
 
-A nonzero `Push` virtual signal on an order wire makes that order a **push order**. Its cargo signals skip the regular matching loop and go to the push phase.
+A nonzero `Push` virtual signal on an order wire makes that order a **push order**. A push order works as a normal order. After the regular loop has made its deliveries, the push phase sends whatever cargo the order still offers to any requester of that cargo, in any quantity. A push order with nothing left to offer after the regular loop pushes nothing.
 
-The push phase runs after the regular loop has made its deliveries. Each push order sends the exact quantities on its order wire to any requester of that cargo, in any quantity. It ignores all thresholds: depletion, fullness, manually-set per-item thresholds, and the "Enforce train fullness threshold when providing" setting.
+The push phase ignores all thresholds: depletion, fullness, manually-set per-item thresholds, and the "Enforce train fullness threshold when providing" setting. It does not touch cargo that the regular loop reserved for other requesters.
 
-Networks, allow lists, train capacity, and the delivery limits of both stations still apply. A requester receives at most the amount it is missing. The push phase does not touch cargo that the regular loop reserved for other requesters.
+Networks, allow lists, train capacity, and the delivery limits of both stations still apply. A requester receives at most the amount it is missing.
 
-A push order ignores negative signals and the "Auto provide all" setting, so the order wire must carry the cargo you want to push. To push a station's whole inventory, wire the inventory to the order wire together with `Push`.
+Provide cargo on a push order as usual, with signals on the order wire or with "Auto provide all". To push a station's whole inventory, wire the inventory to the order wire together with `Push`.
 
 To push only above a certain quantity, use a decider combinator that passes cargo to the order wire once the station holds more than that.
 
 Only requesters with explicit item or fluid requests receive pushed cargo. "All Items" orders, OR orders, and quality spread orders receive none.
 
 :::info
-For a trash station, wire the station's inventory to its order wire together with `Push` = 1. The station sends each item to any station requesting it, even when the amount falls below that station's thresholds.
+For a trash station, wire the station's inventory to its order wire together with `Push` = 1. After regular deliveries, the station sends each item it still holds to any station requesting it, even when the amount falls below that station's thresholds.
 :::
 
 ## Network Matching

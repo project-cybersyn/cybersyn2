@@ -62,7 +62,7 @@ local rcall = remote.call --[[@as fun(iface:string, method:string, ...:Any):Any]
 ---@field public match_pass int
 ---@field public pass_match_routed boolean
 ---@field public this_match_routed boolean
----@field public pushers Cybersyn.Order[] Push orders found while polling nodes.
+---@field public pushers Cybersyn.Order[] Push orders found while polling nodes. They also appear in `providers`.
 ---@field public push_candidates Cybersyn.Order[] Every requesting order found while polling nodes, including those culled by their thresholds.
 ---@field public push_phase true? `true` while the push phase of the loop is running.
 ---@field public pushed_cargo SignalSet? Cargo offered by at least one push order.
@@ -1033,13 +1033,29 @@ function LogisticsThread:begin_push()
 	local workload = 4 * n_candidates + 2 * #pushers
 	if cmt.spike_yield(self, workload) then return end
 
-	-- Cargo offered by push orders
+	-- Keep only push orders with cargo left after the pull loop. Its deliveries
+	-- and reservations are in the outflow.
 	---@type SignalSet
 	local pushed = {}
+	local active_pushers = {}
 	for _, pusher in ipairs(pushers) do
-		for cargo in pairs(pusher.provides) do
-			pushed[cargo] = true
+		local inventory = pusher.inventory
+		local contents = inventory.inventory or EMPTY
+		local outflow = inventory.outflow or EMPTY
+		local has_cargo = false
+		for cargo, qty in pairs(pusher.provides) do
+			local out = outflow[cargo] or 0
+			if min((contents[cargo] or 0) - out, qty - out) > 0 then
+				pushed[cargo] = true
+				has_cargo = true
+			end
 		end
+		if has_cargo then active_pushers[#active_pushers + 1] = pusher end
+		add_workload(self.workload_counter, table_size(pusher.provides))
+	end
+	if not next(active_pushers) then
+		trace("No push order has cargo left after the pull loop")
+		return self:set_state("loop_complete")
 	end
 
 	-- Requesters wanting any of that cargo
@@ -1058,7 +1074,7 @@ function LogisticsThread:begin_push()
 
 	trace(
 		"Beginning push phase with",
-		#pushers,
+		#active_pushers,
 		"push orders and",
 		#requesters,
 		"requesters"
@@ -1067,7 +1083,7 @@ function LogisticsThread:begin_push()
 	-- pushed.
 	self.push_phase = true
 	self.pushed_cargo = pushed
-	self.providers = pushers
+	self.providers = active_pushers
 	-- Provider posting lists only hold pull providers.
 	self.providers_by_cargo = nil
 	self.requesters = requesters

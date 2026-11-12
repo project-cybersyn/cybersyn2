@@ -91,15 +91,15 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	add_workload(self.workload_counter, 1)
 
 	if order_stop and order_stop.is_producer and order:is_provider() then
+		providers[#providers + 1] = order
 		if order.is_push then
-			-- Push orders are matched in the push phase, after the pull loop.
+			-- Push orders also provide normally. The push phase handles what is
+			-- left after the pull loop.
 			local pushers = self.pushers
 			pushers[#pushers + 1] = order
-		else
-			providers[#providers + 1] = order
 		end
 		local providers_by_cargo = self.providers_by_cargo
-		if providers_by_cargo and not order.is_push then
+		if providers_by_cargo then
 			local n_provides = 0
 			local n_new_postings = 0
 			for cargo in pairs(order.provides) do

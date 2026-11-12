@@ -213,11 +213,10 @@ function Order:read(workload, force)
 	-- Workload for accumulating settings
 	add_workload(workload, 8)
 
-	-- A nonzero push signal makes this a push order. Its cargo signals skip the
-	-- pull loop and are pushed exactly as given.
+	-- A nonzero push signal makes this a push order. It also works as a regular
+	-- order and pushes what is left after the pull loop.
 	local push_signal = inputs and inputs["cybersyn2-push"]
-	local is_push = (push_signal or 0) ~= 0
-	self.is_push = is_push or nil
+	self.is_push = ((push_signal or 0) ~= 0) or nil
 
 	-- Provides
 	local provides = self.provides
@@ -226,7 +225,6 @@ function Order:read(workload, force)
 		if
 			stop.is_producer
 			and not stop.is_consumer
-			and not is_push
 			and not comb:get_provide_subset()
 		then
 			local auto_provides = inventory.inventory or EMPTY
@@ -256,7 +254,7 @@ function Order:read(workload, force)
 			if count > 0 then
 				-- Provide
 				provides[signal_key] = count
-			elseif count < 0 and stop.is_consumer and not is_push then
+			elseif count < 0 and stop.is_consumer then
 				-- Request
 				---@type uint
 				local requested_amt = abs(count)
@@ -328,12 +326,7 @@ function Order:read(workload, force)
 	add_workload(workload, 2)
 
 	-- Order types
-	if
-		stop.is_consumer
-		and not is_push
-		and all_items_value
-		and (all_items_value < 0)
-	then
+	if stop.is_consumer and all_items_value and (all_items_value < 0) then
 		if next(requests) then
 			self.item_mode = "or"
 			self.request_stacks = abs(all_items_value)
