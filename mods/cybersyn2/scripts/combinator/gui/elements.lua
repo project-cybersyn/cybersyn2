@@ -384,6 +384,10 @@ _G.cs2.gui.OrderWireHelp = relm.define("OrderWireHelp", function(props)
 			ultros.RtMultilineLabel({
 				"cybersyn2-combinator-mode-inventory.priority-signal",
 			}),
+			ultros.RtLgLabel("[virtual-signal=cybersyn2-push]"),
+			ultros.RtMultilineLabel({
+				"cybersyn2-combinator-mode-inventory.push-signal",
+			}),
 		}),
 	}
 end)

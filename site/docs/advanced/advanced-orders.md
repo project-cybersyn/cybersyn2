@@ -70,6 +70,24 @@ Manually-set per-item thresholds DO NOT work with OR orders.
 
 OR orders support quality spread, so if `quality` signals are present, the items must be among those qualities.
 
+## Push Orders
+
+A nonzero `Push` virtual signal on an order wire makes that order a **push order**. Its cargo signals skip the regular matching loop and go to the push phase.
+
+The push phase runs after the regular loop has made its deliveries. Each push order sends the exact quantities on its order wire to any requester of that cargo, in any quantity. It ignores all thresholds: depletion, fullness, manually-set per-item thresholds, and the "Enforce train fullness threshold when providing" setting.
+
+Networks, allow lists, train capacity, and the delivery limits of both stations still apply. A requester receives at most the amount it is missing. The push phase does not touch cargo that the regular loop reserved for other requesters.
+
+A push order ignores negative signals and the "Auto provide all" setting, so the order wire must carry the cargo you want to push. To push a station's whole inventory, wire the inventory to the order wire together with `Push`.
+
+To push only above a certain quantity, use a decider combinator that passes cargo to the order wire once the station holds more than that.
+
+Only requesters with explicit item or fluid requests receive pushed cargo. "All Items" orders, OR orders, and quality spread orders receive none.
+
+:::info
+For a trash station, wire the station's inventory to its order wire together with `Push` = 1. The station sends each item to any station requesting it, even when the amount falls below that station's thresholds.
+:::
+
 ## Network Matching
 
 In advanced mode, you may change how orders are matched to determine network overlap.
