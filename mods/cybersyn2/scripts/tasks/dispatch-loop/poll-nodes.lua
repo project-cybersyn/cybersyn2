@@ -92,6 +92,12 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 
 	if order_stop and order_stop.is_producer and order:is_provider() then
 		providers[#providers + 1] = order
+		if order.is_push then
+			-- Push orders also provide normally. The push phase handles what is
+			-- left after the pull loop.
+			local pushers = self.pushers
+			pushers[#pushers + 1] = order
+		end
 		local providers_by_cargo = self.providers_by_cargo
 		if providers_by_cargo then
 			local n_provides = 0
@@ -111,6 +117,10 @@ function LogisticsThread:poll_train_stop_classify_inventory()
 	end
 	if order_stop and order_stop.is_consumer and order:is_requester() then
 		if not order_stop:has_max_deliveries() then
+			-- Keep every requesting order for the push phase, including those
+			-- the thresholds cull below.
+			local push_candidates = self.push_candidates
+			push_candidates[#push_candidates + 1] = order
 			order:get_needs(self.workload_counter, true)
 			if order.needs then requesters[#requesters + 1] = order end
 		else
@@ -379,6 +389,9 @@ function LogisticsThread:top_of_poll_nodes()
 	self.provider_candidate_generation = 0
 	self.current_provider_candidate_generation = nil
 	self.requesters = {}
+	self.pushers = {}
+	self.push_candidates = {}
+	self.push_phase = nil
 	self.node_index = 0
 	self.n_clean_nodes = 0
 	self.last_poll_nodes_tick = game.tick

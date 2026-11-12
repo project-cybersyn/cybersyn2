@@ -62,6 +62,11 @@ local rcall = remote.call --[[@as fun(iface:string, method:string, ...:Any):Any]
 ---@field public match_pass int
 ---@field public pass_match_routed boolean
 ---@field public this_match_routed boolean
+---@field public pushers Cybersyn.Order[] Push orders found while polling nodes. They also appear in `providers`.
+---@field public push_candidates Cybersyn.Order[] Every requesting order found while polling nodes, including those culled by their thresholds.
+---@field public push_phase true? `true` while the push phase of the loop is running.
+---@field public pushed_cargo SignalSet? Cargo offered by at least one push order.
+---@field public requester_needs Cybersyn.Internal.Needs? Needs of the current requester during the push phase.
 local LogisticsThread = cs2.LogisticsThread
 
 ---@class Cybersyn.Internal.Match
@@ -229,21 +234,41 @@ function LogisticsThread:reserve_provider_needs(provider, needs)
 	add_workload(self.workload_counter, 1.5 * n_fluids + 1.5 * n_items)
 end
 
+---Get a requester's current needs; in the push phase, needs for pushed cargo with all thresholds ignored.
+---@param requester Cybersyn.Order
+---@return Cybersyn.Internal.Needs?
+function LogisticsThread:get_requester_needs(requester)
+	if self.push_phase then
+		local needs = requester:compute_push_needs(
+			self.workload_counter,
+			self.pushed_cargo --[[@as SignalSet]]
+		)
+		self.requester_needs = needs
+		return needs
+	end
+	return requester:get_needs(self.workload_counter)
+end
+
 function LogisticsThread:loop_requesters()
 	self.req_index = self.req_index + 1
 	local index = self.req_index --[[@as int]]
 	local requester = self.requesters[index]
 	if not requester then
-		-- This is the end of the logistics loop. All requests have been
-		-- seen.
-		self:set_state("loop_complete")
+		-- This is the end of the pull loop. If any push orders exist, run the
+		-- push phase. Otherwise all requests have been seen.
+		local pushers = self.pushers
+		if (not self.push_phase) and pushers and next(pushers) then
+			self:set_state("begin_push")
+		else
+			self:set_state("loop_complete")
+		end
 		return
 	end
 	self.requester = requester
 
 	-- If the requester has nonempty needs, begin looping over providers,
 	-- otherwise go to the next requester.
-	local needs = requester:get_needs(self.workload_counter)
+	local needs = self:get_requester_needs(requester)
 	if needs then
 		trace(
 			"Requesting order for",
@@ -298,7 +323,9 @@ end
 
 function LogisticsThread:loop_providers()
 	local requester = self.requester
-	local requester_needs = requester.needs --[[@as Cybersyn.Internal.Needs]]
+	local requester_needs = (
+		self.push_phase and self.requester_needs or requester.needs
+	) --[[@as Cybersyn.Internal.Needs]]
 	if not self.requester_reservation_index then
 		local reservations = self.reservations
 		self.requester_reservation_index = (reservations and #reservations or 0) + 1
@@ -318,7 +345,10 @@ function LogisticsThread:loop_providers()
 		else
 			-- No match: Move to next req
 			trace("No provider matches for requester", requester.node_id)
-			requester:set_status(OrderStatus.no_provider)
+			-- Don't overwrite the pull loop's status with a failed push attempt.
+			if not self.push_phase then
+				requester:set_status(OrderStatus.no_provider)
+			end
 			return self:set_state("loop_requesters")
 		end
 	end
@@ -405,7 +435,7 @@ function LogisticsThread:loop_providers()
 				[net_name] = net_mask,
 			},
 		}
-	elseif not next(self.matches) then
+	elseif (not next(self.matches)) and not self.push_phase then
 		self:reserve_provider_needs(provider, requester_needs)
 	end
 end
@@ -565,7 +595,7 @@ function LogisticsThread:loop_matches()
 		end
 
 		-- Recompute needs of requester
-		local needs = requester:get_needs(self.workload_counter)
+		local needs = self:get_requester_needs(requester)
 		if not needs then
 			-- Requester no longer has needs; abort match loop
 			return self:set_state("loop_requesters")
@@ -958,6 +988,21 @@ end
 -- Init ops
 --------------------------------------------------------------------------------
 
+---Order requesters by priority, then time since last fulfilled, then busyness.
+---@param a Cybersyn.Order
+---@param b Cybersyn.Order
+---@return boolean
+local function requester_less(a, b)
+	local a_prio, b_prio = a.priority, b.priority
+	if a_prio > b_prio then return true end
+	if a_prio < b_prio then return false end
+	local a_last = a.last_fulfilled_tick or 0
+	local b_last = b.last_fulfilled_tick or 0
+	if a_last < b_last then return true end
+	if a_last > b_last then return false end
+	return a.busy_value < b.busy_value
+end
+
 function LogisticsThread:sort_requesters()
 	local requesters = self.requesters
 	if not requesters then
@@ -970,19 +1015,80 @@ function LogisticsThread:sort_requesters()
 	if cmt.spike_yield(self, workload) then return end
 
 	-- Requester sort
-	tsort(requesters, function(a, b)
-		local a_prio, b_prio = a.priority, b.priority
-		if a_prio > b_prio then return true end
-		if a_prio < b_prio then return false end
-		local a_last = a.last_fulfilled_tick or 0
-		local b_last = b.last_fulfilled_tick or 0
-		if a_last < b_last then return true end
-		if a_last > b_last then return false end
-		return a.busy_value < b.busy_value
-	end)
+	tsort(requesters, requester_less)
 	add_workload(self.workload_counter, workload)
 
 	self:set_state("enum_trains")
+end
+
+--------------------------------------------------------------------------------
+-- Push phase
+--------------------------------------------------------------------------------
+
+---Start the push phase: rerun the matching loops with push orders as providers.
+function LogisticsThread:begin_push()
+	local pushers = self.pushers
+	local candidates = self.push_candidates
+	local n_candidates = candidates and #candidates or 0
+	local workload = 4 * n_candidates + 2 * #pushers
+	if cmt.spike_yield(self, workload) then return end
+
+	-- Keep only push orders with cargo left after the pull loop. Its deliveries
+	-- and reservations are in the outflow.
+	---@type SignalSet
+	local pushed = {}
+	local active_pushers = {}
+	for _, pusher in ipairs(pushers) do
+		local inventory = pusher.inventory
+		local contents = inventory.inventory or EMPTY
+		local outflow = inventory.outflow or EMPTY
+		local has_cargo = false
+		for cargo, qty in pairs(pusher.provides) do
+			local out = outflow[cargo] or 0
+			if min((contents[cargo] or 0) - out, qty - out) > 0 then
+				pushed[cargo] = true
+				has_cargo = true
+			end
+		end
+		if has_cargo then active_pushers[#active_pushers + 1] = pusher end
+		add_workload(self.workload_counter, table_size(pusher.provides))
+	end
+	if not next(active_pushers) then
+		trace("No push order has cargo left after the pull loop")
+		return self:set_state("loop_complete")
+	end
+
+	-- Requesters wanting any of that cargo
+	local requesters = {}
+	for i = 1, n_candidates do
+		local candidate = candidates[i] --[[@as -nil]]
+		if candidate:compute_push_needs(self.workload_counter, pushed) then
+			requesters[#requesters + 1] = candidate
+		end
+	end
+	tsort(requesters, requester_less)
+	add_workload(
+		self.workload_counter,
+		workload + #requesters * clamped_log(2 * #requesters)
+	)
+
+	trace(
+		"Beginning push phase with",
+		#active_pushers,
+		"push orders and",
+		#requesters,
+		"requesters"
+	)
+	-- Reservations from the pull loop stay in place, so reserved cargo is not
+	-- pushed.
+	self.push_phase = true
+	self.pushed_cargo = pushed
+	self.providers = active_pushers
+	-- Provider posting lists only hold pull providers.
+	self.providers_by_cargo = nil
+	self.requesters = requesters
+	self.req_index = 0
+	self:set_state("loop_requesters")
 end
 
 function LogisticsThread:enum_trains()
@@ -1044,7 +1150,11 @@ function LogisticsThread:enter_logistics()
 	if
 		not self.providers
 		or not self.requesters
-		or ((#self.providers == 0) and (#self.requesters == 0))
+		or (
+			(#self.providers == 0)
+			and (#self.requesters == 0)
+			and (#(self.pushers or EMPTY) == 0)
+		)
 	then
 		self:set_state("init")
 		cmt.sleep(self, 5 * 60)

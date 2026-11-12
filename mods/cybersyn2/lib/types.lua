@@ -246,6 +246,7 @@ lib.OrderStatusShortDescription = OrderShortStatusDescription
 ---@field public requested_fluids SignalCounts The requested fluids for this order.
 ---@field public request_stacks uint? Number of stacks requested for an "or" or "all" order.
 ---@field public provides SignalCounts The provided items for this order.
+---@field public is_push true? `true` for a push order, which also pushes what its `provides` have left after the pull loop.
 ---@field public thresh_explicit SignalCounts Explicit user thresholds for this order.
 ---@field public thresh_depletion SignalCounts Depletion-based computed thresholds.
 ---@field public thresh_in SignalCounts Inbound thresholds for this order.

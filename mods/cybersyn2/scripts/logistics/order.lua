@@ -113,6 +113,7 @@ function Order:set_status(status, info)
 end
 
 function Order:clear_prov_req()
+	self.is_push = nil
 	if next(self.provides) then self.provides = {} end
 	if next(self.requests) then self.requests = {} end
 	if next(self.requested_fluids) then self.requested_fluids = {} end
@@ -212,6 +213,11 @@ function Order:read(workload, force)
 	-- Workload for accumulating settings
 	add_workload(workload, 8)
 
+	-- A nonzero push signal makes this a push order. It also works as a regular
+	-- order and pushes what is left after the pull loop.
+	local push_signal = inputs and inputs["cybersyn2-push"]
+	self.is_push = ((push_signal or 0) ~= 0) or nil
+
 	-- Provides
 	local provides = self.provides
 	if comb.mode == "station" then
@@ -289,6 +295,8 @@ function Order:read(workload, force)
 				all_items_value = count
 			elseif signal_key == "cybersyn2-all-fluids" then
 				-- Ignore all fluids signal
+			elseif signal_key == "cybersyn2-push" then
+				-- Handled above
 			elseif is_each or signal_key == network then
 				self.networks[signal_key] = count
 			end
@@ -574,6 +582,7 @@ end
 ---@field thresh SignalCounts? Per-item request thresholds.
 ---@field thresh_min_slots uint Minimum item slots dictated by fullness fraction.
 ---@field thresh_min_fluid uint Minimum fluid quantity dictated by fullness fraction.
+---@field is_push true? Set for push-phase needs, which ignore all thresholds.
 
 ---@param items SignalCounts?
 ---@param fluids SignalCounts?
@@ -916,6 +925,58 @@ function Order:mark_needs_as_stale()
 	end
 end
 
+---Compute push-phase needs: explicit "and" requests for `pushed` cargo, with all thresholds ignored.
+---@param workload Core.Thread.Workload
+---@param pushed SignalSet Cargo offered by at least one push order.
+---@return Cybersyn.Internal.Needs? needs
+function Order:compute_push_needs(workload, pushed)
+	if self.item_mode ~= "and" or self.quality_spread then return nil end
+	local req_inv = self.inventory.inventory or EMPTY
+	local req_inflow = self.inventory.inflow or EMPTY
+	local round_to_stacks = self.round_to_stacks
+
+	---@type SignalCounts?
+	local items = nil
+	---@type SignalCounts?
+	local fluids = nil
+	for key, qty in pairs(self.requested_fluids) do
+		if pushed[key] then
+			local deficit = qty - ((req_inv[key] or 0) + (req_inflow[key] or 0))
+			if deficit > 0 then
+				fluids = fluids or {}
+				fluids[key] = deficit
+			end
+		end
+	end
+	for key, qty in pairs(self.requests) do
+		if pushed[key] then
+			local deficit = qty - ((req_inv[key] or 0) + (req_inflow[key] or 0))
+			if round_to_stacks then deficit = round_item_to_stack(key, deficit) end
+			if deficit > 0 then
+				items = items or {}
+				items[key] = deficit
+			end
+		end
+	end
+	add_workload(
+		workload,
+		2 + table_size(self.requests) + table_size(self.requested_fluids)
+	)
+
+	if not items and not fluids then return nil end
+	---@type Cybersyn.Internal.Needs
+	local res = {
+		items = items,
+		fluids = fluids,
+		singleton_key = get_singleton_need_key(items, fluids),
+		thresh = EMPTY,
+		thresh_min_slots = 0,
+		thresh_min_fluid = 0,
+		is_push = true,
+	}
+	return res
+end
+
 ---@class (exact) Cybersyn.Internal.Satisfaction
 ---@field fluids SignalCounts? Satisfied fluid manifest
 ---@field items SignalCounts? Satisfied item manifest
@@ -930,10 +991,13 @@ function Order:satisfy_needs(workload, needs)
 	local total_stacks = 0
 	local total_fluid = 0
 
-	local prov_thresh_min_stacks = self.fullness_when_providing
+	-- Push needs ignore all thresholds, including the provider's own.
+	local enforce_prov_fullness = self.fullness_when_providing
+		and not needs.is_push
+	local prov_thresh_min_stacks = enforce_prov_fullness
 			and (self.thresh_min_slots or 0)
 		or 0
-	local prov_thresh_min_fluid = self.fullness_when_providing
+	local prov_thresh_min_fluid = enforce_prov_fullness
 			and (self.thresh_min_fluid or 0)
 		or 0
 

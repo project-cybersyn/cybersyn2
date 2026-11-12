@@ -41,4 +41,13 @@ data:extend({
 		subgroup = "cybersyn2-signals",
 		order = "d",
 	},
+
+	{
+		type = "virtual-signal",
+		name = "cybersyn2-push",
+		icon = "__cybersyn2__/graphics/icons/push.png",
+		icon_size = 64,
+		subgroup = "cybersyn2-signals",
+		order = "e",
+	},
 })

@@ -4,6 +4,7 @@ Date: ????
   Changes:
     - Train combinator mode now updates its outputs on association and settings changes.
     - Deprecated Wagon mode has been removed.
+    - Added push orders: an order wire with the new Push signal makes its order also send the cargo it has left after the regular loop to any requester of that cargo, ignoring all thresholds.
   Bugfixes:
     - Combinators outputting information about the currently parked train will now clear their outputs if that train is destroyed while parked.
 ---------------------------------------------------------------------------------------------------
