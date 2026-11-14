@@ -32,7 +32,7 @@ local lib = {}
 
 local Order = relm.define(
 	"Manager.NodeOrder",
-	---@param props { node_id: integer, inventory: SignalCounts, order: Cybersyn.Order, set_cargo: fun(cargo: SignalID?) }
+	---@param props { node_id: integer, order: Cybersyn.Order, set_cargo: fun(cargo: SignalID?) }
 	function(props)
 		local node_id = props.node_id
 		local order = props.order
@@ -44,7 +44,9 @@ local Order = relm.define(
 				and (OrderStatusColor[order.status or OrderStatus.unknown] or "black")
 			or "green"
 		local set_cargo = props.set_cargo or noop
-		local inventory = props.inventory
+		-- Read live: `Inventory:set_base` replaces this table on every update, so
+		-- a table passed via props would go stale across repaints.
+		local inventory = order.inventory and order.inventory.inventory or EMPTY
 		local thresholds = order.thresh_in or EMPTY
 
 		relm_util.use_event_handler("cs2.node_polled", function(me, _, polled_node)
@@ -147,7 +149,6 @@ local Orders = relm.define(
 	function(props)
 		local node = props.node
 		local inv = node:get_inventory()
-		local true_inv = inv and inv.inventory or EMPTY
 		local orders = inv and inv.orders or EMPTY
 		local set_cargo = props.set_cargo
 
@@ -159,7 +160,6 @@ local Orders = relm.define(
 					return Order({
 						node_id = node.id,
 						order = order,
-						inventory = true_inv,
 						set_cargo = set_cargo,
 					})
 				end
