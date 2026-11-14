@@ -117,6 +117,8 @@ The fullness threshold can be useful at multi-item stations when it is not desir
 - This value is measured as a percent of *the size of the smallest possible train that would be allowed at the station*. You can control allowed trains using the Allow List. (For example, if you want only full 1-4 trains to come to a station, set the Allow List so only 1-4 trains are on it, then set the train fullness threshold to 100.)
 
 - If the train fullness threshold is set to 0 (the default), the actual threshold for deliveries is determined by the depletion threshold. A delivery must be at least the size of the smallest depletion threshold, even when the fullness threshold is set to 0. To disable thresholds altogether, allowing trains to come with even a single item, both thresholds must be set to 0.
+
+- If a requester's total unmet request is smaller than its train fullness threshold, no delivery could ever meet the threshold, so the requester is treated as having nothing to request. Make sure the requested amounts are large enough to fill the required fraction of the train.
 :::
 
 ### Notes on thresholds

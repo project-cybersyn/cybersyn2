@@ -622,6 +622,7 @@ function Order:compute_needs(workload)
 	-- Explicit fluids
 	local met_thresh = false
 	local min_thresh = nil
+	local total_fluid_deficit = 0
 	for key, qty in pairs(requested_fluids) do
 		local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
 		local deficit = qty - has
@@ -629,6 +630,7 @@ function Order:compute_needs(workload)
 			local item_threshold = thresh[key] or 0
 			if deficit >= item_threshold then
 				fluids[key] = deficit
+				total_fluid_deficit = total_fluid_deficit + deficit
 				if (not min_thresh) or (item_threshold < min_thresh) then
 					min_thresh = item_threshold
 				end
@@ -637,7 +639,13 @@ function Order:compute_needs(workload)
 		end
 	end
 	if workload then add_workload(workload, table_size(requested_fluids)) end
-	if (not met_thresh) or (not next(fluids)) then
+	-- A deficit below the train fullness threshold can never be satisfied, and
+	-- would otherwise reserve provider stock indefinitely.
+	if
+		not met_thresh
+		or (not next(fluids))
+		or (total_fluid_deficit < thresh_min_fluid)
+	then
 		---@diagnostic disable-next-line: assign-type-mismatch
 		fluids = nil
 	else
@@ -650,6 +658,7 @@ function Order:compute_needs(workload)
 	if self.item_mode == "and" and not spread then
 		met_thresh = false
 		min_thresh = nil
+		local total_deficit_stacks = 0
 		for key, qty in pairs(requests) do
 			local has = (req_inv[key] or 0) + (req_inflow[key] or 0)
 			local deficit = qty - has
@@ -660,8 +669,10 @@ function Order:compute_needs(workload)
 				local item_threshold = thresh[key] or 0
 				if deficit >= item_threshold then
 					items[key] = deficit
-					local thresh_stacks =
-						ceil(item_threshold / (key_to_stacksize(key) or 1))
+					local stack_size = key_to_stacksize(key) or 1
+					total_deficit_stacks = total_deficit_stacks
+						+ ceil(deficit / stack_size)
+					local thresh_stacks = ceil(item_threshold / stack_size)
 					if (not min_thresh) or (thresh_stacks < min_thresh) then
 						min_thresh = thresh_stacks
 					end
@@ -670,7 +681,13 @@ function Order:compute_needs(workload)
 			end
 		end
 		if workload then add_workload(workload, table_size(requests)) end
-		if (not met_thresh) or (not next(items)) then
+		-- A deficit below the train fullness threshold can never be satisfied,
+		-- and would otherwise reserve provider stock indefinitely.
+		if
+			not met_thresh
+			or (not next(items))
+			or (total_deficit_stacks < thresh_min_slots)
+		then
 			---@diagnostic disable-next-line: assign-type-mismatch
 			items = nil
 		else
@@ -800,7 +817,11 @@ function Order:compute_needs(workload)
 		)
 		---@type int
 		local deficit_stacks = requested_stacks - net_stacks
-		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
+		if
+			deficit_stacks >= stack_threshold
+			and deficit_stacks >= thresh_min_slots
+			and deficit_stacks > 0
+		then
 			---@type Cybersyn.Internal.Needs
 			local res = {
 				fluids = fluids,
@@ -843,7 +864,11 @@ function Order:compute_needs(workload)
 		)
 		---@type int
 		local deficit_stacks = requested_stacks - net_stacks
-		if deficit_stacks >= stack_threshold and deficit_stacks > 0 then
+		if
+			deficit_stacks >= stack_threshold
+			and deficit_stacks >= thresh_min_slots
+			and deficit_stacks > 0
+		then
 			---@type Cybersyn.Internal.Needs
 			local res = {
 				fluids = fluids,

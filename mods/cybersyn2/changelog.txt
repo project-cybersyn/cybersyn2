@@ -6,6 +6,7 @@ Date: ????
     - Deprecated Wagon combinator mode has been removed.
   Bugfixes:
     - Combinators outputting information about the currently parked train will now clear their outputs if that train is destroyed while parked.
+    - Fixed an issue where requesters with an unsatisfied train fullness threshold would incorrectly reserve stock, causing deadlocks.
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.0
 Date: 2026-11-09
