@@ -42,6 +42,12 @@ events.bind(
 			if prev_mode ~= new_mode then
 				combinator.mode = new_mode
 				combinator:clear_outputs()
+				events.raise(
+					"cs2.combinator_mode_changed",
+					combinator,
+					new_mode,
+					prev_mode
+				)
 			end
 		end
 	end,

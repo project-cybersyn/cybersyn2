@@ -2,6 +2,8 @@
 Version: 0.6.2
 Date: ????
   Changes:
+  Bugfixes:
+    - Fixed an issue where allow list was not recomputed properly when changing a combinator away from allow list mode.
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.1
 Date: 2026-11-14

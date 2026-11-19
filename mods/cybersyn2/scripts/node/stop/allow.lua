@@ -273,6 +273,12 @@ events.register_dynamic_handler("deferred_evaluate_stop", function()
 	storage._deferred_evaluate_stop = nil
 end)
 
+---@param combinator Cybersyn.Combinator
+local function deferred_evaluate_combinator(combinator)
+	local node = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
+	if node then deferred_evaluate_stop(node) end
+end
+
 --------------------------------------------------------------------------------
 -- Events triggering allow list updates
 --------------------------------------------------------------------------------
@@ -298,12 +304,7 @@ end)
 cs2.on_combinator_setting_changed(
 	function(combinator, setting, next_value, prev_value)
 		if
-			(
-				setting == "mode"
-				and (next_value == "station" or prev_value == "station")
-			)
-			or (setting == "mode" and (next_value == "allow" or prev_value == "allow"))
-			or (combinator.mode == "station" and setting == nil)
+			(combinator.mode == "station" and setting == nil)
 			or (combinator.mode == "allow" and setting == nil)
 			or setting == "allowed_layouts"
 			or setting == "allow_group"
@@ -311,8 +312,21 @@ cs2.on_combinator_setting_changed(
 			or setting == "allow_bidi"
 			or setting == "allow_all"
 		then
-			local node = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
-			if node then deferred_evaluate_stop(node) end
+			deferred_evaluate_combinator(combinator)
+		end
+	end
+)
+
+events.bind(
+	"cs2.combinator_mode_changed",
+	function(combinator, new_mode, prev_mode)
+		if
+			new_mode == "allow"
+			or new_mode == "station"
+			or prev_mode == "allow"
+			or prev_mode == "station"
+		then
+			deferred_evaluate_combinator(combinator)
 		end
 	end
 )
