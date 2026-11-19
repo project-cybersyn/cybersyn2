@@ -242,7 +242,9 @@ relm.define_element({
 				ultros.If(
 					is_requester,
 					ultros.Labeled({
-						caption = { "cybersyn2-combinator-mode-station.depletion-threshold" },
+						caption = {
+							"cybersyn2-combinator-mode-station.depletion-threshold",
+						},
 						top_margin = 6,
 					}, {
 						gui.Input({
@@ -261,28 +263,25 @@ relm.define_element({
 						}),
 					})
 				),
-				ultros.Labeled(
-					{
-						caption = { "cybersyn2-combinator-mode-station.fullness-threshold" },
-						top_margin = 6,
-					},
-					{
-						gui.Input({
-							tooltip = {
-								"cybersyn2-combinator-mode-station.fullness-threshold-tooltip",
-							},
-							combinator = combinator,
-							setting = "train_fullness_percent",
-							displayed_default_value = math.floor(
-								mod_settings.default_train_fullness_fraction * 100
-							),
-							width = 75,
-							numeric = true,
-							allow_decimal = false,
-							allow_negative = false,
-						}),
-					}
-				),
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-station.fullness-threshold" },
+					top_margin = 6,
+				}, {
+					gui.Input({
+						tooltip = {
+							"cybersyn2-combinator-mode-station.fullness-threshold-tooltip",
+						},
+						combinator = combinator,
+						setting = "train_fullness_percent",
+						displayed_default_value = math.floor(
+							mod_settings.default_train_fullness_fraction * 100
+						),
+						width = 75,
+						numeric = true,
+						allow_decimal = false,
+						allow_negative = false,
+					}),
+				}),
 				ultros.If(
 					is_provider,
 					gui.Checkbox(
@@ -327,28 +326,24 @@ relm.define_element({
 				caption = { "cybersyn2-combinator-mode-station.departure-conditions" },
 			}, {
 				ultros.Labeled({
-					caption = { "cybersyn2-combinator-mode-station.allow-departure-signal" },
+					caption = {
+						"cybersyn2-combinator-mode-station.allow-departure-signal",
+					},
 					top_margin = 6,
 				}, {
-					gui.AnySignalPicker(
-						props.combinator,
-						"allow_departure_signal",
-						{
-							"cybersyn2-combinator-mode-station.allow-departure-signal-tooltip",
-						}
-					),
+					gui.AnySignalPicker(props.combinator, "allow_departure_signal", {
+						"cybersyn2-combinator-mode-station.allow-departure-signal-tooltip",
+					}),
 				}),
 				ultros.Labeled({
-					caption = { "cybersyn2-combinator-mode-station.force-departure-signal" },
+					caption = {
+						"cybersyn2-combinator-mode-station.force-departure-signal",
+					},
 					top_margin = 6,
 				}, {
-					gui.AnySignalPicker(
-						props.combinator,
-						"force_departure_signal",
-						{
-							"cybersyn2-combinator-mode-station.force-departure-signal-tooltip",
-						}
-					),
+					gui.AnySignalPicker(props.combinator, "force_departure_signal", {
+						"cybersyn2-combinator-mode-station.force-departure-signal-tooltip",
+					}),
 				}),
 				ultros.Labeled({
 					caption = { "cybersyn2-combinator-mode-station.inactivity-mode" },
@@ -357,28 +352,27 @@ relm.define_element({
 					gui.Switch(
 						{ "cybersyn2-combinator-mode-station.inactivity-mode-tooltip" },
 						true,
-						{ "cybersyn2-combinator-mode-station.inactivity-mode-after-delivery" },
+						{
+							"cybersyn2-combinator-mode-station.inactivity-mode-after-delivery",
+						},
 						{ "cybersyn2-combinator-mode-station.inactivity-mode-force-out" },
 						props.combinator,
 						"inactivity_mode"
 					),
 				}),
-				ultros.Labeled(
-					{
-						caption = { "cybersyn2-combinator-mode-station.inactivity-timeout" },
-						top_margin = 6,
-					},
-					{
-						gui.Input({
-							combinator = props.combinator,
-							setting = "inactivity_timeout",
-							width = 75,
-							numeric = true,
-							allow_decimal = false,
-							allow_negative = false,
-						}),
-					}
-				),
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-station.inactivity-timeout" },
+					top_margin = 6,
+				}, {
+					gui.Input({
+						combinator = props.combinator,
+						setting = "inactivity_timeout",
+						width = 75,
+						numeric = true,
+						allow_decimal = false,
+						allow_negative = false,
+					}),
+				}),
 				gui.InnerHeading({
 					caption = { "cybersyn2-combinator-modes-labels.flags" },
 				}),
@@ -408,44 +402,38 @@ relm.define_element({
 						allow_negative = false,
 					}),
 				}),
-				ultros.Labeled(
-					{
-						caption = { "cybersyn2-combinator-mode-station.reserved-slots" },
-						top_margin = 6,
-					},
-					{
-						gui.Input({
-							tooltip = {
-								"cybersyn2-combinator-mode-station.reserved-slots-tooltip",
-							},
-							combinator = props.combinator,
-							setting = "reserved_slots",
-							width = 75,
-							numeric = true,
-							allow_decimal = false,
-							allow_negative = false,
-						}),
-					}
-				),
-				ultros.Labeled(
-					{
-						caption = { "cybersyn2-combinator-mode-station.reserved-capacity" },
-						top_margin = 6,
-					},
-					{
-						gui.Input({
-							tooltip = {
-								"cybersyn2-combinator-mode-station.reserved-capacity-tooltip",
-							},
-							combinator = props.combinator,
-							setting = "reserved_capacity",
-							width = 75,
-							numeric = true,
-							allow_decimal = false,
-							allow_negative = false,
-						}),
-					}
-				),
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-station.reserved-slots" },
+					top_margin = 6,
+				}, {
+					gui.Input({
+						tooltip = {
+							"cybersyn2-combinator-mode-station.reserved-slots-tooltip",
+						},
+						combinator = props.combinator,
+						setting = "reserved_slots",
+						width = 75,
+						numeric = true,
+						allow_decimal = false,
+						allow_negative = false,
+					}),
+				}),
+				ultros.Labeled({
+					caption = { "cybersyn2-combinator-mode-station.reserved-capacity" },
+					top_margin = 6,
+				}, {
+					gui.Input({
+						tooltip = {
+							"cybersyn2-combinator-mode-station.reserved-capacity-tooltip",
+						},
+						combinator = props.combinator,
+						setting = "reserved_capacity",
+						width = 75,
+						numeric = true,
+						allow_decimal = false,
+						allow_negative = false,
+					}),
+				}),
 				gui.InnerHeading({
 					caption = { "cybersyn2-combinator-modes-labels.flags" },
 				}),
@@ -507,23 +495,31 @@ relm.define_element({
 					),
 				}),
 				ultros.Labeled({
-					caption = { "cybersyn2-combinator-mode-station.signal-reserved-slots" },
+					caption = {
+						"cybersyn2-combinator-mode-station.signal-reserved-slots",
+					},
 					top_margin = 6,
 				}, {
 					gui.VirtualSignalPicker(
 						props.combinator,
 						"signal_reserved_slots",
-						{ "cybersyn2-combinator-mode-station.signal-reserved-slots-tooltip" }
+						{
+							"cybersyn2-combinator-mode-station.signal-reserved-slots-tooltip",
+						}
 					),
 				}),
 				ultros.Labeled({
-					caption = { "cybersyn2-combinator-mode-station.signal-reserved-fluid" },
+					caption = {
+						"cybersyn2-combinator-mode-station.signal-reserved-fluid",
+					},
 					top_margin = 6,
 				}, {
 					gui.VirtualSignalPicker(
 						props.combinator,
 						"signal_reserved_fluid",
-						{ "cybersyn2-combinator-mode-station.signal-reserved-fluid-tooltip" }
+						{
+							"cybersyn2-combinator-mode-station.signal-reserved-fluid-tooltip",
+						}
 					),
 				}),
 				ultros.Labeled({
