@@ -299,8 +299,6 @@ function TrainStop:rebuild_inventory()
 	local inventory = self:get_inventory()
 	if not inventory then return end
 	---@cast inventory Cybersyn.StopInventory
-	local station_comb = self:get_combinator_with_mode("station")
-	if not station_comb then return end
 
 	local master_id = self.shared_inventory_master
 	if master_id then
@@ -309,11 +307,13 @@ function TrainStop:rebuild_inventory()
 			return
 		end
 
-		-- Case: slave; rebuild from master
+		-- Case: slave; rebuild from master. This must happen even if the slave
+		-- has no station combinator, so the master drops the slave's orders.
 		local master = cs2.get_stop(master_id)
 		if master then master:rebuild_inventory() end
 	else
-		-- Case: normal inventory, rebuild locally
+		-- Case: normal inventory, rebuild locally. This also runs without a
+		-- station combinator so stale station and slave orders are dropped.
 		inventory:rebuild_orders()
 		events.raise("cs2.node_inventory_rebuilt", self, inventory)
 	end
@@ -405,18 +405,25 @@ function TrainStop:is_sharing_inventory()
 	return (self.shared_inventory_master ~= nil) or self.is_master
 end
 
----@return Cybersyn.TrainStop[] slaves All slave stops sharing inventory from this stop.
+---@return Cybersyn.TrainStop[] slaves All slave stops currently linked to this stop's shared inventory.
 function TrainStop:get_slaves()
 	local station_comb = self:get_combinator_with_mode("station")
 	if not station_comb then return EMPTY end
 	local slaves = graph.get_edges("cybersyn2-shared-inventory", station_comb.id)
 
 	if (not slaves) or (not next(slaves)) then return EMPTY end
+	local id = self.id
 	return tlib.t_map_a(slaves, function(_, slave_comb_id)
 		local slave_comb = cs2.get_combinator(slave_comb_id)
 		if slave_comb then
 			local slave_stop = slave_comb:get_node() --[[@as Cybersyn.TrainStop?]]
-			if slave_stop and slave_stop:is_valid() then return slave_stop end
+			if
+				slave_stop
+				and slave_stop.shared_inventory_master == id
+				and slave_stop:is_valid()
+			then
+				return slave_stop
+			end
 		end
 	end)
 end
@@ -561,21 +568,23 @@ local function unlink(slave)
 	end
 	local master = cs2.get_stop(slave.shared_inventory_master)
 	slave.shared_inventory_master = nil
-	if master then
-		local _, _, slaves = master:get_sharing_info()
-		if not slaves or not next(slaves) then master.is_master = nil end
-	end
+	if master and not next(master:get_slaves()) then master.is_master = nil end
 	events.raise("cs2.train_stop_shared_inventory_unlink", slave, master)
 end
 
 ---@param stop Cybersyn.TrainStop
 local function unlink_all(stop)
-	-- If this stop is a master, unlink all slaves.
+	-- If this stop is a master, unlink all slaves. Use the cached links rather
+	-- than the graph, which is unreachable once the station combinator is gone.
 	if stop.is_master then
-		local slaves = stop:get_slaves()
-		for _, slave_stop in pairs(slaves) do
-			unlink(slave_stop)
+		local id = stop.id
+		for _, node in pairs(storage.nodes) do
+			if node.type == "stop" then
+				---@cast node Cybersyn.TrainStop
+				if node.shared_inventory_master == id then unlink(node) end
+			end
 		end
+		stop.is_master = nil
 	end
 	-- If this stop is a slave, unlink from master.
 	if stop.shared_inventory_master then unlink(stop) end
@@ -655,3 +664,17 @@ cs2.on_combinator_node_associated(function(combinator, new_node, old_node)
 		relink_all(stop)
 	end
 end)
+
+-- Rebuild links when a combinator enters or leaves station mode, since shared
+-- inventory edges attach to the station combinator.
+events.bind(
+	"cs2.combinator_mode_changed",
+	---@param combinator Cybersyn.Combinator
+	function(combinator, new_mode, prev_mode)
+		if new_mode ~= "station" and prev_mode ~= "station" then return end
+		local stop = combinator:get_node("stop") --[[@as Cybersyn.TrainStop?]]
+		if not stop then return end
+		if prev_mode == "station" then unlink_all(stop) end
+		relink_all(stop)
+	end
+)

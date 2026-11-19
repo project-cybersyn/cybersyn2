@@ -3,6 +3,7 @@ local mod_root = assert(arg[1], "Pass the path to the Cybersyn 2 mod directory")
 local function fixture()
 	local node_created_handlers = {}
 	local events_raised = {}
+	local listeners = {}
 	local graph_edges = {}
 	local counters = {}
 	local game = { tick = 1000 }
@@ -80,9 +81,15 @@ local function fixture()
 			end,
 		},
 		["lib.core.event"] = {
-			bind = noop,
+			bind = function(name, handler)
+				listeners[name] = listeners[name] or {}
+				table.insert(listeners[name], handler)
+			end,
 			raise = function(name, ...)
 				events_raised[#events_raised + 1] = { name, ... }
+				for _, handler in ipairs(listeners[name] or {}) do
+					handler(...)
+				end
 			end,
 		},
 		["lib.core.strace"] = {
@@ -101,7 +108,7 @@ local function fixture()
 				return counters[name]
 			end,
 		},
-		["lib.core.scheduler"] = { register_handler = noop },
+		["lib.core.scheduler"] = { register_handler = noop, at = noop },
 		["lib.core.thread"] = {
 			add_workload = function(workload, amount)
 				if workload then workload.workload = workload.workload + amount end
@@ -127,7 +134,18 @@ local function fixture()
 			combinators_v1 = {},
 			parent_child_v1 = {},
 			triggers_v1 = { arm_trigger = noop },
-			graph_v1 = { get_edges = function(_, id) return graph_edges[id] end },
+			graph_v1 = {
+				get_edges = function(_, id)
+					local incoming = nil
+					for from, outgoing in pairs(graph_edges) do
+						if outgoing[id] then
+							incoming = incoming or {}
+							incoming[from] = true
+						end
+					end
+					return graph_edges[id], incoming
+				end,
+			},
 		},
 	}
 	env.require = function(name)
@@ -197,7 +215,11 @@ local function fixture()
 	cs2.LogisticsThread = class("TestLogisticsThread", StateMachine)
 	env.require("scripts.tasks.dispatch-loop.poll-nodes")
 
-	local f = { game = game, events = events_raised }
+	local f = {
+		game = game,
+		events = events_raised,
+		raise = modules["lib.core.event"].raise,
+	}
 	local next_entity, next_thing = 100, 1000
 	function f.stop(parked)
 		next_entity = next_entity + 1
@@ -552,6 +574,135 @@ function tests.nonvolatile_poll_and_revision_changes()
 	f.advance()
 	f.poll(stop)
 	assert(not stop:is_dirty(), "A non-volatile station did not become clean")
+end
+
+function tests.rebuilt_orders_are_read_on_a_clean_stop()
+	local f = fixture()
+	local stop = f.stop(false)
+	local station = f.combinator(stop, "station", { iron = 100 }, { iron = 17 })
+	stop:rebuild_inventory()
+	f.advance(60)
+	f.poll(stop)
+	assert(not stop:is_dirty())
+
+	stop:rebuild_inventory()
+	f.advance()
+	f.poll(stop)
+	assert(f.order(stop, stop.id, station.id, "green").provides.iron == 17)
+end
+
+function tests.unread_orders_wait_for_a_complete_read()
+	local f = fixture()
+	local stop = f.stop(false)
+	local station = f.combinator(stop, "station", { iron = 100 }, { iron = 17 })
+	stop:rebuild_inventory()
+	f.advance(60)
+	f.poll(stop)
+
+	stop:rebuild_inventory()
+	stop.entity.parked = true
+	f.advance()
+	f.poll(stop)
+	assert(f.order(stop, stop.id, station.id, "green").unread)
+	stop.entity.parked = false
+	f.advance()
+	f.poll(stop)
+	local order = f.order(stop, stop.id, station.id, "green")
+	assert(not order.unread and order.provides.iron == 17)
+end
+
+function tests.shared_slave_orders_are_read_after_the_slave_is_cleaned()
+	local f = fixture()
+	local master, slave = f.stop(false), f.stop(false)
+	local master_comb = f.combinator(
+		master,
+		"station",
+		{ iron = 100 },
+		{ iron = 17 }
+	)
+	f.combinator(slave, "station", {}, {})
+	f.share(master, { slave })
+	f.advance(60)
+	f.poll(slave)
+	f.poll(master)
+	f.poll(slave)
+	assert(not master:is_dirty() and not slave:is_dirty())
+
+	slave:rebuild_inventory()
+	master:mark_dirty()
+	slave:mark_dirty()
+	f.advance()
+	f.poll(slave)
+	assert(not slave:is_dirty())
+	f.poll(master)
+	assert(f.order(master, slave.id, master_comb.id, "green").provides.iron == 17)
+end
+
+function tests.slave_without_station_drops_its_shared_orders()
+	local f = fixture()
+	local master, slave = f.stop(false), f.stop(false)
+	f.combinator(master, "station", { iron = 100 }, { iron = 17 })
+	local slave_comb = f.combinator(slave, "station", {}, {})
+	f.share(master, { slave })
+
+	slave_comb.mode = "inventory"
+	slave:rebuild_inventory()
+	for _, order in ipairs(master:get_orders()) do
+		assert(order.node_id ~= slave.id, "A stale slave order remained")
+	end
+end
+
+---@return boolean
+local function has_order_for(stop, node_id)
+	for _, order in ipairs(stop:get_orders()) do
+		if order.node_id == node_id then return true end
+	end
+	return false
+end
+
+local function change_mode(f, comb, new_mode)
+	local prev_mode = comb.mode
+	comb.mode = new_mode
+	f.raise("cs2.combinator_mode_changed", comb, new_mode, prev_mode)
+end
+
+function tests.master_leaving_station_mode_unlinks_and_relinks_slaves()
+	local f = fixture()
+	local master, slave = f.stop(false), f.stop(false)
+	local master_comb = f.combinator(master, "station", { iron = 1 }, {})
+	f.combinator(slave, "station", {}, {})
+	f.share(master, { slave })
+	assert(has_order_for(master, slave.id))
+
+	change_mode(f, master_comb, "inventory")
+	assert(slave.shared_inventory_master == nil, "Slave remained linked")
+	assert(not master.is_master, "Master flag remained set")
+	assert(slave.inventory_id == slave.created_inventory_id)
+	assert(not has_order_for(master, slave.id), "Master kept a slave order")
+	assert(has_order_for(slave, slave.id), "Slave did not rebuild its orders")
+
+	change_mode(f, master_comb, "station")
+	assert(slave.shared_inventory_master == master.id, "Slave was not relinked")
+	assert(master.is_master and slave.inventory_id == master.inventory_id)
+	assert(has_order_for(master, slave.id), "Master lacks the slave order")
+end
+
+function tests.slave_leaving_station_mode_unlinks_and_relinks()
+	local f = fixture()
+	local master, slave = f.stop(false), f.stop(false)
+	f.combinator(master, "station", { iron = 1 }, {})
+	local slave_comb = f.combinator(slave, "station", {}, {})
+	f.share(master, { slave })
+
+	change_mode(f, slave_comb, "inventory")
+	assert(slave.shared_inventory_master == nil, "Slave remained linked")
+	assert(not master.is_master, "Master flag remained set")
+	assert(slave.inventory_id == slave.created_inventory_id)
+	assert(not has_order_for(master, slave.id), "Master kept a slave order")
+
+	change_mode(f, slave_comb, "station")
+	assert(slave.shared_inventory_master == master.id, "Slave was not relinked")
+	assert(master.is_master and has_order_for(master, slave.id))
 end
 
 local count = 0

@@ -267,6 +267,7 @@ lib.OrderStatusShortDescription = OrderShortStatusDescription
 ---@field public fullness_when_providing boolean? `true` if this order enforces train fullness threshold when providing
 ---@field public round_to_stacks boolean? `true` if this order rounds deliveries down to full stacks.
 ---@field public needs_stale boolean? `true` if this order should have its needs recomputed during `get_needs`
+---@field public unread boolean? `true` if this order has not completed a full read since it was created.
 ---@field public status? Cybersyn.OrderStatus Status for a requesting order.
 ---@field public status_info? table? Additional info related to the status
 ---@field public status_tick? uint64 The tick on which the current status was assigned.

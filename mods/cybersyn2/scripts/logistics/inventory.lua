@@ -357,9 +357,11 @@ function StopInventory:update(workload, reread_combs, reread_orders)
 		end
 	end
 
-	-- Reread orders
+	-- Reread orders. New orders stay unread until a complete read succeeds.
+	local orders_read = reread_combs and inputs_read
 	for _, order in pairs(self.orders) do
 		order:read(workload, reread_orders)
+		if orders_read then order.unread = nil end
 	end
 
 	if reread_combs then self.last_read_complete = inputs_read end

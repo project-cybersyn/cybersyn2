@@ -5,6 +5,7 @@
 local relm = require("lib.core.relm.relm")
 local relm_util = require("lib.core.relm.util")
 local ultros = require("lib.core.relm.ultros")
+local events = require("lib.core.event")
 local cs2 = _G.cs2
 local gui = _G.cs2.gui
 local mod_settings = _G.cs2.mod_settings
@@ -500,13 +501,9 @@ relm.define_element({
 					},
 					top_margin = 6,
 				}, {
-					gui.VirtualSignalPicker(
-						props.combinator,
-						"signal_reserved_slots",
-						{
-							"cybersyn2-combinator-mode-station.signal-reserved-slots-tooltip",
-						}
-					),
+					gui.VirtualSignalPicker(props.combinator, "signal_reserved_slots", {
+						"cybersyn2-combinator-mode-station.signal-reserved-slots-tooltip",
+					}),
 				}),
 				ultros.Labeled({
 					caption = {
@@ -514,13 +511,9 @@ relm.define_element({
 					},
 					top_margin = 6,
 				}, {
-					gui.VirtualSignalPicker(
-						props.combinator,
-						"signal_reserved_fluid",
-						{
-							"cybersyn2-combinator-mode-station.signal-reserved-fluid-tooltip",
-						}
-					),
+					gui.VirtualSignalPicker(props.combinator, "signal_reserved_fluid", {
+						"cybersyn2-combinator-mode-station.signal-reserved-fluid-tooltip",
+					}),
 				}),
 				ultros.Labeled({
 					caption = { "cybersyn2-combinator-mode-station.signal-spillover" },
@@ -636,76 +629,49 @@ cs2.register_combinator_mode({
 -- Events
 --------------------------------------------------------------------------------
 
--- Rebuild inventory on station comb reassociation
+---Apply the topology selected by the node's current station combinator, or
+---restore the default topology if it has none.
+---@param node Cybersyn.Node
+local function evaluate_station_topology(node)
+	local station = node:get_combinator_with_mode("station")
+	local topology_signal = station and station:get_topology_signal()
+	node:set_topology_by_name(topology_signal and topology_signal.name)
+end
+
+---@param node Cybersyn.Node?
+local function evaluate_station_node(node)
+	if not node then return end
+	node:rebuild_inventory()
+	evaluate_station_topology(node)
+end
+
 cs2.on_combinator_node_associated(function(combinator, from, to)
 	if combinator.mode == "station" then
-		if from then
-			---@cast from Cybersyn.Node
-			from:rebuild_inventory()
-		end
-		if to then
-			---@cast to Cybersyn.Node
-			to:rebuild_inventory()
-		end
+		evaluate_station_node(from)
+		evaluate_station_node(to)
 	end
 end)
 
--- Rebuild inventory on critical setting changes
-cs2.on_combinator_setting_changed(
-	function(combinator, setting, next_value, prev_value)
-		if
-			(
-				setting == "mode"
-				and (next_value == "station" or prev_value == "station")
-			)
-			or setting == "primary_wire"
-			or setting == "shared_inventory_independent_orders"
-			or (combinator.mode == "station" and setting == nil)
-		then
-			local node = combinator:get_node()
-			if node then node:rebuild_inventory() end
+events.bind(
+	"cs2.combinator_mode_changed",
+	function(combinator, new_mode, prev_mode)
+		if new_mode == "station" or prev_mode == "station" then
+			evaluate_station_node(combinator:get_node())
 		end
 	end
 )
 
--- Apply topology on station comb reassociation
-cs2.on_combinator_node_associated(function(combinator, from, to)
-	if combinator.mode == "station" then
-		local topology_signal = combinator:get_topology_signal()
-		if from then
-			---@cast from Cybersyn.Node
-			from:set_topology(nil)
-		end
-		if to then
-			---@cast to Cybersyn.Node
-			if topology_signal then
-				to:set_topology_by_name(topology_signal.name)
-			else
-				to:set_topology(nil)
-			end
-		end
+cs2.on_combinator_setting_changed(function(combinator, setting)
+	if combinator.mode ~= "station" then return end
+	local node = combinator:get_node()
+	if not node then return end
+	if
+		setting == nil
+		or setting == "primary_wire"
+		or setting == "shared_inventory_independent_orders"
+	then
+		evaluate_station_node(node)
+	elseif setting == "topology_signal" then
+		evaluate_station_topology(node)
 	end
 end)
-
--- Apply topology on critical setting changes
-cs2.on_combinator_setting_changed(
-	function(combinator, setting, next_value, prev_value)
-		if
-			(
-				setting == "mode"
-				and (next_value == "station" or prev_value == "station")
-			)
-			or setting == "topology_signal"
-			or (combinator.mode == "station" and setting == nil)
-		then
-			local node = combinator:get_node()
-			if node then
-				if next_value then
-					node:set_topology_by_name(next_value.name)
-				else
-					node:set_topology(nil)
-				end
-			end
-		end
-	end
-)

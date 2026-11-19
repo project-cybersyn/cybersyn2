@@ -4,6 +4,9 @@ Date: ????
   Changes:
   Bugfixes:
     - Fixed an issue where allow list was not recomputed properly when changing a combinator away from allow list mode.
+    - Fixed station topology not updating correctly when a station combinator's mode is changed.
+    - Fixed stations sometimes providing or requesting nothing after their combinator configuration changed until their inputs changed again.
+    - Fixed shared inventory station links remaining when the master or slave station combinator is changed away from station mode.
 ---------------------------------------------------------------------------------------------------
 Version: 0.6.1
 Date: 2026-11-14

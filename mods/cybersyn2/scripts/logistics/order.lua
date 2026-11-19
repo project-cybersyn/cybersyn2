@@ -99,6 +99,7 @@ function Order:new(inventory, node_id, arity, combinator_id, combinator_input)
 		busy_value = 0,
 		network_matching_mode = "or",
 		stacked_requests = false,
+		unread = true,
 	}
 	setmetatable(obj, self)
 	return obj --[[@as Cybersyn.Order]]
@@ -120,7 +121,7 @@ end
 
 ---Read the value of this order from its known combinator
 ---@param workload Core.Thread.Workload|nil If given, the workload of this operation will be added to the counter.
----@param force boolean? If true, the order will be read even if the stop is not dirty. If false or nil, the order will only be read if the stop is dirty.
+---@param force boolean? If true, the order will be read even if the stop is not dirty. If false or nil, the order will only be read if the stop is dirty or the order is unread.
 ---@return boolean updated `true` if the order was updated
 function Order:read(workload, force)
 	add_workload(workload, 1)
@@ -145,8 +146,8 @@ function Order:read(workload, force)
 	self.busy_value = stop:get_occupancy()
 	add_workload(workload, 1)
 
-	-- Elide order reading for clean stops
-	if not force and not stop:is_dirty() then return false end
+	-- Elide order reading for clean stops, unless this order has never been read.
+	if not force and not self.unread and not stop:is_dirty() then return false end
 
 	-- Early clear provides/reqs
 	self:clear_prov_req()
